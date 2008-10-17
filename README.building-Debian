@@ -1,0 +1,12 @@
+On a 32 bit machine:
+
+  ./switch-target-distribution debian
+  # Rename the directory if the output prompts you to.
+  dpkg-buildpackage -rfakeroot -us -uc -I.git
+
+  ./switch-target-distribution ubuntu
+  # Rename the directory if the output prompts you to.
+  dpkg-buildpackage -rfakeroot -us -uc -I.git
+
+Similarly on a 64 bit machine.  scp the output in the directory above
+to pacific and follow the instructions in simple-apt-repository-setup

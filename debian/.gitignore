@@ -1,3 +1,5 @@
+control
+changelog
 *.log
 fiji
 *.substvars
