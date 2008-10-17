@@ -1,4 +1,4 @@
-fiji (0.9.3.20081015rc4) unstable; urgency=low
+fiji (0.9.3.20081015rc4@@UBUNTU_SUFFIX@@) unstable; urgency=low
 
   * An update for the public release of Fiji to the ImageJ
     mailing list.  The key difference here is that we no
