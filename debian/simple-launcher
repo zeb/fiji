@@ -2,4 +2,7 @@
 
 set -e
 
-JAVA_HOME=@@INSTALLED_JVM_ROOT@@ /usr/lib/fiji/fiji --fiji-dir /usr/lib/fiji/ "$@"
+export JAVA_HOME=@@INSTALLED_JVM_ROOT@@
+export LD_LIBRARY_PATH=@@LD_LIBRARY_PATH@@
+
+/usr/lib/fiji/fiji --class-path @@JAVA_3D_JARS@@ --fiji-dir /usr/lib/fiji/ "$@"
