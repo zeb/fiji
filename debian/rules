@@ -75,6 +75,8 @@ prebuild-actions :
 		echo "This indicates that one of the submodules isn't on" && \
 		echo "the just-java3d branch" && \
 		false; fi
+	rm -rfv java/linux/jdk1.6.0_06/jre/.systemPrefs
+	rm -rfv java/linux-amd64/jdk1.6.0_04/jre/.systemPrefs
 
 # This has to be exported to make some magic below work.
 export DH_OPTIONS
