@@ -19,40 +19,62 @@ DEB_BUILD_ARCH := $(shell dpkg-architecture -qDEB_BUILD_ARCH)
 CWD := $(shell pwd)
 
 ifeq ($(DEB_BUILD_ARCH),i386)
+JRE_SUBMODULE := java/linux/
 JRE_PREFIX := linux/jdk1.6.0_06/
-RELATIVE_JAVA3D_JARS := ext/j3dcore.jar ext/j3dutils.jar ext/vecmath.jar i386/libj3dcore-ogl-cg.so i386/libj3dcore-ogl.so
+RELATIVE_JAVA3D_JARS := ext/j3dcore.jar ext/j3dutils.jar ext/vecmath.jar
+RELATIVE_JAVA3D_LIBRARIES := i386/libj3dcore-ogl-cg.so i386/libj3dcore-ogl.so
 BUNDLED_JAVA_LIB := java/linux/jdk1.6.0_06/jre/lib/
+NEW_LD_LIBRARY_PATH := /usr/lib/fiji/$(BUNDLED_JAVA_LIB)i386/
 else
 ifeq ($(DEB_BUILD_ARCH),amd64)
+JRE_SUBMODULE := java/linux-amd64/
 JRE_PREFIX := linux-amd64/jdk1.6.0_04/
-RELATIVE_JAVA3D_JARS := ext/j3dcore.jar ext/j3dutils.jar ext/vecmath.jar amd64/libj3dcore-ogl.so
+RELATIVE_JAVA3D_JARS := ext/j3dcore.jar ext/j3dutils.jar ext/vecmath.jar
+RELATIVE_JAVA3D_LIBRARIES := amd64/libj3dcore-ogl.so
 BUNDLED_JAVA_LIB := java/linux-amd64/jdk1.6.0_04/jre/lib/
+NEW_LD_LIBRARY_PATH := /usr/lib/fiji/$(BUNDLED_JAVA_LIB)amd64/
 else
 JRE_PREFIX := linux/unknown/
 endif
 endif
 
+
+BUNDLED_JAVA3D_LIBRARIES := $(patsubst %,$(BUNDLED_JAVA_LIB)%,$(RELATIVE_JAVA3D_LIBRARIES))
+INSTALLED_BUNDLED_JAVA3D_LIBRARIES_SPACE_SEPARATED := $(patsubst %,/usr/lib/fiji/%,$(BUNDLED_JAVA3D_LIBRARIES))
+INSTALLED_BUNDLED_JAVA3D_LIBRARIES := $(shell echo $(INSTALLED_BUNDLED_JAVA3D_LIBRARIES_SPACE_SEPARATED) | sed 's/ /:/g')
+
 BUNDLED_JAVA3D_JARS := $(patsubst %,$(BUNDLED_JAVA_LIB)%,$(RELATIVE_JAVA3D_JARS))
+INSTALLED_BUNDLED_JAVA3D_JARS_SPACE_SEPARATED := $(patsubst %,/usr/lib/fiji/%,$(BUNDLED_JAVA3D_JARS))
+INSTALLED_BUNDLED_JAVA3D_JARS := $(shell echo $(INSTALLED_BUNDLED_JAVA3D_JARS_SPACE_SEPARATED) | sed 's/ /:/g')
 
 JAVA3D_JARS_SPACE_SEPARATED := $(patsubst %,$(CWD)/%,$(BUNDLED_JAVA3D_JARS))
 JAVA3D_JARS := $(shell echo $(JAVA3D_JARS_SPACE_SEPARATED) | sed 's/ /:/g')
 
-DISTRO := $(shell lsb_release -is)
-ifeq ($(DISTRO),Debian)
-	INSTALLED_JVM_ROOT := /usr/lib/jvm/java-6-sun-1.6.0.07/
-else
-ifeq ($(DISTRO),Ubuntu)
-	INSTALLED_JVM_ROOT := /usr/lib/jvm/java-6-sun-1.6.0.03/
-endif
-endif
+INSTALLED_JVM_ROOT := /usr/lib/jvm/java-6-sun/
+
+VERSION_IN_CHANGELOG=$(shell dpkg-parsechangelog | egrep ^Version: | sed "s/Version: //")
+PACKAGE_IN_CHANGELOG=$(shell dpkg-parsechangelog | egrep ^Source: | sed "s/Source: //")
+
+CWD_BASENAME=$(shell basename `realpath .`)
+REQUIRED_DIRECTORY_NAME=${PACKAGE_IN_CHANGELOG}-${VERSION_IN_CHANGELOG}
 
 prebuild-actions :
-	# This is rather silly: we should just branch the Java
-	# submodules, I think.
-	tar czvf preserved-java.tar.gz $(BUNDLED_JAVA3D_JARS) && \
-	rm -rf java/* && \
-	tar xzvf preserved-java.tar.gz && \
-	rm preserved-java.tar.gz
+	if test $(CWD_BASENAME) != $(REQUIRED_DIRECTORY_NAME); then \
+		echo "Warning: the current directory name ($(CWD_BASENAME)) does not match" && \
+		echo "the package name and version in the new changelog." && \
+		echo "Rename this directory to: $(REQUIRED_DIRECTORY_NAME)" && \
+		false; fi
+	if test x$$(ls -1 java/ | wc -l) != x2; then \
+		echo "You have more than two subdirectories of java/." && \
+		echo "Most likely you have submodules other than java/linux and java/linux-amd64" && \
+		echo "in that directory; remove them or you'll end up with a gigantic source" && \
+		echo "package." && \
+		false; fi
+	if test x$$(find java -name '*.jar' | wc -l) != x6; then \
+		echo "You don't have exactly three .jar files under java/" && \
+		echo "This indicates that one of the submodules isn't on" && \
+		echo "the just-java3d branch" && \
+		false; fi
 
 # This has to be exported to make some magic below work.
 export DH_OPTIONS
@@ -110,17 +132,17 @@ install-arch-stamp : build-arch-stamp
 	install -d $(DESTDIR)/usr/bin/
 	install -d $(DESTDIR)/usr/lib/fiji/
 	install -m 755 fiji $(DESTDIR)/usr/lib/fiji/
-	< debian/simple-launcher sed s,@@INSTALLED_JVM_ROOT@@,$(INSTALLED_JVM_ROOT), > $(DESTDIR)/usr/bin/fiji
+	< debian/simple-launcher sed \
+		-e 's,@@INSTALLED_JVM_ROOT@@,$(INSTALLED_JVM_ROOT),' \
+		-e 's,@@JAVA_3D_JARS@@,$(INSTALLED_BUNDLED_JAVA3D_JARS),' \
+		-e 's,@@LD_LIBRARY_PATH@@,$(NEW_LD_LIBRARY_PATH),' > $(DESTDIR)/usr/bin/fiji
 	chmod 755 $(DESTDIR)/usr/bin/fiji
 	cp -rv plugins $(DESTDIR)/usr/lib/fiji/
 	cp -rv jars $(DESTDIR)/usr/lib/fiji/
 	cp -rv macros $(DESTDIR)/usr/lib/fiji/
 	cp -rv images $(DESTDIR)/usr/lib/fiji/
-	install -d $(DESTDIR)/$(INSTALLED_JVM_ROOT)jre/lib/ext
-	install -d $(DESTDIR)/$(INSTALLED_JVM_ROOT)jre/lib/$(DEB_BUILD_ARCH)
-	for i in $(RELATIVE_JAVA3D_JARS); do \
-		install -m 644 java/$(JRE_PREFIX)jre/lib/$${i} $(DESTDIR)$(INSTALLED_JVM_ROOT)jre/lib/$${i}; \
-	done
+	install -d $(DESTDIR)/usr/lib/fiji/$(JRE_SUBMODULE)
+	cp -rv java/$(JRE_PREFIX) $(DESTDIR)/usr/lib/fiji/$(JRE_SUBMODULE)
 	install -d $(DESTDIR)/usr/share/doc/fiji/
 	install -m 644 ij.jar $(DESTDIR)/usr/lib/fiji/
 	install -m 644 LICENSES $(DESTDIR)/usr/share/doc/fiji/
