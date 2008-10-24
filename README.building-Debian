@@ -1,3 +1,12 @@
+First (if you understand what this command does!) make sure you've
+cleaned the build products from fiji:
+
+  git clean -f -X && \
+  for d in ImageJA Retrotranslator TrakEM2 VIB bio-formats clojure ij-plugins micromanager1.1 mpicbg
+  do
+    ( cd $d && git clean -f -X )
+  done
+
 On a 32 bit machine:
 
   dpkg-buildpackage -rfakeroot -us -uc -I.git
