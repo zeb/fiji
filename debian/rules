@@ -18,26 +18,31 @@ DEB_BUILD_ARCH := $(shell dpkg-architecture -qDEB_BUILD_ARCH)
 
 CWD := $(shell pwd)
 
+JRE_SUBMODULE_I386 := java/linux/
+JRE_SUBMODULE_AMD64 := java/linux-amd64/
+
+JRE_PREFIX_I386 := linux/jdk1.6.0_06/
+JRE_PREFIX_AMD64 := linux-amd64/jdk1.6.0_04/
+
 ifeq ($(DEB_BUILD_ARCH),i386)
-JRE_SUBMODULE := java/linux/
-JRE_PREFIX := linux/jdk1.6.0_06/
+JRE_SUBMODULE := $(JRE_SUBMODULE_I386)
+JRE_PREFIX := $(JRE_PREFIX_I386)
 RELATIVE_JAVA3D_JARS := ext/j3dcore.jar ext/j3dutils.jar ext/vecmath.jar
 RELATIVE_JAVA3D_LIBRARIES := i386/libj3dcore-ogl-cg.so i386/libj3dcore-ogl.so
-BUNDLED_JAVA_LIB := java/linux/jdk1.6.0_06/jre/lib/
+BUNDLED_JAVA_LIB := java/$(JRE_PREFIX_I386)jre/lib/
 NEW_LD_LIBRARY_PATH := /usr/lib/fiji/$(BUNDLED_JAVA_LIB)i386/
 else
 ifeq ($(DEB_BUILD_ARCH),amd64)
-JRE_SUBMODULE := java/linux-amd64/
-JRE_PREFIX := linux-amd64/jdk1.6.0_04/
+JRE_SUBMODULE := $(JRE_SUBMODULE_AMD64)
+JRE_PREFIX := $(JRE_PREFIX_AMD64)
 RELATIVE_JAVA3D_JARS := ext/j3dcore.jar ext/j3dutils.jar ext/vecmath.jar
 RELATIVE_JAVA3D_LIBRARIES := amd64/libj3dcore-ogl.so
-BUNDLED_JAVA_LIB := java/linux-amd64/jdk1.6.0_04/jre/lib/
+BUNDLED_JAVA_LIB := java/$(JRE_PREFIX_AMD64)jre/lib/
 NEW_LD_LIBRARY_PATH := /usr/lib/fiji/$(BUNDLED_JAVA_LIB)amd64/
 else
 JRE_PREFIX := linux/unknown/
 endif
 endif
-
 
 BUNDLED_JAVA3D_LIBRARIES := $(patsubst %,$(BUNDLED_JAVA_LIB)%,$(RELATIVE_JAVA3D_LIBRARIES))
 INSTALLED_BUNDLED_JAVA3D_LIBRARIES_SPACE_SEPARATED := $(patsubst %,/usr/lib/fiji/%,$(BUNDLED_JAVA3D_LIBRARIES))
