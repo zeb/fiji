@@ -1,25 +1,34 @@
 This package was debianized by Mark Longair <mhl@pobox.com> on
 Mon, 28 Apr 2008 14:26:19 +0200.
 
-It was downloaded from http://pacific.mpi-cbg.de/wiki/
+It was downloaded from http://pacific.mpi-cbg.de/
 
 This source package builds components with many different licenses and
 authors.  Please see LICENSES in this directory for further details.
 
-Upstream Author(s): 
+Upstream Authors: 
 
-   The author of ImageJ is Wayne Rasband <wsr@nih.gov>
+   The author of ImageJ is Wayne Rasband <wsr@nih.gov>.  The main
+   authors that have contributed to Fiji are (in alphabetical order)
+   Ignacio Arganda, Albert Cardona, Erwin Frise, Greg Jefferis, Verena
+   Kaynig, Mark Longair, Stephan Preibisch, Stephan Saalfeld, Johannes
+   Schindelin, Benjamin Schmid, Cornelius Sicker, Jean-Yves Tinevez
+   and Pavel Tomancak.
 
 Copyright: 
 
-    FIXME: complete this
-    <Copyright (C) YYYY Name OfAuthor>
-    <likewise for another author>
+   The licenses of the plugins bundled in Fiji are described in
+   the LICENSES.gz file in this directory.
 
 License:
 
-    ImageJA is released into the public domain.  Other plugins
-    have licensing as described in LICENSES.
+    ImageJA is released into the public domain.  Other plugins are
+    licensed as described in the LICENSES.gz file in this directory.
+    Currently these are not all DFSG-free, unfortunately, and this
+    needs to be resolved as soon as possible.  See bug 19 in the
+    Fiji bugzilla:
+
+      http://pacific.mpi-cbg.de/cgi-bin/bugzilla/show_bug.cgi?id=19
 
 The Debian packaging is (C) 2008, Mark Longair <mhl@pobox.com> and
 is licensed under the GPL, see `/usr/share/common-licenses/GPL'.
