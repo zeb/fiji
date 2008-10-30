@@ -146,7 +146,8 @@ install-arch-stamp : build-arch-stamp
 	cp -rv plugins $(DESTDIR)/usr/lib/fiji/
 	cp -rv jars $(DESTDIR)/usr/lib/fiji/
 	cp -rv macros $(DESTDIR)/usr/lib/fiji/
-	cp -rv images $(DESTDIR)/usr/lib/fiji/
+	install -d $(DESTDIR)/usr/share/fiji/
+	cp -rv images $(DESTDIR)/usr/share/fiji/
 	install -d $(DESTDIR)/usr/lib/fiji/$(JRE_SUBMODULE)
 	cp -rv java/$(JRE_PREFIX) $(DESTDIR)/usr/lib/fiji/$(JRE_SUBMODULE)
 	install -d $(DESTDIR)/usr/share/doc/fiji/
