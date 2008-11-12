@@ -1,3 +1,10 @@
+fiji (20081112.0) unstable; urgency=low
+
+  * Update to upstream cc66a23151d76e85 for the Luxembourg
+    release.
+
+ -- Mark Longair <mhl@pobox.com>  Thu, 30 Oct 2008 10:34:00 +0000
+
 fiji (20081030.0) unstable; urgency=low
 
   * Change the version numbering scheme again, hopefully for
