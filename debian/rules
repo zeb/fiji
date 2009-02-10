@@ -21,8 +21,8 @@ CWD := $(shell pwd)
 JRE_SUBMODULE_I386 := java/linux/
 JRE_SUBMODULE_AMD64 := java/linux-amd64/
 
-JRE_PREFIX_I386 := linux/jdk1.6.0_06/
-JRE_PREFIX_AMD64 := linux-amd64/jdk1.6.0_04/
+JRE_PREFIX_I386 := linux/jdk1.6.0_10/
+JRE_PREFIX_AMD64 := linux-amd64/jdk1.6.0_10/
 
 ifeq ($(DEB_BUILD_ARCH),i386)
 JRE_SUBMODULE := $(JRE_SUBMODULE_I386)
