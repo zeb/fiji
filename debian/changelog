@@ -1,6 +1,6 @@
 fiji (20090210.0) unstable; urgency=low
 
-  * Update to upstream b074d9f9296dbabd16378a179.  This upstream
+  * Update to upstream f35261a1d6bc9cbe7dd7070.  This upstream
     version has the same submodule versions as the
     Fiji-Luxembourg release, but is from after the switch to the
     new repository.
