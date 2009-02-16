@@ -1748,6 +1748,10 @@ static int start_ij(void)
 		add_option(options, "-Dsun.java.command=Fiji", 0);
 
 		update_files();
+		stringstream icon_option;
+		icon_option << "-icon=/usr/share/fiji/images/icon.png";
+		add_option(options, icon_option, 1);
+		add_option(options, "-title=Fiji", 1);
 	}
 
 	/* handle "--headless script.ijm" gracefully */
