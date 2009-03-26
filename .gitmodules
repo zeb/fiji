@@ -46,3 +46,6 @@
 [submodule "batik"]
 	path = batik
 	url = ssh://contrib@pacific.mpi-cbg.de/srv/git/batik/.git
+[submodule "jruby"]
+	path = jruby
+	url = git://pacific.mpi-cbg.de/jruby
