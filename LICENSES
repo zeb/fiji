@@ -57,6 +57,7 @@ Name					File					Author(s)						Contact	(2008)							License
 * Multiple Image Processor 		M_I_P.jar				Nathaniel Gonzalez Santiago				http://ciar.rcm.upr.edu/projects/imageprocessor/multiples/	GPL
 * Nonlinear Optimization		NonlinearOptimization.jar		Steve Verrill						http://www1.fpl.fs.fed.us/optimization.html			BSDR
 * Parallel Colt				parallelcolt-0.6.1.jar			CERN, Piotr Wendykier					http://piotr.wendykier.googlepages.com/parallelcolt		LGPL, cublas non-commercial only
+* Parallel Iterative Deconvolution	parallel_iterative_deconvolution.jar	Piotr Wendykier						http://piotr.wendykier.googlepages.com/iterativedeconvolution	GPL
 * PDF Viewer 				PDF_Viewer.jar				Albert Cardona 						acardona@ini.phys.ethz.ch					GPL
 * PostgreSQL JDBC 			postgresql-8.2-506.jdbc3.jar 		http://jdbc.postgresql.org/ 				http://jdbc.postgresql.org/					BSD
 * Register virtual stack slices 	register_virtual_stack_slices.jar 	Albert Cardona 						acardona@ini.phys.ethz.ch					GPL

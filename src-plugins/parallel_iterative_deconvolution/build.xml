@@ -1,0 +1,107 @@
+<project basedir="." default="build" name="parallel_iterative_deconvolution">
+	<property name="version" value="1.8" />
+
+	<property name="dist.dir" value="../${ant.project.name}-dist" />
+
+	<property name="proj.title" value="ParallelIterativeDeconvolution" />
+
+	<property name="javac.src" value="src" />
+
+	<property name="javac.dest" value="bin" />
+
+	<property name="doc.dest" value="doc" />
+
+	<property name="jar.dir" value="lib" />
+
+	<property name="jar.filename" value="${ant.project.name}-${version}.jar" />
+
+	<property name="src.tar.excludes" value="**/bin/** **/doc/** **/lib/**" />
+
+	<property name="doc.tar.includes" value="**/doc/**" />
+
+	<property name="optimization.dir" value="../Optimization" />
+
+	<property name="parallelcolt.dir" value="../ParallelColt" />
+
+	<property name="imagej.dir" value="../../ImageJ" />
+
+	<path id="javac.classpath">
+		<fileset dir="${optimization.dir}/lib">
+			<include name="*.jar" />
+		</fileset>
+		<fileset dir="${parallelcolt.dir}/lib">
+			<include name="*.jar" />
+		</fileset>
+		<fileset dir="${imagej.dir}/">
+			<include name="ij.jar" />
+		</fileset>
+	</path>
+
+	<target name="clean">
+		<delete dir="${javac.dest}" />
+		<delete dir="${jar.dir}" />
+	</target>
+
+	<target name="clean-dist">
+		<delete dir="${dist.dir}" />
+	</target>
+
+
+	<target name="build" depends="jar">
+	</target>
+
+	<target name="javac" depends="clean">
+		<mkdir dir="${javac.dest}" />
+		<javac srcdir="${javac.src}" destdir="${javac.dest}" includes="**/*.java" deprecation="on" debug="off" source="1.5" target="1.5">
+			<classpath refid="javac.classpath" />
+		</javac>
+	</target>
+
+
+	<target name="jar" depends="javac">
+		<mkdir dir="${jar.dir}" />
+		<jar jarfile="${jar.dir}/${jar.filename}" index="yes" compress="yes">
+			<fileset dir="${javac.dest}" />
+			<fileset dir="." includes="plugins.config" />
+		</jar>
+	</target>
+
+
+	<target name="doc">
+		<delete dir="${doc.dest}" />
+		<mkdir dir="${doc.dest}" />
+		<javadoc sourcepath="${javac.src}" destdir="${doc.dest}" public="true" author="true" use="true" splitIndex="true" version="true" doctitle="&lt;h2&gt;Parallel Iterative Deconvolution 2D&lt;/h2&gt;&lt;h4&gt;Multithreaded deblurring in Java&lt;/h4&gt;&lt;hr&gt;" windowtitle="Parallel Iterative Deconvolution ${version} - API Specification" header="&lt;b&gt;Parallel Iterative Deconvolution ${version}&lt;/b&gt;">
+			<packageset dir="${javac.src}" />
+			<link href="http://mathcs.emory.edu/~pwendyk/research/parallelcolt/doc/" />
+			<link href="http://rsbweb.nih.gov/ij/developer/api/" />
+			<classpath refid="javac.classpath" />
+			<source file="${javac.src}\Parallel_Iterative_Deconvolution_2D.java" />
+		</javadoc>
+	</target>
+
+	<target name="dist" depends="build, doc, clean-dist">
+		<basename property="proj.basename" file="." />
+		<mkdir dir="${dist.dir}/${proj.title}" />
+		<copy todir="${dist.dir}/${proj.title}">
+			<fileset dir="${optimization.dir}/lib" includes="*.jar" />
+			<fileset dir="${parallelcolt.dir}/lib">
+				<exclude name="**/junit*.jar" />
+			</fileset>
+			<fileset dir="${jar.dir}" includes="${jar.filename}" />
+			<fileset dir="${basedir}" includes="**/licenses/*" />
+			<fileset dir="${basedir}" includes="**/macros/*" />
+		</copy>
+
+		<tar tarfile="${dist.dir}/${ant.project.name}-${version}-bin.tar.bz2" basedir="${dist.dir}" includes="${proj.title}/" compression="bzip2" longfile="gnu" />
+		<zip zipfile="${dist.dir}/${ant.project.name}-${version}-bin.zip" basedir="${dist.dir}/" includes="${proj.title}/" />
+
+		<delete dir="${dist.dir}/${proj.title}" />
+
+		<tar tarfile="${dist.dir}/${ant.project.name}-${version}-doc.tar.bz2" basedir=".." includes="${proj.basename}/${doc.tar.includes}" compression="bzip2" longfile="gnu" />
+		<zip zipfile="${dist.dir}/${ant.project.name}-${version}-doc.zip" basedir=".." includes="${proj.basename}/${doc.tar.includes}" />
+
+		<tar tarfile="${dist.dir}/${ant.project.name}-${version}-src.tar.bz2" basedir=".." includes="${proj.basename}/" excludes="${src.tar.excludes}" compression="bzip2" longfile="gnu" />
+		<zip zipfile="${dist.dir}/${ant.project.name}-${version}-src.zip" basedir=".." includes="${proj.basename}/" excludes="${src.tar.excludes}" />
+	</target>
+
+</project>
