@@ -128,6 +128,7 @@ PLUGIN_TARGETS=plugins/Jython_Interpreter.jar \
 	plugins/ToAST_.jar \
 	plugins/MTrack2_.jar \
 	plugins/parallel_iterative_deconvolution.jar \
+	plugins/parallel_spectral_deconvolution.jar \
 	\
 	misc/Fiji.jar
 
@@ -211,6 +212,7 @@ jars/javac.jar <- src-plugins/com/sun/tools/javac/**/*.java \
 	src-plugins/javax/**/*.java
 
 CLASSPATH(plugins/parallel_iterative_deconvolution.jar)=jars/NonlinearOptimization.jar:jars/parallelcolt-0.6.1.jar
+CLASSPATH(plugins/parallel_spectral_deconvolution.jar)=jars/NonlinearOptimization.jar:jars/parallelcolt-0.6.1.jar
 jars/NonlinearOptimization.jar <- src-plugins/NonlinearOptimization/*/*.java
 
 # Third party plugins

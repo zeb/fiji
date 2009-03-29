@@ -1,0 +1,41 @@
+Parallel Spectral Deconvolution changelog
+
+1.8:	
+	- fixed bug in all FFT-based methods: a blurred image was padded reflexive instead of periodic 
+	- added resizing option (an image does not need to be padded to the next power of two size)
+	- added output option (a deblurred image is automatically converted to the chosen type)	
+	- the plugin is updated to use Parallel Colt 0.6
+
+1.7:	August 26, 2008
+	- added support for macros
+	- memory optimization for single precision methods
+	- added javadoc distribution
+	- bzip2 is used to compress tar archives
+	- the plugin is updated to use Parallel Colt 0.5
+
+1.6:	April 17, 2008
+	- the plugin is updated to use Parallel Colt 0.4
+
+1.5:	March 11, 2008
+	- from now on Deconvolve, Update and Cancel buttons are disabled while deconvolution is in progress
+	- from now on the main GUI window cannot be closed by using the button from the title bar   
+
+1.4:	March 1, 2008
+	- added threshold option
+
+1.3:	February 27, 2008
+	- memory optimization (all methods require less memory now)
+	- added info displayed in the status bar
+	- changed the title of a deblurred image
+
+1.2:	February 15, 2008
+	- added single precision
+	- added exceptions handling
+
+1.1:	January 6, 2008
+	- fixed bug causing poor results in all 3D methods with reflexive boundary conditions
+	- the plugin is updated to use Parallel Colt 0.2
+	- added benchmarks
+
+1.0:	September 28, 2007
+	- initial release
