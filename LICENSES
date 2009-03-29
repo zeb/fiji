@@ -55,6 +55,7 @@ Name					File					Author(s)						Contact	(2008)							License
 * Mines Java Toolkit 			edu_mines_jtk.jar 			Dave Hale 						http://www.mines.edu/~dhale/jtk/ 				CPL 1.0
 * MTrack2				MTrack2_.jar				Nico Stuurman						http://valelab.ucsf.edu/~nico/IJplugins/MTrack2.html		BSDR
 * Multiple Image Processor 		M_I_P.jar				Nathaniel Gonzalez Santiago				http://ciar.rcm.upr.edu/projects/imageprocessor/multiples/	GPL
+* Nonlinear Optimization		NonlinearOptimization.jar		Steve Verrill						http://www1.fpl.fs.fed.us/optimization.html			BSDR
 * Parallel Colt				parallelcolt-0.6.1.jar			CERN, Piotr Wendykier					http://piotr.wendykier.googlepages.com/parallelcolt		LGPL, cublas non-commercial only
 * PDF Viewer 				PDF_Viewer.jar				Albert Cardona 						acardona@ini.phys.ethz.ch					GPL
 * PostgreSQL JDBC 			postgresql-8.2-506.jdbc3.jar 		http://jdbc.postgresql.org/ 				http://jdbc.postgresql.org/					BSD

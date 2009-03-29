@@ -209,6 +209,8 @@ jars/javac.jar <- src-plugins/com/sun/tools/javac/**/*.java \
 	src-plugins/com/sun/source/**/*.java \
 	src-plugins/javax/**/*.java
 
+jars/NonlinearOptimization.jar <- src-plugins/NonlinearOptimization/*/*.java
+
 # Third party plugins
 
 # TODO: compile ij-ImageIO_ as submodule
