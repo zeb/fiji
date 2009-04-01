@@ -94,6 +94,7 @@ PLUGIN_TARGETS=plugins/Jython_Interpreter.jar \
 	plugins/Clojure_Interpreter.jar \
 	plugins/JRuby_Interpreter.jar \
 	plugins/BeanShell_Interpreter.jar \
+	plugins/JMathLib_Interpreter.jar \
 	plugins/bUnwarpJ_.jar \
 	plugins/register_virtual_stack_slices.jar \
 	plugins/registration_3d.jar \
@@ -183,6 +184,7 @@ CLASSPATH(plugins/BeanShell_Interpreter.jar)=jars/fiji-scripting.jar
 plugins/BeanShell_Interpreter.jar <- src-plugins/BSH/*.java
 CLASSPATH(plugins/Javascript_.jar)=jars/fiji-scripting.jar
 plugins/Javascript_.jar <- src-plugins/Javascript/*.java
+CLASSPATH(plugins/JMathLib_Interpreter.jar)=jars/fiji-scripting.jar:jars/JMathLib.jar
 
 plugins/Bug_Submitter.jar <- src-plugins/Bug_Submitter/*.java
 
