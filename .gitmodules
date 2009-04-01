@@ -49,3 +49,6 @@
 [submodule "junit"]
 	path = junit
 	url = contrib@pacific.mpi-cbg.de:/srv/git/junit
+[submodule "JMathLib"]
+	path = JMathLib
+	url = contrib@pacific.mpi-cbg.de:/srv/git/JMathLib
