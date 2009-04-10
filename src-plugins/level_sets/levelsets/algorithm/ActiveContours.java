@@ -31,10 +31,10 @@ public class ActiveContours extends LevelSetImplementation {
 	// Grey value tolerance
 	protected static double GREY_TOLERANCE = 30;
 
-	public static Parameter [] known_params = { Parameter.W_ADVECTION, Parameter.W_CURVATURE, Parameter.TOL_GRAYSCALE };
+	public static final Parameter [] known_params = { Parameter.W_ADVECTION, Parameter.W_CURVATURE, Parameter.TOL_GRAYSCALE };
 	
-	public ActiveContours(ImageContainer image,
-			ImageProgressContainer img_progress, StateContainer init_state) {
+	public ActiveContours(final ImageContainer image,
+			final ImageProgressContainer img_progress, final StateContainer init_state) {
 		super(image, img_progress, init_state);
 		// TODO Auto-generated constructor stub
 	}
@@ -44,7 +44,7 @@ public class ActiveContours extends LevelSetImplementation {
 	 * Sets the parameter.
 	 * Works only before the initialization (i.e. the first iteration)
 	 */
-	public void setParameter(Parameter param, double value) {
+	public void setParameter(final Parameter param, final double value) {
 		if ( ! needInit ) {
 			return;
 		}
@@ -65,7 +65,7 @@ public class ActiveContours extends LevelSetImplementation {
 	 * Returns the parameter.
 	 * @return The parameter
 	 */
-	public static Object getParameter(Parameter param) {
+	public static Object getParameter(final Parameter param) {
 		switch(param) {
 		case W_ADVECTION:
 			return new Double(ADVECTION_FORCE);
@@ -99,27 +99,25 @@ public class ActiveContours extends LevelSetImplementation {
 
 	
 	@Override
-	protected double getDeltaPhi(int x, int y, int z) {
+	protected double getDeltaPhi(final int x, final int y, final int z) {
         double image_term = getImageTerm(x, y, z);
         
         //         if (image_term < (CONVERGENCE_FACTOR / 2)) continue;
         
-        double curvature = getCurvatureTerm(x, y, z);
-        double advection = getAdvectionTerm(x, y, z);
+        final double curvature = getCurvatureTerm(x, y, z);
+        final double advection = getAdvectionTerm(x, y, z);
         
         //image_term = 0;           else num_updated++;
         
-        // calculate net change
-        double delta_phi = - DELTA_T * image_term *
+        // calculate net change delta_phi
+        return - DELTA_T * image_term *
                 (advection * ADVECTION_FORCE + curvature * CURVATURE_EPSILON);
-        
-        return delta_phi;
  	}
 
 	
-	private double getImageTerm(int x, int y, int z)
+	private double getImageTerm(final int x, final int y, int z)
 	{
-		int greyval = img.getPixel(x, y, z);
+		final int greyval = img.getPixel(x, y, z);
 		int greyval_penalty = Math.abs(greyval - this.seed_greyvalue);
 		if (greyval_penalty < GREY_TOLERANCE) greyval_penalty = 0;
 		return (1 / (1 + ((gradients[x][y][z] + greyval_penalty) * 2)));
@@ -127,29 +125,29 @@ public class ActiveContours extends LevelSetImplementation {
 
 	
 	// upwind scheme
-	protected double getAdvectionTerm(int x, int y, int z)
+	protected double getAdvectionTerm(final int x, final int y, final int z)
 	{
-		double xB = (x > 0) ?
+		final double xB = (x > 0) ?
 				phi.get(x - 1, y, z) : Double.MAX_VALUE;
-		double xF = (x + 1 < phi.getXLength()) ?
+		final double xF = (x + 1 < phi.getXLength()) ?
 				phi.get(x + 1, y, z) : Double.MAX_VALUE;
-		double yB = (y > 0) ?
+		final double yB = (y > 0) ?
 				phi.get(x, y - 1, z) : Double.MAX_VALUE;
-		double yF = (y + 1 < phi.getYLength()) ?
+		final double yF = (y + 1 < phi.getYLength()) ?
 				phi.get(x, y + 1, z) : Double.MAX_VALUE;
-		double zB = (z > 0) ?
+		final double zB = (z > 0) ?
 				phi.get(x, y, z - 1) : Double.MAX_VALUE;
-		double zF = (z + 1 < phi.getZLength()) ?
+		final double zF = (z + 1 < phi.getZLength()) ?
 				phi.get(x, y, z + 1) : Double.MAX_VALUE;
 
-		double cell_phi = phi.get(x, y, z);
+		final double cell_phi = phi.get(x, y, z);
 
-		double xBdiff = Math.max(cell_phi - xB, 0);
-		double xFdiff = Math.min(xF - cell_phi, 0);
-		double yBdiff = Math.max(cell_phi - yB, 0);
-		double yFdiff = Math.min(yF - cell_phi, 0);
-		double zBdiff = Math.max((cell_phi - zB) / zScale, 0);
-		double zFdiff = Math.min((zF - cell_phi) / zScale, 0);
+		final double xBdiff = Math.max(cell_phi - xB, 0);
+		final double xFdiff = Math.min(xF - cell_phi, 0);
+		final double yBdiff = Math.max(cell_phi - yB, 0);
+		final double yFdiff = Math.min(yF - cell_phi, 0);
+		final double zBdiff = Math.max((cell_phi - zB) / zScale, 0);
+		final double zFdiff = Math.min((zF - cell_phi) / zScale, 0);
 
 		return Math.sqrt(xBdiff * xBdiff + xFdiff * xFdiff +
 				yBdiff * yBdiff + yFdiff * yFdiff +
@@ -157,33 +155,33 @@ public class ActiveContours extends LevelSetImplementation {
 	}
 
 	// central differences
-	protected double getCurvatureTerm(int x, int y, int z)
+	protected double getCurvatureTerm(final int x, final int y, final int z)
 	{
 		if (x == 0 || x >= (phi.getXLength() - 1)) return 0;
 		if (y == 0 || y >= (phi.getYLength() - 1)) return 0;
-		boolean curvature_3d = false; //((z > 0) && (z < phi.getZLength() - 1));
+		final boolean curvature_3d = false; //((z > 0) && (z < phi.getZLength() - 1));
 
 		/* access to the deferred array is costly, so avoid multiple queries
 	         for the same value and pre assign here
 		 */
-		double cell_phi = phi.get(x, y, z);
-		double phiXB = phi.get(x - 1, y, z);
-		double phiXF = phi.get(x + 1, y, z);
-		double phiYB = phi.get(x, y - 1, z);
-		double phiYF = phi.get(x, y + 1, z);
+		final double cell_phi = phi.get(x, y, z);
+		final double phiXB = phi.get(x - 1, y, z);
+		final double phiXF = phi.get(x + 1, y, z);
+		final double phiYB = phi.get(x, y - 1, z);
+		final double phiYF = phi.get(x, y + 1, z);
 
-		double phiX = (phiXF - phiXB) / 2;
-		double phiY = (phiYF - phiYB) / 2;
-		double phiXX = (phiXF + phiXB - (2 * cell_phi));
-		double phiYY = (phiYF + phiYB - (2 * cell_phi));
-		double phiXY = (phi.get(x + 1, y + 1, z) - phi.get(x + 1, y - 1, z) -
+		final double phiX = (phiXF - phiXB) / 2;
+		final double phiY = (phiYF - phiYB) / 2;
+		final double phiXX = (phiXF + phiXB - (2 * cell_phi));
+		final double phiYY = (phiYF + phiYB - (2 * cell_phi));
+		final double phiXY = (phi.get(x + 1, y + 1, z) - phi.get(x + 1, y - 1, z) -
 				phi.get(x - 1, y + 1, z) + phi.get(x - 1, y - 1, z)) / 4;
 
 		double phiZ = 0, phiZZ = 0, phiXZ = 0, phiYZ = 0;
 		if (curvature_3d)
 		{
-			double phiZB = phi.get(x, y, z - 1);
-			double phiZF = phi.get(x, y, z + 1);
+			final double phiZB = phi.get(x, y, z - 1);
+			final double phiZF = phi.get(x, y, z + 1);
 			phiZ = (phiZF - phiZB) / 2;
 			phiZZ = (phiZF + phiZB - (2 * cell_phi));
 			phiXZ = (phi.get(x + 1, y, z + 1) - phi.get(x + 1, y, z - 1) - phi.get(x - 1, y, z + 1) + phi.get(x - 1, y, z - 1)) / 4;
