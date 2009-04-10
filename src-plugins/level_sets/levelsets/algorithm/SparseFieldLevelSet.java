@@ -38,32 +38,32 @@ public class SparseFieldLevelSet implements StagedAlgorithm
    private int [][][] state = null;
    
    // constant for areas inside the zero level set contour */
-   public static int INSIDE = -1;
+   public static final int INSIDE = -1;
    // constant for areas inside the zero level set contour */
-   public static int OUTSIDE = 1;
+   public static final int OUTSIDE = 1;
    
    // Tag for zero level voxel state
-   public static int STATE_ZERO = 0;
+   public static final int STATE_ZERO = 0;
    // Tag for voxels far (not part of a layer) inside the contour
-   public static int INSIDE_FAR = Integer.MIN_VALUE;
+   public static final int INSIDE_FAR = Integer.MIN_VALUE;
    // Tag for voxels far (not part of a layer) inside the contour
-   public static int OUTSIDE_FAR = Integer.MAX_VALUE;
+   public static final int OUTSIDE_FAR = Integer.MAX_VALUE;
    
    // Holds actions that will be performed on voxels after when updating
    private DeferredIntArray3D action = null;
    // No action scheduled yet
-   private static int NO_ACTION = 0;
+   private static final int NO_ACTION = 0;
    // Scheduled for layer change
-   private static int CHANGE_LAYER = 2;
+   private static final int CHANGE_LAYER = 2;
    // Active voxel scheduled for inside movement
-   private static int ACTIVE_OUTSIDE = OUTSIDE;
+   private static final int ACTIVE_OUTSIDE = OUTSIDE;
    // Active voxel scheduled for inde
-   private static int ACTIVE_INSIDE = INSIDE;
+   private static final int ACTIVE_INSIDE = INSIDE;
    // Tag to signal, that a voxel should NOT be moved to another layer
-   private static int NO_DRAG = Integer.MAX_VALUE - 1;
+   private static final int NO_DRAG = Integer.MAX_VALUE - 1;
    
    // Threshold around zero crossing for the levelset function for active set 
-   private static double PHI_THRESHOLD = 0.5d;
+   private static final double PHI_THRESHOLD = 0.5d;
    
    private double [][][] gradients = null;
    
@@ -74,17 +74,17 @@ public class SparseFieldLevelSet implements StagedAlgorithm
    // Progress image
    private ImageProgressContainer progress = null;
       
-   private static int NUM_LAYERS = 2;
+   private static final int NUM_LAYERS = 2;
    /* as zero layer is used to address the array it is assigned numlayers here!
     * not num_layers + 1 which would be more logical
     */
-   private static int ZERO_LAYER = NUM_LAYERS;
+   private static final int ZERO_LAYER = NUM_LAYERS;
    
    // Initial size of the layer lists
-   private static int INITIAL_LISTSIZE = 500;
+   private static final int INITIAL_LISTSIZE = 500;
    
    // List that holds the layer lists
-   private ArrayList[] layers = new ArrayList[2 * NUM_LAYERS + 1];
+   private final ArrayList[] layers = new ArrayList[2 * NUM_LAYERS + 1];
    
    // Lists for iterative layer change procedure
    private ArrayList<BandElement> outside_list = new ArrayList<BandElement>(INITIAL_LISTSIZE);
@@ -185,7 +185,7 @@ public class SparseFieldLevelSet implements StagedAlgorithm
     * Sets the Advection weight.
     * Works only before the initialization (i.e. the first iteration)
     */
-   public void setAdvectionWeight(double w) {
+   public void setAdvectionWeight(final double w) {
 	   if ( needInit )
 		   ADVECTION_FORCE = w;
    }
@@ -194,7 +194,7 @@ public class SparseFieldLevelSet implements StagedAlgorithm
     * Returns the Advection weight.
     * @return The Advection weight
     */
-   public static double getAdvectionWeight() {
+   public final static double getAdvectionWeight() {
 	   return ADVECTION_FORCE;
    }
 
@@ -202,7 +202,7 @@ public class SparseFieldLevelSet implements StagedAlgorithm
     * Sets the Curvature weight.
     * Works only before the initialization (i.e. the first iteration)
     */
-   public void setCurvatureWeight(double w) {
+   public void setCurvatureWeight(final double w) {
 	   if ( needInit )
 		   CURVATURE_EPSILON = w;
    }
@@ -211,7 +211,7 @@ public class SparseFieldLevelSet implements StagedAlgorithm
     * Returns the Curvature weight.
     * @return The Curvature weight
     */
-   public static double getCurvatureWeight() {
+   public final static double getCurvatureWeight() {
 	   return CURVATURE_EPSILON;
    }
 
@@ -220,7 +220,7 @@ public class SparseFieldLevelSet implements StagedAlgorithm
     * Careful with changing that. Convergence is set relative to the time change constant.
     * Works only before the initialization (i.e. the first iteration)
     */
-   public void setConvergenceFactor(double f) {
+   public void setConvergenceFactor(final double f) {
 	   if ( needInit )
 		   CONVERGENCE_WEIGHT = f;
    }
@@ -229,14 +229,14 @@ public class SparseFieldLevelSet implements StagedAlgorithm
     * Returns the Convergence factor.
     * @return The Convergence factor
     */
-   public static double getConvergenceFactor() {
+   public final static double getConvergenceFactor() {
 	   return CONVERGENCE_WEIGHT;
    }
   
    
  
    
-   private void init()
+   final private void init()
    {
       phi = new DeferredDoubleArray3D(source.getWidth(), source.getHeight(), source.getImageCount(), 5 , 0);
       state = new int[source.getWidth()][source.getHeight()][source.getImageCount()];
@@ -270,7 +270,7 @@ public class SparseFieldLevelSet implements StagedAlgorithm
       this.init_state = null;
       
       // This may be using a lot of memory - lets make sure to clean up before we get serious
-      System.gc();
+      //System.gc(); // WRONG
       
       createInactiveLayers();
       checkConsistency();
@@ -288,7 +288,7 @@ public class SparseFieldLevelSet implements StagedAlgorithm
     * granularity is the max number of iterations that are executed before it returns
     * returns true if no convergence reached (makes sense to continue), false if convergence has been reached
     */
-   public boolean step(int granularity)
+   public boolean step(final int granularity)
    {
 	  if (invalid) {
 		  return false;
@@ -334,7 +334,7 @@ public class SparseFieldLevelSet implements StagedAlgorithm
       return (!convergence);
    }
    
-   private void visualize(boolean set_output )
+   final private void visualize(final boolean set_output )
    {
 	   
 	  if ( progress == null ) {
@@ -369,7 +369,7 @@ public class SparseFieldLevelSet implements StagedAlgorithm
       progress.showProgressStep();
    }
    
-   private void iterate()
+   final private void iterate()
    {
       // Update voxels in the active layer
       convergence = updateActiveLayer();
@@ -431,7 +431,7 @@ public class SparseFieldLevelSet implements StagedAlgorithm
     * delayed until all voxels have been calculated to avoid influencing the
     * result by using neighbour voxels with already updated values
     */
-   private boolean updateActiveLayer()
+   final private boolean updateActiveLayer()
    {
       assert (update_list.size() == 0);
       
@@ -439,25 +439,25 @@ public class SparseFieldLevelSet implements StagedAlgorithm
       total_change = 0;
       num_updated = 0;
       
-      Iterator<BandElement> it = layers[ZERO_LAYER].iterator();
+      final Iterator<BandElement> it = layers[ZERO_LAYER].iterator();
       while (it.hasNext())
       {
-         BandElement elem = it.next();
-         int x = elem.getX();
-         int y = elem.getY();
-         int z = elem.getZ();
+         final BandElement elem = it.next();
+         final int x = elem.getX();
+         final int y = elem.getY();
+         final int z = elem.getZ();
          
-         double image_term = getImageTerm(x, y, z);
+         final double image_term = getImageTerm(x, y, z);
          
          //         if (image_term < (CONVERGENCE_FACTOR / 2)) continue;
          
-         double curvature = getCurvatureTerm(x, y, z);
-         double advection = getAdvectionTerm(x, y, z);
+         final double curvature = getCurvatureTerm(x, y, z);
+         final double advection = getAdvectionTerm(x, y, z);
          
          //image_term = 0;           else num_updated++;
          
          // calculate net change
-         double delta_phi = - DELTA_T * image_term *
+         final double delta_phi = - DELTA_T * image_term *
                  (advection * ADVECTION_FORCE + curvature * CURVATURE_EPSILON);
          
          // add absolute value of the net change of this voxel to the total change
@@ -465,7 +465,7 @@ public class SparseFieldLevelSet implements StagedAlgorithm
          num_updated++;
          
          // Calculate Phi value of the voxel after an executed update
-         double temp_phi = phi.get(x, y, z) + delta_phi;
+         final double temp_phi = phi.get(x, y, z) + delta_phi;
          
          if (temp_phi < INSIDE * PHI_THRESHOLD)
          {
@@ -514,10 +514,10 @@ public class SparseFieldLevelSet implements StagedAlgorithm
       }
       
       // All calculations are done, it is safe to do the updates now
-      it = update_list.iterator();
-      while (it.hasNext())
+      final Iterator<BandElement> it2 = update_list.iterator();
+      while (it2.hasNext())
       {
-         BandElement elem = it.next();
+         final BandElement elem = it2.next();
          // was queued more than once, only update one time so continue
          if (elem.getValue() == Double.MAX_VALUE) continue;
          
@@ -539,17 +539,17 @@ public class SparseFieldLevelSet implements StagedAlgorithm
     * inner layer nearest to the zero level set is located and then the voxel
     * value is updated to be that value plus distance (city block)
     */
-   private void updateInactiveLayer(int layer)
+   final private void updateInactiveLayer(final int layer)
    {
-      int delta_phi = (layer < ZERO_LAYER) ? INSIDE * 1 : OUTSIDE * 1;
+      final int delta_phi = (layer < ZERO_LAYER) ? INSIDE * 1 : OUTSIDE * 1;
       
-      Iterator<BandElement> it = layers[layer].iterator();
+      final Iterator<BandElement> it = layers[layer].iterator();
       while (it.hasNext())
       {
-         BandElement elem = it.next();
-         int x = elem.getX();
-         int y = elem.getY();
-         int z = elem.getZ();
+         final BandElement elem = it.next();
+         final int x = elem.getX();
+         final int y = elem.getY();
+         final int z = elem.getZ();
          
          // Check if this is an orphaned element - remove if so
          if (state[x][y][z] != layer - NUM_LAYERS)
@@ -559,7 +559,7 @@ public class SparseFieldLevelSet implements StagedAlgorithm
             continue;
          }
          
-         double value = checkNeighboursForUpdate(x, y, z, layer);
+         final double value = checkNeighboursForUpdate(x, y, z, layer);
          // no neighbour found, demote the element into the next outer layer
          if (Math.abs(value) == Double.MAX_VALUE)
          {
@@ -608,18 +608,18 @@ public class SparseFieldLevelSet implements StagedAlgorithm
     * layer in the next step. Therefore this methods output list ist the input
     * for the next call where the "drag_list" becomes the "swap_list".
     */
-   private void processLayerChangeList(List<BandElement> swap_list, int swap_to, List<BandElement> drag_list, int drag_index)
+   final private void processLayerChangeList(final List<BandElement> swap_list, final int swap_to, List<BandElement> drag_list, final int drag_index)
    {
       // Step through the swap list
-      Iterator<BandElement> it = swap_list.iterator();
+      final Iterator<BandElement> it = swap_list.iterator();
       while (it.hasNext())
       {
-         BandElement elem = it.next();
+         final BandElement elem = it.next();
          it.remove();
          
-         int elem_x = elem.getX();
-         int elem_y = elem.getY();
-         int elem_z = elem.getZ();
+         final int elem_x = elem.getX();
+         final int elem_y = elem.getY();
+         final int elem_z = elem.getZ();
          
          layers[swap_to + NUM_LAYERS].add(elem);
          elementLUT.set(elem_x, elem_y, elem_z, elem);
@@ -632,13 +632,13 @@ public class SparseFieldLevelSet implements StagedAlgorithm
             /* Step through neighbours and look for voxels with the appropriate
              * state (index) for dragging
              */
-            Iterator<BandElement> neighbours = neighbourhood(elem_x, elem_y, elem_z);
+            final Iterator<BandElement> neighbours = neighbourhood(elem_x, elem_y, elem_z);
             while (neighbours.hasNext())
             {
-               BandElement neighbour = neighbours.next();
-               int neighbour_x = neighbour.getX();
-               int neighbour_y = neighbour.getY();
-               int neighbour_z = neighbour.getZ();
+               final BandElement neighbour = neighbours.next();
+               final int neighbour_x = neighbour.getX();
+               final int neighbour_y = neighbour.getY();
+               final int neighbour_z = neighbour.getZ();
                
                /* If this voxel is not scheduled for layer change yet, get a
                 * BandElement object to represent this voxel and queue it in
@@ -648,7 +648,7 @@ public class SparseFieldLevelSet implements StagedAlgorithm
                        && action.get(neighbour_x, neighbour_y, neighbour_z) != CHANGE_LAYER)
                {
                   action.set(neighbour_x, neighbour_y, neighbour_z, CHANGE_LAYER);
-                  BandElement dragged =
+                  final BandElement dragged =
                           elem_cache.getRecycledBandElement(neighbour_x, neighbour_y, neighbour_z, Double.MAX_VALUE);
                   drag_list.add(dragged);
                }
@@ -663,22 +663,22 @@ public class SparseFieldLevelSet implements StagedAlgorithm
     * active layer on its stead. This method examines the neighbourhood, 
     * scheduling voxels for update that move into the active layer
     */ 
-   private void updateZeroLayerNeighbours(int x, int y, int z, int layer,
-           double temp_phi, List update_list)
+   final private void updateZeroLayerNeighbours(final int x, final int y, final int z, final int layer,
+           final double temp_phi, final List update_list)
    {
-      Iterator<BandElement> neighbours = neighbourhood(x, y, z);
+      final Iterator<BandElement> neighbours = neighbourhood(x, y, z);
       while (neighbours.hasNext())
       {
-         BandElement aNeighbour = neighbours.next();
+         final BandElement aNeighbour = neighbours.next();
          if (state[aNeighbour.getX()][aNeighbour.getY()][aNeighbour.getZ()] != (layer - NUM_LAYERS)) continue;
          
-         BandElement elem = elementLUT.get(aNeighbour.getX(), aNeighbour.getY(), aNeighbour.getZ());
-         int neighbour_x = elem.getX();
-         int neighbour_y = elem.getY();
-         int neighbour_z = elem.getZ();
+         final BandElement elem = elementLUT.get(aNeighbour.getX(), aNeighbour.getY(), aNeighbour.getZ());
+         final int neighbour_x = elem.getX();
+         final int neighbour_y = elem.getY();
+         final int neighbour_z = elem.getZ();
          
-         int side = (layer < ZERO_LAYER) ? INSIDE : OUTSIDE;
-         double value = (elem.getValue() == Double.MAX_VALUE) ? (Double.MAX_VALUE * side) : elem.getValue();
+         final int side = (layer < ZERO_LAYER) ? INSIDE : OUTSIDE;
+         final double value = (elem.getValue() == Double.MAX_VALUE) ? (Double.MAX_VALUE * side) : elem.getValue();
          
          if (layer < ZERO_LAYER)
          {
@@ -699,12 +699,12 @@ public class SparseFieldLevelSet implements StagedAlgorithm
       }
    }
    
-   private double checkNeighboursForUpdate(int x, int y, int z, int layer)
+   final private double checkNeighboursForUpdate(final int x, final int y, final int z, final int layer)
    {
       assert (state[x][y][z] == (layer - NUM_LAYERS));
       
-      double value, trial_value;
-      int from_layer;
+      double value;
+      final int from_layer;
       
       if (layer < ZERO_LAYER)
       {
@@ -717,13 +717,13 @@ public class SparseFieldLevelSet implements StagedAlgorithm
          value = Double.MAX_VALUE * OUTSIDE;
       }
       
-      Iterator<BandElement> it = neighbourhood(x, y, z);
+      final Iterator<BandElement> it = neighbourhood(x, y, z);
       while (it.hasNext())
       {
-         BandElement elem = it.next();
-         int elem_x = elem.getX();
-         int elem_y = elem.getY();
-         int elem_z = elem.getZ();
+         final BandElement elem = it.next();
+         final int elem_x = elem.getX();
+         final int elem_y = elem.getY();
+         final int elem_z = elem.getZ();
          
          // not a node in the next inner layer
          if (state[elem_x][elem_y][elem_z] != (from_layer - NUM_LAYERS))
@@ -731,7 +731,7 @@ public class SparseFieldLevelSet implements StagedAlgorithm
             continue;
          }
          
-         trial_value = phi.get(elem_x, elem_y, elem_z);
+         final double trial_value = phi.get(elem_x, elem_y, elem_z);
          
          if (layer < ZERO_LAYER)
          {
@@ -752,15 +752,15 @@ public class SparseFieldLevelSet implements StagedAlgorithm
       return value;
    }
    
-   private boolean zeroLayerNeighbourMovement(int x, int y, int z, int direction)
+   final private boolean zeroLayerNeighbourMovement(final int x, final int y, final int z, final int direction)
    {
-      Iterator<BandElement> it = neighbourhood(x, y, z);
+      final Iterator<BandElement> it = neighbourhood(x, y, z);
       while (it.hasNext())
       {
-         BandElement elem = it.next();
-         int elem_x = elem.getX();
-         int elem_y = elem.getY();
-         int elem_z = elem.getZ();
+         final BandElement elem = it.next();
+         final int elem_x = elem.getX();
+         final int elem_y = elem.getY();
+         final int elem_z = elem.getZ();
          
          // check if zero layer
          if (state[elem_x][elem_y][elem_z] != ZERO_LAYER)
@@ -778,29 +778,29 @@ public class SparseFieldLevelSet implements StagedAlgorithm
    }
    
    // upwind scheme
-   private double getAdvectionTerm(int x, int y, int z)
+   final private double getAdvectionTerm(final int x, final int y, final int z)
    {
-      double xB = (x > 0) ?
+      final double xB = (x > 0) ?
          phi.get(x - 1, y, z) : Double.MAX_VALUE;
-      double xF = (x + 1 < phi.getXLength()) ?
+      final double xF = (x + 1 < phi.getXLength()) ?
          phi.get(x + 1, y, z) : Double.MAX_VALUE;
-      double yB = (y > 0) ?
+      final double yB = (y > 0) ?
          phi.get(x, y - 1, z) : Double.MAX_VALUE;
-      double yF = (y + 1 < phi.getYLength()) ?
+      final double yF = (y + 1 < phi.getYLength()) ?
          phi.get(x, y + 1, z) : Double.MAX_VALUE;
-      double zB = (z > 0) ?
+      final double zB = (z > 0) ?
          phi.get(x, y, z - 1) : Double.MAX_VALUE;
-      double zF = (z + 1 < phi.getZLength()) ?
+      final double zF = (z + 1 < phi.getZLength()) ?
          phi.get(x, y, z + 1) : Double.MAX_VALUE;
       
-      double cell_phi = phi.get(x, y, z);
+      final double cell_phi = phi.get(x, y, z);
       
-      double xBdiff = Math.max(cell_phi - xB, 0);
-      double xFdiff = Math.min(xF - cell_phi, 0);
-      double yBdiff = Math.max(cell_phi - yB, 0);
-      double yFdiff = Math.min(yF - cell_phi, 0);
-      double zBdiff = Math.max((cell_phi - zB) / zScale, 0);
-      double zFdiff = Math.min((zF - cell_phi) / zScale, 0);
+      final double xBdiff = Math.max(cell_phi - xB, 0);
+      final double xFdiff = Math.min(xF - cell_phi, 0);
+      final double yBdiff = Math.max(cell_phi - yB, 0);
+      final double yFdiff = Math.min(yF - cell_phi, 0);
+      final double zBdiff = Math.max((cell_phi - zB) / zScale, 0);
+      final double zFdiff = Math.min((zF - cell_phi) / zScale, 0);
       
       return Math.sqrt(xBdiff * xBdiff + xFdiff * xFdiff +
               yBdiff * yBdiff + yFdiff * yFdiff +
@@ -808,28 +808,29 @@ public class SparseFieldLevelSet implements StagedAlgorithm
    }
    
    // central differneces
-   private double getCurvatureTerm(int x, int y, int z)
+   final private double getCurvatureTerm(final int x, final int y, final int z)
    {
       if (x == 0 || x >= (phi.getXLength() - 1)) return 0;
       if (y == 0 || y >= (phi.getYLength() - 1)) return 0;
-      boolean curvature_3d = false; //((z > 0) && (z < phi.getZLength() - 1));
+      //final boolean curvature_3d = false; //((z > 0) && (z < phi.getZLength() - 1));
       
         /* access to the deferred array is costly, so avoid multiple queries
          for the same value and pre assign here
          */
-      double cell_phi = phi.get(x, y, z);
-      double phiXB = phi.get(x - 1, y, z);
-      double phiXF = phi.get(x + 1, y, z);
-      double phiYB = phi.get(x, y - 1, z);
-      double phiYF = phi.get(x, y + 1, z);
+      final double cell_phi = phi.get(x, y, z);
+      final double phiXB = phi.get(x - 1, y, z);
+      final double phiXF = phi.get(x + 1, y, z);
+      final double phiYB = phi.get(x, y - 1, z);
+      final double phiYF = phi.get(x, y + 1, z);
       
-      double phiX = (phiXF - phiXB) / 2;
-      double phiY = (phiYF - phiYB) / 2;
-      double phiXX = (phiXF + phiXB - (2 * cell_phi));
-      double phiYY = (phiYF + phiYB - (2 * cell_phi));
-      double phiXY = (phi.get(x + 1, y + 1, z) - phi.get(x + 1, y - 1, z) -
+      final double phiX = (phiXF - phiXB) / 2;
+      final double phiY = (phiYF - phiYB) / 2;
+      final double phiXX = (phiXF + phiXB - (2 * cell_phi));
+      final double phiYY = (phiYF + phiYB - (2 * cell_phi));
+      final double phiXY = (phi.get(x + 1, y + 1, z) - phi.get(x + 1, y - 1, z) -
               phi.get(x - 1, y + 1, z) + phi.get(x - 1, y - 1, z)) / 4;
       
+      /*
       double phiZ = 0, phiZZ = 0, phiXZ = 0, phiYZ = 0;
       if (curvature_3d)
       {
@@ -840,11 +841,13 @@ public class SparseFieldLevelSet implements StagedAlgorithm
          phiXZ = (phi.get(x + 1, y, z + 1) - phi.get(x + 1, y, z - 1) - phi.get(x - 1, y, z + 1) + phi.get(x - 1, y, z - 1)) / 4;
          phiYZ = (phi.get(x, y + 1, z + 1) - phi.get(x, y + 1, z - 1) - phi.get(x, y - 1, z + 1) + phi.get(x, y - 1, z - 1)) / 4;
       }
+      */
       
       if (phiX == 0 || phiY == 0) return 0;
-      if (curvature_3d && phiZ == 0) return 0;
+      //if (curvature_3d && phiZ == 0) return 0;
       
       double curvature = 0, deltaPhi = 0;
+      /*
       if (curvature_3d)
       {
          deltaPhi = Math.sqrt(phiX * phiX + phiY * phiY + phiZ * phiZ);
@@ -858,33 +861,34 @@ public class SparseFieldLevelSet implements StagedAlgorithm
       }
       else
       {
+      */
          deltaPhi = Math.sqrt(phiX * phiX + phiY * phiY);
          curvature = -1 * ((phiXX * phiY * phiY) + (phiYY * phiX * phiX)
          - (2 * phiX * phiY * phiXY)) /
                  Math.pow(phiX * phiX + phiY * phiY, 3/2);
-      }
+      /*}*/
       
       return curvature * deltaPhi;
    }
    
-   private double getImageTerm(int x, int y, int z)
+   final private double getImageTerm(final int x, final int y, final int z)
    {
-      int greyval = img.getPixel(x, y, z);
+      final int greyval = img.getPixel(x, y, z);
       int greyval_penalty = Math.abs(greyval - this.seed_greyvalue);
       if (greyval_penalty < 30) greyval_penalty = 0;
       return (1 / (1 + ((gradients[x][y][z] + greyval_penalty) * 2)));
    }
    
-   private void createInactiveLayers()
+   final private void createInactiveLayers()
    {
       for (int i = 0; i <= (NUM_LAYERS - 1); i++)
       {
-         Iterator<BandElement> it = layers[ZERO_LAYER + i * INSIDE].iterator();
+         final Iterator<BandElement> it = layers[ZERO_LAYER + i * INSIDE].iterator();
          while (it.hasNext())
          {
-            BandElement elem = it.next();
+            final BandElement elem = it.next();
             
-            Iterator<BandElement> neighbours = neighbourhood(elem.getX(), elem.getY(), elem.getZ());
+            final Iterator<BandElement> neighbours = neighbourhood(elem.getX(), elem.getY(), elem.getZ());
             while (neighbours.hasNext())
             {
                 addToLayerIfFar(neighbours.next(), ZERO_LAYER + i * INSIDE);
@@ -893,12 +897,12 @@ public class SparseFieldLevelSet implements StagedAlgorithm
          
          if (i == 0) continue;
          
-         it = layers[ZERO_LAYER + i * OUTSIDE].iterator();
-         while (it.hasNext())
+         final Iterator<BandElement> it2 = layers[ZERO_LAYER + i * OUTSIDE].iterator();
+         while (it2.hasNext())
          {
-            BandElement elem = it.next();
+            final BandElement elem = it2.next();
             
-            Iterator<BandElement> neighbours = neighbourhood(elem.getX(), elem.getY(), elem.getZ());
+            final Iterator<BandElement> neighbours = neighbourhood(elem.getX(), elem.getY(), elem.getZ());
             while (neighbours.hasNext())
             {
                 addToLayerIfFar(neighbours.next(), ZERO_LAYER + i * OUTSIDE);
@@ -907,22 +911,22 @@ public class SparseFieldLevelSet implements StagedAlgorithm
       }
    }
    
-   private void addToLayerIfFar(BandElement element, int from_layer)
+   final private void addToLayerIfFar(final BandElement element, final int from_layer)
    {
-      int x = element.getX(); 
-      int y = element.getY(); 
-      int z = element.getZ(); 
+      final int x = element.getX(); 
+      final int y = element.getY(); 
+      final int z = element.getZ(); 
       
       if (state[x][y][z] == INSIDE_FAR)
       {
-         BandElement elem = new BandElement(x, y, z, Double.MAX_VALUE);
+         final BandElement elem = new BandElement(x, y, z, Double.MAX_VALUE);
          layers[from_layer + INSIDE].add(elem);
          elementLUT.set(x, y, z, elem);
          state[x][y][z] = from_layer - NUM_LAYERS + INSIDE;
       }
       else if (state[x][y][z] == OUTSIDE_FAR)
       {
-         BandElement elem = new BandElement(x, y, z, Double.MAX_VALUE);
+         final BandElement elem = new BandElement(x, y, z, Double.MAX_VALUE);
          layers[from_layer + OUTSIDE].add(elem);
          elementLUT.set(x, y, z, elem);
          state[x][y][z] = from_layer - NUM_LAYERS + OUTSIDE;
@@ -933,7 +937,7 @@ public class SparseFieldLevelSet implements StagedAlgorithm
       phi.set(x, y, z, state[x][y][z]);
    }
    
-   private void drawLayers(int from, int to)
+   final private void drawLayers(final int from, final int to)
    {
       for (int i = from; i <= to; i++)
       {
@@ -948,22 +952,22 @@ public class SparseFieldLevelSet implements StagedAlgorithm
             pixel[2] = 0;
          }
          
-         Iterator<BandElement> it = layers[i].iterator();
+         final Iterator<BandElement> it = layers[i].iterator();
          while (it.hasNext())
          {
-            BandElement elem = it.next();
+            final BandElement elem = it.next();
             progress.setPixel(elem.getX(), elem.getY(), elem.getZ(), pixel);
          }
       }
    }
    
-   private void createActiveLayer()
+   final private void createActiveLayer()
    {
       // DeferredByteArray3D statemap = fm.getStateMap();
 	  int px_zero = 0, px_inside = 0, px_outside = 0; 
 	  int grey_zero = 0, grey_inside = 0;
 	  
-      DeferredObjectArray3D<StateContainer.States> statemap = init_state.getForSparseField();
+      final DeferredObjectArray3D<StateContainer.States> statemap = init_state.getForSparseField();
       for (int x = 0; x < statemap.getXLength(); x++)
       {
          for (int y = 0; y < statemap.getYLength(); y++)
@@ -974,7 +978,7 @@ public class SparseFieldLevelSet implements StagedAlgorithm
                {
                   state[x][y][z] = STATE_ZERO;
                   phi.set(x, y, z, 0);
-                  BandElement element = new BandElement(x, y, z, 0);
+                  final BandElement element = new BandElement(x, y, z, 0);
                   layers[ZERO_LAYER].add(element);
                   elementLUT.set(x, y, z, element);
                   px_zero++;
@@ -1011,7 +1015,7 @@ public class SparseFieldLevelSet implements StagedAlgorithm
       }
    }
    
-   private boolean outOfRange(int x, int y, int z)
+   final private boolean outOfRange(final int x, final int y, final int z)
    {
       if (x < 0 || x > state.length - 1) return true;
       else if (y < 0 || y > state[0].length - 1) return true;
@@ -1019,10 +1023,10 @@ public class SparseFieldLevelSet implements StagedAlgorithm
       else return false;
    }
    
-   private Iterator<BandElement> neighbourhood(int x, int y, int z)
+   final private Iterator<BandElement> neighbourhood(final int x, final int y, final int z)
    {
       // 2 neighbours per dimension, 3 dimensions
-      ArrayList<BandElement> neighbourList = new ArrayList<BandElement>(6);
+      final ArrayList<BandElement> neighbourList = new ArrayList<BandElement>(6);
       if (!outOfRange(x - 1, y, z))
       {
          neighbourList.add(elem_cache.getRecycledBandElement(x - 1, y, z, Double.MAX_VALUE));
@@ -1051,21 +1055,21 @@ public class SparseFieldLevelSet implements StagedAlgorithm
       return neighbourList.iterator();
    }
    
-   private void checkConsistency()
+   final private void checkConsistency()
    {
       for (int i = 0; i < (2 * NUM_LAYERS + 1); i++)
       {
          IJ.log("Layer " + (i - NUM_LAYERS) + " : " + layers[i].size() +" elements");
-         Iterator<BandElement> it = layers[i].iterator();
+         final Iterator<BandElement> it = layers[i].iterator();
          while (it.hasNext())
          {
-            BandElement elem = it.next();
+            final BandElement elem = it.next();
             if (state[elem.getX()][elem.getY()][elem.getZ()] != (i - NUM_LAYERS))
             {
             	IJ.log("*** Layer index mismatch!!! ***");
             	IJ.log("Layer = " + i);
             }
-            double val = phi.get(elem.getX(), elem.getY(), elem.getZ());
+            final double val = phi.get(elem.getX(), elem.getY(), elem.getZ());
             if ((val > 0 && i < ZERO_LAYER) || (val < 0 && i > ZERO_LAYER))
             {
             	IJ.log("*** Illegal PHI value !!! ***");
@@ -1082,7 +1086,7 @@ public class SparseFieldLevelSet implements StagedAlgorithm
       IJ.log("-----------------------------------------------------");
    }
    
-   private void cleanup()
+   final private void cleanup()
    {
       this.elem_cache = null;
       this.phi = null;
@@ -1091,18 +1095,18 @@ public class SparseFieldLevelSet implements StagedAlgorithm
       this.action = null;
       this.img = source = null;
       this.gradients = null;
-      System.gc();
+      //System.gc();
    }
    
    /**
     * Dums the statemap into a file
     * @param path Fully qualified filename of the output file
     */
-   public void dumpStateMap(String path)
+   public void dumpStateMap(final String path)
    {
       try
       {
-         BufferedWriter out = new BufferedWriter(new FileWriter(new File(path)));
+         final BufferedWriter out = new BufferedWriter(new FileWriter(new File(path)));
          
          out.write(state.length + " " + state[0].length + " " + state[0][0].length);
          out.newLine(); out.newLine();

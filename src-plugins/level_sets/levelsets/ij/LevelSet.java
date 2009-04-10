@@ -180,7 +180,7 @@ public class LevelSet implements PlugInFilter {
 
 		// Fast marching
 		if ( fast_marching ) {
-			FastMarching fm = new FastMarching(ic, progressImage, sc_roi, true);
+			final FastMarching fm = new FastMarching(ic, progressImage, sc_roi, true);
 			IJ.log("(" + new Date(System.currentTimeMillis()) + "): Starting Fast Marching");
 			for ( iter = 0; iter < this.fm_maxiter; iter ++ ) {
 				if ( fm.step(this.ITER_INC) == false ) {
@@ -209,7 +209,7 @@ public class LevelSet implements PlugInFilter {
 		// Level set
 		if ( level_sets ) {
 			IJ.log("(" + new Date(System.currentTimeMillis()) + "): Starting Level Set");
-			SparseFieldLevelSet ls = new SparseFieldLevelSet(ic, progressImage, sc_ls);
+			final SparseFieldLevelSet ls = new SparseFieldLevelSet(ic, progressImage, sc_ls);
 			ls.setAdvectionWeight(w_adv);
 			ls.setCurvatureWeight(w_curv);
 			ls.setConvergenceFactor(f_conv);
@@ -356,12 +356,12 @@ public class LevelSet implements PlugInFilter {
 	public void showROI(ImagePlus ip, Roi roi, StateContainer sc_in) {
 
 		// green coloured pixel for alive set pixel visualization
-		int[] ALIVE_PIXEL = new int[] {0, 255, 0, 0};
+		final int[] ALIVE_PIXEL = new int[] {0, 255, 0, 0};
 		// red coloured pixel for trial set (band) pixel visualization
-		int[] BAND_PIXEL = new int[] {255, 0, 0, 0};
+		final int[] BAND_PIXEL = new int[] {255, 0, 0, 0};
 
-		ImageProgressContainer progress = new ImageProgressContainer(new ImageContainer(ip));	
-		DeferredObjectArray3D<States> map;
+		final ImageProgressContainer progress = new ImageProgressContainer(new ImageContainer(ip));	
+		final DeferredObjectArray3D<States> map;
 		StateContainer sc_test = null;
 		
 		if ( sc_in != null ) {
@@ -381,7 +381,7 @@ public class LevelSet implements PlugInFilter {
 		
 		int px_alive=0, px_band=0, px_far=0;
 
-		ImageProgressContainer output = progress;
+		final ImageProgressContainer output = progress;
 		if (ask_params) progress.showProgressStep();
 		StateContainer.States cell_state = StateContainer.States.OUTSIDE;
 		for (int z = 0; z < map.getZLength(); z++)
