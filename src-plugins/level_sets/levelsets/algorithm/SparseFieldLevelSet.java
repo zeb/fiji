@@ -19,10 +19,10 @@ import levelsets.ij.StateContainer;
 /**
  * Implementation of the Sparse Field Levelset algorithm.
  */
-public class SparseFieldLevelSet implements StagedAlgorithm
+public abstract class SparseFieldLevelSet implements StagedAlgorithm
 {
    // Values of the Levelset equation per voxel
-   private DeferredDoubleArray3D phi = null;
+   protected DeferredDoubleArray3D phi = null;
    // Coordinate->element lookup table for BandElements to avoid linear searches
    private DeferredObjectArray3D<BandElement> elementLUT = null;
    
@@ -64,13 +64,11 @@ public class SparseFieldLevelSet implements StagedAlgorithm
    
    // Threshold around zero crossing for the levelset function for active set 
    private static double PHI_THRESHOLD = 0.5d;
-   
-   private double [][][] gradients = null;
-   
+      
    // The source image
-   private ImageContainer source = null;
+   protected ImageContainer source = null;
    // Working copy of the source that will be filtered   
-   private ImageContainer img = null;
+   protected ImageContainer img = null;
    // Progress image
    private ImageProgressContainer progress = null;
       
@@ -103,18 +101,18 @@ public class SparseFieldLevelSet implements StagedAlgorithm
    // Reference to the Fast Marching stage that was run before to get the start contour
    // private FastMarching fm = null;
    // No link to previous stage. Instead: The initial contour as independent container
-   private StateContainer init_state = null;
+   protected StateContainer init_state = null;
    // Tag to signal wheter initialization is needed
-   private boolean needInit = true;
+   protected boolean needInit = true;
    // Tag to signal whether the level set function has converged
    private boolean convergence = false;
    // Tag to signal if a problem was encountered which prevents more iterations
    private boolean invalid = false;
    
    // Mean grey value around seed points - taken from Fast Marching
-   private int seed_greyvalue = 0;
+   protected int seed_greyvalue = 0;
    // If the  grey value wasn't provided, where do we take it from - zero set or inside set
-   boolean seed_grey_zero = true;
+   protected boolean seed_grey_zero = true;
    
    // Absolute sum of phi value changes in updated voxels
    private double total_change = 0;
@@ -123,20 +121,16 @@ public class SparseFieldLevelSet implements StagedAlgorithm
    
    // preallocate
    int [] pixel = new int[4];
-   
+
    // Control constants for level set evolution equation
-   // Power of the advection force - expands contour along surface normals
-   private static double ADVECTION_FORCE = 2.2;
-   // Power of regulatory curvature term
-   private static double CURVATURE_EPSILON = 1;
-   // Time step for numerical solution
-   private static double DELTA_T = 1d/6d * 1d/(CURVATURE_EPSILON * ADVECTION_FORCE);
+	// Time step for numerical solution - should be set by derived class dependent on other params
+   protected static double DELTA_T = 1d/6d;
    // Mean change per updated pixel threshold for convergence
-   private static double CONVERGENCE_WEIGHT = 0.005;
-   private static double CONVERGENCE_FACTOR;
+   protected static double CONVERGENCE_WEIGHT = 0.005;
+   protected static double CONVERGENCE_FACTOR;
    
    // Scaling factor for the slice spacing to pixel spacing ratio  
-   private double zScale = 0;
+   protected double zScale = 0;
    
    // verbosity of log output
    int verbose = 0;
@@ -181,39 +175,6 @@ public class SparseFieldLevelSet implements StagedAlgorithm
       return sc;
    }
 
-   /**
-    * Sets the Advection weight.
-    * Works only before the initialization (i.e. the first iteration)
-    */
-   public void setAdvectionWeight(double w) {
-	   if ( needInit )
-		   ADVECTION_FORCE = w;
-   }
-   
-   /**
-    * Returns the Advection weight.
-    * @return The Advection weight
-    */
-   public static double getAdvectionWeight() {
-	   return ADVECTION_FORCE;
-   }
-
-   /**
-    * Sets the Curvature weight.
-    * Works only before the initialization (i.e. the first iteration)
-    */
-   public void setCurvatureWeight(double w) {
-	   if ( needInit )
-		   CURVATURE_EPSILON = w;
-   }
-   
-   /**
-    * Returns the Curvature weight.
-    * @return The Curvature weight
-    */
-   public static double getCurvatureWeight() {
-	   return CURVATURE_EPSILON;
-   }
 
    /**
     * Sets the Convergence factor
@@ -234,9 +195,16 @@ public class SparseFieldLevelSet implements StagedAlgorithm
    }
   
    
+   
+   /**
+    * Updates the time step for numerical solution.
+    * Abstract class forces the derived class to implement it.
+    * If default settings are fine, just don't do anything
+    */
+   protected abstract void updateDeltaT();
  
    
-   private void init()
+   protected void init()
    {
       phi = new DeferredDoubleArray3D(source.getWidth(), source.getHeight(), source.getImageCount(), 5 , 0);
       state = new int[source.getWidth()][source.getHeight()][source.getImageCount()];
@@ -247,24 +215,26 @@ public class SparseFieldLevelSet implements StagedAlgorithm
       
       elem_cache = new BandElementCache(ELEMENT_CACHE_SIZE);
       
+      // Make sure to update DELTA_T to setting of derived class before doing any more calculations
+      updateDeltaT();
+      
       // the convergence factor may have changed over the ui
       CONVERGENCE_FACTOR = (CONVERGENCE_WEIGHT * DELTA_T);
-      
+
+      // this.seed_greyvalue = fm.getSeedGreyValue();
+	  this.seed_greyvalue = init_state.getZeroGreyValue();
+
       // Create layer lists
       for (int i = 0; i < (NUM_LAYERS * 2 + 1); i++)
       {
          layers[i] = new ArrayList(INITIAL_LISTSIZE);
       }
       
-      // this.seed_greyvalue = fm.getSeedGreyValue();
-      this.seed_greyvalue = init_state.getZeroGreyValue();
-      
       this.img = source.deepCopy();
       
       // this.img.applyFilter(new MedianFilter(2));
       // this.img.applyFilter(new GreyValueErosion(MorphologicalOperator.getTrueMask(3, 3)));
-      gradients = this.img.calculateGradients();
-      
+       
       createActiveLayer();
       // this.fm = null;
       this.init_state = null;
@@ -284,7 +254,7 @@ public class SparseFieldLevelSet implements StagedAlgorithm
    }
    
    /**
-    * // See interface defintion for javadoc
+    * See interface defintion for javadoc
     * granularity is the max number of iterations that are executed before it returns
     * returns true if no convergence reached (makes sense to continue), false if convergence has been reached
     */
@@ -325,7 +295,7 @@ public class SparseFieldLevelSet implements StagedAlgorithm
       
       // If the contour goes haywire, total_change (sum of all phi) gets NaN values
       // No point to continue, abort and tell the user about the fact
-      if ( Double.isNaN(total_change) ) {
+      if ( Double.isNaN(total_change) || layers[ZERO_LAYER].size() == 0 ) {
     	  invalid = true;
     	  IJ.error("Level Sets encountered numerical instability (i.e. the contour probably expanded to infinity) - Aborted");
     	  return(false);
@@ -425,6 +395,13 @@ public class SparseFieldLevelSet implements StagedAlgorithm
       result_inside_list = swap;
    }
    
+   
+   /* Calculates delta Phi for voxel at x/y/z
+    * Abstract base class, overridden by the implementation
+    */
+   protected abstract double getDeltaPhi(int x, int y, int z);
+   
+   
    /* Calculates delta Phi for all voxels in the active layer. Then updates
     * all voxels that remain in the active layer and the voxels that will move 
     * into it (some neighbours of voxels moving out). The actual updates are 
@@ -447,19 +424,9 @@ public class SparseFieldLevelSet implements StagedAlgorithm
          int y = elem.getY();
          int z = elem.getZ();
          
-         double image_term = getImageTerm(x, y, z);
-         
-         //         if (image_term < (CONVERGENCE_FACTOR / 2)) continue;
-         
-         double curvature = getCurvatureTerm(x, y, z);
-         double advection = getAdvectionTerm(x, y, z);
-         
-         //image_term = 0;           else num_updated++;
-         
-         // calculate net change
-         double delta_phi = - DELTA_T * image_term *
-                 (advection * ADVECTION_FORCE + curvature * CURVATURE_EPSILON);
-         
+         // get the delta Phi         
+         double delta_phi = getDeltaPhi(x, y, z);
+                  
          // add absolute value of the net change of this voxel to the total change
          total_change += Math.abs(delta_phi);
          num_updated++;
@@ -528,7 +495,9 @@ public class SparseFieldLevelSet implements StagedAlgorithm
       }
       
       // check for convergence
-      if ((total_change / num_updated) < CONVERGENCE_FACTOR)
+      IJ.log("Debug: Convergence = " + (total_change / num_updated) + ", change=" + total_change + ", num_updated=" + num_updated);
+//      if ((total_change / num_updated) < CONVERGENCE_FACTOR)
+      if ((total_change / num_updated) < CONVERGENCE_WEIGHT)
       {
          return true;
       }
@@ -777,103 +746,6 @@ public class SparseFieldLevelSet implements StagedAlgorithm
       return false;
    }
    
-   // upwind scheme
-   private double getAdvectionTerm(int x, int y, int z)
-   {
-      double xB = (x > 0) ?
-         phi.get(x - 1, y, z) : Double.MAX_VALUE;
-      double xF = (x + 1 < phi.getXLength()) ?
-         phi.get(x + 1, y, z) : Double.MAX_VALUE;
-      double yB = (y > 0) ?
-         phi.get(x, y - 1, z) : Double.MAX_VALUE;
-      double yF = (y + 1 < phi.getYLength()) ?
-         phi.get(x, y + 1, z) : Double.MAX_VALUE;
-      double zB = (z > 0) ?
-         phi.get(x, y, z - 1) : Double.MAX_VALUE;
-      double zF = (z + 1 < phi.getZLength()) ?
-         phi.get(x, y, z + 1) : Double.MAX_VALUE;
-      
-      double cell_phi = phi.get(x, y, z);
-      
-      double xBdiff = Math.max(cell_phi - xB, 0);
-      double xFdiff = Math.min(xF - cell_phi, 0);
-      double yBdiff = Math.max(cell_phi - yB, 0);
-      double yFdiff = Math.min(yF - cell_phi, 0);
-      double zBdiff = Math.max((cell_phi - zB) / zScale, 0);
-      double zFdiff = Math.min((zF - cell_phi) / zScale, 0);
-      
-      return Math.sqrt(xBdiff * xBdiff + xFdiff * xFdiff +
-              yBdiff * yBdiff + yFdiff * yFdiff +
-              zBdiff * zBdiff + zFdiff * zFdiff);
-   }
-   
-   // central differneces
-   private double getCurvatureTerm(int x, int y, int z)
-   {
-      if (x == 0 || x >= (phi.getXLength() - 1)) return 0;
-      if (y == 0 || y >= (phi.getYLength() - 1)) return 0;
-      boolean curvature_3d = false; //((z > 0) && (z < phi.getZLength() - 1));
-      
-        /* access to the deferred array is costly, so avoid multiple queries
-         for the same value and pre assign here
-         */
-      double cell_phi = phi.get(x, y, z);
-      double phiXB = phi.get(x - 1, y, z);
-      double phiXF = phi.get(x + 1, y, z);
-      double phiYB = phi.get(x, y - 1, z);
-      double phiYF = phi.get(x, y + 1, z);
-      
-      double phiX = (phiXF - phiXB) / 2;
-      double phiY = (phiYF - phiYB) / 2;
-      double phiXX = (phiXF + phiXB - (2 * cell_phi));
-      double phiYY = (phiYF + phiYB - (2 * cell_phi));
-      double phiXY = (phi.get(x + 1, y + 1, z) - phi.get(x + 1, y - 1, z) -
-              phi.get(x - 1, y + 1, z) + phi.get(x - 1, y - 1, z)) / 4;
-      
-      double phiZ = 0, phiZZ = 0, phiXZ = 0, phiYZ = 0;
-      if (curvature_3d)
-      {
-         double phiZB = phi.get(x, y, z - 1);
-         double phiZF = phi.get(x, y, z + 1);
-         phiZ = (phiZF - phiZB) / 2;
-         phiZZ = (phiZF + phiZB - (2 * cell_phi));
-         phiXZ = (phi.get(x + 1, y, z + 1) - phi.get(x + 1, y, z - 1) - phi.get(x - 1, y, z + 1) + phi.get(x - 1, y, z - 1)) / 4;
-         phiYZ = (phi.get(x, y + 1, z + 1) - phi.get(x, y + 1, z - 1) - phi.get(x, y - 1, z + 1) + phi.get(x, y - 1, z - 1)) / 4;
-      }
-      
-      if (phiX == 0 || phiY == 0) return 0;
-      if (curvature_3d && phiZ == 0) return 0;
-      
-      double curvature = 0, deltaPhi = 0;
-      if (curvature_3d)
-      {
-         deltaPhi = Math.sqrt(phiX * phiX + phiY * phiY + phiZ * phiZ);
-         curvature = -1 * ((phiXX * (phiY * phiY + phiZ * phiZ)) +
-                 (phiYY * (phiX * phiX + phiZ * phiZ)) +
-                 (phiZZ * (phiX * phiX + phiY * phiY)) -
-                 (2 * phiX * phiY * phiXY) -
-                 (2 * phiX * phiZ * phiXZ) -
-                 (2 * phiY * phiZ * phiYZ)) /
-                 Math.pow(phiX * phiX + phiY * phiY + phiZ * phiZ, 3/2);
-      }
-      else
-      {
-         deltaPhi = Math.sqrt(phiX * phiX + phiY * phiY);
-         curvature = -1 * ((phiXX * phiY * phiY) + (phiYY * phiX * phiX)
-         - (2 * phiX * phiY * phiXY)) /
-                 Math.pow(phiX * phiX + phiY * phiY, 3/2);
-      }
-      
-      return curvature * deltaPhi;
-   }
-   
-   private double getImageTerm(int x, int y, int z)
-   {
-      int greyval = img.getPixel(x, y, z);
-      int greyval_penalty = Math.abs(greyval - this.seed_greyvalue);
-      if (greyval_penalty < 30) greyval_penalty = 0;
-      return (1 / (1 + ((gradients[x][y][z] + greyval_penalty) * 2)));
-   }
    
    private void createInactiveLayers()
    {
@@ -1082,15 +954,13 @@ public class SparseFieldLevelSet implements StagedAlgorithm
       IJ.log("-----------------------------------------------------");
    }
    
-   private void cleanup()
+   protected void cleanup()
    {
       this.elem_cache = null;
       this.phi = null;
       //      this.state = null;
-      this.gradients = null;
       this.action = null;
       this.img = source = null;
-      this.gradients = null;
       System.gc();
    }
    
