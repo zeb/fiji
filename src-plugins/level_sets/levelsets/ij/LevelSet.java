@@ -44,20 +44,24 @@ import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
 import java.util.Date;
 
+import levelsets.algorithm.ActiveContours;
 import levelsets.algorithm.DeferredObjectArray3D;
 import levelsets.algorithm.FastMarching;
+import levelsets.algorithm.GeodesicActiveContour;
+import levelsets.algorithm.LevelSetImplementation;
 import levelsets.algorithm.SparseFieldLevelSet;
 import levelsets.ij.StateContainer.States;
-
-import java.lang.reflect.Field;
 
 public class LevelSet implements PlugInFilter {
 	
 	
 	private int flags = DOES_16|DOES_32|DOES_8G|DOES_STACKS;
 	private static String [] shapeList = {"none"}; // not implemented yet
-	public final static String [] preprocessList = {"none", "Gaussian difference"};
+	private static String [] preprocessList = {"none", "Gaussian difference"};
+	private static String [] levelsetList = {"Active contours", "Geodesic active contours"};
 	private static String [] expansionList = {"outside", "inside"};
+	private enum levelsetChoices { active_contours, geodesic_active_contours };
+	private levelsetChoices ls_choice = levelsetChoices.active_contours;
 	public enum preprocessChoices { none, gaussian };
 	protected ImagePlus imp;
 	protected ImageContainer ic = null;
@@ -71,7 +75,7 @@ public class LevelSet implements PlugInFilter {
 	protected ImagePlus shapeStack = null;
 	protected boolean fast_marching = true, level_sets = true;
 	protected double fm_grey, fm_dist; // Fast Marching
-	protected double w_adv, w_curv, w_gray, f_conv; // Active contours
+	protected double w_adv, w_curv, w_prop, w_grey, tol_grey, f_conv; // Active contours
 	protected int fm_maxiter = 100000, ls_maxiter = 100;
 	boolean ask_params = true;
 	boolean insideout = false;
@@ -137,34 +141,32 @@ public class LevelSet implements PlugInFilter {
 		// If no ROI found, have the additional dialog field to select mask image. 
 				
 		Roi roi = imp.getRoi();
-			if ( roi==null ) {
-				// FastMarching needs points
-					IJ.error("Seed (points) required");
-			
-			// TODO Active contour needs contour - 
-			// 3 cases should be separate classes
-			// - FastMarching
-			// - ActiveContours with option of fast marching 
-			return;
-		}
-		
-		if ( ask_params == true ) {
-			if ( showDialog() == false ) {
-				return;
-			}
-		}
-		 
-		// Wrap the selected image into the ImageContainer
+        if ( roi==null ) {
+        	
+        	// FastMarching needs points
+            IJ.error("Seed (points) required");
+            
+            // TODO Active contour needs contour - 
+            // 3 cases should be separate classes
+            // - FastMarching
+            // - ActiveContours with option of fast marching 
+            return;
+        }
+        
+        if ( ask_params == true ) {
+        	if ( showDialog() == false ) {
+        		return;
+        	}
+        }
+         
+        // Wrap the selected image into the ImageContainer
 		ic = new ImageContainer(imp);
 		
 		// Create a ImageContainer for showing the progress
-		ImageProgressContainer progressImage = null;
-		if (ask_params) {
-			progressImage = new ImageProgressContainer();
-			progressImage.duplicateImages(ic);
-			progressImage.createImagePlus("Segmentation progress of " + imp.getTitle());
-			progressImage.showProgressStep();
-		}
+		ImageProgressContainer progressImage = new ImageProgressContainer();
+		progressImage.duplicateImages(ic);
+		progressImage.createImagePlus("Segmentation progress of " + imp.getTitle());
+		progressImage.showProgressStep();
 		
 		// Create a initial state map out of the roi
 		StateContainer sc_roi = new StateContainer();
@@ -177,7 +179,7 @@ public class LevelSet implements PlugInFilter {
 		int iter;
 		
 		IJ.showStatus("Press 'Esc' to abort");
-
+		
 		// Fast marching
 		if ( fast_marching ) {
 			final FastMarching fm = new FastMarching(ic, progressImage, sc_roi, true);
@@ -209,9 +211,23 @@ public class LevelSet implements PlugInFilter {
 		// Level set
 		if ( level_sets ) {
 			IJ.log("(" + new Date(System.currentTimeMillis()) + "): Starting Level Set");
-			final SparseFieldLevelSet ls = new SparseFieldLevelSet(ic, progressImage, sc_ls);
-			ls.setAdvectionWeight(w_adv);
-			ls.setCurvatureWeight(w_curv);
+//			PlainLevelSet ls = new PlainLevelSet(ic, progressImage, sc_ls);
+			LevelSetImplementation ls = null;
+			if ( ls_choice == levelsetChoices.active_contours ) {
+				ls = new ActiveContours(ic, progressImage, sc_ls);
+			}
+			else if ( ls_choice == levelsetChoices.geodesic_active_contours ) {
+				ls = new GeodesicActiveContour(ic, progressImage, sc_ls);
+			}
+			else {
+				IJ.error("Level set method not known - that should not happen!");
+				return;
+			}
+			ls.setParameter(LevelSetImplementation.Parameter.W_ADVECTION, w_adv);
+			ls.setParameter(LevelSetImplementation.Parameter.W_CURVATURE, w_curv);
+			ls.setParameter(LevelSetImplementation.Parameter.W_PROPAGATION, w_prop);
+			ls.setParameter(LevelSetImplementation.Parameter.W_GRAYSCALE, w_grey);
+			ls.setParameter(LevelSetImplementation.Parameter.TOL_GRAYSCALE, tol_grey);
 			ls.setConvergenceFactor(f_conv);
 			for ( iter = 0; iter < this.ls_maxiter; iter ++ ) {
 				if ( ls.step(this.ITER_INC) == false ) {
@@ -232,17 +248,8 @@ public class LevelSet implements PlugInFilter {
 		}
 		ImageContainer result = new ImageContainer(sc_final.getIPMask());
 		ImagePlus result_ip = result.createImagePlus("Segmentation of " + imp.getTitle());
-
-		result_imp = result_ip;
-
-		if (ask_params) {
-			result_ip.show();
-		}
+		result_ip.show();
 	}
-
-	private ImagePlus result_imp = null;
-
-	public ImagePlus getResult() { return result_imp; }
 
 	public int setup(String arg, ImagePlus imp) {
 		// TODO: check for seed == selection
@@ -250,33 +257,45 @@ public class LevelSet implements PlugInFilter {
 		this.imp = imp;
 		
 		// set the parameters to meaningful defaults from the class
-		w_adv = SparseFieldLevelSet.getAdvectionWeight();
-		w_curv = SparseFieldLevelSet.getCurvatureWeight();
-		f_conv = SparseFieldLevelSet.getConvergenceFactor();
 		fm_grey = FastMarching.getGreyThreshold();
 		fm_dist = FastMarching.getDistanceThreshold();
+
+		Double dparam;
+		dparam = (Double) ActiveContours.getParameter(LevelSetImplementation.Parameter.W_ADVECTION);
+		w_adv = dparam.doubleValue();
+		dparam = (Double) ActiveContours.getParameter(LevelSetImplementation.Parameter.W_CURVATURE);
+		w_curv = dparam.doubleValue();
+		w_prop = 0;
+		w_grey = 0;
+		tol_grey = 0;
+
+		f_conv = SparseFieldLevelSet.getConvergenceFactor();
 		
 		return flags;
 	}
 	
 	
-	public boolean showDialog() {
+	protected boolean showDialog() {
 		// TODO interactive selection of gray value range
 		
+
 		GenericDialog gd = new GenericDialog("Level Set Segmentation");
-		gd.addChoice("Preprocessing (Advection image)", preprocessList, preprocessList[0]);
-		gd.addCheckbox("Use_Fast_Marching", true);
-		gd.addNumericField("Grey_value threshold", FastMarching.getGreyThreshold(), 0);
-		gd.addNumericField("Distance_threshold", FastMarching.getDistanceThreshold(), 2);
-		gd.addCheckbox("Use_Level_Sets", true);
-		//gd.addChoice("Shape_guidance_stack", shapeList, shapeList[0]);
+		gd.addCheckbox("Use Fast Marching", true);
+		gd.addNumericField("Grey value threshold", FastMarching.getGreyThreshold(), 0);
+		gd.addNumericField("Distance threshold", FastMarching.getDistanceThreshold(), 2);
+		gd.addCheckbox("Use Level Sets", true);
+		gd.addChoice("Method", levelsetList, levelsetList[0]);
+		gd.addMessage("(Not all parameters used in all methods)");
 		gd.addMessage("Level set weigths (0 = don't use)");
-		gd.addNumericField("Advection", SparseFieldLevelSet.getAdvectionWeight(), 2);
-		gd.addNumericField("Curvature", SparseFieldLevelSet.getCurvatureWeight(), 2);
-		gd.addNumericField("Grayscale", 1, 0);
-		gd.addMessage("Level set convergence criterion (be careful!)");
+		gd.addNumericField("Advection", w_adv, 2);
+		gd.addNumericField("Propagation", w_prop, 2);
+		gd.addNumericField("Curvature", w_curv, 2);
+		gd.addNumericField("Grey", w_grey, 2);
+		gd.addNumericField("Grey value tolerance", tol_grey, 2);
+		gd.addChoice("Shape guidance stack", shapeList, shapeList[0]);
+		gd.addMessage("Leve set convergence criterion");
 		gd.addNumericField("Convergence", SparseFieldLevelSet.getConvergenceFactor(), 4);
-		gd.addChoice("Region_expands_to ", expansionList, expansionList[0]);
+		gd.addChoice("Region expands to ", expansionList, expansionList[0]);
 		gd.addMessage("");
 		gd.addMessage("Developed by Erwin Frise.\nBased on code by Arne-Michael Toersel\n");
 		
@@ -286,72 +305,46 @@ public class LevelSet implements PlugInFilter {
 			return false;
 		
 		
-		String preprocess_choice = gd.getNextChoice();
-		if ( preprocess_choice.contentEquals(preprocessList[1])) {
-			preprocess = preprocessChoices.gaussian;
+		String method = gd.getNextChoice();
+		if ( method.compareTo(levelsetList[0]) == 0 ) {
+			ls_choice = levelsetChoices.active_contours;
 		}
-		//String shape = gd.getNextChoice();
+		else if ( method.compareTo(levelsetList[1]) == 0 ) {
+			ls_choice = levelsetChoices.geodesic_active_contours;
+		}
+		String shape = gd.getNextChoice();
 		// this.shapeStack = WindowManager.getImage(stackIDs[((Choice)gd.getChoices().get(0)).getSelectedIndex()]);
 		
 		this.fast_marching = gd.getNextBoolean();
 		this.level_sets = gd.getNextBoolean();
 		
-		if ( fast_marching == true ) {
-			this.fm_grey = gd.getNextNumber();
-			this.fm_dist = gd.getNextNumber();
-		}
-		if ( level_sets == true ) {
-			this.w_adv = gd.getNextNumber();
-			this.w_curv = gd.getNextNumber();
-			this.w_gray = gd.getNextNumber();
-			this.f_conv = gd.getNextNumber();
-			String expansion = gd.getNextChoice();
-			if ( expansion.contentEquals(expansionList[1]) ) {
-				this.insideout = true;
-				IJ.log("Inverse expansion");
-			}
+		this.fm_grey = gd.getNextNumber();
+		this.fm_dist = gd.getNextNumber();
+		
+		this.w_adv = gd.getNextNumber();
+		this.w_curv = gd.getNextNumber();
+		this.w_grey = gd.getNextNumber();
+		this.tol_grey = gd.getNextNumber();
+		this.f_conv = gd.getNextNumber();
+		IJ.log("Convergence to " + f_conv);
+		String expansion = gd.getNextChoice();
+		if ( expansion.contentEquals(expansionList[1]) ) {
+			this.insideout = true;
+			IJ.log("Inverse expansion");
 		}
 		
 		if ( test_dialog ) {
 			IJ.log("Fast Marching enabled = " + fast_marching );
 			IJ.log("Fast Marching: fm_grey=" + fm_grey + " , fm_dist=" + fm_dist);
 			IJ.log("Level Sets enabled = " + level_sets );
-			IJ.log("Level Sets: w_adv= " + w_adv + ", w_curv=" + w_curv + ", w_gray=" + w_gray + ", f_conv=" + f_conv);
+			IJ.log("Level Sets: w_adv= " + w_adv + ", w_curv=" + w_curv + ", w_gray=" + w_grey + ", f_conv=" + f_conv);
 		}
 		
 		
 		return true;
 
 	}
-
-	public void printParameters() {
-		for (Field field : getClass().getDeclaredFields()) {
-			try {
-				field.setAccessible(true);
-				System.out.println(field.getName() + " = " + field.get(this));
-			} catch (Exception e) { e.printStackTrace(); }
-		}
-	}
-
-	/** Set the plugin to run without a GUI. */
-	public void setParameters(ImagePlus imp, String preprocessList,
-			                                 boolean fast_marching, double fm_grey, double fm_dist,
-							 boolean level_sets, double w_adv, double w_curv, double w_gray, double f_conv, boolean insideout) {
-		this.imp = imp;
-		this.fast_marching = fast_marching;
-		this.fm_grey = fm_grey;
-		this.fm_dist = fm_dist;
-		this.level_sets = level_sets;
-		this.w_adv = w_adv;
-		this.w_curv = w_curv;
-		this.w_gray = w_gray;
-		this.f_conv = f_conv;
-		this.insideout = insideout;
-
-		// Avoid dialog:
-		this.ask_params = false;
-	}
-
+	
 	
 	public void showROI(ImagePlus ip, Roi roi, StateContainer sc_in) {
 
@@ -407,12 +400,12 @@ public class LevelSet implements PlugInFilter {
 				}
 			}
 		}
-		if (ask_params) progress.showProgressStep();
+		progress.showProgressStep();
 	}
 	
 	
 	// Verbatim from registration3d plugin, Stephan Preibisch
-	private final void addEnablerListener(/*final GenericDialog gd, */final Checkbox master, final Component[] enable, final Component[] disable) 
+	private final void addEnablerListener(final Checkbox master, final Component[] enable, final Component[] disable) 
 	{
 		master.addItemListener(new ItemListener() 
 		{

@@ -190,7 +190,7 @@ public class ImageContainer
    
    
    /**
-    * Returns an paased array filled with the pixel values at the selected
+    * Returns an passed array filled with the pixel values at the selected
     * coordinates
     * @param x The X coordinate
     * @param y The Y coordinate
@@ -348,7 +348,7 @@ public class ImageContainer
                } else {
 		       zGradient = 0;
 	       }
-               gradients[x][y][z] = Math.sqrt(xGradient * xGradient + yGradient * yGradient + zGradient * zGradient); // BUG? zGradient was ignored
+               gradients[x][y][z] = Math.sqrt(xGradient * xGradient + yGradient * yGradient + zGradient * zGradient);
             }
          }
       }
