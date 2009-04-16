@@ -82,3 +82,6 @@
 [submodule "swing-layout"]
 	path = swing-layout
 	url = contrib@pacific.mpi-cbg.de:/srv/git/swing-layout/.git
+[submodule "visualap"]
+	path = visualap
+	url = contrib@pacific.mpi-cbg.de:/srv/git/visualap.git

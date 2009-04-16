@@ -103,6 +103,7 @@ SUBMODULE_TARGETS=\
 	jars/visualap/.jar \
 	jars/jdom.jar \
 	jars/swing-layout.jar \
+	jars/visualap.jar \
 
 PLUGIN_TARGETS=plugins/Jython_Interpreter.jar \
 	plugins/Clojure_Interpreter.jar \
@@ -206,6 +207,7 @@ jars/appframework.jar <- appframework/
 jars/visualap/.jar <- visualap//
 jars/jdom.jar <- jdom/
 jars/swing-layout.jar <- swing-layout/
+jars/visualap.jar <- visualap/
 
 # From source
 javaVersion(misc/Fiji.jar)=1.5
@@ -389,6 +391,7 @@ precompile-submodules[] <- \
 	precompiled/.jar \
 	precompiled/jdom.jar \
 	precompiled/swing-layout.jar \
+	precompiled/visualap.jar \
 
 precompiled/ij.jar <- ij.jar
 precompiled/clojure.jar <- jars/clojure.jar
@@ -405,6 +408,7 @@ precompiled/appframework.jar <- jars/appframework.jar
 precompiled/.jar <- jars/visualap/.jar
 precompiled/jdom.jar <- jars/jdom.jar
 precompiled/swing-layout.jar <- jars/swing-layout.jar
+precompiled/visualap.jar <- jars/visualap.jar
 precompiled/* <- plugins/*
 
 precompile[] <- precompile-fiji precompile-fake precompile-submodules
