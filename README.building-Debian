@@ -2,7 +2,7 @@ First (if you understand what this command does!) make sure you've
 cleaned the build products from fiji:
 
   git clean -f -X && \
-  for d in ImageJA Retrotranslator TrakEM2 VIB bio-formats clojure ij-plugins micromanager1.1 mpicbg
+  for d in ImageJA Retrotranslator TrakEM2 VIB batik bio-formats clojure ij-plugins junit micromanager1.1 mpicbg tcljava
   do
     ( cd $d && git clean -f -X )
   done
