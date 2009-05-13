@@ -1,3 +1,10 @@
+fiji (20090513) unstable; urgency=low
+
+  * Update to upstream 26538219bf4f for bug fixes after the
+    Dresden-2009 release.
+
+ -- Mark Longair <mhl@pobox.com>  Wed, 13 May 2009 10:46:10 +0000
+
 fiji (20090430) unstable; urgency=low
 
   * Update to upstream add34998e364 for the Dresden-2009
