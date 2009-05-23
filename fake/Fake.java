@@ -436,7 +436,7 @@ public class Fake {
 			while (tokenizer.hasMoreTokens()) {
 				String token = tokenizer.nextToken();
 				if (expandGlob(token, list, cwd) == 0)
-					throw new FakeException("Glob did not "
+					System.err.println("Glob did not "
 						+ "match any file: '"
 						+ token + "'");
 			}
@@ -1690,8 +1690,7 @@ public class Fake {
 			prevSlash < 0 ? "" : glob.substring(0, prevSlash + 1);
 		File parentDirectory = new File(makePath(cwd, parentPath));
 		if (!parentDirectory.exists())
-			throw new FakeException("Directory '" + parentDirectory
-				+ "' not found");
+			return 0;
 
 		String pattern = nextSlash < 0 ?
 			glob.substring(prevSlash + 1) :
