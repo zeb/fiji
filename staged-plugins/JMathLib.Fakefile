@@ -1,8 +1,5 @@
-all <- bin compile JMathLib.jar
+all <- JMathLib.jar
 
-bin[mkdir -p bin] <-
-
-ANT_TARGETS=compile mfiles resources images
-compile[../fiji --ant -Djar.dest=. $ANT_TARGETS] <-
-
-JMathLib.jar <- bin/ bin/**/*
+CLASSPATH(JMathLib.jar)=src/jmathlib/plugins/dynjava/dynamicjava.jar:libs/servlet-api.jar:../jars/junit-4.5.jar
+JMathLib.jar <- src/**/*.java src/jmathlib/**/*.m \
+	src/**/*.properties src/**/*.gif
