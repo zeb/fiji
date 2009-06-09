@@ -138,6 +138,7 @@ PLUGIN_TARGETS=plugins/Jython_Interpreter.jar \
 	plugins/Sync_Win.jar \
 	plugins/Gray_Morphology.jar \
 	plugins/Colocalisation_Analysis.jar \
+	plugins/janelia_.jar \
 	\
 	misc/Fiji.jar
 
@@ -198,6 +199,15 @@ CLASSPATH(plugins/BeanShell_Interpreter.jar)=jars/fiji-scripting.jar
 plugins/BeanShell_Interpreter.jar <- src-plugins/BSH/*.java
 CLASSPATH(plugins/Javascript_.jar)=jars/fiji-scripting.jar
 plugins/Javascript_.jar <- src-plugins/Javascript/*.java
+
+CLASSPATH(plugins/janelia_.jar)=plugins/loci_tools.jar:plugins/mpicbg_.jar:plugins/TrakEM2_.jar
+plugins/janelia_.jar <- ij.jar \
+	plugins/loci_tools.jar \
+	plugins/mpicbg_.jar \
+	plugins/TrakEM2_.jar \
+	src-plugins/janelia_/**/*.java \
+	src-plugins/janelia_/*.java \
+	src-plugins/janelia_/dmeshmapping.bsh.tpl
 
 plugins/Bug_Submitter.jar <- src-plugins/Bug_Submitter/*.java
 
