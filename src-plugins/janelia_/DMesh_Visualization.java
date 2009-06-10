@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintStream;
 import java.util.ArrayList;
+import java.util.Map;
 import java.util.Scanner;
 
 import loci.formats.FormatException;
@@ -25,9 +26,11 @@ import ij.plugin.PlugIn;
 import ij.process.ByteProcessor;
 import ij.process.ImageProcessor;
 import ini.trakem2.Project;
+import ini.trakem2.display.AreaList;
 import ini.trakem2.display.Display;
 import ini.trakem2.display.Layer;
 import ini.trakem2.display.Patch;
+import ini.trakem2.io.AmiraImporter;
 import ini.trakem2.persistence.FSLoader;
 import ini.trakem2.utils.Utils;
 
@@ -144,6 +147,8 @@ public class DMesh_Visualization implements PlugIn
 				p2.setPreprocessorScriptPath( dir.getAbsolutePath() + "/dmeshmapping.bsh" );
 				layer.add( p1 );
 				layer.add( p2 );
+				
+				final Map< Float, AreaList > triangles = AmiraImporter.extractAreaLists( openImageFile( dir.getAbsolutePath() + "/map.tif" ), layer, 0, 0, 0.5f, false );
 				
 				Display.repaint();
 								
