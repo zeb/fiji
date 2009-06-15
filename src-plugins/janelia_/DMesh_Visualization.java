@@ -153,8 +153,8 @@ public class DMesh_Visualization implements PlugIn
 				/* translating compressed tiff files into something ImageJ can eat */
 				IJ.save( openImageFile( dir.getAbsolutePath() + "/1.tif" ), dir.getAbsolutePath() + "/1.ij.tif" );
 				IJ.save( openImageFile( dir.getAbsolutePath() + "/2.tif" ), dir.getAbsolutePath() + "/2.ij.tif" );
-				final Patch p1 = project.getLoader().importImage( project, 0, 0, dir.getAbsolutePath() + "/1.ij.tif" );
-				final Patch p2 = project.getLoader().importImage( project, 0, 0, dir.getAbsolutePath() + "/2.ij.tif" );
+				final Patch p1 = project.getLoader().importImage( project, 0, 0, dir.getAbsolutePath() + "/1.ij.tif", false );
+				final Patch p2 = project.getLoader().importImage( project, 0, 0, dir.getAbsolutePath() + "/2.ij.tif", false );
 				p2.setPreprocessorScriptPath( dir.getAbsolutePath() + "/dmeshmapping.bsh" );
 				layer1.add( p1 );
 				layer2.add( p2 );
