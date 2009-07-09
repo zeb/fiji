@@ -34,6 +34,12 @@ public class HistogramPlot extends Canvas
 		addMouseMotionListener(this);
 	}
 
+	public HistogramPlot(Color color, SliderEventListener listener) {
+		this();
+		this.color = color;
+		addListener(listener);
+	}
+
 	public HistogramPlot(float[] values, Color color) {
 		this();
 		this.color = color;
@@ -41,6 +47,8 @@ public class HistogramPlot extends Canvas
 	}
 
 	public void updateMinAndMax() {
+		if (values == null)
+			return;
 		min = max = values[0];
 		for (int i = 1; i < values.length; i++)
 			if (min > values[i])
@@ -133,6 +141,10 @@ public class HistogramPlot extends Canvas
 		sliderMinX = x;
 		sliderMaxX = x + w;
 	}
+
+	public float getLeft() { return sliderLeft; }
+	public float getMiddle() { return sliderMiddle; }
+	public float getRight() { return sliderRight; }
 
 	private boolean dragging;
 	private int draggedSlider;

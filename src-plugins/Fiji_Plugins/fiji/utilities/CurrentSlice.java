@@ -72,6 +72,8 @@ public abstract class CurrentSlice
 					 slice == image.getCurrentSlice())))
 			return;
 
+		if (image != null && image.getProcessor() == null)
+			image = null;
 		if (image != null)
 			obsolete();
 
