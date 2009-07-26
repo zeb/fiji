@@ -4,14 +4,27 @@
 require 'java'
 require 'testlib'
 
-['AWTEvent', 'Button', 'Dialog', 'Frame', 'Menu', 'MenuBar', 'MenuItem', 'Toolkit'].each do |x|
-  include_class "java.awt.#{x}"
-end
+require 'pp'
 
-['AWTEventListener', 'ActionEvent', 'ContainerEvent', 'ComponentEvent', 'FocusEvent',
-  'HierarchyEvent', 'InputMethodEvent', 'MouseEvent', 'PaintEvent', 'WindowEvent'].each do |x|
-  include_class "java.awt.event.#{x}"
-end
+include_class 'java.awt.AWTEvent'
+include_class 'java.awt.Button'
+include_class 'java.awt.Dialog'
+include_class 'java.awt.Frame'
+include_class 'java.awt.Menu'
+include_class 'java.awt.MenuBar'
+include_class 'java.awt.MenuItem'
+include_class 'java.awt.Toolkit'
+
+include_class 'java.awt.event.AWTEventListener'
+include_class 'java.awt.event.ActionEvent'
+include_class 'java.awt.event.ContainerEvent'
+include_class 'java.awt.event.ComponentEvent'
+include_class 'java.awt.event.FocusEvent'
+include_class 'java.awt.event.HierarchyEvent'
+include_class 'java.awt.event.InputMethodEvent'
+include_class 'java.awt.event.MouseEvent'
+include_class 'java.awt.event.PaintEvent'
+include_class 'java.awt.event.WindowEvent'
 
 module Recorder
   def record(function, argument)
@@ -27,7 +40,7 @@ module Recorder
     end
 
     if menuItem.getParent.is_a?(Frame)
-      record('waitForFrame', menuItem.getParent.getTitle)
+      record('waitForWindow', menuItem.getParent.getTitle)
     end
 
     record('clickMenuItem', result)
@@ -37,7 +50,7 @@ module Recorder
     label = button.getLabel
     while button
       if button.is_a?(Frame) or button.is_a?(Dialog)
-	record('waitForFrame', button.getTitle)
+	record('waitForWindow', button.getTitle)
 	break
       end
 
@@ -58,9 +71,14 @@ if __FILE__ == $0
   listener = AWTEventListener.new
   class << listener
     def eventDispatched(event)
-      return if [ComponentEvent, ContainerEvent, HierarchyEvent,
-	InputMethodEvent, MouseEvent, PaintEvent].find { |c|
-	  event.is_a? c }
+      if event.is_a?(ComponentEvent) or
+		event.is_a?(ContainerEvent) or
+		event.is_a?(HierarchyEvent) or
+		event.is_a?(InputMethodEvent) or
+		event.is_a?(MouseEvent) or
+		event.is_a?(PaintEvent)
+	return
+      end
 
       if event.is_a? ActionEvent
 	if event.getSource.is_a? MenuItem
@@ -68,20 +86,15 @@ if __FILE__ == $0
 	elsif event.getSource.is_a? Button
 	  getButton(event.getSource)
 	else
-	  puts "Unknown event: #{event}"
+	  $stderr.puts "Unknown action event: #{event.pretty_inspect}"
+	  $stderr.puts "event.getSource = #{event.getSource.pretty_inspect}"
 	end
-      elsif event.getID == FocusEvent::FOCUS_GAINED and \
-	  (event.is_a? Frame or event.is_a? Dialog)
-	unless allFramesAndDialogs.has? event.getSource
-	  allFramesAndDialogs[event.getSource] = true
-	  function = event.getSource.is_a?(Dialog) ?
-	    'waitForDialog' : 'waitForFrame'
-	  record(function, event.getSource.getTitle)
-	end
-      elsif event.getID == WindowEvent::WINDOW_CLOSED
-	allFramesAndDialogs.delete event.getSource
-      else
-	puts "event #{event} from source #{event.getSource}"
+      elsif event.getID == FocusEvent::FOCUS_GAINED and
+		event.is_a? Window or
+		event.getID == WindowEvent::WINDOW_OPENED
+	record('waitForWindow', event.getSource.getTitle)
+      elsif $verbose
+	  print "event \"#{event}\" from source #{event.getSource}"
       end
     end
   end

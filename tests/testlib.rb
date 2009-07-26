@@ -8,24 +8,25 @@ require 'java'
 
 include_class 'fiji.Main'
 
-['IJ', 'ImageJ', 'WindowManager'].each do |x|
-  include_class "ij.#{x}"
-end
+include_class 'ij.IJ'
+include_class 'ij.ImageJ'
+include_class 'ij.WindowManager'
 
-['Button', 'Container', 'Dialog', 'Frame', 'Toolkit'].each do |x|
-  include_class "java.awt.#{x}"
-end
+include_class 'java.awt.Button'
+include_class 'java.awt.Container'
+include_class 'java.awt.Dialog'
+include_class 'java.awt.Frame'
+include_class 'java.awt.Toolkit'
 
-['AWTEventListener', 'ActionEvent', 'ContainerEvent', 'FocusEvent',
-    'HierarchyEvent', 'MouseEvent'].each do |x|
-  include_class "java.awt.event.#{x}"
-end
-
+include_class 'java.awt.event.AWTEventListener'
+include_class 'java.awt.event.ActionEvent'
+include_class 'java.awt.event.ContainerEvent'
+include_class 'java.awt.event.FocusEvent'
+include_class 'java.awt.event.HierarchyEvent'
+include_class 'java.awt.event.MouseEvent'
 
 module TestLib
-  @currentFrame
-  @currentDialog
-  puts @currentFrame.object_id
+  @currentWindow = nil
 
   def self.startIJ
     Main.premain
@@ -55,77 +56,14 @@ module TestLib
     end
   end
 
-  def waitForFrame(title)
+  def waitForWindow(title)
+    @currentWindow = Main.waitForWindow(title)
     cf = Frame.getFrames.find { |frame| frame.getTitle == title }
-
-    if cf
-      return @currentFrame = cf
-    end
-
-    listener = AWTEventListener.new
-
-    class << listener
-      attr_reader :lock
-      @lock = Mutex.new
-      @lock.lock
-      puts @currentFrame.object_id
-
-      def eventDispatched(event)
-	if event.getID != FocusEvent::FOCUS_GAINED and \
-	    event.getID != HierarchyEvent::DISPLAYABILITY_CHANGED
-	  return
-	end
-
-	source = event.getSource
-	if source.is_a?(Frame) and source.getTitle == title
-	  @currentFrame = source
-	  @lock.unlock
-	end
-      end
-    end
-
-    Toolkit.getDefaultToolkit.addAWTEventListener(listener, -1)
-    listener.lock.lock
-    listener.lock.unlock
-    Toolkit.getDefaultToolkit.removeAWTEventListener(listener)
-    return @currentFrame
-  end
-
-  def waitForDialog(title)
-    cd = Frame.getFrames.find do |frame|
-      frame.getOwnedWindows.find do |window|
-	window.is_a? Dialog and window.getTitle == title
-      end
-    end
-
-    return @currentDialog = cd if cd
-
-    listener = AWTEventListener.new
-
-    class << listener
-      attr_reader :lock
-      @lock = Mutex.new
-      @lock.lock
-
-      def eventDispatched(event)
-	source = event.getSource
-	if souce.is_a? Dialog and source.title == title
-	  return if event.getID == ContainerEvent::COMPONENT_ADDED
-	  TestLib::currentDialog = source
-	  @lock.unlock
-	end
-      end
-    end
-
-    Toolkit.getDefaultToolkit.addAWTEventListener(listener, -1)
-    listener.lock.lock
-    listener.lock.unlock
-    Toolkit.getDefaultToolkit.removeAWTEventListener(listener)
-    return @currentDialog
+    return @currentWindow
   end
 
   def getMenuEntry(menuBar, path)
-    menuBar ||= @currentFrame.getMenuBar 
+    menuBar ||= @currentFrame.getMenuBar
     path = path.split('>') if path.is_a? String
 
     begin
@@ -150,7 +88,7 @@ module TestLib
   end
 
   def dispatchActionEvent(component)
-    event = ActionEvent.new(component, ActionEvent::ACTION_PERFORMED, 
+    event = ActionEvent.new(component, ActionEvent::ACTION_PERFORMED,
 			    component.getLabel, MouseEvent::BUTTON1)
     component.dispatchEvent(event)
   end
@@ -182,4 +120,25 @@ module TestLib
     IJ.getInstance.quit
     @currentFrame = nil
   end
+
+=begin To Be Tested
+  class OutputThread < Thread
+    def initialize(input, output)
+      @buffer = zeroes(65536, 'b')
+      @input = input
+      @output = output
+    end
+
+    def run()
+      loop do
+	count = @input.read(@buffer)
+	return if count < 0
+	@output.write(@buffer, 0, count)
+      end
+    end
+  end
+
+  def self.launchFiji(args, workingDir = nil)
+  end
+=end
 end
