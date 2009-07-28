@@ -230,6 +230,8 @@ MAINCLASS(jars/javac.jar)=com.sun.tools.javac.Main
 JAVAVERSION(jars/javac.jar)=1.5
 jars/javac.jar <- src-plugins/javac/**/*
 
+jars/NonlinearOptimization.jar <- src-plugins/NonlinearOptimization/*/*.java
+
 # Third party plugins
 
 # TODO: compile ij-ImageIO_ as submodule
