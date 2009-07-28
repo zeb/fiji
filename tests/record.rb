@@ -64,6 +64,8 @@ end
 if __FILE__ == $0
   include Recorder
 
+  $verbose = true
+
   TestLib.startIJ
 
   allFramesAndDialogs = Hash.new
@@ -85,7 +87,7 @@ if __FILE__ == $0
 	  getMenuPath(event.getSource)
 	elsif event.getSource.is_a? Button
 	  getButton(event.getSource)
-	else
+	elsif $verbose
 	  $stderr.puts "Unknown action event: #{event.pretty_inspect}"
 	  $stderr.puts "event.getSource = #{event.getSource.pretty_inspect}"
 	end
@@ -94,7 +96,8 @@ if __FILE__ == $0
 		event.getID == WindowEvent::WINDOW_OPENED
 	record('waitForWindow', event.getSource.getTitle)
       elsif $verbose
-	  print "event \"#{event}\" from source #{event.getSource}"
+	$stderr.puts "Unknown action event: #{event.pretty_inspect}"
+	$stderr.puts "event.getSource = #{event.getSource.pretty_inspect}"
       end
     end
   end
