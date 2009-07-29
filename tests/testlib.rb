@@ -16,6 +16,7 @@ include_class 'java.awt.Button'
 include_class 'java.awt.Container'
 include_class 'java.awt.Dialog'
 include_class 'java.awt.Frame'
+include_class 'java.awt.MenuBar'
 include_class 'java.awt.Toolkit'
 
 include_class 'java.awt.event.AWTEventListener'
@@ -24,6 +25,30 @@ include_class 'java.awt.event.ContainerEvent'
 include_class 'java.awt.event.FocusEvent'
 include_class 'java.awt.event.HierarchyEvent'
 include_class 'java.awt.event.MouseEvent'
+
+# Let's get each, find, select & friends for low
+module Java::JavaAwt
+  class MenuBar
+    include Enumerable
+
+    def each(&block)
+      (0..menu_count-1).each do |x|
+	yield menu(x)
+      end
+    end
+  end
+
+
+  class Menu
+    include Enumerable
+
+    def each(&block)
+      (0..item_count-1).each do |x|
+	yield item(x)
+      end
+    end
+  end
+end
 
 module TestLib
   @currentWindow = nil
@@ -35,7 +60,7 @@ module TestLib
     Main.postmain
   end
 
-  def catchIJErrors(&block)
+  def self.catchIJErrors(&block)
     begin
       IJ.redirectErrorMessage
       return yield
@@ -49,56 +74,45 @@ module TestLib
     end
   end
 
-  def test(&block)
+  def self.test(&block)
     if catchIJErrors(&block)
       print "Failed: " + block.to_s
       exit 1
     end
   end
 
-  def waitForWindow(title)
+  def self.waitForWindow(title)
     @currentWindow = Main.waitForWindow(title)
     cf = Frame.getFrames.find { |frame| frame.getTitle == title }
     return @currentWindow
   end
 
-  def getMenuEntry(menuBar, path)
-    menuBar ||= @currentFrame.getMenuBar
+  def self.getMenuEntry(menuBar, path)
+    menubar ||= @currentFrame.menu_bar
     path = path.split('>') if path.is_a? String
 
-    begin
-      menu = nil
-      menuBar.getMenuCount.times do |i|
-	menu = menuBar.getMenu(i) if  path[0] == menuBar.getMenu(i).getLabel
-      end
+    menu = menubar.find { |x| x.label == path[0] }
 
-      path[1..-1].each do |label|
-	entry = nil
-	menu.getItemCount.times do |i|
-	  entry = menu.getItem(i) if label == menu.getItem(i).getLabel
-	  break
-	end
-	menu = entry
-      end
-
-      return menu
-    rescue
-      return nil
+    path[1..-1].each do |label|
+      menu = menu.find { |x| x.label == label }
+      break unless menu
     end
+
+    return menu
   end
 
-  def dispatchActionEvent(component)
+  def self.dispatchActionEvent(component)
     event = ActionEvent.new(component, ActionEvent::ACTION_PERFORMED,
 			    component.getLabel, MouseEvent::BUTTON1)
     component.dispatchEvent(event)
   end
 
-  def clickMenuItem(path)
+  def self.clickMenuItem(path)
     menuEntry = getMenuEntry(nil, path)
     dispatchActionEvent(menuEntry)
   end
 
-  def getButton(container, label)
+  def self.getButton(container, label)
     container ||= @currentDialog
     container.getComponents.each do |co|
       if co.is_a? Container
@@ -111,7 +125,7 @@ module TestLib
     return nil
   end
 
-  def clickButton(label)
+  def self.clickButton(label)
      button = getButton(nil, label)
      dispatchActionEvent(button)
   end
