@@ -29,6 +29,13 @@
 # == Author
 # Tanaka Akira <akr@m17n.org>
 #
+
+#
+# This file is part of the Ruby 1.8.7 distribution, obtainable at
+# http://www.ruby-lang.org/en/ and distributed under the terms of
+# the GNU General Public License, version 2.
+#
+
 class PrettyPrint
 
   # This is a convenience method which is same as follows:

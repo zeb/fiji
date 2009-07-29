@@ -43,6 +43,12 @@
 # = Author
 # Tanaka Akira <akr@m17n.org>
 
+#
+# This file is part of the Ruby 1.8.7 distribution, obtainable at
+# http://www.ruby-lang.org/en/ and distributed under the terms of
+# the GNU General Public License, version 2.
+#
+
 require 'prettyprint'
 
 module Kernel
