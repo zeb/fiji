@@ -55,8 +55,8 @@ module TestLib
 
   def self.startIJ
     Main.premain
-    @currentFrame = ImageJ.new
-    @currentFrame.exitWhenQuitting(true)
+    @currentWindow = ImageJ.new
+    @currentWindow.exitWhenQuitting(true)
     Main.postmain
   end
 
@@ -88,7 +88,7 @@ module TestLib
   end
 
   def self.getMenuEntry(menuBar, path)
-    menubar ||= @currentFrame.menu_bar
+    menubar ||= @currentWindow.menu_bar
     path = path.split('>') if path.is_a? String
 
     menu = menubar.find { |x| x.label == path[0] }
@@ -103,7 +103,7 @@ module TestLib
 
   def self.dispatchActionEvent(component)
     event = ActionEvent.new(component, ActionEvent::ACTION_PERFORMED,
-			    component.getLabel, MouseEvent::BUTTON1)
+			    component.label, MouseEvent::BUTTON1)
     component.dispatchEvent(event)
   end
 
@@ -113,12 +113,12 @@ module TestLib
   end
 
   def self.getButton(container, label)
-    container ||= @currentDialog
-    container.getComponents.each do |co|
-      if co.is_a? Container
-	return result if result = getButton(co, label)
-      elsif co.is_a? Button and co.getLabel == label
+    container ||= @currentWindow
+    container.components.each do |co|
+      if co.is_a? Button and co.label == label
 	return co
+      elsif co.is_a? Container and r = getButton(co, label)
+	return r
       end
     end
 
@@ -132,7 +132,7 @@ module TestLib
 
   def self.quitIJ
     IJ.getInstance.quit
-    @currentFrame = nil
+    @currentWindow = nil
   end
 
 =begin To Be Tested
