@@ -67,3 +67,6 @@
 [submodule "spectraldeconv"]
 	path = spectraldeconv
 	url = contrib@pacific.mpi-cbg.de:/srv/git/spectraldeconv
+[submodule "superresolution"]
+	path = superresolution
+	url = contrib@pacific.mpi-cbg.de:/srv/git/superresolution

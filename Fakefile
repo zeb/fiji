@@ -93,6 +93,7 @@ SUBMODULE_TARGETS=\
 	jars/parallelcolt.jar \
 	plugins/parallel_iterative_deconvolution.jar \
 	plugins/parallel_spectral_deconvolution.jar \
+	plugins/parallel_superresolution.jar \
 
 PLUGIN_TARGETS=plugins/Jython_Interpreter.jar \
 	plugins/Clojure_Interpreter.jar \
@@ -184,6 +185,7 @@ jars/autocomplete.jar <- AutoComplete/
 jars/parallelcolt.jar <- parallelcolt/
 plugins/parallel_iterative_deconvolution.jar <- iterativedeconv/
 plugins/parallel_spectral_deconvolution.jar <- spectraldeconv/
+plugins/parallel_superresolution.jar <- superresolution/
 
 # From source
 javaVersion(misc/Fiji.jar)=1.3
@@ -334,6 +336,7 @@ precompile-submodules[] <- \
 	precompiled/parallelcolt.jar \
 	precompiled/parallel_iterative_deconvolution.jar \
 	precompiled/parallel_spectral_deconvolution.jar \
+	precompiled/parallel_superresolution.jar \
 
 precompiled/ij.jar <- ij.jar
 precompiled/clojure.jar <- jars/clojure.jar
