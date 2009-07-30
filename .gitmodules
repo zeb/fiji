@@ -61,3 +61,6 @@
 [submodule "parallelcolt"]
 	path = parallelcolt
 	url = contrib@pacific.mpi-cbg.de:/srv/git/parallelcolt
+[submodule "iterativedeconv"]
+	path = iterativedeconv
+	url = contrib@pacific.mpi-cbg.de:/srv/git/iterativedeconv

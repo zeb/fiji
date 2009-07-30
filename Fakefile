@@ -91,6 +91,7 @@ SUBMODULE_TARGETS=\
 	jars/rsyntaxtextarea.jar \
 	jars/autocomplete.jar \
 	jars/parallelcolt.jar \
+	plugins/parallel_iterative_deconvolution.jar \
 
 PLUGIN_TARGETS=plugins/Jython_Interpreter.jar \
 	plugins/Clojure_Interpreter.jar \
@@ -180,6 +181,7 @@ jars/junit-4.5.jar <- junit/
 jars/rsyntaxtextarea.jar <- RSyntaxTextArea/
 jars/autocomplete.jar <- AutoComplete/
 jars/parallelcolt.jar <- parallelcolt/
+plugins/parallel_iterative_deconvolution.jar <- iterativedeconv/
 
 # From source
 javaVersion(misc/Fiji.jar)=1.3
@@ -328,6 +330,7 @@ precompile-submodules[] <- \
 	precompiled/rsyntaxtextarea.jar \
 	precompiled/autocomplete.jar \
 	precompiled/parallelcolt.jar \
+	precompiled/parallel_iterative_deconvolution.jar \
 
 precompiled/ij.jar <- ij.jar
 precompiled/clojure.jar <- jars/clojure.jar
