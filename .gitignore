@@ -99,3 +99,4 @@
 /jars/parallelcolt.jar
 /jars/NonlinearOptimization.jar
 /plugins/parallel_iterative_deconvolution.jar
+/plugins/parallel_spectral_deconvolution.jar

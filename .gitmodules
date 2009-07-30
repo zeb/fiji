@@ -64,3 +64,6 @@
 [submodule "iterativedeconv"]
 	path = iterativedeconv
 	url = contrib@pacific.mpi-cbg.de:/srv/git/iterativedeconv
+[submodule "spectraldeconv"]
+	path = spectraldeconv
+	url = contrib@pacific.mpi-cbg.de:/srv/git/spectraldeconv
