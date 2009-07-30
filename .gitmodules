@@ -58,3 +58,6 @@
 [submodule "live-helper"]
 	path = live-helper
 	url = git://git.debian.net/git/debian-live/live-helper.git
+[submodule "parallelcolt"]
+	path = parallelcolt
+	url = contrib@pacific.mpi-cbg.de:/srv/git/parallelcolt
