@@ -161,6 +161,62 @@ public class Main implements AWTEventListener {
 		}
 	}
 
+	Component getComponent(String path) {
+		String[] list = path.split(">");
+		Component component = waitForWindow(list[0]);
+		for (int i = 1; i < list.length; i++) {
+			Container parent = (Container)component;
+
+			int bracket = list[i].indexOf('[');
+			int bracket2 = list[i].indexOf('{');
+			if (bracket < 0 || bracket2 < bracket)
+				bracket = bracket2;
+
+			String componentClass = list[i].substring(0, bracket);
+			if (bracket == bracket2) {
+				int end = list[i].indexOf('}', bracket2);
+				String txt = list[i].substring(bracket2, end);
+				int sameComponent = 1;
+				if (end + 1 < list[i].length()) {
+					if (list[i].charAt(end + 1) != '[' ||
+							!list[i].endsWith("]"))
+						throw new RuntimeException(
+							"Internal error");
+					String num = list[i].substring(end + 1,
+						list[i].length() - 1);
+					sameComponent = Integer.parseInt(num);
+				}
+				component = null;
+				for (Component item : parent.getComponents()) {
+					if (txt != null) {
+						if ((item instanceof Label) &&
+								((Label)item)
+								.getText()
+								.equals(txt))
+							txt = null;
+						continue;
+					}
+					if (!componentClass.equals("" +
+							item.getClass()) ||
+							--sameComponent > 0)
+						continue;
+					component = item;
+					break;
+				}
+				if (component == null)
+					throw new RuntimeException("Component "
+						+ path + " not found");
+			}
+			else {
+				int end = list[i].indexOf(']', bracket);
+				int index = Integer.parseInt(list[i]
+					.substring(bracket, end));
+				component = parent.getComponents()[index];
+			}
+		}
+		return component;
+	}
+
 	/* Unfortunately, we have to support Java 1.5 because of MacOSX... */
 	protected static Method setIconImage;
 	static {
