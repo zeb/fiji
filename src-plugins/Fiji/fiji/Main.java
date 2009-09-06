@@ -5,9 +5,11 @@ import ij.ImageJ;
 
 import java.awt.AWTEvent;
 import java.awt.Component;
+import java.awt.Container;
 import java.awt.Dialog;
 import java.awt.Frame;
 import java.awt.Image;
+import java.awt.Label;
 import java.awt.Toolkit;
 import java.awt.Window;
 
@@ -112,6 +114,50 @@ public class Main implements AWTEventListener {
 			} catch (InterruptedException e) {
 				return null;
 			}
+		}
+	}
+
+	public static String getPath(Component component) {
+		String path = "";
+		for (;;) {
+			if (component instanceof Window)
+				return getTitle((Window)component) + path;
+
+			Container parent = component.getParent();
+			Class componentClass = component.getClass();
+			int index = 0, sameComponent = 0;
+			Set<String> labels = new HashSet<String>();
+			Label lastLabel = null;
+			for (Component item : parent.getComponents()) {
+				if (item instanceof Label) {
+					lastLabel = (Label)item;
+					String txt = lastLabel.getText();
+					if (labels.contains(txt) ||
+							txt.indexOf('>') >= 0 ||
+							txt.indexOf("}") >= 0 ||
+							txt.startsWith("["))
+						lastLabel = null;
+					else
+						labels.add(txt);
+					sameComponent = 1;
+				}
+				if (item == component) {
+					path = componentClass +
+						(lastLabel == null ?
+						 "[" + index + "]" :
+						 "{" + lastLabel.getText() + "}"
+						 + (sameComponent > 1 ?
+							 "[" + sameComponent
+							 + "]" : ""));
+					component = parent;
+					break;
+				}
+				if (item.getClass() == componentClass) {
+					index++;
+					sameComponent++;
+				}
+			}
+			throw new RuntimeException("This should never happen!");
 		}
 	}
 
