@@ -13,7 +13,9 @@ include_class 'java.awt.Frame'
 include_class 'java.awt.Menu'
 include_class 'java.awt.MenuBar'
 include_class 'java.awt.MenuItem'
+include_class 'java.awt.TextField'
 include_class 'java.awt.Toolkit'
+include_class 'java.awt.Window'
 
 include_class 'java.awt.event.AWTEventListener'
 include_class 'java.awt.event.ActionEvent'
@@ -24,7 +26,12 @@ include_class 'java.awt.event.HierarchyEvent'
 include_class 'java.awt.event.InputMethodEvent'
 include_class 'java.awt.event.MouseEvent'
 include_class 'java.awt.event.PaintEvent'
+include_class 'java.awt.event.TextEvent'
 include_class 'java.awt.event.WindowEvent'
+
+include_class 'javax.swing.JTextField'
+
+include_class 'java.lang.Long'
 
 module Recorder
   def record(function, argument)
@@ -46,6 +53,32 @@ module Recorder
     record('clickMenuItem', result)
   end
 
+  def getComponentPath(component)
+    path = ''
+    while component
+      break if component.is_a? Window
+      idx = parent.getComponents.select { |x| x.class == component.class }.index(component)
+      if component.respond_to? :getLabel
+	label = component.getLabel
+      elsif component.respond_to? :getText
+	label = component.getText
+      else
+	label = nil
+      end
+
+      pathelem = component.class.to_s
+      pathelem += "[#{idx}]"   if idx   and idx > 0
+      pathelem += "{#{label}}" if label and not label.empty?
+
+      path = pathelem + '>' + path
+
+      component = parent
+    end
+
+    return path
+  end
+
+
   def getButton(button)
     label = button.getLabel
     while button
@@ -65,20 +98,19 @@ if __FILE__ == $0
   include Recorder
 
   $verbose = true
+  $verout = $stdout
 
   TestLib.startIJ
-
-  allFramesAndDialogs = Hash.new
 
   listener = AWTEventListener.new
   class << listener
     def eventDispatched(event)
-      if event.is_a?(ComponentEvent) or
-		event.is_a?(ContainerEvent) or
+      if event.is_a?(ContainerEvent) or
 		event.is_a?(HierarchyEvent) or
 		event.is_a?(InputMethodEvent) or
 		event.is_a?(MouseEvent) or
-		event.is_a?(PaintEvent)
+		event.is_a?(PaintEvent) or
+		event.is_a?(TextEvent)
 	return
       end
 
@@ -88,21 +120,26 @@ if __FILE__ == $0
 	elsif event.getSource.is_a? Button
 	  getButton(event.getSource)
 	elsif $verbose
-	  $stderr.puts "Unknown action event: #{event.pretty_inspect}"
-	  $stderr.puts "event.getSource = #{event.getSource.pretty_inspect}"
+	  $verout.puts "Unknown ActionEvent:\n\tevent = #{event.inspect}\n\tsource = #{event.getSource.inspect}"
 	end
       elsif event.getID == FocusEvent::FOCUS_GAINED and
-		event.is_a? Window or
+		event.getSource.is_a? Window or
 		event.getID == WindowEvent::WINDOW_OPENED
 	record('waitForWindow', event.getSource.getTitle)
+      elsif event.getID == FocusEvent::FOCUS_GAINED
+	$verout.puts(getComponentPath(event.getSource))
+      elsif event.is_a? ComponentEvent
+	if event.is_a? FocusEvent
+	  $verout.puts("FocusEvent on component:\n\tevent = #{event.inspect}\n\tsource = #{event.getSource.inspect}")
+	end
       elsif $verbose
-	$stderr.puts "Unknown action event: #{event.pretty_inspect}"
-	$stderr.puts "event.getSource = #{event.getSource.pretty_inspect}"
+	$verout.puts "Unknown Event:\n\tevent = #{event.inspect}\n\tsource = #{event.getSource.inspect}"
       end
+
     end
   end
 
-  Toolkit.getDefaultToolkit.addAWTEventListener(listener, -1)
+  Toolkit.getDefaultToolkit.addAWTEventListener(listener, Long::MAX_VALUE)
 
   puts "require 'testlib'", '', 'TestLib::startIJ'
 end
