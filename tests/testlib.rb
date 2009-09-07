@@ -9,8 +9,8 @@ require 'java'
 include_class 'fiji.Main'
 
 include_class 'ij.IJ'
-include_class 'ij.ImageJ'
-include_class 'ij.WindowManager'
+#include_class 'ij.ImageJ'
+#include_class 'ij.WindowManager'
 
 include_class 'java.awt.Button'
 include_class 'java.awt.Container'
@@ -26,6 +26,9 @@ include_class 'java.awt.event.FocusEvent'
 include_class 'java.awt.event.HierarchyEvent'
 include_class 'java.awt.event.MouseEvent'
 
+include_class 'java.lang.Runtime'
+include_class 'java.lang.System'
+
 # Let's get each, find, select & friends for low
 module Java::JavaAwt
   class MenuBar
@@ -37,7 +40,6 @@ module Java::JavaAwt
       end
     end
   end
-
 
   class Menu
     include Enumerable
@@ -55,7 +57,7 @@ module TestLib
 
   def self.startIJ
     Main.premain
-    @currentWindow = ImageJ.new
+    @currentWindow = Java::Ij::ImageJ.new
     @currentWindow.exitWhenQuitting(true)
     Main.postmain
   end
@@ -65,7 +67,7 @@ module TestLib
       IJ.redirectErrorMessage
       return yield
     rescue
-      logWindow = WindowManager.getFrame('Log')
+      logWindow = Java::Ij::WindowManager.getFrame('Log')
       if logWindow
 	error_message = logWindow.getTextPanel.getText
 	logWindow.close
@@ -83,7 +85,6 @@ module TestLib
 
   def self.waitForWindow(title)
     @currentWindow = Main.waitForWindow(title)
-    cf = Frame.getFrames.find { |frame| frame.getTitle == title }
     return @currentWindow
   end
 
@@ -91,7 +92,9 @@ module TestLib
     menubar ||= @currentWindow.menu_bar
     path = path.split('>') if path.is_a? String
 
-    menu = menubar.find { |x| x.label == path[0] }
+    unless menu = menubar.find { |x| x.label == path[0] }
+      return nil
+    end
 
     path[1..-1].each do |label|
       menu = menu.find { |x| x.label == label }
@@ -126,8 +129,8 @@ module TestLib
   end
 
   def self.clickButton(label)
-     button = getButton(nil, label)
-     dispatchActionEvent(button)
+    button = getButton(nil, label)
+    dispatchActionEvent(button)
   end
 
   def self.quitIJ
@@ -135,10 +138,10 @@ module TestLib
     @currentWindow = nil
   end
 
-=begin To Be Tested
-  class OutputThread < Thread
+=begin Nah, not yet
+  class OutputThread < Java::JavaLang::Thread
     def initialize(input, output)
-      @buffer = zeroes(65536, 'b')
+      @buffer = [].fill(0, 0, 65536)
       @input = input
       @output = output
     end
@@ -152,7 +155,24 @@ module TestLib
     end
   end
 
-  def self.launchFiji(args, workingDir = nil)
+  def self.launchFiji(args, working_dir = nil)
+    $stderr.puts("self.launchFiji(#{args.inspect}, #{working_dir.inspect})")
+    args = args.to_a
+    args.insert(0, System.getProperty('fiji.executable'))
+    begin
+      $stderr.puts("#{args.join(" ").inspect}")
+      process = Runtime.getRuntime.exec(args.join(" "), nil, working_dir)
+      $stderr.puts("process = #{process.inspect}")
+      OutputThread.new(process.getInputStream, System.out).start
+      $stderr.puts("out")
+      OutputThread.new(process.getErrorStream, System.err).start
+      $stderr.puts("err")
+      $stderr.puts("There we go...")
+      return process.waitFor
+    rescue => e
+      $stderr.puts("exception: #{e.inspect}")
+      return -1
+    end
   end
 =end
 end
