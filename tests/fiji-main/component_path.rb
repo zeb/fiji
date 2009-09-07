@@ -33,10 +33,10 @@ if $0 == __FILE__
 
   cdialog.getAllComponents.each do |co|
     path = Main.getPath(co)
-    result = Main.getComponent(Main.getPath(co)) == co
+    result = Main.getComponent(path) == co
 
     puts "co = #{co}"
     puts "  path = #{path}"
-    puts "  getComponent(dialog, getPath(co)) == co: #{result}"
+    puts "  getComponent(getPath(co)) == co: #{result}"
   end
 end
