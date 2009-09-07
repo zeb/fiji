@@ -31,6 +31,21 @@ include_class 'java.lang.System'
 
 # Let's get each, find, select & friends for low
 module Java::JavaAwt
+  class Container
+    def getAllComponents(type = Java::JavaAWT::Component)
+      children = Array.new
+      self.getComponents.each do |child|
+	children.push(child) if child.is_a?(type)
+
+	if child.respond_to?(:getAllComponents) and r = child.getAllComponents(type)
+	  children.push(*r)
+	end
+      end
+
+      return children
+    end
+  end
+
   class MenuBar
     include Enumerable
 
