@@ -157,11 +157,12 @@ public class Main implements AWTEventListener {
 					sameComponent++;
 				}
 			}
-			throw new RuntimeException("This should never happen!");
+			if (parent != component)
+				throw new RuntimeException("This should never happen!");
 		}
 	}
 
-	Component getComponent(String path) {
+	public static Component getComponent(String path) {
 		String[] list = path.split(">");
 		Component component = waitForWindow(list[0]);
 		for (int i = 1; i < list.length; i++) {

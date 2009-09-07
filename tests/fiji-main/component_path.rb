@@ -27,6 +27,8 @@ class ComponentPathDialog < Java::JavaAwt::Dialog
 end
 
 if $0 == __FILE__
+  Main.premain
+
   cdialog = ComponentPathDialog.new
   cdialog.pack
   cdialog.setVisible(true)
