@@ -196,7 +196,6 @@ public class Main implements AWTEventListener {
 								.getText()
 								.equals(txt))
 							txt = null;
-						continue;
 					}
 					if (!componentClass.equals("" +
 							item.getClass()) ||
