@@ -163,31 +163,28 @@ public class Main implements AWTEventListener {
 	}
 
 	public static Component getComponent(String path) {
-		System.err.println("getComponent: " + path);
 		String[] list = path.split(">");
-		System.err.println("Waiting for Window " + list[0]);
 		Component component = waitForWindow(list[0]);
-		System.err.println("So we got a window... " + component.toString());
+
 		for (int i = 1; i < list.length; i++) {
 			Container parent = (Container)component;
 
 			int bracket = list[i].indexOf('[');
 			int bracket2 = list[i].indexOf('{');
-			if (bracket < 0 || (bracket2 != -1 && bracket2 < bracket))
+			if (bracket == -1 || (bracket2 != -1 && bracket2 < bracket))
 				bracket = bracket2;
 
 			String componentClass = list[i].substring(0, bracket);
-			System.err.println("Searching for " + list[i]);
 			if (bracket == bracket2) {
 				int end = list[i].indexOf('}', bracket2);
-				String txt = list[i].substring(bracket2, end);
+				String txt = list[i].substring(bracket2 + 1, end);
 				int sameComponent = 1;
 				if (end + 1 < list[i].length()) {
 					if (list[i].charAt(end + 1) != '[' ||
 							!list[i].endsWith("]"))
 						throw new RuntimeException(
 							"Internal error");
-					String num = list[i].substring(end + 1,
+					String num = list[i].substring(end + 2,
 						list[i].length() - 1);
 					sameComponent = Integer.parseInt(num);
 				}
@@ -208,18 +205,30 @@ public class Main implements AWTEventListener {
 					component = item;
 					break;
 				}
-				if (component == null)
-					throw new RuntimeException("Component "
-						+ path + " not found");
 			}
 			else {
 				int end = list[i].indexOf(']', bracket);
 				int index = Integer.parseInt(list[i]
-					.substring(bracket+1, end));
-				component = parent.getComponents()[index];
+					.substring(bracket + 1, end));
+
+				for (Component item : parent.getComponents()) {
+					if (!componentClass.equals(
+							item.getClass().toString()))
+						continue;
+
+					if (index > 0)
+						index--;
+					else {
+						component = item;
+						break;
+					}
+				}
 			}
 
-			System.err.println("Found?");
+			if (component == null) {
+				throw new RuntimeException("Component "
+					+ path + " not found");
+			}
 		}
 		return component;
 	}
