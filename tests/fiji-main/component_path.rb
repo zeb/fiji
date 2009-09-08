@@ -18,14 +18,38 @@ end
 
 Main.premain
 
-cdialog = Java::JavaAwt::Dialog.new(nil, "ComponentPathTest")
-panel = Panel.new
-panel.add(Label.new('Hello'))
-panel.add(Button.new('Hello'))
-panel.add(Button.new('Hello'))
-panel.add(TextField.new('Bla'))
-panel.add(Label.new('Hello'))
-panel.add(Button.new('Hello'))
+pathes = Hash.new
+
+cdialog   = Java::JavaAwt::Dialog.new(nil, "ComponentPathTest")
+panel     = Panel.new
+label1    = Label.new('Hello')
+button1   = Button.new('Hello')
+button2   = Button.new('Hello')
+textfield = TextField.new('Bla')
+label2    = Label.new('Hello')
+button3   = Button.new('Hello')
+
+pathes[panel] =
+  'ComponentPathTest>class java.awt.Panel[0]'
+pathes[label1] =
+  'ComponentPathTest>class java.awt.Panel[0]>class java.awt.Label{Hello}'
+pathes[button1] = 
+  'ComponentPathTest>class java.awt.Panel[0]>class java.awt.Button{Hello}'
+pathes[button2] = 
+  'ComponentPathTest>class java.awt.Panel[0]>class java.awt.Button{Hello}[2]'
+pathes[textfield] =
+  'ComponentPathTest>class java.awt.Panel[0]>class java.awt.TextField{Hello}'
+pathes[label2] =
+  'ComponentPathTest>class java.awt.Panel[0]>class java.awt.Label[1]'
+pathes[button3] = 
+  'ComponentPathTest>class java.awt.Panel[0]>class java.awt.Button[2]'
+
+panel.add(label1)
+panel.add(button1)
+panel.add(button2)
+panel.add(textfield)
+panel.add(label2)
+panel.add(button3)
 cdialog.add(panel)
 
 cdialog.pack
@@ -34,11 +58,13 @@ cdialog.setVisible(true)
 cdialog.getAllComponents.each do |co|
 
   path = Main.getPath(co)
-  result = Main.getComponent(path) == co
+  result1 = pathes[co] == path
+  result2 = Main.getComponent(path) == co
 
   puts "co = #{co}"
-  puts "  path = #{path}"
-  puts "  getComponent(getPath(co)) == co: #{color(result)}"
+  puts "  getPath(co) = #{path}"
+  puts "  getPath(co) returns expected result: #{color(result1)}"
+  puts "  getComponent(getPath(co)) == co:     #{color(result2)}"
   puts
 end
 
