@@ -142,13 +142,13 @@ public class Main implements AWTEventListener {
 					sameComponent = 1;
 				}
 				if (item == component) {
-					path = componentClass +
+					path = ">" + componentClass +
 						(lastLabel == null ?
 						 "[" + index + "]" :
 						 "{" + lastLabel.getText() + "}"
 						 + (sameComponent > 1 ?
 							 "[" + sameComponent
-							 + "]" : ""));
+							 + "]" : "")) + path;
 					component = parent;
 					break;
 				}
@@ -163,17 +163,21 @@ public class Main implements AWTEventListener {
 	}
 
 	public static Component getComponent(String path) {
+		System.err.println("getComponent: " + path);
 		String[] list = path.split(">");
+		System.err.println("Waiting for Window " + list[0]);
 		Component component = waitForWindow(list[0]);
+		System.err.println("So we got a window... " + component.toString());
 		for (int i = 1; i < list.length; i++) {
 			Container parent = (Container)component;
 
 			int bracket = list[i].indexOf('[');
 			int bracket2 = list[i].indexOf('{');
-			if (bracket < 0 || bracket2 < bracket)
+			if (bracket < 0 || (bracket2 != -1 && bracket2 < bracket))
 				bracket = bracket2;
 
 			String componentClass = list[i].substring(0, bracket);
+			System.err.println("Searching for " + list[i]);
 			if (bracket == bracket2) {
 				int end = list[i].indexOf('}', bracket2);
 				String txt = list[i].substring(bracket2, end);
@@ -211,9 +215,11 @@ public class Main implements AWTEventListener {
 			else {
 				int end = list[i].indexOf(']', bracket);
 				int index = Integer.parseInt(list[i]
-					.substring(bracket, end));
+					.substring(bracket+1, end));
 				component = parent.getComponents()[index];
 			}
+
+			System.err.println("Found?");
 		}
 		return component;
 	}
