@@ -144,6 +144,7 @@ PLUGIN_TARGETS=plugins/Jython_Interpreter.jar \
 	plugins/Manual_Tracking.jar \
 	plugins/Calculator_Plus.jar \
 	plugins/3D_Objects_Counter.jar \
+	plugins/RandomForest_Segmentation.jar \
 	\
 	misc/Fiji.jar
 
@@ -243,6 +244,7 @@ plugins/Script_Editor.jar <- src-plugins/Script_Editor/**/*.java  \
 							var.png[images/var.png]    \
 							funtion.png[images/function.png]
 
+CLASSPATH(plugins/RandomForest_Segmentation.jar)=jars/weka.jar
 plugins/*_*.jar <- src-plugins/*_*/**/*.java
 
 MAINCLASS(jars/javac.jar)=com.sun.tools.javac.Main
