@@ -42,6 +42,7 @@ import ij.process.ImageProcessor;
 import ij.gui.ImageWindow;
 import ij.gui.Roi;
 import ij.ImagePlus;
+import ij.WindowManager;
 
 import java.io.*;
 import java.util.ArrayList;
@@ -85,11 +86,9 @@ public class RandomForest_Segmentation implements PlugIn {
   				public void run() {
   					if(e.getSource() == posExampleButton){
   		  				addPositiveExamples();
-  		  			}
-  		  			if(e.getSource() == negExampleButton){
+  		  			} else if(e.getSource() == negExampleButton){
   		  				addNegativeExamples();
-  		  			}
-  		  			if(e.getSource() == trainButton){
+  		  			} else if(e.getSource() == trainButton){
   		  				trainClassifier();
   		  			}
   				}
@@ -158,15 +157,21 @@ public class RandomForest_Segmentation implements PlugIn {
 		//get current image
 //		trainingImage = WindowManager.getCurrentImage();
 //		trainingImage = IJ.openImage("testImages/i00000-1.tif");
-		trainingImage = IJ.openImage();
+
+		trainingImage = WindowManager.getCurrentImage();
+		if (null == trainingImage) {
+			trainingImage = IJ.openImage();
+			if (null == trainingImage) return; // user canceled open dialog
+		}
+
 		createFeatureStack(trainingImage);
 		displayImage = new ImagePlus();
 		displayImage.setProcessor("training image", trainingImage.getProcessor().convertToRGB());
 		trainingImage.setProcessor("training image", trainingImage.getProcessor().convertToByte(true));
 		
 		//Build GUI
-		ImageWindow win = new CustomWindow(displayImage);
-		}
+		new CustomWindow(displayImage);
+	}
 	
 	private void addPositiveExamples(){
 		//get selected pixels
