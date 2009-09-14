@@ -31,10 +31,6 @@ import weka.core.Instances;
 import ij.IJ;
 import ij.ImageStack;
 import ij.ImagePlus;
-import ij.gui.Roi;
-import ij.process.ByteProcessor;
-import ij.process.FHT;
-import ij.process.FloatPolygon;
 import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
 import ij.plugin.ZProjector;
@@ -80,7 +76,7 @@ public class FeatureStack {
 		ImageProcessor ip = originalImage.getProcessor().duplicate();
 		GaussianBlur gs = new GaussianBlur();
 		gs.blur(ip, sigma);
-		wholeStack.addSlice("GaussianBlur_"+sigma, ip);
+		wholeStack.addSlice("GaussianBlur_" + sigma, ip);
 	}
 	
 	public void addGradient(float sigma){

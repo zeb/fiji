@@ -14,6 +14,8 @@ package randomForestSegmentation;
  * - give option to delete annotations
  * - save classifier and load classifier
  * - apply classifier to other images
+ * - make button to show color overlay
+ * - look for bug with color jpg
  * - put thread solution to wiki http://pacific.mpi-cbg.de/wiki/index.php/Developing_Fiji#Writing_plugins
  * 
  * License: GPL
@@ -155,14 +157,28 @@ public class RandomForest_Segmentation implements PlugIn {
   	}
   	
 	public void run(String arg) {
-		//get current image
-//		trainingImage = WindowManager.getCurrentImage();
 //		trainingImage = IJ.openImage("testImages/i00000-1.tif");
-		trainingImage = IJ.openImage();
+		//get current image
+		trainingImage = ij.WindowManager.getCurrentImage();
+		if (trainingImage==null) {
+			IJ.error("No image open.");
+			return;
+		}
+		
+		if (Math.max(trainingImage.getWidth(), trainingImage.getHeight()) > 1024)
+			if (!IJ.showMessageWithCancel("Warning", "At least one dimension of the image \n" +
+													 "is larger than 1024 pixels. \n" +
+													 "Feature stack creation and classifier training \n" +
+													 "might take some time depending on your computer.\n" +
+													 "Proceed?"))
+				return;
+
+		
 		createFeatureStack(trainingImage);
+		trainingImage.setProcessor("training image", trainingImage.getProcessor().convertToByte(true));
 		displayImage = new ImagePlus();
 		displayImage.setProcessor("training image", trainingImage.getProcessor().convertToRGB());
-		trainingImage.setProcessor("training image", trainingImage.getProcessor().convertToByte(true));
+		
 		
 		//Build GUI
 		ImageWindow win = new CustomWindow(displayImage);
@@ -191,19 +207,19 @@ public class RandomForest_Segmentation implements PlugIn {
 	public void createFeatureStack(ImagePlus img){
 		IJ.log("creating feature stack");
 		featureStack = new FeatureStack(img);
+		int counter = 1;
 		for (float i=2.0f; i<featureStack.getWidth()/5.0f; i*=2){
-			featureStack.addGaussianBlur(i);
-			featureStack.addGradient(i);
-			featureStack.addHessian(i);
+			IJ.showStatus("creating feature stack   " + counter);
+			featureStack.addGaussianBlur(i); counter++;
+			IJ.showStatus("creating feature stack   " + counter);			
+			featureStack.addGradient(i); counter++;
+			IJ.showStatus("creating feature stack   " + counter);			
+			featureStack.addHessian(i); counter++;
 			for (float j=2.0f; j<i; j*=2){
-				featureStack.addDoG(i, j);
+				IJ.showStatus("creating feature stack   " + counter);				
+				featureStack.addDoG(i, j); counter++;
 			}
 		}
-		
-//		featureStack.addMembraneFeatures(11, 1);
-//		featureStack.addMembraneFeatures(31, 3);
-//		featureStack.addMembraneFeatures(51, 3);
-//		featureStack.show();
 	}
 	
 	
@@ -270,15 +286,17 @@ public class RandomForest_Segmentation implements PlugIn {
 	}
 	
 	public void trainClassifier(){
+		 IJ.showStatus("training classifier");
 		 long start = System.currentTimeMillis();
 		 Instances data = createTrainingInstances();
 		 long end = System.currentTimeMillis();
 		 IJ.log("creating training data took: " + (end-start));
 		 data.setClassIndex(data.numAttributes() - 1);
-		 writeDataToARFF(data, "trainingDataFromInstances.arff");
+//		 writeDataToARFF(data, "trainingDataFromInstances.arff");
 		 
 		 FastRandomForest rf = new FastRandomForest();
-		 rf.setNumTrees(50);
+		 //FIXME: should depend on image size?? Or labels??
+		 rf.setNumTrees(100);
 		 //this is the default that Breiman suggests
 		 rf.setNumFeatures((int) Math.round(Math.sqrt(featureStack.getSize())));
 		 //rf.setNumFeatures(2);
@@ -295,7 +313,7 @@ public class RandomForest_Segmentation implements PlugIn {
 		 IJ.log("creating whole image data took: " + (end-start));
 		 data.setClassIndex(data.numAttributes() - 1);
 		 
-		 writeDataToARFF(data, "testWholeImageData.arff");
+//		 writeDataToARFF(data, "testWholeImageData.arff");
 		 
 		 IJ.log("classifying image");
 		 double[] classificationResult = new double[data.numInstances()];
