@@ -1,4 +1,5 @@
-import ij.CommandListener;
+import ij.Command;
+import ij.CommandListenerPlus;
 import ij.Executer;
 import ij.WindowManager;
 import ij.gui.GUI;
@@ -14,8 +15,9 @@ import java.awt.TextField;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 
+
 /** This is ImageJ's macro recorder. */
-public class Python_Recorder extends PlugInFrame implements CommandListener, ActionListener {
+public class Python_Recorder extends PlugInFrame implements CommandListenerPlus, ActionListener {
 
 	
 	/** Default SUID  */
@@ -29,14 +31,16 @@ public class Python_Recorder extends PlugInFrame implements CommandListener, Act
 	public Python_Recorder() {
 		super("Python_Recorder");
 		
+		// Register this in ImageJ menus
 		WindowManager.addWindow(this);
 		
+		// Create frame
 		Panel panel = new Panel(new FlowLayout(FlowLayout.CENTER, 2, 0));
 		panel.add(new Label("Name:"));
-		TextField macroName = new TextField(DEFAULT_NAME,15);
-		panel.add(macroName);
+		TextField macro_name = new TextField(DEFAULT_NAME,15);
+		panel.add(macro_name);
 		panel.add(new Label("     "));
-		Button makeMacro = new Button("Create");
+		Button makeMacro = new Button("To editor");
 		makeMacro.addActionListener(this);
 		panel.add(makeMacro);
 		panel.add(new Label("     "));
@@ -51,7 +55,7 @@ public class Python_Recorder extends PlugInFrame implements CommandListener, Act
 		GUI.center(this);
 		this.setVisible(true);
 
-		// Core
+		// Register as a listener
 		Executer.addCommandListener(this);
 		
 	}
@@ -65,6 +69,12 @@ public class Python_Recorder extends PlugInFrame implements CommandListener, Act
 
 	public void actionPerformed(ActionEvent e) {
 		System.out.println("Something was pressed");
+		
+	}
+
+
+	public void stateChanged(Command arg0, int arg1) {
+		System.out.println("A command was launched: "+arg0+" with state "+arg1);
 		
 	}
 	
