@@ -2,7 +2,7 @@
 
 compile () {
 	git reset --hard $1 &&
-	git clean -q -x -f &&
+	git clean -q -x -d -f &&
 	find * -type d |
 	while read dir
 	do
@@ -15,6 +15,13 @@ compile () {
 
 case "$1" in
 '')
+	case "$(basename "$(cd "$(dirname "$0")"/.. && pwd)")" in
+	nightly-build) ;; # okay
+	*)
+		exec "$0" HEAD
+		;;
+	esac
+
 	cd "$(dirname "$0")"/..
 
 	EMAIL=fiji-devel@googlegroups.com
@@ -30,6 +37,8 @@ case "$1" in
 	}
 	;;
 *)
+	test -d nightly-build ||
+	git clone . nightly-build
 	cd nightly-build &&
 	git fetch .. "$1" &&
 	compile FETCH_HEAD
