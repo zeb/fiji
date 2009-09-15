@@ -133,7 +133,8 @@ PLUGIN_TARGETS=plugins/Jython_Interpreter.jar \
 	plugins/Stack_Manipulation.jar \
 	plugins/FlowJ_.jar \
 	plugins/PIV_analyser.jar \
-	plugins/Record_Screen.jar \
+	plugins/Python_Recorder.jar \
+  plugins/Record_Screen.jar \
 	plugins/Video_Editing.jar \
 	plugins/Sync_Win.jar \
 	plugins/Gray_Morphology.jar \
