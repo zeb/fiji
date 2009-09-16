@@ -101,7 +101,7 @@ public class PluginCollection extends ArrayList<PluginObject> {
 			Status.UPDATEABLE, Status.NEW,
 			Status.OBSOLETE, Status.OBSOLETE_MODIFIED
 		};
-		return filter(oneOf(oneOf));
+		return filter(or(oneOf(oneOf), is(Action.INSTALL)));
 	}
 
 
@@ -194,13 +194,8 @@ public class PluginCollection extends ArrayList<PluginObject> {
 			return yes();
 		return new Filter() {
 			public boolean matches(PluginObject plugin) {
-				boolean result = true;
-				for (String platform : plugin.getPlatforms())
-					if (platform.equals(Util.platform))
-						return true;
-					else
-						result = false;
-				return result;
+				return plugin.platforms.size() == 0 ||
+					plugin.isForPlatform(Util.platform);
 			}
 		};
 	}
@@ -392,8 +387,13 @@ public class PluginCollection extends ArrayList<PluginObject> {
 
 	public void markForUpdate(boolean evenForcedUpdates) {
 		for (PluginObject plugin : updateable(evenForcedUpdates))
-			plugin.setAction(plugin.getStatus()
-				.isValid(Action.UPDATE) ?
-				Action.UPDATE : Action.UNINSTALL);
+			plugin.setFirstValidAction(new Action[] {
+				Action.UPDATE, Action.UNINSTALL, Action.INSTALL
+			});
+		for (String name : Util.getLaunchers()) {
+			PluginObject launcher = getPlugin(name);
+			if (launcher.getStatus() == Status.NOT_INSTALLED)
+				launcher.setAction(Action.INSTALL);
+		}
 	}
 }

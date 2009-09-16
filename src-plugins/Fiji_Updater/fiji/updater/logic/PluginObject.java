@@ -239,6 +239,15 @@ public class PluginObject {
 		this.action = action;
 	}
 
+	public boolean setFirstValidAction(Action[] actions) {
+		for (Action action : actions)
+			if (status.isValid(action)) {
+				setAction(action);
+				return true;
+			}
+		return false;
+	}
+
 	public void setStatus(Status status) {
 		this.status = status;
 		setNoAction();
@@ -257,6 +266,7 @@ public class PluginObject {
 						+ " is already uploaded");
 			setVersion(newChecksum, newTimestamp);
 		}
+		filesize = Util.getFilesize(filename);
 
 		PluginCollection plugins = PluginCollection.getInstance();
 		for (Dependency dependency : plugins.analyzeDependencies(this))
@@ -344,16 +354,22 @@ public class PluginObject {
 		return false;
 	}
 
+	public boolean isForPlatform(String platform) {
+		return platforms.containsKey(platform);
+	}
+
 	public boolean isFiji() {
 		return status != Status.NOT_FIJI;
 	}
 
 	public boolean isUpdateable(boolean evenForcedUpdates) {
-		return status == Status.UPDATEABLE ||
+		return action == Action.UPDATE ||
+			action == Action.INSTALL ||
+			status == Status.UPDATEABLE ||
 			status == Status.OBSOLETE ||
 			(evenForcedUpdates &&
 			 (status.isValid(Action.UPDATE) ||
-			  status.isValid(Action.UNINSTALL)));
+			  status == Status.OBSOLETE_MODIFIED));
 	}
 
 	public void stageForUninstall() throws IOException {

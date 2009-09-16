@@ -259,18 +259,17 @@ public class UpdaterFrame extends JFrame
 			for (PluginObject plugin : table.getSelectedPlugins()) {
 				if (action == null)
 					plugin.setNoAction();
-				else {
-					Status status = plugin.getStatus();
-					if (status.isValid(action))
-						plugin.setAction(action);
-					else if (status.isValid(otherAction))
-						plugin.setAction(otherAction);
-					else
-						continue;
-				}
+				else if (!setAction(plugin))
+					continue;
 				table.firePluginChanged(plugin);
 				pluginsChanged();
 			}
+		}
+
+		protected boolean setAction(PluginObject plugin) {
+			return plugin.setFirstValidAction(new Action[] {
+					action, otherAction
+			});
 		}
 
 		public void enableIfValid() {
@@ -368,6 +367,7 @@ public class UpdaterFrame extends JFrame
 			for (PluginObject plugin : uninstalled)
 				table.firePluginChanged(plugin);
 			updatePluginsTable();
+			info("Updated successfully.  Please restart Fiji!");
 		} catch (Canceled e) {
 			// TODO: remove "update/" directory
 			IJ.error("Canceled");
@@ -378,18 +378,6 @@ public class UpdaterFrame extends JFrame
 			IJ.error("Installer failed: " + e);
 			installer.done();
 		}
-	}
-
-	public void exitWithRestartFijiMessage() {
-		// TODO: remove once the details editor is inline
-		removeLoadedFrameIfExists();
-		IJ.showMessage("Restart Fiji", "You must restart Fiji application for the Plugin status changes to take effect.");
-		dispose();
-	}
-
-	public void exitWithRestartMessage(String title, String message) {
-		IJ.showMessage(title, message);
-		dispose();
 	}
 
 	private void removeLoadedFrameIfExists() {
