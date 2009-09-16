@@ -1,3 +1,6 @@
+import fiji.recorder.CommandTranslatorRule;
+import fiji.recorder.XMLRuleReader;
+import fiji.recorder.util.SortedArrayList;
 import ij.Command;
 import ij.CommandListenerPlus;
 import ij.Executer;
@@ -14,11 +17,20 @@ import java.awt.TextArea;
 import java.awt.TextField;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.File;
+import java.io.IOException;
+import java.util.Iterator;
+
+import javax.xml.parsers.ParserConfigurationException;
+
+import org.xml.sax.SAXException;
 
 
 /** This is ImageJ's macro recorder. */
 public class Python_Recorder extends PlugInFrame implements CommandListenerPlus, ActionListener {
 
+	/** Rule collections	 */
+	SortedArrayList<CommandTranslatorRule> rule_set = new SortedArrayList<CommandTranslatorRule>();
 	
 	/** Default SUID  */
 	private static final long serialVersionUID = 1L;
@@ -58,6 +70,8 @@ public class Python_Recorder extends PlugInFrame implements CommandListenerPlus,
 		// Register as a listener
 		Executer.addCommandListener(this);
 		
+		loadRuleSet();
+		
 	}
 
 
@@ -73,9 +87,57 @@ public class Python_Recorder extends PlugInFrame implements CommandListenerPlus,
 	}
 
 
-	public void stateChanged(Command arg0, int arg1) {
-		System.out.println("A command was launched: "+arg0+" with state "+arg1);
+	public void stateChanged(Command cmd, int state) {
+		
+		// Only deal with finished commands
+		if (state != CommandListenerPlus.CMD_FINISHED) { return; }
+		rule_set.sort();
+		Iterator<CommandTranslatorRule> it = rule_set.iterator();
+		CommandTranslatorRule rule;
+		// Because we have a sorted array list, we will match them with increasing priority
+		while (it.hasNext()) {
+			rule = it.next();
+			if (rule.match(cmd)) {
+				System.out.println("This command:");
+				System.out.println(cmd);
+				System.out.println("Matched the following rule:");
+				System.out.println(rule);
+			}
+		}
 		
 	}
 	
+	/*
+	 * PRIVATE METHODS
+	 */
+	
+	private void loadRuleSet() {
+		
+		// Ugly for the moment, don't pay attention
+		String path_to_fji = System.getProperty("fiji.dir");
+		String path_to_rule = "src-plugins" 
+			+ File.separator + "Python_Recorder"
+			+ File.separator + "DefaultRule.xml";
+		File rule_file = new File(path_to_fji, path_to_rule);
+		if (rule_file.exists()) 
+			System.out.println("Rule file found.");
+		
+		XMLRuleReader xrr = null;
+		try {
+			xrr = new XMLRuleReader(rule_file.getPath());
+		} catch (ParserConfigurationException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (SAXException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		CommandTranslatorRule rule = xrr.getRule();
+		rule_set.add(rule);
+		rule_set.setComparator(CommandTranslatorRule.getComparator());
+	}
 }

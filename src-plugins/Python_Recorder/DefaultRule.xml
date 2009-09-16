@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CommandTranslatorRule priority="0" name="Default fallback rule">
+This rule is the default fall-back rule. It has the lowest priority (0)
+meaning that it will be a match when no other rule work. It just output
+a 'feature non implemented' message in any language.
+	<Matcher class_name="*" arguments="*" modifiers="0" command=".+"></Matcher>
+	<PythonTranslator target="# Not implemented yet: &lt;command&gt; in &lt;class_name&gt;"></PythonTranslator>
+</CommandTranslatorRule>
