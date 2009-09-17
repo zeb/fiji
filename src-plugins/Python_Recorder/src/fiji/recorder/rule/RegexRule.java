@@ -1,10 +1,8 @@
-package fiji.recorder;
-
-import java.util.Comparator;
+package fiji.recorder.rule;
 
 import ij.Command;
 
-public class CommandTranslatorRule implements Comparable<CommandTranslatorRule>{
+public class RegexRule extends Rule {
 	
 	private String command;
 	private String class_name;
@@ -13,7 +11,6 @@ public class CommandTranslatorRule implements Comparable<CommandTranslatorRule>{
 	
 	private String name;
 	private String description;
-	private int priority;
 	
 	private String python_translator;
 	
@@ -43,35 +40,7 @@ public class CommandTranslatorRule implements Comparable<CommandTranslatorRule>{
 			.toString();
 	}
 	
-    /**
-     * Compares this rule with another with respect to <b>priority</b>.  
-     * Returns a negative integer, zero, or a positive integer as this object 
-	 * has a priority less than, equal to, or greater than the specified object.<p>
-     *
-	 * Note: this class has a natural ordering that is inconsistent with equals.
-	 * Equality simply means that priorities are equal. 
-     * 
-     * @param   o the CommandTranslatorRule to be compared.
-     * @return  a negative integer, zero, or a positive integer as this rule
-     *		has a priority less than, equal to, or greater than the specified object.
-     */
-	public int compareTo(CommandTranslatorRule o) {
-		return ( priority - o.getPriority() );
-	}
-	
-	/**
-	 * Returns a comparator based on the instance method 
-	 * {@link CommandTranslatorRule#compareTo(CommandTranslatorRule)}
-	 * @return  a comparator for this class
-	 */
-	public static Comparator<CommandTranslatorRule> getComparator() {
-		return new Comparator<CommandTranslatorRule>() {
-			public int compare(CommandTranslatorRule o1,
-					CommandTranslatorRule o2) {
-				return o1.compareTo(o2);
-			}
-		};
-	}
+
 	
 	
 	/*
@@ -120,14 +89,6 @@ public class CommandTranslatorRule implements Comparable<CommandTranslatorRule>{
 	}
 
 
-	public void setPriority(int priority) {
-		this.priority = priority;
-	}
-
-
-	public int getPriority() {
-		return priority;
-	}
 
 
 	public void setName(String name) {

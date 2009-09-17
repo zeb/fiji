@@ -1,4 +1,4 @@
-package fiji.recorder;
+package fiji.recorder.rule;
 
 import java.io.IOException;
 
@@ -12,6 +12,7 @@ import org.xml.sax.SAXException;
 import org.xml.sax.XMLReader;
 import org.xml.sax.helpers.DefaultHandler;
 
+
 public class XMLRuleReader extends DefaultHandler {
 
 	/*
@@ -20,7 +21,7 @@ public class XMLRuleReader extends DefaultHandler {
 	
 	// Currently parsed
 	private String body;
-	private CommandTranslatorRule rule;
+	private RegexRule rule;
 	
 	/*
 	 * CONSTRUCTOR
@@ -50,7 +51,7 @@ public class XMLRuleReader extends DefaultHandler {
 	}
 
 	public void startDocument () {
-		rule = new CommandTranslatorRule();
+		rule = new RegexRule();
 		body = "";
 	}
 
@@ -97,7 +98,7 @@ public class XMLRuleReader extends DefaultHandler {
 		body += new String(ch, start, length);
 	}
 
-	public CommandTranslatorRule getRule() {
+	public RegexRule getRule() {
 		return rule;
 	}
 

@@ -1,5 +1,5 @@
-import fiji.recorder.CommandTranslatorRule;
-import fiji.recorder.XMLRuleReader;
+import fiji.recorder.rule.RegexRule;
+import fiji.recorder.rule.XMLRuleReader;
 import fiji.recorder.util.SortedArrayList;
 import ij.Command;
 import ij.CommandListenerPlus;
@@ -30,7 +30,7 @@ import org.xml.sax.SAXException;
 public class Python_Recorder extends PlugInFrame implements CommandListenerPlus, ActionListener {
 
 	/** Rule collections	 */
-	SortedArrayList<CommandTranslatorRule> rule_set = new SortedArrayList<CommandTranslatorRule>();
+	SortedArrayList<RegexRule> rule_set = new SortedArrayList<RegexRule>();
 	
 	/** Default SUID  */
 	private static final long serialVersionUID = 1L;
@@ -40,9 +40,55 @@ public class Python_Recorder extends PlugInFrame implements CommandListenerPlus,
 	private static final String DEFAULT_NAME = "Python_Script.py";
 
 
+	/*
+	 * CONSTRUCTOR
+	 */
+	
 	public Python_Recorder() {
 		super("Python_Recorder");
+		init();
+		loadRuleSet();
+	}
+
+	/*
+	 * METHODS
+	 */
+
+	public String commandExecuting(String command) {
+		System.out.println("A command was launched: "+command);
+		return command;
+	}
+
+
+	public void actionPerformed(ActionEvent e) {
+		System.out.println("Something was pressed");
 		
+	}
+
+
+	public void stateChanged(Command cmd, int state) {
+		
+		// Only deal with finished commands
+		if (state != CommandListenerPlus.CMD_FINISHED) { return; }
+		rule_set.sort();
+		Iterator<RegexRule> it = rule_set.iterator();
+		RegexRule rule;
+		// Because we have a sorted array list, we will match them with increasing priority
+		while (it.hasNext()) {
+			rule = it.next();
+			if (rule.match(cmd)) {
+				System.out.println("This command: " + cmd.getCommand() );
+				System.out.println("Matched the following rule:" + rule.getName());
+			}
+		}
+		
+	}
+	
+	/*
+	 * PRIVATE METHODS
+	 */
+	
+	private void init() {
 		// Register this in ImageJ menus
 		WindowManager.addWindow(this);
 		
@@ -69,47 +115,7 @@ public class Python_Recorder extends PlugInFrame implements CommandListenerPlus,
 
 		// Register as a listener
 		Executer.addCommandListener(this);
-		
-		loadRuleSet();
-		
 	}
-
-
-	public String commandExecuting(String command) {
-		System.out.println("A command was launched: "+command);
-		return command;
-	}
-
-
-	public void actionPerformed(ActionEvent e) {
-		System.out.println("Something was pressed");
-		
-	}
-
-
-	public void stateChanged(Command cmd, int state) {
-		
-		// Only deal with finished commands
-		if (state != CommandListenerPlus.CMD_FINISHED) { return; }
-		rule_set.sort();
-		Iterator<CommandTranslatorRule> it = rule_set.iterator();
-		CommandTranslatorRule rule;
-		// Because we have a sorted array list, we will match them with increasing priority
-		while (it.hasNext()) {
-			rule = it.next();
-			if (rule.match(cmd)) {
-				System.out.println("This command:");
-				System.out.println(cmd);
-				System.out.println("Matched the following rule:");
-				System.out.println(rule);
-			}
-		}
-		
-	}
-	
-	/*
-	 * PRIVATE METHODS
-	 */
 	
 	private void loadRuleSet() {
 		
@@ -136,8 +142,8 @@ public class Python_Recorder extends PlugInFrame implements CommandListenerPlus,
 			e.printStackTrace();
 		}
 		
-		CommandTranslatorRule rule = xrr.getRule();
+		RegexRule rule = xrr.getRule();
 		rule_set.add(rule);
-		rule_set.setComparator(CommandTranslatorRule.getComparator());
+		rule_set.setComparator(RegexRule.getComparator());
 	}
 }
