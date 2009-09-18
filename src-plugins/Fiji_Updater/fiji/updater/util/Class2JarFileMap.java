@@ -13,20 +13,19 @@ import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
 public class Class2JarFileMap extends HashMap<String, String> {
-	String fijiDirectory;
-
 	public Class2JarFileMap() {
-		fijiDirectory = getFijiDirectory();
+		try {
+			addJar("ij.jar");
+			addJar("misc/Fiji.jar");
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 		addDirectory("plugins");
 		addDirectory("jars");
 	}
 
-	private String getFijiDirectory() {
-		return System.getProperty("fiji.dir").replace('\\', '/');
-	}
-
 	private void addDirectory(String directory) {
-		File dir = new File(fijiDirectory + "/" + directory);
+		File dir = new File(Util.fijiRoot + "/" + directory);
 		if (!dir.isDirectory())
 			return;
 		String[] list = dir.list();
@@ -43,7 +42,7 @@ public class Class2JarFileMap extends HashMap<String, String> {
 	}
 
 	private void addJar(String jar) throws IOException {
-		JarFile file = new JarFile(fijiDirectory + "/" + jar);
+		JarFile file = new JarFile(Util.fijiRoot + "/" + jar);
 		Enumeration entries = file.entries();
 		while (entries.hasMoreElements()) {
 			String name =

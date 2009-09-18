@@ -299,60 +299,24 @@ public class PluginCollection extends ArrayList<PluginObject> {
 		return null;
 	}
 
-	protected class Dependencies implements Iterator<Dependency> {
-		Iterator<String> iterator;
-		Dependency current;
-		Dependencies(Iterable<String> dependencies) {
-			if (dependencies == null)
-				return;
-			iterator = dependencies.iterator();
-			findNext();
-		}
-
-		public boolean hasNext() {
-			return current != null;
-		}
-
-		public Dependency next() {
-			Dependency result = current;
-			findNext();
-			return result;
-		}
-
-		public void remove() {
-			throw new UnsupportedOperationException();
-		}
-
-		protected void findNext() {
-			while (iterator.hasNext()) {
-				PluginObject plugin =
-					getPlugin(iterator.next());
-				if (plugin == null)
-					continue;
-				current = new Dependency(plugin.getFilename(),
-					plugin.getTimestamp(), "at-least");
-				return;
-			}
-			current = null;
-		}
-	}
-
-	public Iterable<Dependency> analyzeDependencies(PluginObject plugin) {
+	public Iterable<String> analyzeDependencies(PluginObject plugin) {
 		try {
 			if (dependencyAnalyzer == null)
 				dependencyAnalyzer = new DependencyAnalyzer();
-			final Iterable<String> dependencies = dependencyAnalyzer
-				.getDependencies(plugin.getFilename());
-
-			return new Iterable<Dependency>() {
-				public Iterator<Dependency> iterator() {
-					return new Dependencies(dependencies);
-				}
-			};
+			String path = Util.prefix(plugin.getFilename());
+			return dependencyAnalyzer.getDependencies(path);
 		} catch (IOException e) {
 			e.printStackTrace();
 			return null;
 		}
+	}
+
+	public void updateDependencies(PluginObject plugin) {
+		Iterable<String> dependencies = analyzeDependencies(plugin);
+		if (dependencies == null)
+			return;
+		for (String dependency : dependencies)
+			plugin.addDependency(dependency);
 	}
 
 	public boolean has(final Filter filter) {
@@ -392,6 +356,8 @@ public class PluginCollection extends ArrayList<PluginObject> {
 			});
 		for (String name : Util.getLaunchers()) {
 			PluginObject launcher = getPlugin(name);
+			if (launcher == null)
+				continue; // the regression test triggers this
 			if (launcher.getStatus() == Status.NOT_INSTALLED)
 				launcher.setAction(Action.INSTALL);
 		}
