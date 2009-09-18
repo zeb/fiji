@@ -194,27 +194,37 @@ public class RandomForest_Segmentation implements PlugIn {
 		
 		//Build GUI
 		ImageWindow win = new CustomWindow(displayImage);
-//		trainingImage.close();
+		trainingImage.getWindow().setVisible(false);
 		}
 	
 	private void addPositiveExamples(){
 		//get selected pixels
 		Roi r = displayImage.getRoi();
-		displayImage.setColor(Color.GREEN);
 		displayImage.killRoi();
-		r.drawPixels(displayImage.getProcessor());
-		displayImage.updateAndDraw();
 		positiveExamples.add(r);
+		drawExamples();
 	}
 	
 	private void addNegativeExamples(){
 		//get selected pixels
 		Roi r = displayImage.getRoi();
-		displayImage.setColor(Color.RED);
 		displayImage.killRoi();
-		r.drawPixels(displayImage.getProcessor());
-		displayImage.updateAndDraw();
 		negativeExamples.add(r);
+		drawExamples();
+	}
+	
+	private void drawExamples(){
+		displayImage.setColor(Color.GREEN);
+		for (Roi r : positiveExamples){
+			r.drawPixels(displayImage.getProcessor());
+		}
+		
+		displayImage.setColor(Color.RED);
+		for (Roi r : negativeExamples){
+			r.drawPixels(displayImage.getProcessor());
+		}
+		
+		displayImage.updateAndDraw();
 	}
 	
 	public void createFeatureStack(ImagePlus img){
