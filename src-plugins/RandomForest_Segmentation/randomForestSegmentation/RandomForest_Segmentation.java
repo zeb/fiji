@@ -38,7 +38,10 @@ package randomForestSegmentation;
 
 
 import ij.IJ;
+import ij.ImageStack;
 import ij.plugin.PlugIn;
+import ij.plugin.RGBStackMerge;
+import ij.process.ColorProcessor;
 import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
 import ij.gui.ImageWindow;
@@ -67,16 +70,20 @@ public class RandomForest_Segmentation implements PlugIn {
 	private List<Roi> negativeExamples = new ArrayList< Roi>();
 	private ImagePlus trainingImage;
 	private ImagePlus displayImage;
+	private ImagePlus classifiedImage = null;
 	private FeatureStack featureStack;
    	final Button posExampleButton;
   	final Button negExampleButton;
   	final Button trainButton;
+  	final Button overlayButton;
+  	
  
   	
   	public RandomForest_Segmentation() {
 	    	posExampleButton = new Button("positiveExample");
   	      	negExampleButton = new Button("negativeExample");
   	      	trainButton = new Button("train Classifier");
+  	      	overlayButton = new Button("create Overlay");
 	}
 	
   	ExecutorService exec = Executors.newFixedThreadPool(1);
@@ -93,6 +100,9 @@ public class RandomForest_Segmentation implements PlugIn {
   		  			}
   		  			if(e.getSource() == trainButton){
   		  				trainClassifier();
+  		  			}
+  		  			if(e.getSource() == overlayButton){
+  		  				showOverlay();
   		  			}
   				}
   			});
@@ -122,11 +132,13 @@ public class RandomForest_Segmentation implements PlugIn {
   	      	posExampleButton.addActionListener(listener);
   	      	negExampleButton.addActionListener(listener);
   	      	trainButton.addActionListener(listener);
+  	      	overlayButton.addActionListener(listener);
   	      	buttons.add(posExampleButton);
   	      	buttons.add(negExampleButton);
   	      	buttons.add(trainButton);
+  	      	buttons.add(overlayButton);
   	      	
-  	      	for (Component c : new Component[]{posExampleButton, negExampleButton, trainButton}) {
+  	      	for (Component c : new Component[]{posExampleButton, negExampleButton, trainButton, overlayButton}) {
   	      		c.setMaximumSize(new Dimension(230, 50));
   	      		c.setPreferredSize(new Dimension(130, 30));
   	      	}
@@ -182,6 +194,7 @@ public class RandomForest_Segmentation implements PlugIn {
 		
 		//Build GUI
 		ImageWindow win = new CustomWindow(displayImage);
+//		trainingImage.close();
 		}
 	
 	private void addPositiveExamples(){
@@ -325,10 +338,29 @@ public class RandomForest_Segmentation implements PlugIn {
 		 
 		 IJ.log("showing result");
 		 ImageProcessor classifiedImageProcessor = new FloatProcessor(trainingImage.getWidth(), trainingImage.getHeight(), classificationResult);
-		 ImagePlus classifiedImage = new ImagePlus("classification result", classifiedImageProcessor);
+		 classifiedImageProcessor.convertToByte(true);
+		 classifiedImage = new ImagePlus("classification result", classifiedImageProcessor);
 		 classifiedImage.show();
 	}
 
-
+	void showOverlay(){
+		int width = trainingImage.getWidth();
+		int height = trainingImage.getHeight();
+		
+		ImageStack redStack = new ImageStack(width, height);
+		redStack.addSlice("red", classifiedImage.getProcessor().duplicate());
+		ImageStack greenStack = new ImageStack(width, height);
+		trainingImage.show();
+		greenStack.addSlice("green", trainingImage.getProcessor().duplicate());
+		ImageStack blueStack = new ImageStack(width, height);
+		blueStack.addSlice("blue", trainingImage.getProcessor().duplicate());
+		
+		RGBStackMerge merger = new RGBStackMerge();
+		ImageStack overlayStack = merger.mergeStacks(trainingImage.getWidth(), trainingImage.getHeight(), 
+						   1, redStack, greenStack, blueStack, true);
+	
+		ImagePlus overlayImage = new ImagePlus("overlay image", overlayStack);
+		overlayImage.show();
+	}
 	
 }
