@@ -174,8 +174,8 @@ public class RandomForest_Segmentation implements PlugIn {
 				return;
 
 		
-		createFeatureStack(trainingImage);
 		trainingImage.setProcessor("training image", trainingImage.getProcessor().convertToByte(true));
+		createFeatureStack(trainingImage);
 		displayImage = new ImagePlus();
 		displayImage.setProcessor("training image", trainingImage.getProcessor().convertToRGB());
 		
