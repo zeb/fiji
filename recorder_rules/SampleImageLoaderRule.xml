@@ -1,4 +1,4 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<CommandTranslatorRule priority="1" name="Sample image loading rule">This rule caught calls to loading sample images, in the File > Open samples... menu<Matcher class_name="fiji.SampleImageLoader" arguments="(.+)" modifiers=".+" command="(.+)"></Matcher>
+<CommandTranslatorRule priority="2" name="Sample image loading rule">This rule catches calls to loading sample images, in the File > Open samples... menu<Matcher class_name="fiji.SampleImageLoader" arguments="(.+)" modifiers=".+" command="(.+)"></Matcher>
 	<PythonTranslator target="# Open the sample &lt;command.1&gt;&lt;newline&gt;fiji.SampleImageLoder.run('&lt;arguments.1&gt;')"></PythonTranslator>
 </CommandTranslatorRule>

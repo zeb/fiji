@@ -58,7 +58,6 @@ public class RegexRule extends Rule {
 			result = matcher_modifiers.replaceAll(modifiers_template);
 			// new lines - i did not find a way to put them in the regex string correctly
 			result = Pattern.compile("<newline>").matcher(result).replaceAll("\n");
-			System.out.println(result);
 		}		
 		return result;
 	}

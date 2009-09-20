@@ -41,7 +41,8 @@ public class Python_Recorder extends PlugInFrame implements CommandListenerPlus,
 	 */
 	private static final String DEFAULT_NAME = "Python_Script.py";
 
-
+	private TextArea textArea;
+	
 	/*
 	 * CONSTRUCTOR
 	 */
@@ -75,13 +76,15 @@ public class Python_Recorder extends PlugInFrame implements CommandListenerPlus,
 		rule_set.sort();
 		Iterator<Rule> it = rule_set.iterator();
 		Rule rule;
+		String result;
 		// Because we have a sorted array list, we will match them with increasing priority
 		while (it.hasNext()) {
 			rule = it.next();
 			if (rule.match(cmd)) {
 //				System.out.println("This command: " + cmd.getCommand() );
 //				System.out.println("Matched the following rule:" + rule.getName());
-				rule.handle(cmd, Language.Python);
+				result = rule.handle(cmd, Language.Python);
+				textArea.append("\n\n"+result);
 				break;
 			}
 		}
@@ -113,7 +116,7 @@ public class Python_Recorder extends PlugInFrame implements CommandListenerPlus,
 		help.addActionListener(this);
 		panel.add(help);
 		add("North", panel);
-		TextArea textArea = new TextArea("",15,60,TextArea.SCROLLBARS_VERTICAL_ONLY);
+		textArea = new TextArea("",15,60,TextArea.SCROLLBARS_VERTICAL_ONLY);
 		textArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
 		add("Center", textArea);
 		pack();
