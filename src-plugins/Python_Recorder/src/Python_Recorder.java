@@ -1,4 +1,6 @@
+import fiji.recorder.RecorderBase.Language;
 import fiji.recorder.rule.RegexRule;
+import fiji.recorder.rule.Rule;
 import fiji.recorder.rule.XMLRuleReader;
 import fiji.recorder.util.SortedArrayList;
 import ij.Command;
@@ -30,7 +32,7 @@ import org.xml.sax.SAXException;
 public class Python_Recorder extends PlugInFrame implements CommandListenerPlus, ActionListener {
 
 	/** Rule collections	 */
-	SortedArrayList<RegexRule> rule_set = new SortedArrayList<RegexRule>();
+	SortedArrayList<Rule> rule_set = new SortedArrayList<Rule>();
 	
 	/** Default SUID  */
 	private static final long serialVersionUID = 1L;
@@ -71,14 +73,16 @@ public class Python_Recorder extends PlugInFrame implements CommandListenerPlus,
 		// Only deal with finished commands
 		if (state != CommandListenerPlus.CMD_FINISHED) { return; }
 		rule_set.sort();
-		Iterator<RegexRule> it = rule_set.iterator();
-		RegexRule rule;
+		Iterator<Rule> it = rule_set.iterator();
+		Rule rule;
 		// Because we have a sorted array list, we will match them with increasing priority
 		while (it.hasNext()) {
 			rule = it.next();
 			if (rule.match(cmd)) {
-				System.out.println("This command: " + cmd.getCommand() );
-				System.out.println("Matched the following rule:" + rule.getName());
+//				System.out.println("This command: " + cmd.getCommand() );
+//				System.out.println("Matched the following rule:" + rule.getName());
+				rule.handle(cmd, Language.Python);
+				break;
 			}
 		}
 		
@@ -88,6 +92,9 @@ public class Python_Recorder extends PlugInFrame implements CommandListenerPlus,
 	 * PRIVATE METHODS
 	 */
 	
+	/**
+	 * Creates the frame 
+	 */
 	private void init() {
 		// Register this in ImageJ menus
 		WindowManager.addWindow(this);
@@ -117,33 +124,38 @@ public class Python_Recorder extends PlugInFrame implements CommandListenerPlus,
 		Executer.addCommandListener(this);
 	}
 	
+	/**
+	 * Load the rule set from the folder 'recorder_rules' in the fiji dev folder.
+	 */
 	private void loadRuleSet() {
 		
-		// Ugly for the moment, don't pay attention
+		// We chose to put xml rules in a folder, hardcoded
 		String path_to_fji = System.getProperty("fiji.dir");
-		String path_to_rule = "src-plugins" 
-			+ File.separator + "Python_Recorder"
-			+ File.separator + "DefaultRule.xml";
-		File rule_file = new File(path_to_fji, path_to_rule);
-		if (rule_file.exists()) 
-			System.out.println("Rule file found.");
+		File rule_folder = new File(path_to_fji, "recorder_rules");
+		File[] rule_files = rule_folder.listFiles();		
 		
+		File rule_file;
 		XMLRuleReader xrr = null;
-		try {
-			xrr = new XMLRuleReader(rule_file.getPath());
-		} catch (ParserConfigurationException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (SAXException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
 		
-		RegexRule rule = xrr.getRule();
-		rule_set.add(rule);
-		rule_set.setComparator(RegexRule.getComparator());
+		for (int i = 0; i < rule_files.length; i++) {
+			rule_file = rule_files[i];
+			if (!rule_file.getName().toLowerCase().endsWith(".xml")) {
+				continue;
+			}
+		
+			try {
+				xrr = new XMLRuleReader(rule_file.getPath());
+			} catch (ParserConfigurationException e) {
+				e.printStackTrace();
+			} catch (IOException e) {
+				e.printStackTrace();
+			} catch (SAXException e) {
+				e.printStackTrace();
+			}
+		
+			RegexRule rule = xrr.getRule();
+			rule_set.add(rule);
+		}
+		rule_set.setComparator(RegexRule.getReversedComparator());
 	}
 }
