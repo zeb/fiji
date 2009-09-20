@@ -7,7 +7,6 @@ import fiji.updater.Updater;
 import fiji.updater.logic.FileUploader.SourceFile;
 
 import fiji.updater.util.Compressor;
-import fiji.updater.util.DependencyAnalyzer;
 import fiji.updater.util.Progress;
 import fiji.updater.util.Util;
 
@@ -131,12 +130,10 @@ public class PluginUploader {
 	protected void saveTextFile(String path) throws FileNotFoundException {
 		PrintStream out = new PrintStream(path);
 		for (PluginObject plugin :
-				PluginCollection.getInstance().fijiPlugins())
-			if (!plugin.isObsolete() &&
-					plugin.platforms.size() == 0)
-				out.println(plugin.getFilename() + " "
-						+ plugin.getTimestamp() + " "
-						+ plugin.getChecksum());
+				PluginCollection.getInstance().forCurrentTXT())
+			out.println(plugin.getFilename() + " "
+					+ plugin.getTimestamp() + " "
+					+ plugin.getChecksum());
 		out.close();
 	}
 
@@ -151,7 +148,7 @@ public class PluginUploader {
 	 *   harm
 	 */
 	class VerifyTimestamp implements Progress {
-		public void addItem(Object item) {
+		public void itemDone(Object item) {
 			if (item != files.get(0))
 				return;
 			verifyTimestamp();
@@ -159,6 +156,7 @@ public class PluginUploader {
 
 		public void setTitle(String string) {}
 		public void setCount(int count, int total) {}
+		public void addItem(Object item) {}
 		public void setItemCount(int count, int total) {}
 		public void done() {}
 	}

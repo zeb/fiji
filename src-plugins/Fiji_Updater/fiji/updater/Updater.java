@@ -1,6 +1,7 @@
 package fiji.updater;
 
 import ij.IJ;
+import ij.WindowManager;
 
 import ij.plugin.PlugIn;
 
@@ -43,13 +44,18 @@ public class Updater implements PlugIn {
 	public static final String PREFS_XMLDATE = "fiji.updater.xmlDate";
 	public static final String PREFS_USER = "fiji.updater.login";
 
+	public static boolean debug;
+
 	public void run(String arg) {
 		final UpdaterFrame main = new UpdaterFrame();
 		main.setLocationRelativeTo(IJ.getInstance());
+		main.setEasyMode(true);
 		main.setVisible(true);
+		WindowManager.addWindow(main);
 
+		PluginCollection plugins = PluginCollection.getInstance();
+		plugins.removeAll(plugins);
 		Progress progress = main.getProgress("Starting up...");
-
 		XMLFileDownloader downloader = new XMLFileDownloader();
 		downloader.addProgress(progress);
 		try {
@@ -81,7 +87,10 @@ public class Updater implements PlugIn {
 		progress = main.getProgress("Matching with local files...");
 		Checksummer checksummer = new Checksummer(progress);
 		try {
-			checksummer.updateFromLocal();
+			if (debug)
+				checksummer.done();
+			else
+				checksummer.updateFromLocal();
 		} catch (Canceled e) {
 			checksummer.done();
 			main.dispose();
@@ -90,14 +99,11 @@ public class Updater implements PlugIn {
 		}
 
 		if ("update".equals(arg)) {
-			PluginCollection plugins =
-				PluginCollection.getInstance();
 			plugins.markForUpdate(false);
-			if (plugins.hasChanges())
-				main.setViewOption(Option.UPDATEABLE);
-			else if (plugins.hasForcableUpdates())
+			main.setViewOption(Option.UPDATEABLE);
+			if (plugins.hasForcableUpdates())
 				main.warn("There are locally modified files!");
-			else
+			else if (!plugins.hasChanges())
 				main.info("Your Fiji is up to date!");
 		}
 

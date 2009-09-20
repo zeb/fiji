@@ -10,8 +10,12 @@ import fiji.updater.util.Util;
 import java.io.IOException;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.Set;
 
 public class PluginCollection extends ArrayList<PluginObject> {
@@ -86,6 +90,19 @@ public class PluginCollection extends ArrayList<PluginObject> {
 
 	public Iterable<PluginObject> fijiPlugins() {
 		return filter(not(is(Status.NOT_FIJI)));
+	}
+
+	public Iterable<PluginObject> forCurrentTXT() {
+		return filter(and(not(oneOf(new Status[] {
+				Status.NOT_FIJI, Status.OBSOLETE,
+				Status.OBSOLETE_MODIFIED,
+				Status.OBSOLETE_UNINSTALLED
+			/* the old updater will only checksum these! */
+			})), or(startsWith("fiji-"),
+				and(startsWith(new String[] {
+					"ij.jar", "plugins/", "jars/",
+					"retro/", "misc/"
+					}), endsWith(".jar")))));
 	}
 
 	public Iterable<PluginObject> nonFiji() {
@@ -247,6 +264,33 @@ public class PluginCollection extends ArrayList<PluginObject> {
 		};
 	}
 
+	public Filter startsWith(final String prefix) {
+		return new Filter() {
+			public boolean matches(PluginObject plugin) {
+				return plugin.filename.startsWith(prefix);
+			}
+		};
+	}
+
+	public Filter startsWith(final String[] prefixes) {
+		return new Filter() {
+			public boolean matches(PluginObject plugin) {
+				for (String prefix : prefixes)
+					if (plugin.filename.startsWith(prefix))
+						return true;
+				return false;
+			}
+		};
+	}
+
+	public Filter endsWith(final String suffix) {
+		return new Filter() {
+			public boolean matches(PluginObject plugin) {
+				return plugin.filename.endsWith(suffix);
+			}
+		};
+	}
+
 	public Filter not(final Filter filter) {
 		return new Filter() {
 			public boolean matches(PluginObject plugin) {
@@ -299,60 +343,24 @@ public class PluginCollection extends ArrayList<PluginObject> {
 		return null;
 	}
 
-	protected class Dependencies implements Iterator<Dependency> {
-		Iterator<String> iterator;
-		Dependency current;
-		Dependencies(Iterable<String> dependencies) {
-			if (dependencies == null)
-				return;
-			iterator = dependencies.iterator();
-			findNext();
-		}
-
-		public boolean hasNext() {
-			return current != null;
-		}
-
-		public Dependency next() {
-			Dependency result = current;
-			findNext();
-			return result;
-		}
-
-		public void remove() {
-			throw new UnsupportedOperationException();
-		}
-
-		protected void findNext() {
-			while (iterator.hasNext()) {
-				PluginObject plugin =
-					getPlugin(iterator.next());
-				if (plugin == null)
-					continue;
-				current = new Dependency(plugin.getFilename(),
-					plugin.getTimestamp(), "at-least");
-				return;
-			}
-			current = null;
-		}
-	}
-
-	public Iterable<Dependency> analyzeDependencies(PluginObject plugin) {
+	public Iterable<String> analyzeDependencies(PluginObject plugin) {
 		try {
 			if (dependencyAnalyzer == null)
 				dependencyAnalyzer = new DependencyAnalyzer();
-			final Iterable<String> dependencies = dependencyAnalyzer
-				.getDependencies(plugin.getFilename());
-
-			return new Iterable<Dependency>() {
-				public Iterator<Dependency> iterator() {
-					return new Dependencies(dependencies);
-				}
-			};
+			String path = Util.prefix(plugin.getFilename());
+			return dependencyAnalyzer.getDependencies(path);
 		} catch (IOException e) {
 			e.printStackTrace();
 			return null;
 		}
+	}
+
+	public void updateDependencies(PluginObject plugin) {
+		Iterable<String> dependencies = analyzeDependencies(plugin);
+		if (dependencies == null)
+			return;
+		for (String dependency : dependencies)
+			plugin.addDependency(dependency);
 	}
 
 	public boolean has(final Filter filter) {
@@ -392,8 +400,139 @@ public class PluginCollection extends ArrayList<PluginObject> {
 			});
 		for (String name : Util.getLaunchers()) {
 			PluginObject launcher = getPlugin(name);
+			if (launcher == null)
+				continue; // the regression test triggers this
 			if (launcher.getStatus() == Status.NOT_INSTALLED)
 				launcher.setAction(Action.INSTALL);
 		}
+	}
+
+	public static class DependencyMap
+			extends HashMap<PluginObject, PluginCollection> {
+		// returns true when the map did not have the dependency before
+		public boolean add(PluginObject dependency,
+				PluginObject dependencee) {
+			if (containsKey(dependency)) {
+				get(dependency).add(dependencee);
+				return false;
+			}
+			PluginCollection list = new PluginCollection();
+			list.add(dependencee);
+			put(dependency, list);
+			return true;
+		}
+	}
+
+	// TODO: for developers, there should be a consistency check:
+	// no dependencies on non-Fiji plugins, no circular dependencies,
+	// and no overring circular dependencies.
+	void addDependencies(PluginObject plugin, DependencyMap map,
+			boolean overriding) {
+		for (Dependency dependency : plugin.getDependencies()) {
+			PluginObject other = getPlugin(dependency.filename);
+			if (other == null || overriding != dependency.overrides)
+				continue;
+			if (dependency.overrides) {
+				if (other.willNotBeInstalled())
+					continue;
+			}
+			else if (other.willBeUpToDate())
+				continue;
+			if (!map.add(other, plugin))
+				continue;
+			// overriding dependencies are not recursive
+			if (!overriding)
+				addDependencies(other, map, overriding);
+		}
+	}
+
+	public DependencyMap getDependencies(boolean overridingOnes) {
+		DependencyMap result = new DependencyMap();
+		for (PluginObject plugin : toInstallOrUpdate())
+			addDependencies(plugin, result, overridingOnes);
+		return result;
+	}
+
+	public void sort() {
+		// first letters in this order: 'f', 'i', 'p', 's', 'm', 'j'
+		Collections.sort(this, new Comparator<PluginObject>() {
+			public int compare(PluginObject a, PluginObject b) {
+				int result = firstChar(a) - firstChar(b);
+				return result != 0 ? result :
+					a.filename.compareTo(b.filename);
+			}
+
+			int firstChar(PluginObject plugin) {
+				char c = plugin.filename.charAt(0);
+				return "fips".indexOf(c) < 0 ? 0x200 - c : c;
+			}
+		});
+	}
+
+	String checkForCircularDependency(PluginObject plugin,
+			Set<PluginObject> seen) {
+		if (seen.contains(plugin))
+			return "";
+		String result = checkForCircularDependency(plugin, seen,
+				new HashSet<PluginObject>());
+		if (result == null)
+			return "";
+
+		// Display only the circular dependency
+		int last = result.lastIndexOf(' ');
+		int off = result.lastIndexOf(result.substring(last), last - 1);
+		return "Circular dependency detected: "
+			+ result.substring(off + 1) + "\n";
+	}
+
+	String checkForCircularDependency(PluginObject plugin,
+			Set<PluginObject> seen,
+			Set<PluginObject> chain) {
+		if (seen.contains(plugin))
+			return null;
+		for (String dependency : plugin.dependencies.keySet()) {
+			PluginObject dep = getPlugin(dependency);
+			if (dep == null)
+				continue;
+			if (chain.contains(dep))
+				return " " + dependency;
+			chain.add(dep);
+			String result =
+				checkForCircularDependency(dep, seen, chain);
+			seen.add(dep);
+			if (result != null)
+				return " " + dependency + " ->" + result;
+			chain.remove(dep);
+		}
+		return null;
+	}
+
+	/* returns null if consistent, error string when not */
+	public String checkConsistency() {
+		StringBuilder result = new StringBuilder();
+		Set<PluginObject> circularChecked = new HashSet<PluginObject>();
+		for (PluginObject plugin : this) {
+			result.append(checkForCircularDependency(plugin,
+					circularChecked));
+			// only non-obsolete components can have dependencies
+			Set<String> deps = plugin.dependencies.keySet();
+			if (deps.size() > 0 && plugin.isObsolete())
+				result.append("Obsolete plugin " + plugin
+					+ "has dependencies: "
+					+ Util.join(", ", deps) + "!\n");
+			for (String dependency : deps) {
+				PluginObject dep = getPlugin(dependency);
+				if (dep == null || dep.current == null)
+					result.append("The plugin " + plugin
+						+ " has the obsolete/non-Fiji "
+						+ "dependency "
+						+ dependency + "!\n");
+			}
+		}
+		return result.length() > 0 ? result.toString() : null;
+	}
+
+	public String toString() {
+		return Util.join(", ", this);
 	}
 }

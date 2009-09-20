@@ -21,6 +21,7 @@ import java.net.URL;
 import java.net.URLDecoder;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.Enumeration;
@@ -176,8 +177,6 @@ public class Fake {
 		try {
 			Parser parser = new Parser();
 
-			parser.setVariable("FIJIHOME", fijiHome);
-
 			// filter out variable definitions
 			int firstArg = 0;
 			while (firstArg < args.length &&
@@ -277,6 +276,8 @@ public class Fake {
 			}
 
 			setVariable("platform", getPlatform());
+
+			setVariable("FIJIHOME", fijiHome);
 
 			addSpecialRule(new Special("show-rules") {
 				void action() { showMap(allRules, false); }
@@ -1773,6 +1774,7 @@ public class Fake {
 
 		String[] names = parentDirectory.list(new GlobFilter(pattern,
 					newerThan));
+		Arrays.sort(names);
 
 		for (int i = 0; i < names.length; i++) {
 			String path = parentPath + names[i];

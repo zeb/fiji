@@ -1,7 +1,5 @@
 Show-stoppers:
 
-- Conflict dialog!!!
-
 - Let's have a checkbox in the Fiji Updater that says "automatically check
   for updates".  This should be grayed out if, say, plugins/Fiji_Updater.jar
   is not writable, or misc/Fiji.jar is not new enough.
@@ -17,13 +15,6 @@ Show-stoppers:
 - Put only 'Fiji_Updater' into current.txt
 
 - Add a context menu to trigger actions
-
-- Dependencies are _borked_ for the moment.
-
-- There _must_ be an "OVERRIDE" depenendency type.
-
-- Scrap the "AT-LEAST", "AT-MOST" and "EXACTLY" modes.  Either a dependency
-  overrides, or it requires the newest version.  That's it.
 
 Not-quite show-stoppers:
 
