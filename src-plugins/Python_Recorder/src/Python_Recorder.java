@@ -58,7 +58,6 @@ public class Python_Recorder extends PlugInFrame implements CommandListenerPlus,
 	 */
 
 	public String commandExecuting(String command) {
-		System.out.println("A command was launched: "+command);
 		return command;
 	}
 
@@ -73,6 +72,7 @@ public class Python_Recorder extends PlugInFrame implements CommandListenerPlus,
 		
 		// Only deal with finished commands
 		if (state != CommandListenerPlus.CMD_FINISHED) { return; }
+		System.out.println(cmd);
 		rule_set.sort();
 		Iterator<Rule> it = rule_set.iterator();
 		Rule rule;

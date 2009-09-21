@@ -44,21 +44,24 @@ public class RegexRule extends Rule {
 		
 		switch (lang) {
 		case Python:
-			// command
-			String command_template = Pattern.compile("<command.(\\d+)>").matcher(python_translator).replaceAll("\\$$1");
-			result = matcher_command.replaceAll(command_template);
-			// class name
-			String class_name_template = Pattern.compile("<class_name.(\\d+)>").matcher(result).replaceAll("\\$$1");
-			result = matcher_class_name.replaceAll(class_name_template);
-			// arguments
-			String arguments_template  = Pattern.compile("<arguments.(\\d+)>").matcher(result).replaceAll("\\$$1");
-			result = matcher_arguments.replaceAll(arguments_template);
-			// modifiers
-			String modifiers_template  = Pattern.compile("<modifiers.(\\d+)>").matcher(result).replaceAll("\\$$1");
-			result = matcher_modifiers.replaceAll(modifiers_template);
-			// new lines - i did not find a way to put them in the regex string correctly
-			result = Pattern.compile("<newline>").matcher(result).replaceAll("\n");
+			result = python_translator;
+			break;
 		}		
+
+		// command
+		String command_template = Pattern.compile("<command.(\\d+)>").matcher(result).replaceAll("\\$$1");
+		result = matcher_command.replaceAll(command_template);
+		// class name
+		String class_name_template = Pattern.compile("<class_name.(\\d+)>").matcher(result).replaceAll("\\$$1");
+		result = matcher_class_name.replaceAll(class_name_template);
+		// arguments
+		String arguments_template  = Pattern.compile("<arguments.(\\d+)>").matcher(result).replaceAll("\\$$1");
+		result = matcher_arguments.replaceAll(arguments_template);
+		// modifiers
+		String modifiers_template  = Pattern.compile("<modifiers.(\\d+)>").matcher(result).replaceAll("\\$$1");
+		result = matcher_modifiers.replaceAll(modifiers_template);
+		// new lines - i did not find a way to put them in the regex string correctly
+		result = Pattern.compile("<newline>").matcher(result).replaceAll("\n");
 		return result;
 	}
 	
