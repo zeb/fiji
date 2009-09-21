@@ -290,6 +290,11 @@ public class TextEditor extends JFrame implements ActionListener,
 		return textArea;
 	}
 
+	public void append(String string) {
+		textArea.insert(string, getDocument().getLength());
+		textArea.setCaretPosition(getDocument().getLength());
+	}
+
 	public void addAccelerator(final JMenuItem component,
 			int key, int modifiers) {
 		textArea.getInputMap().put(KeyStroke.getKeyStroke(key,
