@@ -286,6 +286,10 @@ public class TextEditor extends JFrame implements ActionListener,
 		return item;
 	}
 
+	public JTextArea getTextArea() {
+		return textArea;
+	}
+
 	public void addAccelerator(final JMenuItem component,
 			int key, int modifiers) {
 		textArea.getInputMap().put(KeyStroke.getKeyStroke(key,
