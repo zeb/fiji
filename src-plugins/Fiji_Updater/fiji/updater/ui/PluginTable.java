@@ -14,8 +14,10 @@ import java.awt.Dimension;
 import java.awt.Font;
 
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 import javax.swing.DefaultCellEditor;
 import javax.swing.JComboBox;
@@ -132,6 +134,7 @@ public class PluginTable extends JTable {
 
 	class PluginTableModel extends AbstractTableModel {
 		private PluginCollection plugins;
+		Map<PluginObject, Integer> pluginToRow;
 
 		public PluginTableModel(PluginCollection plugins) {
 			this.plugins = plugins;
@@ -143,6 +146,7 @@ public class PluginTable extends JTable {
 
 		public void setPlugins(PluginCollection plugins) {
 			this.plugins = plugins;
+			pluginToRow = null;
 			fireTableChanged(new TableModelEvent(pluginTableModel));
 		}
 
@@ -186,7 +190,9 @@ public class PluginTable extends JTable {
 
 		public void setValueAt(Object value, int row, int column) {
 			if (column == 1) {
-				getPlugin(row).setAction((Action)value);
+				Action action = (Action)value;
+				if (getPlugin(row).getStatus().isValid(action))
+					getPlugin(row).setAction(action);
 				fireRowChanged(row);
 			}
 		}
@@ -196,15 +202,17 @@ public class PluginTable extends JTable {
 		}
 
 		public void firePluginChanged(PluginObject plugin) {
+			if (pluginToRow == null) {
+				pluginToRow =
+					new HashMap<PluginObject, Integer>();
 			// the table may be sorted, and we need the model's row
-			int counter = 0;
-			for (PluginObject p : plugins)
-				if (p == plugin) {
-					fireRowChanged(counter);
-					return;
-				}
-				else
-					counter++;
+				int i = 0;
+				for (PluginObject p : plugins)
+					pluginToRow.put(p, new Integer(i++));
+			}
+			Integer row = pluginToRow.get(plugin);
+			if (row != null)
+				fireRowChanged(row.intValue());
 		}
 	}
 

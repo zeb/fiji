@@ -57,8 +57,7 @@ public class XMLRuleReader extends DefaultHandler {
 
 	public void endDocument () { }
 
-	public void startElement(String uri, String name, String qName,
-			Attributes atts) {
+	public void startElement(String uri, String name, String qName,	Attributes atts) {
 		
 		String tagName;
 		if ("".equals (uri))
@@ -74,7 +73,7 @@ public class XMLRuleReader extends DefaultHandler {
 			rule.setCommand( atts.getValue("command") );
 			rule.setClassName( atts.getValue("class_name") );
 			rule.setArguments( atts.getValue("arguments"));
-			rule.setModifiers( Integer.parseInt(atts.getValue( "modifiers")) );
+			rule.setModifiers( atts.getValue( "modifiers")) ;
 		} 
 		else if (tagName.equalsIgnoreCase("PythonTranslator")) {
 			rule.setPythonTranslator( atts.getValue("target"));

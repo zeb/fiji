@@ -1,15 +1,19 @@
 package fiji.recorder.rule;
 
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import fiji.recorder.RecorderBase.Language;
+
 import ij.Command;
 
 public class RegexRule extends Rule {
 	
-	private String command;
-	private String class_name;
-	private String args;
-	private int modifiers;
+	private Pattern pattern_command;
+	private Pattern pattern_class_name;
+	private Pattern pattern_arguments;
+	private Pattern pattern_modifiers;
 	
-	private String name;
 	private String description;
 	
 	private String python_translator;
@@ -20,11 +24,43 @@ public class RegexRule extends Rule {
 	 */
 	
 	public boolean match(Command cmd) {
-		boolean match = true;
-		match = match && cmd.getCommand().matches(command);
+		boolean match = 
+			pattern_command.matcher(cmd.getCommand()).matches()
+			&& pattern_class_name.matcher(cmd.getClassName()).matches()
+			&& pattern_arguments.matcher(cmd.getArg()).matches()
+			&& pattern_modifiers.matcher(String.format("%d", cmd.getModifiers())).matches();
 		return match;		
 	}
 	
+	
+	public String handle(Command cmd, Language lang) {
+		// Create matchers
+		Matcher matcher_command = 		pattern_command.matcher(cmd.getCommand());
+		Matcher matcher_class_name =	pattern_class_name.matcher(cmd.getClassName());
+		Matcher matcher_arguments = 		pattern_arguments.matcher(cmd.getArg());
+		Matcher matcher_modifiers = 		pattern_modifiers.matcher(String.format("%d", cmd.getModifiers()));
+		
+		String result = null;
+		
+		switch (lang) {
+		case Python:
+			// command
+			String command_template = Pattern.compile("<command.(\\d+)>").matcher(python_translator).replaceAll("\\$$1");
+			result = matcher_command.replaceAll(command_template);
+			// class name
+			String class_name_template = Pattern.compile("<class_name.(\\d+)>").matcher(result).replaceAll("\\$$1");
+			result = matcher_class_name.replaceAll(class_name_template);
+			// arguments
+			String arguments_template  = Pattern.compile("<arguments.(\\d+)>").matcher(result).replaceAll("\\$$1");
+			result = matcher_arguments.replaceAll(arguments_template);
+			// modifiers
+			String modifiers_template  = Pattern.compile("<modifiers.(\\d+)>").matcher(result).replaceAll("\\$$1");
+			result = matcher_modifiers.replaceAll(modifiers_template);
+			// new lines - i did not find a way to put them in the regex string correctly
+			result = Pattern.compile("<newline>").matcher(result).replaceAll("\n");
+		}		
+		return result;
+	}
 	
 	
 	public String toString() {
@@ -32,10 +68,10 @@ public class RegexRule extends Rule {
 //			.append(description).append("\n")
 			.append("\tPriority:\t").append(priority).append("\n")
 			.append("\tMatching:\n")
-			.append("\t\tCommand:\t").append(command).append("\n")
-			.append("\t\tClass name:\t").append(class_name).append("\n")
-			.append("\t\tArguments:\t").append(args).append("\n")
-			.append("\t\tMofiers:\t").append(modifiers).append("\n")
+			.append("\t\tCommand:\t").append(getCommand()).append("\n")
+			.append("\t\tClass name:\t").append(getClassName()).append("\n")
+			.append("\t\tArguments:\t").append(getArguments()).append("\n")
+			.append("\t\tMofiers:\t").append(getModifiers()).append("\n")
 			.append("\tPython translator:\t").append(python_translator).append("\n")
 			.toString();
 	}
@@ -48,29 +84,32 @@ public class RegexRule extends Rule {
 	 */
 	
 	public String getCommand() {
-		return command;
+		return pattern_command.toString();
 	}
 	public void setCommand(String command) {
-		this.command = command;
+		pattern_command = Pattern.compile(command);
 	}
 	public String getClassName() {
-		return class_name;
+		return pattern_class_name.toString();
 	}
 	public void setClassName(String className) {
-		class_name = className;
+		pattern_class_name = Pattern.compile(className);
 	}
 	public String getArguments() {
-		return args;
+		return pattern_arguments.toString();
 	}
 	public void setArguments(String args) {
-		this.args = args;
+		pattern_arguments = Pattern.compile(args);
 	}
-	public int getModifiers() {
-		return modifiers;
+	public String getModifiers() {
+		return pattern_modifiers.toString();
 	}
-	public void setModifiers(int modifiers) {
-		this.modifiers = modifiers;
+	public void setModifiers(String modifiers) {
+		pattern_modifiers = Pattern.compile(modifiers);
 	}
+	
+	
+	
 	public void setPythonTranslator(String python_translator) {
 		this.python_translator = python_translator;
 	}
@@ -87,21 +126,5 @@ public class RegexRule extends Rule {
 	public String getDescription() {
 		return description;
 	}
-
-
-
-
-	public void setName(String name) {
-		this.name = name;
-	}
-
-
-	public String getName() {
-		return name;
-	}
-
-
-
-
 	
 }

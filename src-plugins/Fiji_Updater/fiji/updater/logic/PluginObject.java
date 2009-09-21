@@ -190,6 +190,10 @@ public class PluginObject {
 		dependencies.put(dependency.filename, dependency);
 	}
 
+	public void removeDependency(String other) {
+		dependencies.remove(other);
+	}
+
 	public void addLink(String link) {
 		links.put(link, (Object)null);
 	}
@@ -266,6 +270,11 @@ public class PluginObject {
 			newChecksum = current.checksum;
 			newTimestamp = current.timestamp;
 		}
+		else if (isObsolete() || status == Status.UPDATEABLE) {
+			/* force re-upload */
+			status = Status.INSTALLED;
+			setVersion(newChecksum, newTimestamp);
+		}
 		else {
 			if (newChecksum == null ||
 					newChecksum.equals(current.checksum))
@@ -277,8 +286,11 @@ public class PluginObject {
 
 		PluginCollection plugins = PluginCollection.getInstance();
 		// TODO: complain if not Fiji (and offer to add them)
-		for (String dependency : plugins.analyzeDependencies(this))
-				addDependency(dependency);
+		Iterable<String> dependencies =
+			plugins.analyzeDependencies(this);
+		if (dependencies != null)
+			for (String dependency : dependencies)
+					addDependency(dependency);
 	}
 
 	protected void markForRemoval() {
@@ -369,6 +381,37 @@ public class PluginObject {
 		return status != Status.NOT_FIJI;
 	}
 
+	/* This returns true if the user marked the plugin for uninstall, too */
+	public boolean willNotBeInstalled() {
+		switch (action) {
+		case NOT_INSTALLED: case NEW: case OBSOLETE: case UNINSTALL:
+		case REMOVE:
+			return true;
+		case NOT_FIJI: case INSTALLED: case UPDATEABLE: case MODIFIED:
+		case INSTALL: case UPDATE: case UPLOAD:
+			return false;
+		default:
+			throw new RuntimeException("Unhandled action: "
+					+ action);
+		}
+	}
+
+	/* This returns true if the user marked the plugin for uninstall, too */
+	public boolean willBeUpToDate() {
+		switch (action) {
+		case OBSOLETE: case REMOVE: case NOT_INSTALLED: case NEW:
+		case UPDATEABLE: case MODIFIED: case UNINSTALL:
+			return false;
+		case INSTALLED: case INSTALL: case UPDATE: case UPLOAD:
+		case NOT_FIJI:
+			return true;
+		default:
+			throw new RuntimeException("Unhandled action: "
+					+ action);
+		}
+	}
+
+	// TODO: this needs a better name; something like wantsAction()
 	public boolean isUpdateable(boolean evenForcedUpdates) {
 		return action == Action.UPDATE ||
 			action == Action.INSTALL ||
@@ -402,6 +445,14 @@ public class PluginObject {
 			file.createNewFile();
 		}
         }
+
+	public String toDebug() {
+		return filename + "(" + status + ", " + action + ")";
+	}
+
+	public String toString() {
+		return filename;
+	}
 
 	/**
 	 * For displaying purposes, it is nice to have a plugin object whose

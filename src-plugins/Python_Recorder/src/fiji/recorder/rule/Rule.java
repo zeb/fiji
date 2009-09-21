@@ -2,12 +2,20 @@ package fiji.recorder.rule;
 
 import java.util.Comparator;
 
+import fiji.recorder.RecorderBase.Language;
+
 import ij.Command;
 
 public abstract class  Rule implements Comparable<Rule> {
 	
+	/**
+	 * The priority of this rule.
+	 */
 	protected int priority;
-	
+	/**
+	 * A descriptive name for this rule.
+	 */
+	protected String name;
 	
 	/*
 	 * ABSTRACT METHODS
@@ -20,6 +28,15 @@ public abstract class  Rule implements Comparable<Rule> {
 	 */
 	public abstract boolean match(Command command);
 	
+	/**
+	 * Returns a String, that is the translation of the caught command,
+	 * suitable for the language given in argument. If the command does not
+	 * match this Rule (<i>i.e.</i> <tt>match(cmd)</tt> returns false), this 
+	 * command returns a null String. If the cammand match this rule, but the
+	 * language asked for is not yet implemented, this method also returns a 
+	 * null String. 
+	 */
+	public abstract String handle(Command cmd, Language lang);
 	
 	/*
 	 * METHODS
@@ -54,6 +71,20 @@ public abstract class  Rule implements Comparable<Rule> {
 		};
 	}
 	
+	/**
+	 * Returns a reversed comparator that will effectively sort rules by decreasing
+	 * priority. 
+	 * 
+	 * @return  a comparator for this class
+	 */
+	public static Comparator<Rule> getReversedComparator() {
+		return new Comparator<Rule>() {
+			public int compare(Rule o1,	Rule o2) {
+				return (-o1.compareTo(o2));
+			}
+		};
+	}
+	
 	/*
 	 * GETTER AND SETTERS
 	 */
@@ -74,6 +105,15 @@ public abstract class  Rule implements Comparable<Rule> {
 		this.priority = _priority;
 	}
 	
+	public void setName(String name) {
+		this.name = name;
+	}
+
+
+	public String getName() {
+		return name;
+	}
+
 
 
 }

@@ -38,6 +38,12 @@ public class RecorderBase implements CommandListenerPlus, PlugIn {
 			super(reason);
 		}
 	}
+	
+	/**
+	 * Enum that stores what language we can handle
+	 */
+	public enum Language  { BeanShell, Clojure, JavaScript, Python, Ruby };
+	
 
 	Collection<Rule> rules;
 

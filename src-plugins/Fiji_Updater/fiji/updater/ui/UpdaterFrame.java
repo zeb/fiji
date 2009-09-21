@@ -4,6 +4,7 @@ import fiji.updater.Updater;
 
 import fiji.updater.logic.Installer;
 import fiji.updater.logic.PluginCollection;
+import fiji.updater.logic.PluginCollection.DependencyMap;
 import fiji.updater.logic.PluginObject;
 import fiji.updater.logic.PluginObject.Action;
 import fiji.updater.logic.PluginObject.Status;
@@ -20,13 +21,19 @@ import ij.WindowManager;
 
 import ij.gui.GenericDialog;
 
+import java.awt.Container;
+import java.awt.Component;
 import java.awt.Dimension;
+import java.awt.GridBagLayout;
+import java.awt.GridBagConstraints;
+import java.awt.Insets;
 import java.awt.TextField;
 
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
+import java.awt.event.KeyEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 
@@ -41,6 +48,7 @@ import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
+import javax.swing.JComponent;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
@@ -67,7 +75,8 @@ public class UpdaterFrame extends JFrame
 	private PluginTable table;
 	private JLabel lblPluginSummary;
 	private PluginDetails pluginDetails;
-	private JButton btnStart;
+	private JButton apply, cancel, easy;
+	boolean easyMode;
 
 	//For developers
 	// TODO: no more Hungarian notation
@@ -87,7 +96,17 @@ public class UpdaterFrame extends JFrame
 		});
 
 		//======== Start: LEFT PANEL ========
-		JPanel leftPanel = SwingTools.verticalPanel();
+		JPanel leftPanel = new JPanel();
+		GridBagLayout gb = new GridBagLayout();
+		leftPanel.setLayout(gb);
+		GridBagConstraints c = new GridBagConstraints(0, 0,  // x, y
+				                              9, 1,  // rows, cols
+							      0, 0,  // weightx, weighty
+							      GridBagConstraints.NORTHWEST, // anchor
+							      GridBagConstraints.HORIZONTAL, // fill
+							      new Insets(0,0,0,0),
+							      0, 0); // ipadx, ipady
+
 		txtSearch = new JTextField();
 		txtSearch.getDocument().addDocumentListener(new DocumentListener() {
 
@@ -103,8 +122,14 @@ public class UpdaterFrame extends JFrame
 				updatePluginsTable();
 			}
 		});
-		SwingTools.labelComponent("Search:", txtSearch, leftPanel);
-		leftPanel.add(Box.createRigidArea(new Dimension(0,10)));
+		JPanel searchPanel = SwingTools.labelComponentRigid("Search:", txtSearch);
+		gb.setConstraints(searchPanel, c);
+		leftPanel.add(searchPanel);
+
+		Component box = Box.createRigidArea(new Dimension(0,10));
+		c.gridy = 1;
+		gb.setConstraints(box, c);
+		leftPanel.add(box);
 
 		viewOptions = new ViewOptions();
 		viewOptions.addActionListener(new ActionListener() {
@@ -113,12 +138,26 @@ public class UpdaterFrame extends JFrame
 			}
 		});
 	
-		SwingTools.labelComponent("View Options:", viewOptions, leftPanel);
-		leftPanel.add(Box.createRigidArea(new Dimension(0,10)));
+		JPanel viewOptionsPanel = SwingTools.labelComponentRigid("View Options:", viewOptions);
+		c.gridy = 2;
+		gb.setConstraints(viewOptionsPanel, c); 
+		leftPanel.add(viewOptionsPanel);
+
+		box = Box.createRigidArea(new Dimension(0,10));
+		c.gridy = 3;
+		gb.setConstraints(box, c);
+		leftPanel.add(box);
 
 		//Create labels to annotate table
-		SwingTools.label("Please choose what you want to install/uninstall:", leftPanel);
-		leftPanel.add(Box.createRigidArea(new Dimension(0,5)));
+		JPanel chooseLabel = SwingTools.label("Please choose what you want to install/uninstall:", null);
+		c.gridy = 4;
+		gb.setConstraints(chooseLabel, c);
+		leftPanel.add(chooseLabel);
+
+		box = Box.createRigidArea(new Dimension(0,5));
+		c.gridy = 5;
+		gb.setConstraints(box, c);
+		leftPanel.add(box);
 
 		//Label text for plugin summaries
 		lblPluginSummary = new JLabel();
@@ -132,13 +171,28 @@ public class UpdaterFrame extends JFrame
 		JScrollPane pluginListScrollpane = new JScrollPane(table);
 		pluginListScrollpane.getViewport().setBackground(table.getBackground());
 
+		c.gridy = 6;
+		c.weightx = 1;
+		c.weighty = 1;
+		c.fill = GridBagConstraints.BOTH;
+		gb.setConstraints(pluginListScrollpane, c);
 		leftPanel.add(pluginListScrollpane);
-		leftPanel.add(Box.createRigidArea(new Dimension(0,5)));
+
+		box = Box.createRigidArea(new Dimension(0,5));
+		c.gridy = 7;
+		c.weightx = 0;
+		c.weighty = 0;
+		c.fill = GridBagConstraints.HORIZONTAL;
+		gb.setConstraints(box, c);
+		leftPanel.add(box);
+
+		c.gridy = 8;
+		gb.setConstraints(lblSummaryPanel, c);
 		leftPanel.add(lblSummaryPanel);
+
 		//======== End: LEFT PANEL ========
 
 		//======== Start: RIGHT PANEL ========
-		// TODO: do we really want to win the "Who can make the longest function names?" contest?
 		JPanel rightPanel = SwingTools.verticalPanel();
 
 		rightPanel.add(Box.createVerticalGlue());
@@ -185,13 +239,13 @@ public class UpdaterFrame extends JFrame
 		bottomPanel.add(Box.createHorizontalGlue());
 
 		//Button to start actions
-		btnStart = SwingTools.button("Apply changes",
+		apply = SwingTools.button("Apply changes",
 				"Start installing/uninstalling plugins", new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
 				applyChanges();
 			}
 		}, bottomPanel);
-		btnStart.setEnabled(false);
+		apply.setEnabled(false);
 
 		//includes button to upload to server if is a Developer using
 		if (Util.isDeveloper) {
@@ -199,14 +253,27 @@ public class UpdaterFrame extends JFrame
 			btnUpload = SwingTools.button("Upload to server",
 					"Upload selected plugins to server", new ActionListener() {
 				public void actionPerformed(ActionEvent e) {
-					upload();
+					new Thread() {
+						public void run() {
+							upload();
+						}
+					}.start();
 				}
 			}, bottomPanel);
 			btnUpload.setEnabled(false);
 		}
 
 		bottomPanel.add(Box.createRigidArea(new Dimension(15,0)));
-		SwingTools.button("Close", "Exit Plugin Manager",
+		easy = SwingTools.button("Toggle easy mode",
+			"Toggle between easy and verbose mode",
+			new ActionListener() {
+				public void actionPerformed(ActionEvent e) {
+					toggleEasyMode();
+				}
+			}, bottomPanel);
+
+		bottomPanel.add(Box.createRigidArea(new Dimension(15,0)));
+		cancel = SwingTools.button("Close", "Exit Plugin Manager",
 			new ActionListener() {
 				public void actionPerformed(ActionEvent e) {
 					quit();
@@ -222,6 +289,10 @@ public class UpdaterFrame extends JFrame
 		table.getModel().addTableModelListener(this);
 
 		pack();
+
+		SwingTools.addAccelerator(cancel, (JComponent)getContentPane(),
+				cancel.getActionListeners()[0],
+				KeyEvent.VK_ESCAPE, 0);
 	}
 
 	public void dispose() {
@@ -336,7 +407,9 @@ public class UpdaterFrame extends JFrame
 	}
 
 	public void applyChanges() {
-		// TODO: check conflicts
+		ResolveDependencies resolver = new ResolveDependencies(this);
+		if (!resolver.resolve())
+			return;
 		new Thread() {
 			public void run() {
 				install();
@@ -354,6 +427,32 @@ public class UpdaterFrame extends JFrame
 				JOptionPane.YES_OPTION)
 			return;
 		dispose();
+	}
+
+	void setEasyMode(Container container) {
+		for (Component child : container.getComponents()) {
+			if ((child instanceof Container) &&
+					child != table.getParent().getParent())
+				setEasyMode((Container)child);
+			child.setVisible(!easyMode);
+		}
+	}
+
+	public void setEasyMode(boolean easyMode) {
+		this.easyMode = easyMode;
+		setEasyMode(getContentPane());
+		Component[] exempt = { table, easy, apply, cancel };
+		for (Component child : exempt)
+			for (; child != getContentPane();
+					child = child.getParent())
+				child.setVisible(true);
+		easy.setLabel(easyMode ? "Advanced mode" : "Easy mode");
+		if (isVisible())
+			repaint();
+	}
+
+	public void toggleEasyMode() {
+		setEasyMode(!easyMode);
 	}
 
 	private void showFrame() {
@@ -403,9 +502,9 @@ public class UpdaterFrame extends JFrame
 		for (PluginAction button : pluginActions)
 			button.enableIfValid();
 
-		btnStart.setEnabled(plugins.hasChanges());
+		apply.setEnabled(plugins.hasChanges());
+		cancel.setLabel(plugins.hasChanges() ? "Cancel" : "Close");
 
-		// TODO: "Upload" is activated by default!"
 		if (Util.isDeveloper) {
 			btnEditDetails.setEnabled(getSingleSelectedPlugin()
 					!= null);
@@ -417,7 +516,6 @@ public class UpdaterFrame extends JFrame
 		int install = 0, uninstall = 0, upload = 0;
 		long bytesToDownload = 0, bytesToUpload = 0;
 
-		// TODO: show dependencies' total size
 		for (PluginObject plugin : plugins)
 			switch (plugin.getAction()) {
 			case INSTALL:
@@ -433,9 +531,20 @@ public class UpdaterFrame extends JFrame
 				bytesToUpload += plugin.filesize;
 				break;
 			}
-		String text = "Total: " + size + ", install/update: " + install
-			+ ", uninstall: " + uninstall
-			+ ", download size: " + sizeToString(bytesToDownload);
+		int implicated = 0;
+		DependencyMap map = plugins.getDependencies(true);
+		for (PluginObject plugin : map.keySet()) {
+			implicated++;
+			bytesToUpload += plugin.filesize;
+		}
+		String text = "";
+		if (install > 0)
+			text += " install/update: " + install
+				+ (implicated > 0 ? "+" + implicated : "")
+				+ " download size: "
+				+ sizeToString(bytesToDownload);
+		if (uninstall > 0)
+			text += " uninstall: " + uninstall;
 		if (Util.isDeveloper)
 			text += ", upload: " + upload + ", upload size: "
 				+ sizeToString(bytesToUpload);
@@ -488,14 +597,29 @@ public class UpdaterFrame extends JFrame
 	}
 
 	protected void upload() {
+		ResolveDependencies resolver =
+			new ResolveDependencies(this, true);
+		if (!resolver.resolve())
+			return;
+
+		String errors = plugins.checkConsistency();
+		if (errors != null) {
+			error(errors);
+			return;
+		}
+
 		PluginUploader uploader = new PluginUploader(xmlLastModified);
 
 		try {
 			if (!interactiveSshLogin(uploader))
 				return;
 			uploader.upload(getProgress("Uploading..."));
-			// TODO: download list instead
-			IJ.showMessage("You need to restart this plugin now");
+			for (PluginObject plugin : plugins.toUploadOrRemove())
+				if (plugin.getAction() == Action.UPLOAD)
+					plugin.setStatus(Status.INSTALLED);
+				else
+					plugin.setStatus(Status.NOT_INSTALLED);
+			updatePluginsTable();
 		} catch (Canceled e) {
 			// TODO: teach uploader to remove the lock file
 			IJ.error("Canceled");
