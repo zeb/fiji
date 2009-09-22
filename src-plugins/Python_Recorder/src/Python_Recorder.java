@@ -1,4 +1,3 @@
-import fiji.recorder.RecorderBase;
 import fiji.recorder.RecorderBase.Language;
 import fiji.recorder.rule.RegexRule;
 import fiji.recorder.rule.Rule;
@@ -8,35 +7,71 @@ import ij.Command;
 import ij.CommandListenerPlus;
 import ij.Executer;
 import ij.WindowManager;
-import ij.gui.GUI;
 import ij.plugin.PlugIn;
-import ij.plugin.frame.PlugInFrame;
 
-import java.awt.Button;
-import java.awt.FlowLayout;
 import java.awt.Font;
-import java.awt.Label;
-import java.awt.Panel;
-import java.awt.TextArea;
-import java.awt.TextField;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.Insets;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.File;
 import java.io.IOException;
 import java.util.Iterator;
 
+import javax.swing.ComboBoxModel;
+import javax.swing.DefaultComboBoxModel;
+import javax.swing.JButton;
+import javax.swing.JComboBox;
 import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JTextArea;
+import javax.swing.border.LineBorder;
 import javax.xml.parsers.ParserConfigurationException;
 
+import org.fife.ui.rsyntaxtextarea.RSyntaxTextArea;
+import org.fife.ui.rsyntaxtextarea.Style;
+import org.fife.ui.rsyntaxtextarea.SyntaxConstants;
 import org.xml.sax.SAXException;
 
 
+
+/**
+* This code was edited or generated using CloudGarden's Jigloo
+* SWT/Swing GUI Builder, which is free for non-commercial
+* use. If Jigloo is being used commercially (ie, by a corporation,
+* company or business for any purpose whatever) then you
+* should purchase a license for each developer using Jigloo.
+* Please visit www.cloudgarden.com for details.
+* Use of Jigloo implies acceptance of these licensing terms.
+* A COMMERCIAL LICENSE HAS NOT BEEN PURCHASED FOR
+* THIS MACHINE, SO JIGLOO OR THIS CODE CANNOT BE USED
+* LEGALLY FOR ANY CORPORATE OR COMMERCIAL PURPOSE.
+*/
 /** This is ImageJ's macro recorder. */
 public class Python_Recorder extends JFrame implements PlugIn, CommandListenerPlus, ActionListener {
 
 	/** Rule collections	 */
 	SortedArrayList<Rule> rule_set = new SortedArrayList<Rule>();
+
+	private JPanel jPanel;
+	private JButton jButton_start_record;
+	private JButton jButton_new;
+	private JButton jButton_list_rules;
+	private JButton jButton_help;
+	private JLabel jLabel_last_command;
+	private JLabel jLabel_caught_by;
+	private JTextArea jTextArea_caught_by;
+	private JLabel jLabel_templates;
+	private JComboBox jComboBox_templates;
+	private JButton jButton_add_template;
 	
+	/**
+	 * 
+	 */
+	private RSyntaxTextArea jTextArea_last_command;
+
 	/** Default SUID  */
 	private static final long serialVersionUID = 1L;
 	
@@ -81,7 +116,8 @@ public class Python_Recorder extends JFrame implements PlugIn, CommandListenerPl
 //				System.out.println("This command: " + cmd.getCommand() );
 //				System.out.println("Matched the following rule:" + rule.getName());
 				result = rule.handle(cmd, Language.Python);
-				// textArea.append("\n\n"+result);
+				jTextArea_last_command.setText(result);
+				jTextArea_caught_by.setText(rule.getName());
 				break;
 			}
 		}
@@ -101,13 +137,104 @@ public class Python_Recorder extends JFrame implements PlugIn, CommandListenerPl
 		
 		// Create frame
 		this.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-		
 
-
+//		BorderLayout thisLayout = new BorderLayout();
+//		getContentPane().setLayout(thisLayout);
 		this.setVisible(true);
-		
+		{
+			jPanel = new JPanel();
+//			getContentPane().add(jPanel, BorderLayout.CENTER);
+			this.setContentPane(jPanel);
+			GridBagLayout jPanelLayout = new GridBagLayout();
+			jPanelLayout.rowWeights = new double[] {0.0, 0.0, 1.0, 0.0, 0.0};
+			jPanelLayout.rowHeights = new int[] {22, 15, 50, 61, 15};
+			jPanelLayout.columnWeights = new double[] {0.1, 0.1, 0.1, 0.1};
+			jPanelLayout.columnWidths = new int[] {7, 7, 7, 7};
+			jPanel.setLayout(jPanelLayout);
+			jPanel.setPreferredSize(new java.awt.Dimension(443, 259));
+			jPanel.setVisible(true);
+			jPanel.setEnabled(true);
+			{
+				jButton_start_record = new JButton();
+				jPanel.add(jButton_start_record, new GridBagConstraints(0, 0, 1, 1, 0.0, 0.0, GridBagConstraints.WEST, GridBagConstraints.VERTICAL, new Insets(10, 10, 0, 0), 0, 0));
+				jButton_start_record.setText("Start recording");
+				jButton_start_record.setBounds(12, 2, 99, 22);
+			}
+			{
+				jButton_new = new JButton();
+				jPanel.add(jButton_new, new GridBagConstraints(1, 0, 1, 1, 0.0, 0.0, GridBagConstraints.CENTER, GridBagConstraints.VERTICAL, new Insets(10, 0, 0, 0), 0, 0));
+				jButton_new.setText("New script");
+				jButton_new.setBounds(158, 2, 111, 22);
+			}
+			{
+				jButton_list_rules = new JButton();
+				jPanel.add(jButton_list_rules, new GridBagConstraints(2, 0, 1, 1, 0.0, 0.0, GridBagConstraints.CENTER, GridBagConstraints.VERTICAL, new Insets(10, 0, 0, 0), 0, 0));
+				jButton_list_rules.setText("List rules");
+				jButton_list_rules.setBounds(300, 2, 65, 22);
+			}
+			{
+				jButton_help = new JButton();
+				jPanel.add(jButton_help, new GridBagConstraints(3, 0, 1, 1, 0.0, 0.0, GridBagConstraints.EAST, GridBagConstraints.VERTICAL, new Insets(10, 0, 0, 10), 0, 0));
+				jButton_help.setText("Help");
+				jButton_help.setBounds(445, 2, 41, 22);
+			}
+			{
+				jLabel_last_command = new JLabel();
+				jPanel.add(jLabel_last_command, new GridBagConstraints(0, 1, GridBagConstraints.REMAINDER, 1, 0.0, 0.0, GridBagConstraints.NORTHWEST, GridBagConstraints.NONE, new Insets(10, 10, 0, 0), 0, 0));
+				jLabel_last_command.setText("Last command:");
+			}
+			{
+				jTextArea_last_command = new RSyntaxTextArea();
+				jTextArea_last_command.setSyntaxEditingStyle(SyntaxConstants.SYNTAX_STYLE_PYTHON);
+				Style[] styles = jTextArea_last_command.getSyntaxScheme().styles;
+				for (int i = 0; i < styles.length; i++) {
+					try {
+						styles[i].font =  styles[i].font.deriveFont((float) 10);
+					} catch (NullPointerException ne) {}
+				}
+				jTextArea_last_command.setFont(new Font("monospaced", Font.PLAIN, 10));
+				
+				jPanel.add(jTextArea_last_command, new GridBagConstraints(0, 2, GridBagConstraints.REMAINDER, 1, 0.0, 0.0, GridBagConstraints.CENTER, GridBagConstraints.BOTH, new Insets(10, 10, 0, 10), 0, 0));
+				jTextArea_last_command.setBorder(new LineBorder(new java.awt.Color(0,0,0), 1, false));
+				jTextArea_last_command.setEditable(false);
+			}
+			{
+				jLabel_caught_by = new JLabel();
+				jPanel.add(jLabel_caught_by, new GridBagConstraints(0, 3, 1, 1, 0.0, 0.0, GridBagConstraints.WEST, GridBagConstraints.NONE, new Insets(0, 10, 0, 0), 0, 0));
+				jLabel_caught_by.setText("Caught by rule:");
+			}
+			{
+				jTextArea_caught_by = new JTextArea();
+				jTextArea_caught_by.setBackground(jPanel.getBackground());
+				jTextArea_caught_by.setFont(new Font("monospaced", Font.ITALIC, 11));
+				
+				jPanel.add(jTextArea_caught_by, new GridBagConstraints(1, 3, 3, 1, 0.0, 0.0, GridBagConstraints.EAST, GridBagConstraints.HORIZONTAL, new Insets(0, 10, 0, 10), 0, 0));
+				jTextArea_caught_by.setEditable(false);
+			}
+			{
+				jLabel_templates = new JLabel();
+				jPanel.add(jLabel_templates, new GridBagConstraints(0, 4, 1, 1, 0.0, 0.0, GridBagConstraints.WEST, GridBagConstraints.VERTICAL, new Insets(10, 10, 10, 0), 0, 0));
+				jLabel_templates.setText("Templates:");
+			}
+			{
+
+				ComboBoxModel jComboBox_templatesModel = 
+					new DefaultComboBoxModel(
+							new String[] { "Item One", "Item Two" });
+				jComboBox_templates = new JComboBox();
+				jPanel.add(jComboBox_templates, new GridBagConstraints(1, 4, 2, 1, 0.0, 0.0, GridBagConstraints.CENTER, GridBagConstraints.BOTH, new Insets(10, 10, 10, 0), 0, 0));
+				jComboBox_templates.setModel(jComboBox_templatesModel);
+			}
+			{
+				jButton_add_template = new JButton();
+				jPanel.add(jButton_add_template, new GridBagConstraints(3, 4, 1, 1, 0.0, 0.0, GridBagConstraints.EAST, GridBagConstraints.VERTICAL, new Insets(10, 0, 10, 10), 0, 0));
+				jButton_add_template.setText("Add");
+			}
+		}
+
 		// Register as a listener
 		Executer.addCommandListener(this);
+		pack();
 	}
 	
 	/**
@@ -124,6 +251,7 @@ public class Python_Recorder extends JFrame implements PlugIn, CommandListenerPl
 		XMLRuleReader xrr = null;
 		
 		for (int i = 0; i < rule_files.length; i++) {
+
 			rule_file = rule_files[i];
 			if (!rule_file.getName().toLowerCase().endsWith(".xml")) {
 				continue;
@@ -149,4 +277,9 @@ public class Python_Recorder extends JFrame implements PlugIn, CommandListenerPl
 		// TODO Auto-generated method stub
 		
 	}
+	
+	public static void main(String[] args) {
+		Python_Recorder pr = new Python_Recorder();
+	}
+	
 }
