@@ -33,7 +33,7 @@ public class Script_Editor implements PlugIn {
 							path.length() - 1);
 			}
 		}
-		new TextEditor(path);
+		new TextEditor(path).setVisible(true);
 	}
 
 	final private static String gitwebURL =
@@ -106,7 +106,6 @@ public class Script_Editor implements PlugIn {
 			loader.addFallBack(new URLClassLoader(urls));
 			return;
 		} catch (Exception e) { e.printStackTrace(); }
-		//TODO: disable debug
 		IJ.showStatus("Could not find debugging support library");
 	}
 }

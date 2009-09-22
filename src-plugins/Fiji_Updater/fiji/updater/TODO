@@ -1,0 +1,47 @@
+Show-stoppers:
+
+- Let's have a checkbox in the Fiji Updater that says "automatically check
+  for updates".  This should be grayed out if, say, plugins/Fiji_Updater.jar
+  is not writable, or misc/Fiji.jar is not new enough.
+
+  misc/Fiji.jar needs to have an updated fiji.Main that calls the "cheap mode"
+  of the Fiji Updater: it first checks whether plugins/Fiji_Updater.jar is
+  writable, and if so, tries to get the timestamp of db.xml.gz, compares it to
+  the stored one in the preferences (defaulting to a to-be-created
+  fiji.launcher.timestamp plus one hour), and if the timestamp is newer, tells
+  the user that updates are available (maybe a new tool button in the Fiji
+  window?)
+
+- Add a context menu to trigger actions
+
+Not-quite show-stoppers:
+
+- If the developer tries to upload a version that has already be marked
+  as a previous version, ask her loudly if she is sure.
+
+- The actions should be editable by keyboard shortcuts.  Likewise,
+  "Escape" should exit, asking if the user is sure when actions where
+  selected but not launched.
+
+- The list of plugins included in the file should be shown, too.  We can
+  use fiji.User_Plugins' parsePluginsConfig() method, probably after
+  wrapping it into a public method that takes a String parameter
+  containing the .jar file's path.
+
+- We need a "category" attribute so we can label, say, "Segmentation
+  Editor" to belong into the categories "segmentation" and
+  "interactive".
+
+- make the list sortable by clicking on the column titles (second click
+  sorts descending).
+
+- Usability bug: the "Edit details" button is only active when uploading a
+  plugin.  I'd rather have the Edit Details button on at all times (or let the
+  field be editable at all times); if the developer chooses to just edit the
+  details without updating the file, that should be perfectly fine.
+
+  Think for example if a dependency is fixed.
+
+- The dependency list should be editable so that the developer can
+  correct mistakes (not all are "at-least" dependencies) and add
+  additional dependencies.
