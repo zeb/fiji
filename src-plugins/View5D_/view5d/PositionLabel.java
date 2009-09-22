@@ -87,12 +87,12 @@ class PositionLabel extends Panel implements MouseListener{
     MyText= new TextArea(text ,15,30);
     MyText.setEditable(false);
     PixDisplay = new PixelDisplay(data,c1,c2,c3);
-    nf = java.text.NumberFormat.getNumberInstance(Locale.US);
+    nf = java.text.NumberFormat.getNumberInstance();
     nf.setMaximumFractionDigits(2);
     // nf.setMinimumIntegerDigits(7);
     nf.setGroupingUsed(false);
 
-    nf2 = java.text.NumberFormat.getNumberInstance(Locale.US);
+    nf2 = java.text.NumberFormat.getNumberInstance();
     nf2.setMaximumFractionDigits(4);
     nf2.setGroupingUsed(false);
 
