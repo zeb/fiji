@@ -1,18 +1,18 @@
 package fiji.recorder.rule;
 
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import fiji.recorder.RecorderBase.Language;
+import fiji.recorder.util.NamedGroupPattern;
 
 import ij.Command;
 
 public class RegexRule extends Rule {
 	
-	private Pattern pattern_command;
-	private Pattern pattern_class_name;
-	private Pattern pattern_arguments;
-	private Pattern pattern_modifiers;
+	private NamedGroupPattern pattern_command;
+	private NamedGroupPattern pattern_class_name;
+	private NamedGroupPattern pattern_arguments;
+	private NamedGroupPattern pattern_modifiers;
 	
 	private String description;
 	
@@ -34,11 +34,6 @@ public class RegexRule extends Rule {
 	
 	
 	public String handle(Command cmd, Language lang) {
-		// Create matchers
-		Matcher matcher_command = 		pattern_command.matcher(cmd.getCommand());
-		Matcher matcher_class_name =	pattern_class_name.matcher(cmd.getClassName());
-		Matcher matcher_arguments = 		pattern_arguments.matcher(cmd.getArg());
-		Matcher matcher_modifiers = 		pattern_modifiers.matcher(String.format("%d", cmd.getModifiers()));
 		
 		String result = null;
 		
@@ -48,20 +43,16 @@ public class RegexRule extends Rule {
 			break;
 		}		
 
-		// command
-		String command_template = Pattern.compile("<command.(\\d+)>").matcher(result).replaceAll("\\$$1");
-		result = matcher_command.replaceAll(command_template);
+		// command		
+		result = pattern_command.replace(cmd.getCommand(), result);
 		// class name
-		String class_name_template = Pattern.compile("<class_name.(\\d+)>").matcher(result).replaceAll("\\$$1");
-		result = matcher_class_name.replaceAll(class_name_template);
+		result = pattern_class_name.replace(cmd.getClassName(), result);
 		// arguments
-		String arguments_template  = Pattern.compile("<arguments.(\\d+)>").matcher(result).replaceAll("\\$$1");
-		result = matcher_arguments.replaceAll(arguments_template);
+		result = pattern_arguments.replace(cmd.getArg(), result);
 		// modifiers
-		String modifiers_template  = Pattern.compile("<modifiers.(\\d+)>").matcher(result).replaceAll("\\$$1");
-		result = matcher_modifiers.replaceAll(modifiers_template);
+		result = pattern_modifiers.replace(String.format("%d", cmd.getModifiers()), result);
 		// new lines - i did not find a way to put them in the regex string correctly
-		result = Pattern.compile("<newline>").matcher(result).replaceAll("\n");
+		result = Pattern.compile("\\$\\{newline\\}").matcher(result).replaceAll("\n");
 		return result;
 	}
 	
@@ -90,25 +81,25 @@ public class RegexRule extends Rule {
 		return pattern_command.toString();
 	}
 	public void setCommand(String command) {
-		pattern_command = Pattern.compile(command);
+		pattern_command = new NamedGroupPattern(command);
 	}
 	public String getClassName() {
 		return pattern_class_name.toString();
 	}
 	public void setClassName(String className) {
-		pattern_class_name = Pattern.compile(className);
+		pattern_class_name = new NamedGroupPattern(className);
 	}
 	public String getArguments() {
 		return pattern_arguments.toString();
 	}
 	public void setArguments(String args) {
-		pattern_arguments = Pattern.compile(args);
+		pattern_arguments = new NamedGroupPattern(args);
 	}
 	public String getModifiers() {
 		return pattern_modifiers.toString();
 	}
 	public void setModifiers(String modifiers) {
-		pattern_modifiers = Pattern.compile(modifiers);
+		pattern_modifiers = new NamedGroupPattern(modifiers);
 	}
 	
 	

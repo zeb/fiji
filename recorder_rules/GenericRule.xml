@@ -1,4 +1,4 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<CommandTranslatorRule priority="1" name="Generic rule">This rule catches all, and try to pass it to the IJ.run method.<Matcher class_name=".+" arguments=".+" modifiers=".+" command="(.+)"></Matcher>
-	<PythonTranslator target="# Run the command &quot;&lt;command.1&gt;&quot;&lt;newline&gt;IJ.run('&lt;command.1&gt;')"></PythonTranslator>
+<CommandTranslatorRule priority="1" name="Generic rule">This rule catches all, and try to pass it to the IJ.run method.<Matcher class_name=".+" arguments=".+" modifiers=".+" command="(&lt;command&gt;;.+)"></Matcher>
+	<PythonTranslator target="# Run the command '${command}'${newline}IJ.run('${command}')"></PythonTranslator>
 </CommandTranslatorRule>

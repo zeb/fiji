@@ -6,7 +6,7 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class NamedGroupPattern {
+public class NamedGroupPattern  {
 	static Pattern patternSplitter =
 		Pattern.compile("\\((<([^>]+)>;)?([^\\)]*)\\)");
 	static Pattern replacementSplitter =
@@ -42,10 +42,14 @@ public class NamedGroupPattern {
 		builder.append(pattern.substring(offset));
 		this.pattern = Pattern.compile(builder.toString());
 	}
-
-	/* returns null if the patern does not match */
-	// TODO: template can be parsed almost the same as pattern
+	
+	public Matcher matcher(String haystack) {
+		return pattern.matcher(haystack);
+	}
+	
+	/** returns null if the pattern does not match */
 	public String replace(String haystack, String template) {
+		// TODO: template can be parsed almost the same as pattern
 		Matcher m = pattern.matcher(haystack);
 		if (!m.matches())
 			return null;
@@ -73,6 +77,10 @@ public class NamedGroupPattern {
 		builder.append(template.substring(offset));
 
 		return builder.toString();
+	}
+	
+	public String toString() {
+		return pattern.toString();
 	}
 
 	public static void main(String[] args) {
