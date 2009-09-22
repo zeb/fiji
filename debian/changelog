@@ -1,3 +1,10 @@
+fiji (20090921) unstable; urgency=low
+
+  * Update to upstream e432827ed8af304eb7, shortly after the
+    Fiji-Pilsen-rc0 tag.
+
+ -- Mark Longair <mhl@pobox.com>  Tue, 22 Sep 2009 11:43:15 +0000
+
 fiji (20090513) unstable; urgency=low
 
   * Update to upstream 26538219bf4f for bug fixes after the
