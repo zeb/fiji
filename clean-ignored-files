@@ -1,0 +1,10 @@
+#!/bin/sh
+
+git clean -f -X
+
+SUBMODULES=`git submodule status | awk '{ print $2; }'`
+
+for d in $SUBMODULES
+do
+    ( cd $d && git clean -f -X )
+done
