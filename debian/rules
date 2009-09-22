@@ -55,7 +55,7 @@ INSTALLED_BUNDLED_JAVA3D_JARS := $(shell echo $(INSTALLED_BUNDLED_JAVA3D_JARS_SP
 JAVA3D_JARS_SPACE_SEPARATED := $(patsubst %,$(CWD)/%,$(BUNDLED_JAVA3D_JARS))
 JAVA3D_JARS := $(shell echo $(JAVA3D_JARS_SPACE_SEPARATED) | sed 's/ /:/g')
 
-INSTALLED_JVM_ROOT := /usr/lib/jvm/java-6-sun/
+INSTALLED_JVM_ROOT := /usr/lib/jvm/java-6-openjdk/
 
 VERSION_IN_CHANGELOG=$(shell dpkg-parsechangelog | egrep ^Version: | sed "s/Version: //")
 PACKAGE_IN_CHANGELOG=$(shell dpkg-parsechangelog | egrep ^Source: | sed "s/Source: //")
