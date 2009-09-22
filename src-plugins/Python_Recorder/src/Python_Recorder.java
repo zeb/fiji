@@ -1,3 +1,4 @@
+import fiji.recorder.RecorderBase;
 import fiji.recorder.RecorderBase.Language;
 import fiji.recorder.rule.RegexRule;
 import fiji.recorder.rule.Rule;
@@ -8,6 +9,7 @@ import ij.CommandListenerPlus;
 import ij.Executer;
 import ij.WindowManager;
 import ij.gui.GUI;
+import ij.plugin.PlugIn;
 import ij.plugin.frame.PlugInFrame;
 
 import java.awt.Button;
@@ -23,32 +25,27 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Iterator;
 
+import javax.swing.JFrame;
 import javax.xml.parsers.ParserConfigurationException;
 
 import org.xml.sax.SAXException;
 
 
 /** This is ImageJ's macro recorder. */
-public class Python_Recorder extends PlugInFrame implements CommandListenerPlus, ActionListener {
+public class Python_Recorder extends JFrame implements PlugIn, CommandListenerPlus, ActionListener {
 
 	/** Rule collections	 */
 	SortedArrayList<Rule> rule_set = new SortedArrayList<Rule>();
 	
 	/** Default SUID  */
 	private static final long serialVersionUID = 1L;
-	/** 
-	 * Default name for new scripts
-	 */
-	private static final String DEFAULT_NAME = "Python_Script.py";
-
-	private TextArea textArea;
 	
 	/*
 	 * CONSTRUCTOR
 	 */
 	
 	public Python_Recorder() {
-		super("Python_Recorder");
+		super("Python recorder");
 		init();
 		loadRuleSet();
 	}
@@ -84,7 +81,7 @@ public class Python_Recorder extends PlugInFrame implements CommandListenerPlus,
 //				System.out.println("This command: " + cmd.getCommand() );
 //				System.out.println("Matched the following rule:" + rule.getName());
 				result = rule.handle(cmd, Language.Python);
-				textArea.append("\n\n"+result);
+				// textArea.append("\n\n"+result);
 				break;
 			}
 		}
@@ -103,26 +100,12 @@ public class Python_Recorder extends PlugInFrame implements CommandListenerPlus,
 		WindowManager.addWindow(this);
 		
 		// Create frame
-		Panel panel = new Panel(new FlowLayout(FlowLayout.CENTER, 2, 0));
-		panel.add(new Label("Name:"));
-		TextField macro_name = new TextField(DEFAULT_NAME,15);
-		panel.add(macro_name);
-		panel.add(new Label("     "));
-		Button makeMacro = new Button("To editor");
-		makeMacro.addActionListener(this);
-		panel.add(makeMacro);
-		panel.add(new Label("     "));
-		Button help = new Button("?");
-		help.addActionListener(this);
-		panel.add(help);
-		add("North", panel);
-		textArea = new TextArea("",15,60,TextArea.SCROLLBARS_VERTICAL_ONLY);
-		textArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
-		add("Center", textArea);
-		pack();
-		GUI.center(this);
-		this.setVisible(true);
+		this.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+		
 
+
+		this.setVisible(true);
+		
 		// Register as a listener
 		Executer.addCommandListener(this);
 	}
@@ -160,5 +143,10 @@ public class Python_Recorder extends PlugInFrame implements CommandListenerPlus,
 			rule_set.add(rule);
 		}
 		rule_set.setComparator(RegexRule.getReversedComparator());
+	}
+
+	public void run(String arg) {
+		// TODO Auto-generated method stub
+		
 	}
 }
