@@ -257,7 +257,7 @@ public class TextEditor extends JFrame implements ActionListener,
 		getToolkit().setDynamicLayout(true);            //added to accomodate the autocomplete part
 		findDialog = new FindAndReplaceDialog(this, textArea);
 
-		setLanguage(null);
+		setLanguage((Languages.Language)null);
 		setTitle();
 
 		setLocationRelativeTo(null); // center on screen
@@ -284,6 +284,15 @@ public class TextEditor extends JFrame implements ActionListener,
 						modifiers));
 		item.addActionListener(this);
 		return item;
+	}
+
+	public JTextArea getTextArea() {
+		return textArea;
+	}
+
+	public void append(String string) {
+		textArea.insert(string, getDocument().getLength());
+		textArea.setCaretPosition(getDocument().getLength());
 	}
 
 	public void addAccelerator(final JMenuItem component,
@@ -481,6 +490,15 @@ public class TextEditor extends JFrame implements ActionListener,
 	public static String getExtension(String fileName) {
 		int dot = fileName.lastIndexOf(".");
 		return dot < 0 ?  "" : fileName.substring(dot);
+	}
+
+	public boolean setLanguage(String name) {
+		Languages.Language language =
+			Languages.getInstance().getLanguage(name);
+		if (!name.equals("None") && language == Languages.get(""))
+			return false;
+		setLanguage(language);
+		return true;
 	}
 
 	private void setLanguageByExtension(String extension) {
