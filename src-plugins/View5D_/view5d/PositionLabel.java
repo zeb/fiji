@@ -51,6 +51,37 @@ class PositionLabel extends Panel implements MouseListener{
     CheckboxMenuItem DispListNrPos;
     CheckboxMenuItem DispMarkerInfo;
     
+
+    public class NanAwareNumberFormat  extends NumberFormat {
+
+    	/** Default serial ID */
+    	private static final long serialVersionUID = 1L;
+    	private NumberFormat number_format;
+
+    	public NanAwareNumberFormat()  {
+    		number_format = java.text.NumberFormat.getNumberInstance();
+    	}
+
+    	@Override
+    	public StringBuffer format(double number, StringBuffer toAppendTo, FieldPosition pos) {
+    		if (Double.isNaN(number)) {
+    			return new StringBuffer("⌀");
+    		} else {
+    			return number_format.format(number, toAppendTo, pos);
+    		}
+    	}
+
+    	@Override
+    	public StringBuffer format(long number, StringBuffer toAppendTo, FieldPosition pos) {
+    		return number_format.format(number, toAppendTo, pos);
+    	}
+
+    	@Override
+    	public Number parse(String source, ParsePosition parsePosition) {
+    		return number_format.parse(source, parsePosition);
+    	}
+    } 
+
     public void mousePressed(MouseEvent e) {
 
         if (e.isPopupTrigger())
@@ -87,12 +118,12 @@ class PositionLabel extends Panel implements MouseListener{
     MyText= new TextArea(text ,15,30);
     MyText.setEditable(false);
     PixDisplay = new PixelDisplay(data,c1,c2,c3);
-    nf = java.text.NumberFormat.getNumberInstance();
+    nf = new NanAwareNumberFormat(); // java.text.NumberFormat.getNumberInstance();
     nf.setMaximumFractionDigits(2);
     // nf.setMinimumIntegerDigits(7);
     nf.setGroupingUsed(false);
 
-    nf2 = java.text.NumberFormat.getNumberInstance();
+    nf2 = new NanAwareNumberFormat(); //java.text.NumberFormat.getNumberInstance();
     nf2.setMaximumFractionDigits(4);
     nf2.setGroupingUsed(false);
 
