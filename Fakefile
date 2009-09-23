@@ -134,7 +134,6 @@ PLUGIN_TARGETS=plugins/Jython_Interpreter.jar \
 	plugins/Stack_Manipulation.jar \
 	plugins/FlowJ_.jar \
 	plugins/PIV_analyser.jar \
-	plugins/Python_Recorder.jar \
   plugins/Record_Screen.jar \
 	plugins/Video_Editing.jar \
 	plugins/Sync_Win.jar \
@@ -143,13 +142,19 @@ PLUGIN_TARGETS=plugins/Jython_Interpreter.jar \
 	plugins/LocalThickness_.jar \
 	plugins/Tutorial_Maker.jar \
 	plugins/Script_Editor.jar \
+	plugins/Python_Recorder.jar \
 	plugins/Manual_Tracking.jar \
 	plugins/Calculator_Plus.jar \
 	plugins/3D_Objects_Counter.jar \
 	\
 	misc/Fiji.jar
 
-all <- fiji $SUBMODULE_TARGETS $PLUGIN_TARGETS third-party-plugins jars/zs.jar
+
+all <- fiji $SUBMODULE_TARGETS $PLUGIN_TARGETS third-party-plugins jars/zs.jar plugins/Python_Recorder.jar
+
+# Python_Recorder
+CLASSPATH(plugins/Python_Recorder.jar)=plugins/Script_Editor.jar
+
 
 # The "run" rule just executes ./fiji (as long as the file "run" does not exist...)
 # It has items on the right side, because these would be passed to the executable.
@@ -194,6 +199,7 @@ misc/Fiji.jar <- src-plugins/Fiji/fiji/*.java icon.png[images/icon.png]
 # These classes are common
 CLASSPATH(jars/zs.jar)=jars/Jama-1.0.2.jar
 jars/zs.jar <- src-plugins/zs/**/*.java
+
 
 # These classes are common to the scripting plugins
 jars/fiji-scripting.jar <- src-plugins/fiji-scripting/**/*.java
