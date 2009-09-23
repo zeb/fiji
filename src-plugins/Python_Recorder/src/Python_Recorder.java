@@ -3,12 +3,14 @@ import fiji.recorder.rule.RegexRule;
 import fiji.recorder.rule.Rule;
 import fiji.recorder.rule.XMLRuleReader;
 import fiji.recorder.util.SortedArrayList;
+import fiji.scripting.TextEditor;
 import ij.Command;
 import ij.CommandListenerPlus;
 import ij.Executer;
 import ij.WindowManager;
 import ij.plugin.PlugIn;
 
+import java.awt.Color;
 import java.awt.Font;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
@@ -27,6 +29,7 @@ import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTextArea;
+import javax.swing.JToggleButton;
 import javax.swing.border.LineBorder;
 import javax.xml.parsers.ParserConfigurationException;
 
@@ -50,13 +53,13 @@ import org.xml.sax.SAXException;
 * LEGALLY FOR ANY CORPORATE OR COMMERCIAL PURPOSE.
 */
 /** This is ImageJ's macro recorder. */
-public class Python_Recorder extends JFrame implements PlugIn, CommandListenerPlus, ActionListener {
+public class Python_Recorder extends JFrame implements PlugIn, CommandListenerPlus {
 
 	/** Rule collections	 */
 	SortedArrayList<Rule> rule_set = new SortedArrayList<Rule>();
 
 	private JPanel jPanel;
-	private JButton jButton_start_record;
+	private JToggleButton jButton_start_record;
 	private JButton jButton_new;
 	private JButton jButton_list_rules;
 	private JButton jButton_help;
@@ -68,9 +71,18 @@ public class Python_Recorder extends JFrame implements PlugIn, CommandListenerPl
 	private JButton jButton_add_template;
 	
 	/**
-	 * 
+	 * The text area containing the last command caught.
 	 */
 	private RSyntaxTextArea jTextArea_last_command;
+	/**
+	 * The current script editor text  zone to output caught commands.
+	 */
+	private TextEditor current_editor;
+	/**
+	 * True when the user selected to record command. 
+	 */
+	private boolean is_recording = false;
+	
 
 	/** Default SUID  */
 	private static final long serialVersionUID = 1L;
@@ -81,22 +93,28 @@ public class Python_Recorder extends JFrame implements PlugIn, CommandListenerPl
 	
 	public Python_Recorder() {
 		super("Python recorder");
+		// Create and draw the JFrame
 		init();
+		// Load rules
 		loadRuleSet();
+		// This instance will be added to listeners by the run method.
 	}
 
 	/*
 	 * METHODS
 	 */
+	
+	public void run(String arg) {
+		// Register as a listener
+		Executer.addCommandListener(this);
+		// Create a new Script editor
+		current_editor = new TextEditor(null);
+		current_editor.setLanguage("Python");
+		current_editor.setVisible(true);
+	}
 
 	public String commandExecuting(String command) {
 		return command;
-	}
-
-
-	public void actionPerformed(ActionEvent e) {
-		System.out.println("Something was pressed");
-		
 	}
 
 
@@ -104,7 +122,6 @@ public class Python_Recorder extends JFrame implements PlugIn, CommandListenerPl
 		
 		// Only deal with finished commands
 		if (state != CommandListenerPlus.CMD_FINISHED) { return; }
-		System.out.println(cmd);
 		rule_set.sort();
 		Iterator<Rule> it = rule_set.iterator();
 		Rule rule;
@@ -118,6 +135,9 @@ public class Python_Recorder extends JFrame implements PlugIn, CommandListenerPl
 				result = rule.handle(cmd, Language.Python);
 				jTextArea_last_command.setText(result);
 				jTextArea_caught_by.setText(rule.getName());
+				if (is_recording) {
+					current_editor.append("\n\n"+result);
+				}
 				break;
 			}
 		}
@@ -155,16 +175,36 @@ public class Python_Recorder extends JFrame implements PlugIn, CommandListenerPl
 			jPanel.setVisible(true);
 			jPanel.setEnabled(true);
 			{
-				jButton_start_record = new JButton();
+				jButton_start_record = new JToggleButton();
 				jPanel.add(jButton_start_record, new GridBagConstraints(0, 0, 1, 1, 0.0, 0.0, GridBagConstraints.WEST, GridBagConstraints.VERTICAL, new Insets(10, 10, 0, 0), 0, 0));
-				jButton_start_record.setText("Start recording");
+				jButton_start_record.setText("Record");
 				jButton_start_record.setBounds(12, 2, 99, 22);
+				jButton_start_record.setSelected(false);
+				jButton_start_record.addActionListener(new ActionListener()  {					
+					public void actionPerformed(ActionEvent e) {
+						if (jButton_start_record.isSelected()) { 
+							is_recording = true;
+							jButton_start_record.setForeground(Color.red);
+						} else { 
+							is_recording = false; 
+							jButton_start_record.setForeground(Color.black);
+						}
+					}
+				});
 			}
 			{
 				jButton_new = new JButton();
 				jPanel.add(jButton_new, new GridBagConstraints(1, 0, 1, 1, 0.0, 0.0, GridBagConstraints.CENTER, GridBagConstraints.VERTICAL, new Insets(10, 0, 0, 0), 0, 0));
 				jButton_new.setText("New script");
 				jButton_new.setBounds(158, 2, 111, 22);
+				jButton_new.addActionListener(new ActionListener() {					
+					public void actionPerformed(ActionEvent e) {
+						// Create a new Script editor
+						current_editor = new TextEditor(null);
+						current_editor.setLanguage("Python");
+						current_editor.setVisible(true);						
+					}
+				});
 			}
 			{
 				jButton_list_rules = new JButton();
@@ -231,9 +271,6 @@ public class Python_Recorder extends JFrame implements PlugIn, CommandListenerPl
 				jButton_add_template.setText("Add");
 			}
 		}
-
-		// Register as a listener
-		Executer.addCommandListener(this);
 		pack();
 	}
 	
@@ -273,13 +310,14 @@ public class Python_Recorder extends JFrame implements PlugIn, CommandListenerPl
 		rule_set.setComparator(RegexRule.getReversedComparator());
 	}
 
-	public void run(String arg) {
-		// TODO Auto-generated method stub
-		
-	}
+
+	/*
+	 * MAIN
+	 */
 	
 	public static void main(String[] args) {
 		Python_Recorder pr = new Python_Recorder();
+		pr.run(null);
 	}
 	
 }
