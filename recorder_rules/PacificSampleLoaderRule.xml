@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CommandTranslatorRule priority="3" name="Malaria sporozoite loading rule">This rule catches a load request for Fiji samples, which are hosted on pacific.mpi-cbg.de.<Matcher class_name="fiji.SampleImageLoader" arguments="http://pacific.mpi-cbg.de/samples/(&lt;sample_name&gt;;.+)" modifiers=".+" command="(&lt;command&gt;;.+)"></Matcher>
+	<PythonTranslator>
+# Open the sample '${command}' and store it in the variable 'image'
+image = IJ.openImage('http://pacific.mpi-cbg.de/samples/${sample_name}')
+# then display it.
+image.show()
+</PythonTranslator>
+</CommandTranslatorRule>
