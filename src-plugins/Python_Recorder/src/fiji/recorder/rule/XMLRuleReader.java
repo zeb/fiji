@@ -65,6 +65,8 @@ public class XMLRuleReader extends DefaultHandler {
 		else
 			tagName = name;
 		
+		body = "";
+		
 		if (tagName.equalsIgnoreCase("CommandTranslatorRule")) {
 			rule.setPriority( Integer.parseInt(atts.getValue("priority")) );
 			rule.setName( atts.getValue( "name"));
@@ -76,7 +78,7 @@ public class XMLRuleReader extends DefaultHandler {
 			rule.setModifiers( atts.getValue( "modifiers")) ;
 		} 
 		else if (tagName.equalsIgnoreCase("PythonTranslator")) {
-			rule.setPythonTranslator( atts.getValue("target"));
+//			rule.setPythonTranslator( atts.getValue("target"));
 		}
 
 	}
@@ -90,6 +92,8 @@ public class XMLRuleReader extends DefaultHandler {
 		
 		if (tagName.equalsIgnoreCase("CommandTranslatorRule")) {
 			rule.setDescription(body);
+		} else if (tagName.equalsIgnoreCase("PythonTranslator")) {
+			rule.setPythonTranslator(body);
 		}
 	}
 

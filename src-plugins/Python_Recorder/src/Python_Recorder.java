@@ -114,12 +114,13 @@ public class Python_Recorder extends JFrame implements PlugIn, CommandListenerPl
 	}
 
 	public String commandExecuting(String command) {
+		System.out.println("commandExecuting: "+command);
 		return command;
 	}
 
 
 	public void stateChanged(Command cmd, int state) {
-		
+		System.out.println("stateChanged: " + cmd);
 		// Only deal with finished commands
 		if (state != CommandListenerPlus.CMD_FINISHED) { return; }
 		rule_set.sort();
@@ -136,7 +137,7 @@ public class Python_Recorder extends JFrame implements PlugIn, CommandListenerPl
 				jTextArea_last_command.setText(result);
 				jTextArea_caught_by.setText(rule.getName());
 				if (is_recording) {
-					current_editor.append("\n\n"+result);
+					current_editor.append(result);
 				}
 				break;
 			}

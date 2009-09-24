@@ -1,4 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <CommandTranslatorRule priority="2" name="Sample image loading rule">This rule catches calls to loading sample images, in the File > Open samples... menu. It only works for remote samples (the ones that can be fetched from http://rsb.info.nih.gov/ij/images/)<Matcher class_name="fiji.SampleImageLoader" arguments="(&lt;arguments&gt;;.+)" modifiers=".+" command="(&lt;command&gt;;.+)"></Matcher>
-	<PythonTranslator target="# Open the sample '${command}' and store it in the variable 'image'${newline}image = IJ.openImage('http://rsb.info.nih.gov/ij/images/${arguments}')${newline}# then display it.${newline}image.show()"></PythonTranslator>
+	<PythonTranslator>
+# Open the sample '${command}' and store it in the variable 'image'
+image = IJ.openImage('http://rsb.info.nih.gov/ij/images/${arguments}')
+# then display it.
+image.show()
+</PythonTranslator>
 </CommandTranslatorRule>

@@ -4,5 +4,7 @@ This rule is the default fall-back rule. It has the lowest priority (0)
 meaning that it will be a match when no other rule work. It just output
 a 'feature non implemented' message in any language.
 	<Matcher class_name="(&lt;class_name&gt;;.+)" arguments=".+" modifiers=".+" command="(&lt;command&gt;;.+)"></Matcher>
-	<PythonTranslator target='# Not implemented yet: "${command}" in class ${class_name}'></PythonTranslator>
+	<PythonTranslator>
+# Not implemented yet: "${command}" in class ${class_name}'
+</PythonTranslator>
 </CommandTranslatorRule>
