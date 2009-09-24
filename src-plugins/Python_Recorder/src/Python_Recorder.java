@@ -11,9 +11,11 @@ import ij.WindowManager;
 import ij.plugin.PlugIn;
 
 import java.awt.Color;
+import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
+import java.awt.GridLayout;
 import java.awt.Insets;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -28,6 +30,8 @@ import javax.swing.JComboBox;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTable;
 import javax.swing.JTextArea;
 import javax.swing.JToggleButton;
 import javax.swing.border.LineBorder;
@@ -212,6 +216,9 @@ public class Python_Recorder extends JFrame implements PlugIn, CommandListenerPl
 				jPanel.add(jButton_list_rules, new GridBagConstraints(2, 0, 1, 1, 0.0, 0.0, GridBagConstraints.CENTER, GridBagConstraints.VERTICAL, new Insets(10, 0, 0, 0), 0, 0));
 				jButton_list_rules.setText("List rules");
 				jButton_list_rules.setBounds(300, 2, 65, 22);
+				jButton_list_rules.addActionListener(new ActionListener() {
+					public void actionPerformed(ActionEvent e) { displayRuleTable(); }
+				});
 			}
 			{
 				jButton_help = new JButton();
@@ -311,6 +318,54 @@ public class Python_Recorder extends JFrame implements PlugIn, CommandListenerPl
 		rule_set.setComparator(RegexRule.getReversedComparator());
 	}
 
+	public void displayRuleTable() {
+		String[] column_names = {
+				"Priority",
+				"Name",
+				"Command pattern",
+				"Class name pattern",
+				"Arguments pattern",
+				"Modifiers pattern",
+				"Description",
+				"Python translator"		};
+		Object[][] rule_data = new Object[rule_set.size()][column_names.length];
+		
+		rule_set.sort();
+		Rule rule;
+		RegexRule rex_rule;
+		for (int i = 0; i < rule_data.length; i++) {
+			rule = rule_set.get(i);
+			rule_data[i][0] = rule.getPriority();
+			rule_data[i][1] = rule.getName();
+			if (RegexRule.class.isInstance(rule)) {
+				rex_rule = (RegexRule) rule;
+				rule_data[i][2] = rex_rule.getCommand();
+				rule_data[i][3] = rex_rule.getClassName();
+				rule_data[i][4] = rex_rule.getArguments();
+				rule_data[i][5] = rex_rule.getModifiers();
+				rule_data[i][6] = rex_rule.getDescription();
+				rule_data[i][7] = rex_rule.getPythonTranslator();
+			}
+		}
+		
+		JTable table = new JTable(rule_data, column_names);
+		table.setPreferredScrollableViewportSize(new Dimension(500, 70));
+
+		JScrollPane scrollPane = new JScrollPane(table);
+		table.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
+		
+		JPanel		table_panel = new JPanel(new GridLayout());
+		table_panel.add(scrollPane);	
+	    JFrame 		frame = new JFrame("Recorder rules");
+
+	    frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+	    //Create and set up the content pane.
+	    frame.setContentPane(table_panel);
+
+	    //Display the window.
+	    frame.pack();
+	    frame.setVisible(true);
+	}
 
 	/*
 	 * MAIN
