@@ -20,8 +20,10 @@ public class XMLRuleReader extends DefaultHandler {
 	 */
 	
 	// Currently parsed
-	private String body;
+	private String main_body;
+	private String element_body;
 	private RegexRule rule;
+	private String current_element;
 	
 	/*
 	 * CONSTRUCTOR
@@ -52,7 +54,7 @@ public class XMLRuleReader extends DefaultHandler {
 
 	public void startDocument () {
 		rule = new RegexRule();
-		body = "";
+		main_body = "";
 	}
 
 	public void endDocument () { }
@@ -65,7 +67,8 @@ public class XMLRuleReader extends DefaultHandler {
 		else
 			tagName = name;
 		
-		body = "";
+		element_body = "";
+		current_element = tagName;
 		
 		if (tagName.equalsIgnoreCase("CommandTranslatorRule")) {
 			rule.setPriority( Integer.parseInt(atts.getValue("priority")) );
@@ -78,7 +81,6 @@ public class XMLRuleReader extends DefaultHandler {
 			rule.setModifiers( atts.getValue( "modifiers")) ;
 		} 
 		else if (tagName.equalsIgnoreCase("PythonTranslator")) {
-//			rule.setPythonTranslator( atts.getValue("target"));
 		}
 
 	}
@@ -91,14 +93,19 @@ public class XMLRuleReader extends DefaultHandler {
 			tagName = name;
 		
 		if (tagName.equalsIgnoreCase("CommandTranslatorRule")) {
-			rule.setDescription(body);
+			rule.setDescription(main_body);
 		} else if (tagName.equalsIgnoreCase("PythonTranslator")) {
-			rule.setPythonTranslator(body);
+			rule.setPythonTranslator(element_body);
 		}
 	}
 
 	public void characters(char ch[], int start, int length) {
-		body += new String(ch, start, length);
+		if (current_element.equalsIgnoreCase("CommandTranslatorRule")) {
+			main_body += new String(ch, start, length); 
+		} else {
+			element_body += new String(ch, start, length);
+		}
+
 	}
 
 	public RegexRule getRule() {
