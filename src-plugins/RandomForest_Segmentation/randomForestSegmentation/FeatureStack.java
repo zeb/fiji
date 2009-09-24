@@ -194,12 +194,12 @@ public class FeatureStack {
 		
 		ImageStack is = new ImageStack(width, height);
 		ImageProcessor rotatedPatch;
-		for (int i=0; i<18; i++){
+		for (int i=0; i<9; i++){
 			rotatedPatch = membranePatch.duplicate();
-			rotatedPatch.invert();rotatedPatch.rotate(10*i);rotatedPatch.invert();
+			rotatedPatch.invert();rotatedPatch.rotate(20*i);rotatedPatch.invert();
 			Convolver c = new Convolver();				
 	
-			float[] kernel = (float[]) membranePatch.getPixels();
+			float[] kernel = (float[]) rotatedPatch.getPixels();
 			ImageProcessor ip = originalImage.getProcessor().duplicate().convertToFloat();		
 			c.convolveFloat(ip, kernel, patchSize, patchSize);		
 
