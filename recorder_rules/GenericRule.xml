@@ -1,7 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <CommandTranslatorRule priority="1" name="Generic rule">This rule catches all, and try to pass it to the IJ.run method.<Matcher class_name=".+" arguments=".+" modifiers=".+" command="(&lt;command&gt;;.+)"></Matcher>
 	<PythonTranslator>
-# Run the command '${command}'
-IJ.run('${command}')
+# Run the command '${command}' on the image stored in 'image'
+if image is not None:
+	IJ.run(image,'${command}','')
+else:
+	IJ.run('${command}','') # we rely on the current image otherwise
 </PythonTranslator>
 </CommandTranslatorRule>
