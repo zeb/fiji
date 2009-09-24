@@ -15,7 +15,6 @@ package randomForestSegmentation;
  * - save classifier and load classifier
  * - apply classifier to other images
  * - make button to show color overlay
- * - look for bug with color jpg
  * - put thread solution to wiki http://pacific.mpi-cbg.de/wiki/index.php/Developing_Fiji#Writing_plugins
  * 
  * License: GPL
@@ -72,6 +71,11 @@ public class RandomForest_Segmentation implements PlugIn {
 	private ImagePlus displayImage;
 	private ImagePlus classifiedImage = null;
 	private FeatureStack featureStack;
+	private CustomWindow win;
+	private java.awt.List posExampleList;
+	private java.awt.List negExampleList;
+	private int posTraceCounter;
+	private int negTraceCounter;
    	final Button posExampleButton;
   	final Button negExampleButton;
   	final Button trainButton;
@@ -84,6 +88,12 @@ public class RandomForest_Segmentation implements PlugIn {
   	      	negExampleButton = new Button("negativeExample");
   	      	trainButton = new Button("train Classifier");
   	      	overlayButton = new Button("create Overlay");
+  	      	posExampleList = new java.awt.List(5);
+  	      	posExampleList.setForeground(Color.green);
+  	      	negExampleList = new java.awt.List(5);
+  	      	negExampleList.setForeground(Color.red);
+  	      	posTraceCounter = 0;
+  	      	negTraceCounter = 0;
 	}
 	
   	ExecutorService exec = Executors.newFixedThreadPool(1);
@@ -104,17 +114,35 @@ public class RandomForest_Segmentation implements PlugIn {
   		  			if(e.getSource() == overlayButton){
   		  				showOverlay();
   		  			}
+  		  			if(e.getSource() == posExampleList || e.getSource() == negExampleList){
+  		  				IJ.log("exampleList clicked");
+  		  				deleteSelected(e);
+  		  			}
   				}
   			});
   		}
   	};
   	
+	private ItemListener itemListener = new ItemListener() {
+		public void itemStateChanged(final ItemEvent e) {
+			exec.submit(new Runnable() {
+				public void run() {
+  		  			if(e.getSource() == posExampleList || e.getSource() == negExampleList){
+  		  				IJ.log("exampleList clicked");
+  		  				listSelected(e);
+  		  			}
+				}
+			});
+		}
+	};
  
   	
   	private class CustomWindow extends ImageWindow {
+  		private Panel all;
+  		
   		CustomWindow(ImagePlus imp) {
   			super(imp);
-  			Panel all = new Panel();
+  			all = new Panel();
   			BoxLayout box = new BoxLayout(all, BoxLayout.Y_AXIS);
   			all.setLayout(box);
   			
@@ -143,13 +171,21 @@ public class RandomForest_Segmentation implements PlugIn {
   	      		c.setPreferredSize(new Dimension(130, 30));
   	      	}
   	      	
+  	      	Panel annotations = new Panel();
+  	      	posExampleList.addActionListener(listener);
+  	      	negExampleList.addActionListener(listener);	
+  	      	posExampleList.addItemListener(itemListener);
+  	      	negExampleList.addItemListener(itemListener);
+  	      	annotations.add(posExampleList);
+  	      	annotations.add(negExampleList);
+  	      	
   	      	all.add(piw);
   	      	all.add(buttons);
+  	      	all.add(annotations);
   	      	
   	      	removeAll();
   	      	
   	      	add(all);
-  	      	
   	      	pack();
   	      	
   	      	// Propagate all listeners
@@ -165,6 +201,10 @@ public class RandomForest_Segmentation implements PlugIn {
   	      			exec.shutdownNow();
   	      		}
   	      	});
+  		}
+  	
+  		public void setDisplayImage(ImagePlus newDisplay){
+  			
   		}
   	}
   	
@@ -193,7 +233,7 @@ public class RandomForest_Segmentation implements PlugIn {
 		
 		
 		//Build GUI
-		ImageWindow win = new CustomWindow(displayImage);
+		win = new CustomWindow(displayImage);
 		trainingImage.getWindow().setVisible(false);
 		}
 	
@@ -202,6 +242,7 @@ public class RandomForest_Segmentation implements PlugIn {
 		Roi r = displayImage.getRoi();
 		displayImage.killRoi();
 		positiveExamples.add(r);
+		posExampleList.add("trace " + posTraceCounter); posTraceCounter++;
 		drawExamples();
 	}
 	
@@ -210,6 +251,7 @@ public class RandomForest_Segmentation implements PlugIn {
 		Roi r = displayImage.getRoi();
 		displayImage.killRoi();
 		negativeExamples.add(r);
+		negExampleList.add("trace " + negTraceCounter); negTraceCounter++;
 		drawExamples();
 	}
 	
@@ -231,7 +273,7 @@ public class RandomForest_Segmentation implements PlugIn {
 		IJ.log("creating feature stack");
 		featureStack = new FeatureStack(img);
 		int counter = 1;
-		for (float i=2.0f; i<featureStack.getWidth()/5.0f; i*=2){
+/*		for (float i=2.0f; i<featureStack.getWidth()/5.0f; i*=2){
 			IJ.showStatus("creating feature stack   " + counter);
 			featureStack.addGaussianBlur(i); counter++;
 			IJ.showStatus("creating feature stack   " + counter);			
@@ -243,6 +285,9 @@ public class RandomForest_Segmentation implements PlugIn {
 				featureStack.addDoG(i, j); counter++;
 			}
 		}
+*/		
+		featureStack.addMembraneFeatures(19, 1);
+		featureStack.show();
 	}
 	
 	
@@ -371,6 +416,33 @@ public class RandomForest_Segmentation implements PlugIn {
 	
 		ImagePlus overlayImage = new ImagePlus("overlay image", overlayStack);
 		overlayImage.show();
+		//win.setDisplayImage(overlayImage);
 	}
 	
+	void listSelected(final ItemEvent e){
+		drawExamples();
+		displayImage.setColor(Color.YELLOW);
+			
+		if (e.getSource() == posExampleList) {
+			negExampleList.deselect(negExampleList.getSelectedIndex());
+			positiveExamples.get(posExampleList.getSelectedIndex()).drawPixels(displayImage.getProcessor());
+		}
+		else{
+			posExampleList.deselect(posExampleList.getSelectedIndex());
+			negativeExamples.get(negExampleList.getSelectedIndex()).drawPixels(displayImage.getProcessor());
+		}
+		displayImage.updateAndDraw();
+	}
+	
+	void deleteSelected(final ActionEvent e){
+		if (e.getSource() == posExampleList) {
+			//delete item from ROI
+			int index = posExampleList.getSelectedIndex();
+			//delete item from list
+			
+		}
+		else{
+			
+		}
+	}
 }
