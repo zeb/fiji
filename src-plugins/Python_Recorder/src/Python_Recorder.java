@@ -1,7 +1,10 @@
+import fiji.recorder.RecorderBase;
 import fiji.recorder.RecorderBase.Language;
 import fiji.recorder.rule.RegexRule;
 import fiji.recorder.rule.Rule;
 import fiji.recorder.rule.XMLRuleReader;
+import fiji.recorder.template.Template;
+import fiji.recorder.template.XMLTemplateReader;
 import fiji.recorder.util.SortedArrayList;
 import fiji.scripting.TextEditor;
 import ij.Command;
@@ -21,6 +24,7 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Iterator;
 
 import javax.swing.ComboBoxModel;
@@ -62,6 +66,14 @@ public class Python_Recorder extends JFrame implements PlugIn, CommandListenerPl
 	/** Rule collections	 */
 	SortedArrayList<Rule> rule_set = new SortedArrayList<Rule>();
 
+	/** Template list */
+	ArrayList<Template> template_set = new ArrayList<Template>();
+
+	/**
+	 * The language this recorder is set to record.
+	 */
+	private Language current_language = RecorderBase.Language.Python;
+	
 	private JPanel jPanel;
 	private JToggleButton jButton_start_record;
 	private JButton jButton_new;
@@ -99,8 +111,8 @@ public class Python_Recorder extends JFrame implements PlugIn, CommandListenerPl
 		super("Python recorder");
 		// Create and draw the JFrame
 		init();
-		// Load rules
-		loadRuleSet();
+		// Load rules & templates. Must be after init for we need to access buttons
+		loadFiles();
 		// This instance will be added to listeners by the run method.
 	}
 
@@ -113,7 +125,7 @@ public class Python_Recorder extends JFrame implements PlugIn, CommandListenerPl
 		Executer.addCommandListener(this);
 		// Create a new Script editor
 		current_editor = new TextEditor(null);
-		current_editor.setLanguage("Python");
+		current_editor.setLanguage(current_language.toString());
 		current_editor.setVisible(true);
 	}
 
@@ -137,7 +149,7 @@ public class Python_Recorder extends JFrame implements PlugIn, CommandListenerPl
 			if (rule.match(cmd)) {
 //				System.out.println("This command: " + cmd.getCommand() );
 //				System.out.println("Matched the following rule:" + rule.getName());
-				result = rule.handle(cmd, Language.Python);
+				result = rule.handle(cmd, current_language);
 				jTextArea_last_command.setText(result);
 				jTextArea_caught_by.setText(rule.getName());
 				if (is_recording) {
@@ -173,7 +185,7 @@ public class Python_Recorder extends JFrame implements PlugIn, CommandListenerPl
 			GridBagLayout jPanelLayout = new GridBagLayout();
 			jPanelLayout.rowWeights = new double[] {0.0, 0.0, 1.0, 0.0, 0.0};
 			jPanelLayout.rowHeights = new int[] {22, 15, 50, 61, 15};
-			jPanelLayout.columnWeights = new double[] {0.1, 0.1, 0.1, 0.1};
+			jPanelLayout.columnWeights = new double[] {0.0, 0.5, 0.5, 0.0};
 			jPanelLayout.columnWidths = new int[] {7, 7, 7, 7};
 			jPanel.setLayout(jPanelLayout);
 			jPanel.setPreferredSize(new java.awt.Dimension(443, 259));
@@ -206,7 +218,7 @@ public class Python_Recorder extends JFrame implements PlugIn, CommandListenerPl
 					public void actionPerformed(ActionEvent e) {
 						// Create a new Script editor
 						current_editor = new TextEditor(null);
-						current_editor.setLanguage("Python");
+						current_editor.setLanguage(current_language.toString());
 						current_editor.setVisible(true);						
 					}
 				});
@@ -233,7 +245,11 @@ public class Python_Recorder extends JFrame implements PlugIn, CommandListenerPl
 			}
 			{
 				jTextArea_last_command = new RSyntaxTextArea();
-				jTextArea_last_command.setSyntaxEditingStyle(SyntaxConstants.SYNTAX_STYLE_PYTHON);
+				switch (current_language) {
+				case Python:
+					jTextArea_last_command.setSyntaxEditingStyle(SyntaxConstants.SYNTAX_STYLE_PYTHON);
+					break;
+				}
 				Style[] styles = jTextArea_last_command.getSyntaxScheme().styles;
 				for (int i = 0; i < styles.length; i++) {
 					try {
@@ -277,31 +293,37 @@ public class Python_Recorder extends JFrame implements PlugIn, CommandListenerPl
 				jButton_add_template = new JButton();
 				jPanel.add(jButton_add_template, new GridBagConstraints(3, 4, 1, 1, 0.0, 0.0, GridBagConstraints.EAST, GridBagConstraints.VERTICAL, new Insets(10, 0, 10, 10), 0, 0));
 				jButton_add_template.setText("Add");
+				jButton_add_template.addActionListener(new ActionListener() {					
+					public void actionPerformed(ActionEvent e) {
+						Template template = (Template) jComboBox_templates.getSelectedItem();
+						current_editor.append(template.toLanguage(current_language));						
+					}
+				});
 			}
 		}
 		pack();
 	}
 	
 	/**
-	 * Load the rule set from the folder 'recorder_rules' in the fiji dev folder.
+	 * Load the rule and the template sets from the folder 'recorder' in the fiji dev folder, 
+	 * respectively in rules and templates subfolder.
 	 */
-	private void loadRuleSet() {
+	private void loadFiles() {
 		
 		// We chose to put xml rules in a folder, hardcoded
 		String path_to_fji = System.getProperty("fiji.dir");
-		File rule_folder = new File(path_to_fji, "recorder_rules");
-		File[] rule_files = rule_folder.listFiles();		
+		File recorder_folder = new File(path_to_fji, "recorder"); 
+		File rule_folder = new File(recorder_folder, "rules");
+		File template_folder = new File(recorder_folder, "templates");
 		
+		
+		// Rules
+		File[] rule_files = rule_folder.listFiles();				
 		File rule_file;
-		XMLRuleReader xrr = null;
-		
+		XMLRuleReader xrr = null;	
 		for (int i = 0; i < rule_files.length; i++) {
-
 			rule_file = rule_files[i];
-			if (!rule_file.getName().toLowerCase().endsWith(".xml")) {
-				continue;
-			}
-		
+			if (!rule_file.getName().toLowerCase().endsWith(".xml")) {	continue;	}		
 			try {
 				xrr = new XMLRuleReader(rule_file.getPath());
 			} catch (ParserConfigurationException e) {
@@ -311,13 +333,42 @@ public class Python_Recorder extends JFrame implements PlugIn, CommandListenerPl
 			} catch (SAXException e) {
 				e.printStackTrace();
 			}
-		
 			RegexRule rule = xrr.getRule();
 			rule_set.add(rule);
 		}
 		rule_set.setComparator(RegexRule.getReversedComparator());
+		
+		// Templates
+		File[] template_files = template_folder.listFiles();
+		File template_file;
+		XMLTemplateReader xtr = null;
+		for (int i = 0; i < template_files.length; i++) {
+			template_file = template_files[i];
+			if (!template_file.getName().toLowerCase().endsWith(".xml")) {	continue;	}		
+			try {
+				xtr = new XMLTemplateReader(template_file.getPath());
+			} catch (ParserConfigurationException e) {
+				e.printStackTrace();
+			} catch (IOException e) {
+				e.printStackTrace();
+			} catch (SAXException e) {
+				e.printStackTrace();
+			}
+			Template template = xtr.getTemplate();
+			template_set.add(template);			
+		}
+		
+		// We set the combo box in this method for flexibility
+		jComboBox_templates.removeAllItems();
+		for (int i = 0; i < template_set.size(); i++) {
+			jComboBox_templates.addItem( template_set.get(i) );
+		}
+	
 	}
 
+	/**
+	 * Display a JTable containing all rules loaded in this plugin.
+	 */
 	public void displayRuleTable() {
 		String[] column_names = {
 				"Priority",

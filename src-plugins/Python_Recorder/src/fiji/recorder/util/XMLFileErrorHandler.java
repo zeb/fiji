@@ -1,4 +1,4 @@
-package fiji.recorder.rule;
+package fiji.recorder.util;
 
 import org.xml.sax.ErrorHandler;
 import org.xml.sax.SAXException;

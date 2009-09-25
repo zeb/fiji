@@ -1,4 +1,4 @@
-package fiji.recorder.rule;
+package fiji.recorder.template;
 
 import java.io.IOException;
 
@@ -14,35 +14,34 @@ import org.xml.sax.helpers.DefaultHandler;
 
 import fiji.recorder.util.XMLFileErrorHandler;
 
-
-public class XMLRuleReader extends DefaultHandler {
+public class XMLTemplateReader extends DefaultHandler  {
 
 	/*
 	 * FIELDS
 	 */
-	
+
 	// Currently parsed
 	private String main_body;
 	private String element_body;
-	private RegexRule rule;
+	private Template template;
 	private String current_element;
-	
+
 	/*
 	 * CONSTRUCTOR
 	 */
-	
-	public XMLRuleReader(String path) throws ParserConfigurationException,
-			IOException, SAXException {
+
+	public XMLTemplateReader(String path) throws ParserConfigurationException,
+	IOException, SAXException {
 		initialize(new InputSource(path));
 	}
 
 	/*
 	 * METHODS
 	 */
-	
+
 	private void initialize(InputSource inputSource)
-			throws ParserConfigurationException, SAXException,
-			       IOException {
+	throws ParserConfigurationException, SAXException,
+	IOException {
 
 		SAXParserFactory factory = SAXParserFactory.newInstance();
 		factory.setNamespaceAware(true);
@@ -55,34 +54,25 @@ public class XMLRuleReader extends DefaultHandler {
 	}
 
 	public void startDocument () {
-		rule = new RegexRule();
+		template = new Template();
 		main_body = "";
 	}
 
 	public void endDocument () { }
 
 	public void startElement(String uri, String name, String qName,	Attributes atts) {
-		
+
 		String tagName;
 		if ("".equals (uri))
 			tagName = qName;
 		else
 			tagName = name;
-		
+
 		element_body = "";
 		current_element = tagName;
-		
-		if (tagName.equalsIgnoreCase("CommandTranslatorRule")) {
-			rule.setPriority( Integer.parseInt(atts.getValue("priority")) );
-			rule.setName( atts.getValue( "name"));
-		}
-		else if (tagName.equalsIgnoreCase("Matcher")) {
-			rule.setCommand( atts.getValue("command") );
-			rule.setClassName( atts.getValue("class_name") );
-			rule.setArguments( atts.getValue("arguments"));
-			rule.setModifiers( atts.getValue( "modifiers")) ;
-		} 
-		else if (tagName.equalsIgnoreCase("PythonTranslator")) {
+
+		if (tagName.equalsIgnoreCase("CommandTemplate")) {
+			template.setName( atts.getValue( "name"));
 		}
 
 	}
@@ -93,16 +83,16 @@ public class XMLRuleReader extends DefaultHandler {
 			tagName = qName;
 		else
 			tagName = name;
-		
-		if (tagName.equalsIgnoreCase("CommandTranslatorRule")) {
-			rule.setDescription(main_body);
-		} else if (tagName.equalsIgnoreCase("PythonTranslator")) {
-			rule.setPythonTranslator(element_body);
+
+		if (tagName.equalsIgnoreCase("CommandTemplate")) {
+			template.setDescription(main_body);
+		} else if (tagName.equalsIgnoreCase("Python")) {
+			template.setPythonString(element_body);
 		}
 	}
 
 	public void characters(char ch[], int start, int length) {
-		if (current_element.equalsIgnoreCase("CommandTranslatorRule")) {
+		if (current_element.equalsIgnoreCase("CommandTemplate")) {
 			main_body += new String(ch, start, length); 
 		} else {
 			element_body += new String(ch, start, length);
@@ -110,8 +100,10 @@ public class XMLRuleReader extends DefaultHandler {
 
 	}
 
-	public RegexRule getRule() {
-		return rule;
+	public Template getTemplate() {
+		return template;
 	}
 
 }
+
+
