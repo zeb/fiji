@@ -86,6 +86,8 @@ public class Python_Recorder extends JFrame implements PlugIn, CommandListenerPl
 	private JComboBox jComboBox_templates;
 	private JButton jButton_add_template;
 	
+	private static final boolean RECORD_AT_START = true;
+	
 	/**
 	 * The text area containing the last command caught.
 	 */
@@ -192,24 +194,6 @@ public class Python_Recorder extends JFrame implements PlugIn, CommandListenerPl
 			jPanel.setVisible(true);
 			jPanel.setEnabled(true);
 			{
-				jButton_start_record = new JToggleButton();
-				jPanel.add(jButton_start_record, new GridBagConstraints(0, 0, 1, 1, 0.0, 0.0, GridBagConstraints.WEST, GridBagConstraints.VERTICAL, new Insets(10, 10, 0, 0), 0, 0));
-				jButton_start_record.setText("Record");
-				jButton_start_record.setBounds(12, 2, 99, 22);
-				jButton_start_record.setSelected(false);
-				jButton_start_record.addActionListener(new ActionListener()  {					
-					public void actionPerformed(ActionEvent e) {
-						if (jButton_start_record.isSelected()) { 
-							is_recording = true;
-							jButton_start_record.setForeground(Color.red);
-						} else { 
-							is_recording = false; 
-							jButton_start_record.setForeground(Color.black);
-						}
-					}
-				});
-			}
-			{
 				jButton_new = new JButton();
 				jPanel.add(jButton_new, new GridBagConstraints(1, 0, 1, 1, 0.0, 0.0, GridBagConstraints.CENTER, GridBagConstraints.VERTICAL, new Insets(10, 0, 0, 0), 0, 0));
 				jButton_new.setText("New script");
@@ -222,6 +206,27 @@ public class Python_Recorder extends JFrame implements PlugIn, CommandListenerPl
 						current_editor.setVisible(true);						
 					}
 				});
+			}
+			{
+				jButton_start_record = new JToggleButton();
+				jPanel.add(jButton_start_record, new GridBagConstraints(0, 0, 1, 1, 0.0, 0.0, GridBagConstraints.WEST, GridBagConstraints.VERTICAL, new Insets(10, 10, 0, 0), 0, 0));
+				jButton_start_record.setText("Record");
+				jButton_start_record.setBounds(12, 2, 99, 22);
+				jButton_start_record.setSelected(RECORD_AT_START);
+				jButton_start_record.addActionListener(new ActionListener()  {					
+					public void actionPerformed(ActionEvent e) {
+						if (jButton_start_record.isSelected()) { 
+							is_recording = true;
+							jButton_start_record.setForeground(Color.red);
+							jButton_new.setEnabled(false); // Grayed out when recording
+						} else { 
+							is_recording = false; 
+							jButton_start_record.setForeground(Color.black);
+							jButton_new.setEnabled(true);
+						}
+					}
+				});
+				jButton_start_record.getActionListeners()[0].actionPerformed(null); // fire action
 			}
 			{
 				jButton_list_rules = new JButton();
