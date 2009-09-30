@@ -179,7 +179,7 @@ public class Stitch_Image_Collection implements PlugIn
 		if ( computeOverlap )
 		{
 			// compute all phase correlations
-			computePhaseCorrelations(overlappingTiles, handleRGB);
+			computePhaseCorrelations(overlappingTiles, handleRGB, rgbOrder);
 			
 			// compute the model
 			newImageInformationList = optimize(overlappingTiles);
@@ -1052,11 +1052,21 @@ public class Stitch_Image_Collection implements PlugIn
 		
 		return imageInformationList;
 	}
-	
-	private void computePhaseCorrelations(final ArrayList<OverlapProperties> overlappingTiles, String handleRGB)
+
+	public static void computePhaseCorrelations( final OverlapProperties overlap )
 	{
+		final ArrayList<OverlapProperties> images = new ArrayList<OverlapProperties>();
+		images.add(overlap);
+		
+		computePhaseCorrelations( images , CommonFunctions.colorList[ colorList.length - 1 ], CommonFunctions.rgbTypes[ 0 ] );
+	}
+
+	public static void computePhaseCorrelations(final ArrayList<OverlapProperties> overlappingTiles, String handleRGB, String rgbOrder )
+	{		
 		for (final OverlapProperties o : overlappingTiles)
 		{
+			final int dim = Math.max( overlappingTiles.get(0).i1.dim, overlappingTiles.get(0).i2.dim );
+			
 			final ImagePlus imp1, imp2;
 
 			if (o.i1.imp == null)
@@ -1151,7 +1161,7 @@ public class Stitch_Image_Collection implements PlugIn
 		}
 	}
 	
-	private void setROI(final ImagePlus imp, final ImageInformation i1, final ImageInformation i2)
+	protected static void setROI(final ImagePlus imp, final ImageInformation i1, final ImageInformation i2)
 	{
 		final int start[] = new int[2], end[] = new int[2];
 		
