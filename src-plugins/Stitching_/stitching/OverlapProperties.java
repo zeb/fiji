@@ -22,6 +22,12 @@ package stitching;
 
 public class OverlapProperties
 {
+	public OverlapProperties( ImageInformation i1, ImageInformation i2 )
+	{
+		this.i1 = i1;
+		this.i2 = i2;
+	}
+	
 	public ImageInformation i1, i2;
 	public double R;
 	public Point2D translation2D;

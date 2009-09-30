@@ -53,6 +53,7 @@ import ij.process.ImageProcessor;
 import ij.ImageStack;
 
 import stitching.CommonFunctions;
+import stitching.CorrelationResult;
 import stitching.GridLayout;
 import stitching.ImageInformation;
 import stitching.OverlapProperties;
@@ -179,7 +180,7 @@ public class Stitch_Image_Collection implements PlugIn
 		if ( computeOverlap )
 		{
 			// compute all phase correlations
-			computePhaseCorrelations(overlappingTiles, handleRGB, rgbOrder);
+			computePhaseCorrelations(overlappingTiles, handleRGB, rgbOrder, true);
 			
 			// compute the model
 			newImageInformationList = optimize(overlappingTiles);
@@ -1053,15 +1054,50 @@ public class Stitch_Image_Collection implements PlugIn
 		return imageInformationList;
 	}
 
-	public static void computePhaseCorrelations( final OverlapProperties overlap )
+	public static CorrelationResult computePhaseCorrelations( final ImagePlus a, final ImagePlus b, final CorrelationResult cr  )
 	{
-		final ArrayList<OverlapProperties> images = new ArrayList<OverlapProperties>();
-		images.add(overlap);
+		final CorrelationResult c = cr == null ? new CorrelationResult() : cr;
 		
-		computePhaseCorrelations( images , CommonFunctions.colorList[ colorList.length - 1 ], CommonFunctions.rgbTypes[ 0 ] );
+		final int dim;
+		
+		if ( a.getStackSize() > 1 || b.getStackSize() > 1 )
+			dim = 3;
+		else
+			dim = 2;
+		
+		final ImageInformation i1 = new ImageInformation( dim, 0, null );
+		final ImageInformation i2 = new ImageInformation( dim, 1, null );
+		
+		i1.imp = a;
+		i2.imp = b;
+		
+		OverlapProperties op = new OverlapProperties( i1, i2 ); 
+						
+		final ArrayList<OverlapProperties> images = new ArrayList<OverlapProperties>();
+		images.add( op );
+		
+		computePhaseCorrelations( images , CommonFunctions.colorList[ colorList.length - 1 ], CommonFunctions.rgbTypes[ 0 ], false );
+		
+		
+		c.R = op.R;		
+		c.translation = new float[ dim ];
+		
+		if ( dim == 2 )
+		{
+			c.translation[ 0 ] = op.translation2D.x;
+			c.translation[ 1 ] = op.translation2D.y;
+		}
+		else
+		{
+			c.translation[ 0 ] = op.translation3D.x;
+			c.translation[ 1 ] = op.translation3D.y;			
+			c.translation[ 2 ] = op.translation3D.z;			
+		}
+		
+		return c;
 	}
 
-	public static void computePhaseCorrelations(final ArrayList<OverlapProperties> overlappingTiles, String handleRGB, String rgbOrder )
+	public static void computePhaseCorrelations(final ArrayList<OverlapProperties> overlappingTiles, String handleRGB, String rgbOrder, final boolean computeGlobalROI )
 	{		
 		for (final OverlapProperties o : overlappingTiles)
 		{
@@ -1088,8 +1124,11 @@ public class Stitch_Image_Collection implements PlugIn
 			}
 			
 			// where do we overlap?
-			setROI(imp1, o.i1, o.i2);
-			setROI(imp2, o.i2, o.i1);
+			if ( computeGlobalROI )
+			{
+				setROI(imp1, o.i1, o.i2);
+				setROI(imp2, o.i2, o.i1);
+			}
 			
 			//imp1.show();
 			//imp2.show();
@@ -1315,9 +1354,7 @@ public class Stitch_Image_Collection implements PlugIn
 				
 				if (overlapping)
 				{
-					OverlapProperties o = new OverlapProperties();
-					o.i1 = i1; 
-					o.i2 = i2;
+					OverlapProperties o = new OverlapProperties( i1, i2 );
 					overlappingTiles.add(o);
 					i1.overlaps = true;
 					i2.overlaps = true;
