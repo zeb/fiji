@@ -35,7 +35,6 @@ import ij.process.ImageProcessor;
 import ij.ImageStack;
 
 import stitching.CommonFunctions;
-import stitching.CorrelationResult;
 import stitching.GridLayout;
 import stitching.ImageInformation;
 import stitching.OverlapProperties;
@@ -198,107 +197,117 @@ public class Stitch_Image_Collection implements PlugIn
 		IJ.log("(" + new Date(System.currentTimeMillis()) + "): Finished Stitching.");
 	}
 
+	public static void computePhaseCorrelations(final OverlapProperties o, String handleRGB, String rgbOrder, final boolean computeGlobalROI )
+	{
+		final int dim = Math.max( o.i1.dim, o.i2.dim );
+		
+		final ImagePlus imp1, imp2;
+
+		if (o.i1.imp == null)
+		{
+			imp1 = CommonFunctions.loadImage("", o.i1.imageName, rgbOrder);
+			o.i1.closeAtEnd = true;
+		}
+		else
+			imp1 = o.i1.imp;
+
+		if (o.i2.imp == null)
+		{
+			imp2 = CommonFunctions.loadImage("", o.i2.imageName, rgbOrder);
+			o.i2.closeAtEnd = true;
+		}
+		else
+		{
+			imp2 = o.i2.imp;
+		}
+		
+		// where do we overlap?
+		if ( computeGlobalROI )
+		{
+			setROI(imp1, o.i1, o.i2);
+			setROI(imp2, o.i2, o.i1);
+		}
+		
+		//imp1.show();
+		//imp2.show();
+		
+		if (dim == 3)
+		{
+			final Stitching_3D stitch = new Stitching_3D();
+			stitch.checkPeaks = 5;
+			stitch.coregister = false;
+			stitch.fusedImageName = "Fused " + imp1.getTitle() + " " + imp2.getTitle();
+			stitch.fuseImages = false;
+			stitch.handleRGB1 = handleRGB;
+			stitch.handleRGB2 = handleRGB;
+			stitch.imgStack1 = imp1.getTitle();
+			stitch.imgStack2 = imp2.getTitle();
+			stitch.imp1 = imp1;
+			stitch.imp2 = imp2;
+			stitch.doLogging = false;
+			
+			try
+			{
+				stitch.work();
+				
+				o.R = stitch.getCrossCorrelationResult().R;
+				o.translation3D = stitch.getTranslation();
+			}
+			catch (Exception e)
+			{
+				o.R = -1;
+				o.translation3D = new Point3D(0,0,0);
+			}
+							
+		}
+		else if (dim == 2)
+		{
+			final Stitching_2D stitch = new Stitching_2D();
+			stitch.checkPeaks = 5;
+			stitch.fusedImageName = "Fused " + imp1.getTitle() + " " + imp2.getTitle();
+			stitch.fuseImages = false;
+			stitch.handleRGB1 = handleRGB;
+			stitch.handleRGB2 = handleRGB;
+			stitch.image1 = imp1.getTitle();
+			stitch.image2 = imp2.getTitle();
+			stitch.imp1 = imp1;
+			stitch.imp2 = imp2;
+			stitch.doLogging = false;
+			
+			try
+			{
+				stitch.work();
+				
+				o.R = stitch.getCrossCorrelationResult().R;
+				o.translation2D = stitch.getTranslation();
+			}
+			catch (Exception e)
+			{
+				o.R = -1;
+				o.translation2D = new Point2D(0, 0);
+			}
+							
+		}
+		else 
+		{
+			IJ.error("Dimensionality of images: " + dim  + " is not supported yet.");
+			return;
+		}
+		
+	}
 
 	public static void computePhaseCorrelations(final ArrayList<OverlapProperties> overlappingTiles, String handleRGB, String rgbOrder, final boolean computeGlobalROI )
 	{		
 		for (final OverlapProperties o : overlappingTiles)
 		{
-			final int dim = Math.max( overlappingTiles.get(0).i1.dim, overlappingTiles.get(0).i2.dim );
+			computePhaseCorrelations(o, handleRGB, rgbOrder, computeGlobalROI);
 			
-			final ImagePlus imp1, imp2;
-
-			if (o.i1.imp == null)
-			{
-				imp1 = CommonFunctions.loadImage("", o.i1.imageName, rgbOrder);
-				o.i1.closeAtEnd = true;
-			}
-			else
-				imp1 = o.i1.imp;
-
-			if (o.i2.imp == null)
-			{
-				imp2 = CommonFunctions.loadImage("", o.i2.imageName, rgbOrder);
-				o.i2.closeAtEnd = true;
-			}
-			else
-			{
-				imp2 = o.i2.imp;
-			}
-			
-			// where do we overlap?
-			if ( computeGlobalROI )
-			{
-				setROI(imp1, o.i1, o.i2);
-				setROI(imp2, o.i2, o.i1);
-			}
-			
-			//imp1.show();
-			//imp2.show();
+			final int dim = Math.max( o.i1.dim, o.i2.dim );
 			
 			if (dim == 3)
-			{
-				final Stitching_3D stitch = new Stitching_3D();
-				stitch.checkPeaks = 5;
-				stitch.coregister = false;
-				stitch.fusedImageName = "Fused " + imp1.getTitle() + " " + imp2.getTitle();
-				stitch.fuseImages = false;
-				stitch.handleRGB1 = handleRGB;
-				stitch.handleRGB2 = handleRGB;
-				stitch.imgStack1 = imp1.getTitle();
-				stitch.imgStack2 = imp2.getTitle();
-				stitch.imp1 = imp1;
-				stitch.imp2 = imp2;
-				stitch.doLogging = false;
-				
-				try
-				{
-					stitch.work();
-					
-					o.R = stitch.getCrossCorrelationResult().R;
-					o.translation3D = stitch.getTranslation();
-				}
-				catch (Exception e)
-				{
-					o.R = -1;
-					o.translation3D = new Point3D(0,0,0);
-				}
-								
 				IJ.log(o.i1.id + " overlaps " + o.i2.id + ": " + o.R + " translation: " + o.translation3D);
-			}
 			else if (dim == 2)
-			{
-				final Stitching_2D stitch = new Stitching_2D();
-				stitch.checkPeaks = 5;
-				stitch.fusedImageName = "Fused " + imp1.getTitle() + " " + imp2.getTitle();
-				stitch.fuseImages = false;
-				stitch.handleRGB1 = handleRGB;
-				stitch.handleRGB2 = handleRGB;
-				stitch.image1 = imp1.getTitle();
-				stitch.image2 = imp2.getTitle();
-				stitch.imp1 = imp1;
-				stitch.imp2 = imp2;
-				stitch.doLogging = false;
-				
-				try
-				{
-					stitch.work();
-					
-					o.R = stitch.getCrossCorrelationResult().R;
-					o.translation2D = stitch.getTranslation();
-				}
-				catch (Exception e)
-				{
-					o.R = -1;
-					o.translation2D = new Point2D(0, 0);
-				}
-								
 				IJ.log(o.i1.id + " overlaps " + o.i2.id + ": " + o.R + " translation: " + o.translation2D);
-			}
-			else 
-			{
-				IJ.error("Dimensionality of images: " + dim  + " is not supported yet.");
-				return;
-			}
 		}
 	}
 	

@@ -3,7 +3,6 @@ package stitching;
 import static stitching.CommonFunctions.colorList;
 
 import ij.ImagePlus;
-import java.util.ArrayList;
 
 import stitching.plugin.Stitch_Image_Collection;
 
@@ -28,11 +27,8 @@ public class StitchingLibrary
 		i2.imp = b;
 		
 		OverlapProperties op = new OverlapProperties( i1, i2 ); 
-						
-		final ArrayList<OverlapProperties> images = new ArrayList<OverlapProperties>();
-		images.add( op );
 		
-		Stitch_Image_Collection.computePhaseCorrelations( images , CommonFunctions.colorList[ colorList.length - 1 ], CommonFunctions.rgbTypes[ 0 ], false );		
+		Stitch_Image_Collection.computePhaseCorrelations( op , CommonFunctions.colorList[ colorList.length - 1 ], CommonFunctions.rgbTypes[ 0 ], false );		
 		
 		c.R = op.R;		
 		c.translation = new float[ dim ];
