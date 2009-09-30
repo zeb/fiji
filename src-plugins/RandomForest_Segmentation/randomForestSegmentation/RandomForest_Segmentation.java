@@ -273,7 +273,7 @@ public class RandomForest_Segmentation implements PlugIn {
 		IJ.log("creating feature stack");
 		featureStack = new FeatureStack(img);
 		int counter = 1;
-/*		for (float i=2.0f; i<featureStack.getWidth()/5.0f; i*=2){
+		for (float i=2.0f; i<featureStack.getWidth()/5.0f; i*=2){
 			IJ.showStatus("creating feature stack   " + counter);
 			featureStack.addGaussianBlur(i); counter++;
 			IJ.showStatus("creating feature stack   " + counter);			
@@ -285,9 +285,10 @@ public class RandomForest_Segmentation implements PlugIn {
 				featureStack.addDoG(i, j); counter++;
 			}
 		}
-*/		
-		featureStack.addMembraneFeatures(19, 1);
-		featureStack.show();
+		
+		featureStack.addMembraneFeatures(19, 3);
+		featureStack.addMembraneFeatures(39, 3);
+//		featureStack.show();
 	}
 	
 	
@@ -364,10 +365,10 @@ public class RandomForest_Segmentation implements PlugIn {
 		 
 		 FastRandomForest rf = new FastRandomForest();
 		 //FIXME: should depend on image size?? Or labels??
-		 rf.setNumTrees(100);
+		 rf.setNumTrees(400);
 		 //this is the default that Breiman suggests
-		 rf.setNumFeatures((int) Math.round(Math.sqrt(featureStack.getSize())));
-		 //rf.setNumFeatures(2);
+		 //rf.setNumFeatures((int) Math.round(Math.sqrt(featureStack.getSize())));
+		 rf.setNumFeatures(2);
 		 rf.setSeed(123);
 		 
 		 IJ.log("training classifier");
