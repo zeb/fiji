@@ -1,3 +1,5 @@
+package stitchingPlugins;
+
 import static stitching.CommonFunctions.*;
 
 /**

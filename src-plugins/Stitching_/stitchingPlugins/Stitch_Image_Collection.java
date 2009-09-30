@@ -1,23 +1,5 @@
-/**
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License 2
- * as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
- * 
- * An execption is the FFT implementation of Dave Hale which we use as a library,
- * wich is released under the terms of the Common Public License - v1.0, which is 
- * available at http://www.eclipse.org/legal/cpl-v10.html  
- *
- * @author Stephan Preibisch
- */
+package stitchingPlugins;
+
 
 import static stitching.CommonFunctions.AVG;
 import static stitching.CommonFunctions.LIN_BLEND;
@@ -214,6 +196,142 @@ public class Stitch_Image_Collection implements PlugIn
 		ImagePlus fused = fuseImages(newImageInformationList, max, "Stitched Image", fusionMethod, rgbOrder, dim, alpha);
 		fused.show();
 		IJ.log("(" + new Date(System.currentTimeMillis()) + "): Finished Stitching.");
+	}
+
+
+	public static void computePhaseCorrelations(final ArrayList<OverlapProperties> overlappingTiles, String handleRGB, String rgbOrder, final boolean computeGlobalROI )
+	{		
+		for (final OverlapProperties o : overlappingTiles)
+		{
+			final int dim = Math.max( overlappingTiles.get(0).i1.dim, overlappingTiles.get(0).i2.dim );
+			
+			final ImagePlus imp1, imp2;
+
+			if (o.i1.imp == null)
+			{
+				imp1 = CommonFunctions.loadImage("", o.i1.imageName, rgbOrder);
+				o.i1.closeAtEnd = true;
+			}
+			else
+				imp1 = o.i1.imp;
+
+			if (o.i2.imp == null)
+			{
+				imp2 = CommonFunctions.loadImage("", o.i2.imageName, rgbOrder);
+				o.i2.closeAtEnd = true;
+			}
+			else
+			{
+				imp2 = o.i2.imp;
+			}
+			
+			// where do we overlap?
+			if ( computeGlobalROI )
+			{
+				setROI(imp1, o.i1, o.i2);
+				setROI(imp2, o.i2, o.i1);
+			}
+			
+			//imp1.show();
+			//imp2.show();
+			
+			if (dim == 3)
+			{
+				final Stitching_3D stitch = new Stitching_3D();
+				stitch.checkPeaks = 5;
+				stitch.coregister = false;
+				stitch.fusedImageName = "Fused " + imp1.getTitle() + " " + imp2.getTitle();
+				stitch.fuseImages = false;
+				stitch.handleRGB1 = handleRGB;
+				stitch.handleRGB2 = handleRGB;
+				stitch.imgStack1 = imp1.getTitle();
+				stitch.imgStack2 = imp2.getTitle();
+				stitch.imp1 = imp1;
+				stitch.imp2 = imp2;
+				stitch.doLogging = false;
+				
+				try
+				{
+					stitch.work();
+					
+					o.R = stitch.getCrossCorrelationResult().R;
+					o.translation3D = stitch.getTranslation();
+				}
+				catch (Exception e)
+				{
+					o.R = -1;
+					o.translation3D = new Point3D(0,0,0);
+				}
+								
+				IJ.log(o.i1.id + " overlaps " + o.i2.id + ": " + o.R + " translation: " + o.translation3D);
+			}
+			else if (dim == 2)
+			{
+				final Stitching_2D stitch = new Stitching_2D();
+				stitch.checkPeaks = 5;
+				stitch.fusedImageName = "Fused " + imp1.getTitle() + " " + imp2.getTitle();
+				stitch.fuseImages = false;
+				stitch.handleRGB1 = handleRGB;
+				stitch.handleRGB2 = handleRGB;
+				stitch.image1 = imp1.getTitle();
+				stitch.image2 = imp2.getTitle();
+				stitch.imp1 = imp1;
+				stitch.imp2 = imp2;
+				stitch.doLogging = false;
+				
+				try
+				{
+					stitch.work();
+					
+					o.R = stitch.getCrossCorrelationResult().R;
+					o.translation2D = stitch.getTranslation();
+				}
+				catch (Exception e)
+				{
+					o.R = -1;
+					o.translation2D = new Point2D(0, 0);
+				}
+								
+				IJ.log(o.i1.id + " overlaps " + o.i2.id + ": " + o.R + " translation: " + o.translation2D);
+			}
+			else 
+			{
+				IJ.error("Dimensionality of images: " + dim  + " is not supported yet.");
+				return;
+			}
+		}
+	}
+	
+	protected static void setROI(final ImagePlus imp, final ImageInformation i1, final ImageInformation i2)
+	{
+		final int start[] = new int[2], end[] = new int[2];
+		
+		for (int dim = 0; dim < 2; dim++)
+		{			
+			// begin of 2 lies inside 1
+			if (i2.offset[dim] >= i1.offset[dim] && i2.offset[dim] <= i1.offset[dim] + i1.size[dim])
+			{
+				start[dim] = Math.round(i2.offset[dim] - i1.offset[dim]);
+				
+				// end of 2 lies inside 1
+				if (i2.offset[dim] + i2.size[dim] <= i1.offset[dim] + i1.size[dim])
+					end[dim] = Math.round(i2.offset[dim] + i2.size[dim] - i1.offset[dim]);
+				else
+					end[dim] = Math.round(i1.size[dim]);
+			}
+			else if (i2.offset[dim] + i2.size[dim] <= i1.offset[dim] + i1.size[dim]) // end of 2 lies inside 1
+			{
+				start[dim] = 0;
+				end[dim] = Math.round(i2.offset[dim] + i2.size[dim] - i1.offset[dim]);
+			}
+			else // if both outside then the whole image 
+			{
+				start[dim] = -1;
+				end[dim] = -1;
+			}
+		}
+					
+		imp.setRoi(new Rectangle(start[0], start[1], end[0] - start[0], end[1] - start[1]));		
 	}
 	
 	protected void writeOutputConfiguration( String fileName, ArrayList<ImageInformation> imageInformationList )
@@ -1052,184 +1170,6 @@ public class Stitch_Image_Collection implements PlugIn
 		
 		
 		return imageInformationList;
-	}
-
-	public static CorrelationResult computePhaseCorrelations( final ImagePlus a, final ImagePlus b, final CorrelationResult cr  )
-	{
-		final CorrelationResult c = cr == null ? new CorrelationResult() : cr;
-		
-		final int dim;
-		
-		if ( a.getStackSize() > 1 || b.getStackSize() > 1 )
-			dim = 3;
-		else
-			dim = 2;
-		
-		final ImageInformation i1 = new ImageInformation( dim, 0, null );
-		final ImageInformation i2 = new ImageInformation( dim, 1, null );
-		
-		i1.imp = a;
-		i2.imp = b;
-		
-		OverlapProperties op = new OverlapProperties( i1, i2 ); 
-						
-		final ArrayList<OverlapProperties> images = new ArrayList<OverlapProperties>();
-		images.add( op );
-		
-		computePhaseCorrelations( images , CommonFunctions.colorList[ colorList.length - 1 ], CommonFunctions.rgbTypes[ 0 ], false );
-		
-		
-		c.R = op.R;		
-		c.translation = new float[ dim ];
-		
-		if ( dim == 2 )
-		{
-			c.translation[ 0 ] = op.translation2D.x;
-			c.translation[ 1 ] = op.translation2D.y;
-		}
-		else
-		{
-			c.translation[ 0 ] = op.translation3D.x;
-			c.translation[ 1 ] = op.translation3D.y;			
-			c.translation[ 2 ] = op.translation3D.z;			
-		}
-		
-		return c;
-	}
-
-	public static void computePhaseCorrelations(final ArrayList<OverlapProperties> overlappingTiles, String handleRGB, String rgbOrder, final boolean computeGlobalROI )
-	{		
-		for (final OverlapProperties o : overlappingTiles)
-		{
-			final int dim = Math.max( overlappingTiles.get(0).i1.dim, overlappingTiles.get(0).i2.dim );
-			
-			final ImagePlus imp1, imp2;
-
-			if (o.i1.imp == null)
-			{
-				imp1 = CommonFunctions.loadImage("", o.i1.imageName, rgbOrder);
-				o.i1.closeAtEnd = true;
-			}
-			else
-				imp1 = o.i1.imp;
-
-			if (o.i2.imp == null)
-			{
-				imp2 = CommonFunctions.loadImage("", o.i2.imageName, rgbOrder);
-				o.i2.closeAtEnd = true;
-			}
-			else
-			{
-				imp2 = o.i2.imp;
-			}
-			
-			// where do we overlap?
-			if ( computeGlobalROI )
-			{
-				setROI(imp1, o.i1, o.i2);
-				setROI(imp2, o.i2, o.i1);
-			}
-			
-			//imp1.show();
-			//imp2.show();
-			
-			if (dim == 3)
-			{
-				final Stitching_3D stitch = new Stitching_3D();
-				stitch.checkPeaks = 5;
-				stitch.coregister = false;
-				stitch.fusedImageName = "Fused " + imp1.getTitle() + " " + imp2.getTitle();
-				stitch.fuseImages = false;
-				stitch.handleRGB1 = handleRGB;
-				stitch.handleRGB2 = handleRGB;
-				stitch.imgStack1 = imp1.getTitle();
-				stitch.imgStack2 = imp2.getTitle();
-				stitch.imp1 = imp1;
-				stitch.imp2 = imp2;
-				stitch.doLogging = false;
-				
-				try
-				{
-					stitch.work();
-					
-					o.R = stitch.getCrossCorrelationResult().R;
-					o.translation3D = stitch.getTranslation();
-				}
-				catch (Exception e)
-				{
-					o.R = -1;
-					o.translation3D = new Point3D(0,0,0);
-				}
-								
-				IJ.log(o.i1.id + " overlaps " + o.i2.id + ": " + o.R + " translation: " + o.translation3D);
-			}
-			else if (dim == 2)
-			{
-				final Stitching_2D stitch = new Stitching_2D();
-				stitch.checkPeaks = 5;
-				stitch.fusedImageName = "Fused " + imp1.getTitle() + " " + imp2.getTitle();
-				stitch.fuseImages = false;
-				stitch.handleRGB1 = handleRGB;
-				stitch.handleRGB2 = handleRGB;
-				stitch.image1 = imp1.getTitle();
-				stitch.image2 = imp2.getTitle();
-				stitch.imp1 = imp1;
-				stitch.imp2 = imp2;
-				stitch.doLogging = false;
-				
-				try
-				{
-					stitch.work();
-					
-					o.R = stitch.getCrossCorrelationResult().R;
-					o.translation2D = stitch.getTranslation();
-				}
-				catch (Exception e)
-				{
-					o.R = -1;
-					o.translation2D = new Point2D(0, 0);
-				}
-								
-				IJ.log(o.i1.id + " overlaps " + o.i2.id + ": " + o.R + " translation: " + o.translation2D);
-			}
-			else 
-			{
-				IJ.error("Dimensionality of images: " + dim  + " is not supported yet.");
-				return;
-			}
-		}
-	}
-	
-	protected static void setROI(final ImagePlus imp, final ImageInformation i1, final ImageInformation i2)
-	{
-		final int start[] = new int[2], end[] = new int[2];
-		
-		for (int dim = 0; dim < 2; dim++)
-		{			
-			// begin of 2 lies inside 1
-			if (i2.offset[dim] >= i1.offset[dim] && i2.offset[dim] <= i1.offset[dim] + i1.size[dim])
-			{
-				start[dim] = Math.round(i2.offset[dim] - i1.offset[dim]);
-				
-				// end of 2 lies inside 1
-				if (i2.offset[dim] + i2.size[dim] <= i1.offset[dim] + i1.size[dim])
-					end[dim] = Math.round(i2.offset[dim] + i2.size[dim] - i1.offset[dim]);
-				else
-					end[dim] = Math.round(i1.size[dim]);
-			}
-			else if (i2.offset[dim] + i2.size[dim] <= i1.offset[dim] + i1.size[dim]) // end of 2 lies inside 1
-			{
-				start[dim] = 0;
-				end[dim] = Math.round(i2.offset[dim] + i2.size[dim] - i1.offset[dim]);
-			}
-			else // if both outside then the whole image 
-			{
-				start[dim] = -1;
-				end[dim] = -1;
-			}
-		}
-					
-		imp.setRoi(new Rectangle(start[0], start[1], end[0] - start[0], end[1] - start[1]));		
 	}
 	
 	private ArrayList<OverlapProperties> findOverlappingTiles(final ArrayList<ImageInformation> imageInformationList, final boolean createPreview, final String fusionMethod)
