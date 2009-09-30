@@ -31,6 +31,7 @@ import weka.core.Instances;
 import ij.IJ;
 import ij.ImageStack;
 import ij.ImagePlus;
+import ij.process.ByteProcessor;
 import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
 import ij.plugin.ZProjector;

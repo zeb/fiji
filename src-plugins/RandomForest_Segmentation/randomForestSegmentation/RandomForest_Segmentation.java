@@ -41,11 +41,13 @@ import ij.ImageStack;
 import ij.plugin.PlugIn;
 import ij.plugin.RGBStackMerge;
 import ij.process.ColorProcessor;
+import ij.plugin.PlugIn;
 import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
 import ij.gui.ImageWindow;
 import ij.gui.Roi;
 import ij.ImagePlus;
+import ij.WindowManager;
 
 import java.io.*;
 import java.util.ArrayList;
@@ -81,8 +83,6 @@ public class RandomForest_Segmentation implements PlugIn {
   	final Button trainButton;
   	final Button overlayButton;
   	
- 
-  	
   	public RandomForest_Segmentation() {
 	    	posExampleButton = new Button("positiveExample");
   	      	negExampleButton = new Button("negativeExample");
@@ -105,16 +105,16 @@ public class RandomForest_Segmentation implements PlugIn {
   					if(e.getSource() == posExampleButton){
   		  				addPositiveExamples();
   		  			}
-  		  			if(e.getSource() == negExampleButton){
+  		  			else if(e.getSource() == negExampleButton){
   		  				addNegativeExamples();
   		  			}
-  		  			if(e.getSource() == trainButton){
+  		  			else if(e.getSource() == trainButton){
   		  				trainClassifier();
   		  			}
-  		  			if(e.getSource() == overlayButton){
+  		  			else if(e.getSource() == overlayButton){
   		  				showOverlay();
   		  			}
-  		  			if(e.getSource() == posExampleList || e.getSource() == negExampleList){
+  		  			else if(e.getSource() == posExampleList || e.getSource() == negExampleList){
   		  				IJ.log("exampleList clicked");
   		  				deleteSelected(e);
   		  			}
@@ -138,11 +138,9 @@ public class RandomForest_Segmentation implements PlugIn {
  
   	
   	private class CustomWindow extends ImageWindow {
-  		private Panel all;
-  		
   		CustomWindow(ImagePlus imp) {
   			super(imp);
-  			all = new Panel();
+  			Panel all = new Panel();
   			BoxLayout box = new BoxLayout(all, BoxLayout.Y_AXIS);
   			all.setLayout(box);
   			
@@ -166,7 +164,7 @@ public class RandomForest_Segmentation implements PlugIn {
   	      	buttons.add(trainButton);
   	      	buttons.add(overlayButton);
   	      	
-  	      	for (Component c : new Component[]{posExampleButton, negExampleButton, trainButton, overlayButton}) {
+  	      	for (Component c : new Component[]{posExampleButton, negExampleButton, trainButton}) {
   	      		c.setMaximumSize(new Dimension(230, 50));
   	      		c.setPreferredSize(new Dimension(130, 30));
   	      	}
@@ -182,10 +180,9 @@ public class RandomForest_Segmentation implements PlugIn {
   	      	all.add(piw);
   	      	all.add(buttons);
   	      	all.add(annotations);
-  	      	
   	      	removeAll();
-  	      	
   	      	add(all);
+  	      	
   	      	pack();
   	      	
   	      	// Propagate all listeners
@@ -202,7 +199,6 @@ public class RandomForest_Segmentation implements PlugIn {
   	      		}
   	      	});
   		}
-  	
   		public void setDisplayImage(ImagePlus newDisplay){
   			
   		}
@@ -211,10 +207,10 @@ public class RandomForest_Segmentation implements PlugIn {
 	public void run(String arg) {
 //		trainingImage = IJ.openImage("testImages/i00000-1.tif");
 		//get current image
-		trainingImage = ij.WindowManager.getCurrentImage();
-		if (trainingImage==null) {
-			IJ.error("No image open.");
-			return;
+		trainingImage = WindowManager.getCurrentImage();
+		if (null == trainingImage) {
+			trainingImage = IJ.openImage();
+			if (null == trainingImage) return; // user canceled open dialog
 		}
 		
 		if (Math.max(trainingImage.getWidth(), trainingImage.getHeight()) > 1024)
@@ -286,8 +282,6 @@ public class RandomForest_Segmentation implements PlugIn {
 			}
 		}
 		
-		featureStack.addMembraneFeatures(19, 3);
-		featureStack.addMembraneFeatures(39, 3);
 //		featureStack.show();
 	}
 	
@@ -365,10 +359,12 @@ public class RandomForest_Segmentation implements PlugIn {
 		 
 		 FastRandomForest rf = new FastRandomForest();
 		 //FIXME: should depend on image size?? Or labels??
-		 rf.setNumTrees(400);
+		 rf.setNumTrees(200);
 		 //this is the default that Breiman suggests
 		 //rf.setNumFeatures((int) Math.round(Math.sqrt(featureStack.getSize())));
 		 rf.setNumFeatures(2);
+		 writeDataToARFF(data, "trainingDataFromInstances.arff");
+		 
 		 rf.setSeed(123);
 		 
 		 IJ.log("training classifier");
