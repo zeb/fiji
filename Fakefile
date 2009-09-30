@@ -69,11 +69,12 @@ ignoreMissingFakefiles=true
 # When a submodule could not be made, fall back to copying from this directory
 precompiledDirectory=precompiled/
 
-JAVA_HOME(linux)=java/linux/jdk1.6.0_10/jre
-JAVA_HOME(linux64)=java/linux-amd64/jdk1.6.0_13/jre
-JAVA_HOME(win32)=java/win32/jdk1.6.0_03/jre
-JAVA_HOME(win64)=java/win64/jdk1.6.0_04/jre
-JAVA_HOME(macosx)=java/macosx-java3d
+FIJI_JAVA_HOME(linux)=java/linux/jdk1.6.0_16/jre
+FIJI_JAVA_HOME(linux64)=java/linux-amd64/jdk1.6.0_16/jre
+FIJI_JAVA_HOME(win32)=java/win32/jdk1.6.0_16/jre
+FIJI_JAVA_HOME(win64)=java/win64/jdk1.6.0_16/jre
+FIJI_JAVA_HOME(macosx)=java/macosx-java3d
+JAVA_HOME=$FIJI_JAVA_HOME
 ENVOVERRIDES(JAVA_HOME)=true
 
 # the main target
@@ -85,6 +86,7 @@ SUBMODULE_TARGETS=\
 	plugins/TrakEM2_.jar \
 	plugins/mpicbg_.jar \
 	jars/clojure.jar \
+	jars/clojure-contrib.jar \
 	plugins/ij-ImageIO_.jar \
 	jars/jacl.jar \
 	jars/batik.jar \
@@ -174,6 +176,7 @@ CLASSPATH(plugins/VIB_.jar)=plugins/LSM_Toolbox.jar
 plugins/VIB_.jar <- plugins/LSM_Toolbox.jar VIB/
 plugins/mpicbg_.jar <- mpicbg/
 jars/clojure.jar <- clojure/
+jars/clojure-contrib.jar <- jars/clojure.jar clojure-contrib/
 plugins/loci_tools.jar <- bio-formats/
 CLASSPATH(plugins/TrakEM2_.jar)=plugins/VIB_.jar:plugins/mpicbg_.jar:plugins/loci_tools.jar:plugins/bUnwarpJ_.jar:plugins/level_sets.jar:plugins/Fiji_Plugins.jar
 plugins/TrakEM2_.jar <- ij.jar plugins/VIB_.jar plugins/mpicbg_.jar plugins/bUnwarpJ_.jar plugins/level_sets.jar plugins/Fiji_Plugins.jar TrakEM2/
@@ -199,7 +202,7 @@ jars/fiji-scripting.jar <- src-plugins/fiji-scripting/**/*.java
 CLASSPATH(plugins/Refresh_Javas.jar)=jars/fiji-scripting.jar
 CLASSPATH(plugins/Jython_Interpreter.jar)=jars/fiji-scripting.jar:jars/jython2.2.1/jython.jar
 plugins/Jython_Interpreter.jar <- src-plugins/Jython/*.java
-CLASSPATH(plugins/Clojure_Interpreter.jar)=jars/fiji-scripting.jar:jars/clojure.jar
+CLASSPATH(plugins/Clojure_Interpreter.jar)=jars/fiji-scripting.jar:jars/clojure.jar:jars/clojure-contrib.jar
 plugins/Clojure_Interpreter.jar <- src-plugins/Clojure/*.java
 CLASSPATH(plugins/JRuby_Interpreter.jar)=jars/fiji-scripting.jar
 plugins/JRuby_Interpreter.jar <- src-plugins/JRuby/*.java
@@ -211,8 +214,10 @@ plugins/Javascript_.jar <- src-plugins/Javascript/*.java
 plugins/Bug_Submitter.jar <- src-plugins/Bug_Submitter/*.java
 
 CLASSPATH(plugins/register_virtual_stack_slices.jar)=plugins/TrakEM2_.jar:plugins/mpicbg_.jar:plugins/bUnwarpJ_.jar
+
+CLASSPATH(plugins/LSM_Toolbox.jar)=plugins/LSM_Reader.jar
 MAINCLASS(plugins/LSM_Toolbox.jar)=org.imagearchive.lsm.toolbox.gui.AboutDialog
-plugins/LSM_Toolbox.jar <- plugins/LSM_Reader.jar/ \
+plugins/LSM_Toolbox.jar <- \
 	src-plugins/LSM_Toolbox/**/*.java \
 	src-plugins/LSM_Toolbox/**/*.png \
 	src-plugins/LSM_Toolbox/**/*.jpg \
@@ -221,6 +226,7 @@ plugins/LSM_Toolbox.jar <- plugins/LSM_Reader.jar/ \
 MAINCLASS(plugins/Interactive_3D_Surface_Plot.jar)=Interactive_3D_Surface_Plot
 CLASSPATH(plugins/Stitching_.jar)=plugins/loci_tools.jar:plugins/Fiji_Plugins.jar
 CLASSPATH(plugins/Fiji_Plugins.jar)=jars/jsch-0.1.37.jar
+CLASSPATH(plugins/Fiji_Updater.jar)=jars/jsch-0.1.37.jar:misc/Fiji.jar
 
 plugins/Record_Screen.jar <- src-plugins/Record_Screen/ src-plugins/Record_Screen/**/*
 
@@ -275,7 +281,7 @@ JAVA_LIB_PATH(macosx)=
 # The variables CFLAGS, CXXFLAGS, LDFLAGS and LIBS will be used for compiling
 # C and C++ programs.
 CXXFLAGS(*)=-Wall -Iincludes \
-	-DJAVA_HOME='"$JAVA_HOME"' -DJAVA_LIB_PATH='"$JAVA_LIB_PATH"'
+	-DJAVA_HOME='"$FIJI_JAVA_HOME"' -DJAVA_LIB_PATH='"$JAVA_LIB_PATH"'
 WINOPTS=-mwindows -mno-cygwin -DMINGW32
 CXXFLAGS(win32)=$CXXFLAGS $WINOPTS
 CXXFLAGS(win64)=$CXXFLAGS $WINOPTS
@@ -343,6 +349,7 @@ precompile-submodules[] <- \
 	precompiled/VIB_.jar \
 	precompiled/mpicbg_.jar \
 	precompiled/clojure.jar \
+	precompiled/clojure-contrib.jar \
 	precompiled/ij-ImageIO_.jar \
 	precompiled/jacl.jar \
 	precompiled/batik.jar \
@@ -352,6 +359,7 @@ precompile-submodules[] <- \
 
 precompiled/ij.jar <- ij.jar
 precompiled/clojure.jar <- jars/clojure.jar
+precompiled/clojure-contrib.jar <- jars/clojure.jar jars/clojure-contrib.jar
 precompiled/jacl.jar <- jars/jacl.jar
 precompiled/batik.jar <- jars/batik.jar
 precompiled/junit-4.5.jar <- jars/junit-4.5.jar

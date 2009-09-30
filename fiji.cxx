@@ -360,17 +360,23 @@ int main_argc, main_argc_backup;
 const char *main_class;
 bool run_precompiled = false;
 
+static bool dir_exists(string directory);
+
 static string get_java_home(void)
 {
 	if (absolute_java_home != "")
 		return absolute_java_home;
 	const char *env = getenv("JAVA_HOME");
-	if (env)
-		return env;
+	if (env) {
+		if (dir_exists(string(env)))
+			return env;
+		else {
+			cerr << "Ignoring invalid JAVA_HOME: " << env << endl;
+			unsetenv("JAVA_HOME");
+		}
+	}
 	return string(fiji_dir) + "/" + relative_java_home;
 }
-
-static bool dir_exists(string directory);
 
 static string get_jre_home(void)
 {
@@ -1212,6 +1218,7 @@ static bool update_files(string relative_path)
 			exit(1);
 		}
 	}
+	closedir(directory);
 	rmdir(absolute_path.c_str());
 	return true;
 }
@@ -1696,8 +1703,7 @@ static int start_ij(void)
 			if (build_classpath(class_path, string(fiji_dir)
 						+ "/plugins", 0))
 				return 1;
-		if (build_classpath(class_path, string(fiji_dir) + "/jars", 0))
-			return 1;
+		build_classpath(class_path, string(fiji_dir) + "/jars", 0);
 	}
 	add_option(options, class_path, 0);
 

@@ -4,6 +4,7 @@ import fiji.updater.Updater;
 
 import fiji.updater.logic.Installer;
 import fiji.updater.logic.PluginCollection;
+import fiji.updater.logic.PluginCollection.DependencyMap;
 import fiji.updater.logic.PluginObject;
 import fiji.updater.logic.PluginObject.Action;
 import fiji.updater.logic.PluginObject.Status;
@@ -16,16 +17,23 @@ import fiji.updater.util.Util;
 
 import ij.IJ;
 import ij.Prefs;
+import ij.WindowManager;
 
 import ij.gui.GenericDialog;
 
+import java.awt.Container;
+import java.awt.Component;
 import java.awt.Dimension;
+import java.awt.GridBagLayout;
+import java.awt.GridBagConstraints;
+import java.awt.Insets;
 import java.awt.TextField;
 
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
+import java.awt.event.KeyEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 
@@ -40,6 +48,7 @@ import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
+import javax.swing.JComponent;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
@@ -58,7 +67,7 @@ import javax.swing.event.ListSelectionListener;
 public class UpdaterFrame extends JFrame
 		implements TableModelListener, ListSelectionListener {
 	PluginCollection plugins;
-	long xmlLastModified;
+	protected long xmlLastModified;
 
 	private JFrame loadedFrame;
 	private JTextField txtSearch;
@@ -66,7 +75,8 @@ public class UpdaterFrame extends JFrame
 	private PluginTable table;
 	private JLabel lblPluginSummary;
 	private PluginDetails pluginDetails;
-	private JButton btnStart;
+	private JButton apply, cancel, easy;
+	boolean easyMode;
 
 	//For developers
 	// TODO: no more Hungarian notation
@@ -74,7 +84,7 @@ public class UpdaterFrame extends JFrame
 	private JButton btnEditDetails;
 
 	public UpdaterFrame() {
-		super("Plugin Manager");
+		super("Fiji Updater");
 
 		plugins = PluginCollection.getInstance();
 
@@ -86,7 +96,17 @@ public class UpdaterFrame extends JFrame
 		});
 
 		//======== Start: LEFT PANEL ========
-		JPanel leftPanel = SwingTools.verticalPanel();
+		JPanel leftPanel = new JPanel();
+		GridBagLayout gb = new GridBagLayout();
+		leftPanel.setLayout(gb);
+		GridBagConstraints c = new GridBagConstraints(0, 0,  // x, y
+				                              9, 1,  // rows, cols
+							      0, 0,  // weightx, weighty
+							      GridBagConstraints.NORTHWEST, // anchor
+							      GridBagConstraints.HORIZONTAL, // fill
+							      new Insets(0,0,0,0),
+							      0, 0); // ipadx, ipady
+
 		txtSearch = new JTextField();
 		txtSearch.getDocument().addDocumentListener(new DocumentListener() {
 
@@ -102,8 +122,14 @@ public class UpdaterFrame extends JFrame
 				updatePluginsTable();
 			}
 		});
-		SwingTools.labelComponent("Search:", txtSearch, leftPanel);
-		leftPanel.add(Box.createRigidArea(new Dimension(0,10)));
+		JPanel searchPanel = SwingTools.labelComponentRigid("Search:", txtSearch);
+		gb.setConstraints(searchPanel, c);
+		leftPanel.add(searchPanel);
+
+		Component box = Box.createRigidArea(new Dimension(0,10));
+		c.gridy = 1;
+		gb.setConstraints(box, c);
+		leftPanel.add(box);
 
 		viewOptions = new ViewOptions();
 		viewOptions.addActionListener(new ActionListener() {
@@ -112,12 +138,26 @@ public class UpdaterFrame extends JFrame
 			}
 		});
 	
-		SwingTools.labelComponent("View Options:", viewOptions, leftPanel);
-		leftPanel.add(Box.createRigidArea(new Dimension(0,10)));
+		JPanel viewOptionsPanel = SwingTools.labelComponentRigid("View Options:", viewOptions);
+		c.gridy = 2;
+		gb.setConstraints(viewOptionsPanel, c); 
+		leftPanel.add(viewOptionsPanel);
+
+		box = Box.createRigidArea(new Dimension(0,10));
+		c.gridy = 3;
+		gb.setConstraints(box, c);
+		leftPanel.add(box);
 
 		//Create labels to annotate table
-		SwingTools.label("Please choose what you want to install/uninstall:", leftPanel);
-		leftPanel.add(Box.createRigidArea(new Dimension(0,5)));
+		JPanel chooseLabel = SwingTools.label("Please choose what you want to install/uninstall:", null);
+		c.gridy = 4;
+		gb.setConstraints(chooseLabel, c);
+		leftPanel.add(chooseLabel);
+
+		box = Box.createRigidArea(new Dimension(0,5));
+		c.gridy = 5;
+		gb.setConstraints(box, c);
+		leftPanel.add(box);
 
 		//Label text for plugin summaries
 		lblPluginSummary = new JLabel();
@@ -131,13 +171,28 @@ public class UpdaterFrame extends JFrame
 		JScrollPane pluginListScrollpane = new JScrollPane(table);
 		pluginListScrollpane.getViewport().setBackground(table.getBackground());
 
+		c.gridy = 6;
+		c.weightx = 1;
+		c.weighty = 1;
+		c.fill = GridBagConstraints.BOTH;
+		gb.setConstraints(pluginListScrollpane, c);
 		leftPanel.add(pluginListScrollpane);
-		leftPanel.add(Box.createRigidArea(new Dimension(0,5)));
+
+		box = Box.createRigidArea(new Dimension(0,5));
+		c.gridy = 7;
+		c.weightx = 0;
+		c.weighty = 0;
+		c.fill = GridBagConstraints.HORIZONTAL;
+		gb.setConstraints(box, c);
+		leftPanel.add(box);
+
+		c.gridy = 8;
+		gb.setConstraints(lblSummaryPanel, c);
 		leftPanel.add(lblSummaryPanel);
+
 		//======== End: LEFT PANEL ========
 
 		//======== Start: RIGHT PANEL ========
-		// TODO: do we really want to win the "Who can make the longest function names?" contest?
 		JPanel rightPanel = SwingTools.verticalPanel();
 
 		rightPanel.add(Box.createVerticalGlue());
@@ -176,20 +231,21 @@ public class UpdaterFrame extends JFrame
 		bottomPanel.add(new PluginAction("Keep as-is", null));
 		bottomPanel.add(Box.createRigidArea(new Dimension(15,0)));
 		bottomPanel.add(new PluginAction("Install", Action.INSTALL,
-			"Update", Action.UPDATE));
+					"Update", Action.UPDATE));
 		bottomPanel.add(Box.createRigidArea(new Dimension(15,0)));
-		bottomPanel.add(new PluginAction("Remove", Action.REMOVE));
+		bottomPanel.add(new PluginAction("Uninstall",
+					Action.UNINSTALL));
 
 		bottomPanel.add(Box.createHorizontalGlue());
 
 		//Button to start actions
-		btnStart = SwingTools.button("Apply changes",
+		apply = SwingTools.button("Apply changes",
 				"Start installing/uninstalling plugins", new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-				clickToBeginOperations();
+				applyChanges();
 			}
 		}, bottomPanel);
-		btnStart.setEnabled(false);
+		apply.setEnabled(false);
 
 		//includes button to upload to server if is a Developer using
 		if (Util.isDeveloper) {
@@ -197,14 +253,27 @@ public class UpdaterFrame extends JFrame
 			btnUpload = SwingTools.button("Upload to server",
 					"Upload selected plugins to server", new ActionListener() {
 				public void actionPerformed(ActionEvent e) {
-					upload();
+					new Thread() {
+						public void run() {
+							upload();
+						}
+					}.start();
 				}
 			}, bottomPanel);
 			btnUpload.setEnabled(false);
 		}
 
 		bottomPanel.add(Box.createRigidArea(new Dimension(15,0)));
-		SwingTools.button("Close", "Exit Plugin Manager",
+		easy = SwingTools.button("Toggle easy mode",
+			"Toggle between easy and verbose mode",
+			new ActionListener() {
+				public void actionPerformed(ActionEvent e) {
+					toggleEasyMode();
+				}
+			}, bottomPanel);
+
+		bottomPanel.add(Box.createRigidArea(new Dimension(15,0)));
+		cancel = SwingTools.button("Close", "Exit Plugin Manager",
 			new ActionListener() {
 				public void actionPerformed(ActionEvent e) {
 					quit();
@@ -220,7 +289,15 @@ public class UpdaterFrame extends JFrame
 		table.getModel().addTableModelListener(this);
 
 		pack();
-		setVisible(true);
+
+		SwingTools.addAccelerator(cancel, (JComponent)getContentPane(),
+				cancel.getActionListeners()[0],
+				KeyEvent.VK_ESCAPE, 0);
+	}
+
+	public void dispose() {
+		WindowManager.removeWindow(this);
+		super.dispose();
 	}
 
 	public Progress getProgress(String title) {
@@ -259,17 +336,17 @@ public class UpdaterFrame extends JFrame
 			for (PluginObject plugin : table.getSelectedPlugins()) {
 				if (action == null)
 					plugin.setNoAction();
-				else {
-					Status status = plugin.getStatus();
-					if (status.isValid(action))
-						plugin.setAction(action);
-					else if (status.isValid(otherAction))
-						plugin.setAction(otherAction);
-					else
-						continue;
-				}
+				else if (!setAction(plugin))
+					continue;
 				table.firePluginChanged(plugin);
+				pluginsChanged();
 			}
+		}
+
+		protected boolean setAction(PluginObject plugin) {
+			return plugin.setFirstValidAction(new Action[] {
+					action, otherAction
+			});
 		}
 
 		public void enableIfValid() {
@@ -290,6 +367,11 @@ public class UpdaterFrame extends JFrame
 				(enable ? label + "/" : "") + otherLabel);
 			setEnabled(enable || enableOther);
 		}
+	}
+
+	public void setViewOption(ViewOptions.Option option) {
+		viewOptions.setSelectedItem(option);
+		updatePluginsTable();
 	}
 
 	public void updatePluginsTable() {
@@ -324,11 +406,13 @@ public class UpdaterFrame extends JFrame
 		setEnabled(false);
 	}
 
-	private void clickToBeginOperations() {
-		// TODO: check conflicts
+	public void applyChanges() {
+		ResolveDependencies resolver = new ResolveDependencies(this);
+		if (!resolver.resolve())
+			return;
 		new Thread() {
 			public void run() {
-				download();
+				install();
 			}
 		}.start();
 	}
@@ -345,6 +429,32 @@ public class UpdaterFrame extends JFrame
 		dispose();
 	}
 
+	void setEasyMode(Container container) {
+		for (Component child : container.getComponents()) {
+			if ((child instanceof Container) &&
+					child != table.getParent().getParent())
+				setEasyMode((Container)child);
+			child.setVisible(!easyMode);
+		}
+	}
+
+	public void setEasyMode(boolean easyMode) {
+		this.easyMode = easyMode;
+		setEasyMode(getContentPane());
+		Component[] exempt = { table, easy, apply, cancel };
+		for (Component child : exempt)
+			for (; child != getContentPane();
+					child = child.getParent())
+				child.setVisible(true);
+		easy.setLabel(easyMode ? "Advanced mode" : "Easy mode");
+		if (isVisible())
+			repaint();
+	}
+
+	public void toggleEasyMode() {
+		setEasyMode(!easyMode);
+	}
+
 	private void showFrame() {
 		if (loadedFrame != null) {
 			loadedFrame.setVisible(true);
@@ -352,12 +462,17 @@ public class UpdaterFrame extends JFrame
 		}
 	}
 
-	public void download() {
+	public void install() {
 		Installer installer =
 			new Installer(getProgress("Installing..."));
 		try {
+			PluginCollection uninstalled = PluginCollection
+				.clone(plugins.toUninstall());
 			installer.start();
+			for (PluginObject plugin : uninstalled)
+				table.firePluginChanged(plugin);
 			updatePluginsTable();
+			info("Updated successfully.  Please restart Fiji!");
 		} catch (Canceled e) {
 			// TODO: remove "update/" directory
 			IJ.error("Canceled");
@@ -368,17 +483,6 @@ public class UpdaterFrame extends JFrame
 			IJ.error("Installer failed: " + e);
 			installer.done();
 		}
-	}
-
-	public void exitWithRestartFijiMessage() {
-		removeLoadedFrameIfExists();
-		IJ.showMessage("Restart Fiji", "You must restart Fiji application for the Plugin status changes to take effect.");
-		dispose();
-	}
-
-	public void exitWithRestartMessage(String title, String message) {
-		IJ.showMessage(title, message);
-		dispose();
 	}
 
 	private void removeLoadedFrameIfExists() {
@@ -398,54 +502,80 @@ public class UpdaterFrame extends JFrame
 		for (PluginAction button : pluginActions)
 			button.enableIfValid();
 
-		btnStart.setEnabled(plugins.hasChanges());
+		apply.setEnabled(plugins.hasChanges());
+		cancel.setLabel(plugins.hasChanges() ? "Cancel" : "Close");
 
-		// TODO: "Upload" is activated by default!"
 		if (Util.isDeveloper) {
 			btnEditDetails.setEnabled(getSingleSelectedPlugin()
 					!= null);
-			btnUpload.setEnabled(plugins.hasUpload());
+			// TODO: has to change when details editor is embedded
+			btnUpload.setEnabled(plugins.hasUploadOrRemove());
 		}
+
+		int size = plugins.size();
+		int install = 0, uninstall = 0, upload = 0;
+		long bytesToDownload = 0, bytesToUpload = 0;
+
+		for (PluginObject plugin : plugins)
+			switch (plugin.getAction()) {
+			case INSTALL:
+			case UPDATE:
+				install++;
+				bytesToDownload += plugin.filesize;
+				break;
+			case UNINSTALL:
+				uninstall++;
+				break;
+			case UPLOAD:
+				upload++;
+				bytesToUpload += plugin.filesize;
+				break;
+			}
+		int implicated = 0;
+		DependencyMap map = plugins.getDependencies(true);
+		for (PluginObject plugin : map.keySet()) {
+			implicated++;
+			bytesToUpload += plugin.filesize;
+		}
+		String text = "";
+		if (install > 0)
+			text += " install/update: " + install
+				+ (implicated > 0 ? "+" + implicated : "")
+				+ " download size: "
+				+ sizeToString(bytesToDownload);
+		if (uninstall > 0)
+			text += " uninstall: " + uninstall;
+		if (Util.isDeveloper)
+			text += ", upload: " + upload + ", upload size: "
+				+ sizeToString(bytesToUpload);
+		lblPluginSummary.setText(text);
+
+	}
+
+	protected final static String[] units = {"B", "kB", "MB", "GB", "TB"};
+	public static String sizeToString(long size) {
+		int i;
+		for (i = 1; i < units.length && size >= 1l<<(10 * i); i++)
+			; // do nothing
+		if (--i == 0)
+			return "" + size + units[i];
+		// round
+		size *= 100;
+		size >>= (10 * i);
+		size += 5;
+		size /= 10;
+		return "" + (size / 10) + "." + (size % 10) + units[i];
 	}
 
 	public void tableChanged(TableModelEvent e) {
-		int size = plugins.size();
-		int install = 0;
-		int remove = 0;
-		int update = 0;
-		int upload = 0;
-
-		//Refresh count information
-		for (PluginObject myPlugin : plugins)
-			if (myPlugin.toInstall())
-				install += 1;
-			else if (myPlugin.toRemove())
-				remove += 1;
-			else if (myPlugin.toUpdate())
-				update += 1;
-			else if (myPlugin.toUpload())
-				upload += 1;
-		String text = "Total: " + size + ", To install: " + install
-			+ ", To remove: " + remove + ", To update: " + update;
-		if (Util.isDeveloper)
-			text += ", To upload: " + upload;
-		lblPluginSummary.setText(text);
-
 		pluginsChanged();
 	}
 
-	private void enableIfAnyUpload(JButton button) {
-		enableIfActions(button, plugins.hasUpload());
+	public long getLastModified() {
+		return xmlLastModified;
 	}
 
-	private void enableIfAnyChange(JButton button) {
-		enableIfActions(button, plugins.hasChanges());
-	}
-
-	private void enableIfActions(JButton button, boolean flag) {
-		button.setEnabled(flag);
-	}
-
+	// setLastModified() is guaranteed to be called after Checksummer ran
 	public void setLastModified(long lastModified) {
 		xmlLastModified = lastModified;
 
@@ -467,14 +597,29 @@ public class UpdaterFrame extends JFrame
 	}
 
 	protected void upload() {
+		ResolveDependencies resolver =
+			new ResolveDependencies(this, true);
+		if (!resolver.resolve())
+			return;
+
+		String errors = plugins.checkConsistency();
+		if (errors != null) {
+			error(errors);
+			return;
+		}
+
 		PluginUploader uploader = new PluginUploader(xmlLastModified);
 
 		try {
 			if (!interactiveSshLogin(uploader))
 				return;
 			uploader.upload(getProgress("Uploading..."));
-			// TODO: download list instead
-			IJ.showMessage("You need to restart this plugin now");
+			for (PluginObject plugin : plugins.toUploadOrRemove())
+				if (plugin.getAction() == Action.UPLOAD)
+					plugin.setStatus(Status.INSTALLED);
+				else
+					plugin.setStatus(Status.NOT_INSTALLED);
+			updatePluginsTable();
 		} catch (Canceled e) {
 			// TODO: teach uploader to remove the lock file
 			IJ.error("Canceled");
@@ -520,4 +665,18 @@ public class UpdaterFrame extends JFrame
 		return true;
 	}
 
+	public void error(String message) {
+		JOptionPane.showMessageDialog(this, message, "Error",
+				JOptionPane.ERROR_MESSAGE);
+	}
+
+	public void warn(String message) {
+		JOptionPane.showMessageDialog(this, message, "Warning",
+				JOptionPane.WARNING_MESSAGE);
+	}
+
+	public void info(String message) {
+		JOptionPane.showMessageDialog(this, message, "Information",
+				JOptionPane.INFORMATION_MESSAGE);
+	}
 }

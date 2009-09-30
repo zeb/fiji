@@ -7,7 +7,6 @@ import fiji.updater.Updater;
 import fiji.updater.logic.FileUploader.SourceFile;
 
 import fiji.updater.util.Compressor;
-import fiji.updater.util.DependencyAnalyzer;
 import fiji.updater.util.Progress;
 import fiji.updater.util.Util;
 
@@ -27,13 +26,6 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-
-import javax.xml.parsers.ParserConfigurationException;
-import javax.xml.transform.TransformerConfigurationException;
-import javax.xml.transform.sax.TransformerHandler;
-
-import org.xml.sax.SAXException;
-import org.xml.sax.helpers.AttributesImpl;
 
 /*
  * This class is responsible for writing updates to server, upon given the
@@ -114,7 +106,7 @@ public class PluginUploader {
 			file.filename = plugin.filename + "-" + timestamp;
 		}
 
-		generateAndValidateXML(backup);
+		XMLFileWriter.writeAndValidate(backup);
 		// TODO: only save _compressed_ backup, and not as db.bak!
 		compress(backup, compressed);
 		((UploadableFile)files.get(0)).updateFilesize();
@@ -138,7 +130,7 @@ public class PluginUploader {
 	protected void saveTextFile(String path) throws FileNotFoundException {
 		PrintStream out = new PrintStream(path);
 		for (PluginObject plugin :
-				PluginCollection.getInstance().fijiPlugins())
+				PluginCollection.getInstance().forCurrentTXT())
 			out.println(plugin.getFilename() + " "
 					+ plugin.getTimestamp() + " "
 					+ plugin.getChecksum());
@@ -164,6 +156,7 @@ public class PluginUploader {
 
 		public void setTitle(String string) {}
 		public void setCount(int count, int total) {}
+		public void itemDone(Object item) {}
 		public void setItemCount(int count, int total) {}
 		public void done() {}
 	}
@@ -189,100 +182,5 @@ public class PluginUploader {
 			throw new RuntimeException("Could not verify the "
 				+ "timestamp of db.xml.gz");
 		}
-	}
-
-	// TODO: this _must_ go to XMLFileWriter (together with the validating stuff)
-	protected TransformerHandler handler;
-	protected void generateAndValidateXML(String path) throws SAXException,
-			TransformerConfigurationException, IOException,
-			ParserConfigurationException {
-		FileOutputStream out = new FileOutputStream(path);
-		XMLFileHandler xmlHandler = new XMLFileHandler(out);
-		handler = xmlHandler.getXMLHandler();
-
-		handler.startDocument();
-		AttributesImpl attr = new AttributesImpl();
-		handler.startElement("", "", "pluginRecords", attr);
-		for (PluginObject plugin :
-				PluginCollection.getInstance().fijiPlugins()) {
-			attr.clear();
-			setAttribute(attr, "filename", plugin.filename);
-			handler.startElement("", "", "plugin", attr);
-
-			attr.clear();
-			setAttribute(attr, "checksum", plugin.getChecksum());
-			setAttribute(attr, "timestamp", plugin.getTimestamp());
-			setAttribute(attr, "filesize", plugin.filesize);
-			handler.startElement("", "", "version", attr);
-			if (plugin.description != null)
-				writeSimpleTag("description",
-						plugin.description);
-
-			for (Dependency dependency : plugin.getDependencies()) {
-				attr.clear();
-				setAttribute(attr, "filename",
-						dependency.filename);
-				setAttribute(attr, "timestamp",
-						dependency.timestamp);
-				if (dependency.relation !=
-						Dependency.Relation.AT_LEAST)
-					setAttribute(attr, "relation",
-						dependency.relation.toString());
-				writeSimpleTag("dependency", null, attr);
-			}
-
-			writeSimpleTags("link", plugin.getLinks());
-			writeSimpleTags("author", plugin.getAuthors());
-			handler.endElement("", "", "version");
-
-			for (PluginObject.Version version :
-					plugin.getPrevious()) {
-				attr.clear();
-				setAttribute(attr, "timestamp",
-						version.timestamp);
-				setAttribute(attr, "checksum",
-						version.checksum);
-				writeSimpleTag("previous-version", null, attr);
-			}
-			handler.endElement("", "", "plugin");
-		}
-		handler.endElement("", "", "pluginRecords");
-		handler.endDocument();
-		out.close();
-
-		FileInputStream in = new FileInputStream(path);
-		xmlHandler.validateXMLContents(in);
-		in.close();
-	}
-
-	protected void setAttribute(AttributesImpl attributes,
-			String key, long value) {
-		setAttribute(attributes, key, "" + value);
-	}
-
-	protected void setAttribute(AttributesImpl attributes,
-			String key, String value) {
-		attributes.addAttribute("", "", key, "CDATA", value);
-	}
-
-	protected void writeSimpleTags(String tagName, Iterable<String> values)
-			throws SAXException {
-		for (String value : values)
-			writeSimpleTag(tagName, value);
-	}
-
-	protected void writeSimpleTag(String tagName, String value)
-			throws SAXException {
-		writeSimpleTag(tagName, value, new AttributesImpl());
-	}
-
-	protected void writeSimpleTag(String tagName, String value,
-				AttributesImpl attributes)
-			throws SAXException {
-		handler.startElement("", "", tagName, attributes);
-		if (value != null)
-			handler.characters(value.toCharArray(),
-					0, value.length());
-		handler.endElement("", "", tagName);
 	}
 }
