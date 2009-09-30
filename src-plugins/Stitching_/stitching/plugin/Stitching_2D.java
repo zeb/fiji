@@ -1,4 +1,4 @@
-package stitchingPlugins;
+package stitching.plugin;
 
 import static stitching.CommonFunctions.*;
 

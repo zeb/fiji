@@ -5,7 +5,7 @@ import static stitching.CommonFunctions.colorList;
 import ij.ImagePlus;
 import java.util.ArrayList;
 
-import stitchingPlugins.Stitch_Image_Collection;
+import stitching.plugin.Stitch_Image_Collection;
 
 
 public class StitchingLibrary
