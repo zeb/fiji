@@ -30,7 +30,7 @@ public class StitchingLibrary
 		
 		Stitch_Image_Collection.computePhaseCorrelations( op , CommonFunctions.colorList[ colorList.length - 1 ], CommonFunctions.rgbTypes[ 0 ], false );		
 		
-		c.R = op.R;		
+		c.R = op.R;
 		c.translation = new float[ dim ];
 		
 		if ( dim == 2 )
