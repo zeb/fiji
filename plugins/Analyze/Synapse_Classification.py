@@ -166,7 +166,7 @@ def extract_feature_loop(pivots, images):
     for p in pivots:
         featurelist.append([])
     for ei,i in enumerate(images):
-		print "Extracting features from",i.name,",",ei,"of",len(images)
+        print "Extracting features from",i.name,",",ei,"of",len(images)
         im=Opener().openImage(foldername, i.name)
         for ep,p in enumerate(pivots):            
             featurelist[ep].extend(extract_features(p,im))
