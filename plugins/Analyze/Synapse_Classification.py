@@ -59,6 +59,27 @@ def load_pivots(filename):
             new_pivots.append(s)
     return new_pivots
 
+def scan_pivots(image):
+    new_pivots=[]
+    w = image.getWidth();
+    h = image.getHeight();
+    d = image.getStackSize();
+    for z in xrange(1,d+1):        
+        pixels = image.getStack().getPixels(z)
+        for y in xrange(0,h):
+            for x in xrange(0,w):
+                #get pixel value
+                p=pixels[y*w + x]
+                if p > 5000:
+                    s=Pivot()   
+                    s.index=len(new_pivots)
+                    s.size=1
+                    s.brightness=p
+                    s.position=(x,y,z)
+                    new_pivots.append(s)
+    return new_pivots
+    
+
 def print_pivots(pivots, filename):
     i1=open(filename, "w")
     print >>i1, ' 	Volume (pixel^3)	Surface (pixel^2)	Nb of obj. voxels	Nb of surf. voxels	IntDen	Mean	StdDev	Median	Min	Max	X	Y	Z	Mean dist. to surf. (pixel)	SD dist. to surf. (pixel)	Median dist. to surf. (pixel)	XM	YM	ZM	BX	BY	BZ	B-width	B-height	B-depth'
@@ -67,12 +88,11 @@ def print_pivots(pivots, filename):
 
 def process_reference_channel(image):
     IJ.run("Maximum (3D) Point")
-    IJ.run("Enhance Contrast", "saturated=0 normalize normalize_all")
-    IJ.run("3D Objects Counter","threshold=5000 slice=1 min.=1 max.=73619520 statistics")
-    objfile=foldername + image.getTitle() + ".pivots.xls"
-    IJ.saveAs("Text",objfile)
-    IJ.run("Close All Without Saving")
-    return load_pivots(objfile)
+    i=IJ.getImage()
+    pivots=scan_pivots(i)
+    print_pivots(pivots,foldername+image.getTitle()+".pivots.xls")
+    #IJ.run("Close All Without Saving")
+    return pivots
     
 
 def extract_features(pivot, image):
