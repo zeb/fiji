@@ -64,13 +64,20 @@ def scan_pivots(image):
     w = image.getWidth();
     h = image.getHeight();
     d = image.getStackSize();
+    bitdepth = image.getBitDepth() 
     for z in xrange(1,d+1):        
         pixels = image.getStack().getPixels(z)
         for y in xrange(0,h):
             for x in xrange(0,w):
                 #get pixel value
                 p=pixels[y*w + x]
-                if p > 5000:
+                if (bitdepth == 8 or bitdepth == 32) and p > 30:
+                    scan=True
+                elif bitdepth == 16 and p > 7000:
+                    scan=True
+                else:
+                    scan=False
+                if scan:
                     s=Pivot()   
                     s.index=len(new_pivots)
                     s.size=1
@@ -82,9 +89,9 @@ def scan_pivots(image):
 
 def print_pivots(pivots, filename):
     i1=open(filename, "w")
-    print >>i1, ' 	Volume (pixel^3)	Surface (pixel^2)	Nb of obj. voxels	Nb of surf. voxels	IntDen	Mean	StdDev	Median	Min	Max	X	Y	Z	Mean dist. to surf. (pixel)	SD dist. to surf. (pixel)	Median dist. to surf. (pixel)	XM	YM	ZM	BX	BY	BZ	B-width	B-height	B-depth'
+    i1.write(' 	Volume (pixel^3)	Surface (pixel^2)	Nb of obj. voxels	Nb of surf. voxels	IntDen	Mean	StdDev	Median	Min	Max	X	Y	Z	Mean dist. to surf. (pixel)	SD dist. to surf. (pixel)	Median dist. to surf. (pixel)	XM	YM	ZM	BX	BY	BZ	B-width	B-height	B-depth\n')
     for p in pivots:
-        print >>i1,str(p.index),'\t',str(p.size),'\t1\t1\t1\t',str(p.brightness),'\t1\t1\t1\t1\t1\t',str(p.position[0]),'\t',str(p.position[1]),'\t',str(p.position[2]),'\t0\t0\t0\t',str(p.position[0]),'\t',str(p.position[1]),'\t',str(p.position[2]),'\t',str(int(p.position[0])),'\t',str(int(p.position[1])),'\t',str(int(p.position[2])),'\t1\t1\t1'
+        i1.write(str(p.index)+'\t'+str(p.size)+'\t1\t1\t1\t'+str(p.brightness)+'\t1\t1\t1\t1\t1\t'+str(p.position[0])+'\t'+str(p.position[1])+'\t'+str(p.position[2])+'\t0\t0\t0\t'+str(p.position[0])+'\t'+str(p.position[1])+'\t'+str(p.position[2])+'\t'+str(int(p.position[0]))+'\t'+str(int(p.position[1]))+'\t'+str(int(p.position[2]))+'\t1\t1\t1\n')
 
 def process_reference_channel(image):
     IJ.run("Maximum (3D) Point")
@@ -159,6 +166,7 @@ def extract_feature_loop(pivots, images):
     for p in pivots:
         featurelist.append([])
     for ei,i in enumerate(images):
+		print "Extracting features from",i.name,",",ei,"of",len(images)
         im=Opener().openImage(foldername, i.name)
         for ep,p in enumerate(pivots):            
             featurelist[ep].extend(extract_features(p,im))
