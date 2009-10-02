@@ -139,10 +139,7 @@ public class RandomForest_Segmentation implements PlugIn {
   	private class CustomWindow extends ImageWindow {
   		CustomWindow(ImagePlus imp) {
   			super(imp);
-  			Panel all = new Panel();
-  			BoxLayout box = new BoxLayout(all, BoxLayout.Y_AXIS);
-  			all.setLayout(box);
-  			
+  		
   			Panel piw = new Panel();
   			piw.setLayout(super.getLayout());
   			setTitle("Playground");
@@ -150,7 +147,22 @@ public class RandomForest_Segmentation implements PlugIn {
   				piw.add(c);
   			}
   			
+ 	      	Panel annotations = new Panel();
+ 	      	BoxLayout boxAnnotation = new BoxLayout(annotations, BoxLayout.Y_AXIS);
+ 	      	annotations.setLayout(boxAnnotation);
+  	      	posExampleList.addActionListener(listener);
+  	      	negExampleList.addActionListener(listener);	
+  	      	posExampleList.addItemListener(itemListener);
+  	      	negExampleList.addItemListener(itemListener);
+  	      	annotations.add(posExampleList);
+  	      	annotations.add(negExampleList);
   			
+	      	Panel imageAndLists = new Panel();
+			BoxLayout boxImgList = new BoxLayout(imageAndLists, BoxLayout.X_AXIS);
+			imageAndLists.setLayout(boxImgList);
+  	      	imageAndLists.add(piw);
+  	      	imageAndLists.add(annotations);
+  	      	
   			Panel buttons = new Panel();
   			buttons.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
   			
@@ -168,17 +180,11 @@ public class RandomForest_Segmentation implements PlugIn {
   	      		c.setPreferredSize(new Dimension(130, 30));
   	      	}
   	      	
-  	      	Panel annotations = new Panel();
-  	      	posExampleList.addActionListener(listener);
-  	      	negExampleList.addActionListener(listener);	
-  	      	posExampleList.addItemListener(itemListener);
-  	      	negExampleList.addItemListener(itemListener);
-  	      	annotations.add(posExampleList);
-  	      	annotations.add(negExampleList);
-  	      	
-  	      	all.add(piw);
+  	      	Panel all = new Panel();
+			BoxLayout box = new BoxLayout(all, BoxLayout.Y_AXIS);
+			all.setLayout(box);
+  	      	all.add(imageAndLists);
   	      	all.add(buttons);
-  	      	all.add(annotations);
   	      	removeAll();
   	      	add(all);
   	      	
