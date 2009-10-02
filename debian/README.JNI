@@ -1,0 +1,4 @@
+Every file matching *.conf in this directory should contain an
+absolute filename on each line.  These values will be appended
+to LD_LIBRARY_PATH for the invocation of Fiji, to enable other
+packages to add plugins that depend on JNI libraries.
