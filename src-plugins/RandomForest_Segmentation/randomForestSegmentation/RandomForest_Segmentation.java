@@ -42,6 +42,7 @@ import ij.plugin.PlugIn;
 import ij.plugin.RGBStackMerge;
 import ij.process.ColorProcessor;
 import ij.plugin.PlugIn;
+import ij.process.ByteProcessor;
 import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
 import ij.gui.ImageWindow;
@@ -71,29 +72,34 @@ public class RandomForest_Segmentation implements PlugIn {
 	private List<Roi> negativeExamples = new ArrayList< Roi>();
 	private ImagePlus trainingImage;
 	private ImagePlus displayImage;
-	private ImagePlus classifiedImage = null;
+	private ImagePlus classifiedImage;
+	private ImagePlus overlayImage;
 	private FeatureStack featureStack;
 	private CustomWindow win;
 	private java.awt.List posExampleList;
 	private java.awt.List negExampleList;
 	private int posTraceCounter;
 	private int negTraceCounter;
-   	final Button posExampleButton;
+   	private boolean showColorOverlay;
+	final Button posExampleButton;
   	final Button negExampleButton;
   	final Button trainButton;
   	final Button overlayButton;
+  	
   	
   	public RandomForest_Segmentation() {
 	    	posExampleButton = new Button("positiveExample");
   	      	negExampleButton = new Button("negativeExample");
   	      	trainButton = new Button("train Classifier");
-  	      	overlayButton = new Button("create Overlay");
+  	      	overlayButton = new Button("toggle Overlay");
+  	      	overlayButton.setEnabled(false);
   	      	posExampleList = new java.awt.List(5);
   	      	posExampleList.setForeground(Color.green);
   	      	negExampleList = new java.awt.List(5);
   	      	negExampleList.setForeground(Color.red);
   	      	posTraceCounter = 0;
   	      	negTraceCounter = 0;
+  	      	showColorOverlay = false;
 	}
 	
   	ExecutorService exec = Executors.newFixedThreadPool(1);
@@ -112,7 +118,7 @@ public class RandomForest_Segmentation implements PlugIn {
   		  				trainClassifier();
   		  			}
   		  			else if(e.getSource() == overlayButton){
-  		  				showOverlay();
+  		  				toggleOverlay();
   		  			}
   		  			else if(e.getSource() == posExampleList || e.getSource() == negExampleList){
   		  				deleteSelected(e);
@@ -175,7 +181,7 @@ public class RandomForest_Segmentation implements PlugIn {
   	      	buttons.add(trainButton);
   	      	buttons.add(overlayButton);
   	      	
-  	      	for (Component c : new Component[]{posExampleButton, negExampleButton, trainButton}) {
+  	      	for (Component c : new Component[]{posExampleButton, negExampleButton, trainButton, overlayButton}) {
   	      		c.setMaximumSize(new Dimension(230, 50));
   	      		c.setPreferredSize(new Dimension(130, 30));
   	      	}
@@ -257,7 +263,11 @@ public class RandomForest_Segmentation implements PlugIn {
 	}
 	
 	private void drawExamples(){
-		displayImage.setProcessor("Playground", trainingImage.getProcessor().convertToRGB());
+		if (!showColorOverlay)
+			displayImage.setProcessor("Playground", trainingImage.getProcessor().convertToRGB());
+		else
+			displayImage.setProcessor("Playground", overlayImage.getProcessor().convertToRGB());
+		
 		displayImage.setColor(Color.GREEN);
 		for (Roi r : positiveExamples){
 			r.drawPixels(displayImage.getProcessor());
@@ -398,28 +408,37 @@ public class RandomForest_Segmentation implements PlugIn {
 		 ImageProcessor classifiedImageProcessor = new FloatProcessor(trainingImage.getWidth(), trainingImage.getHeight(), classificationResult);
 		 classifiedImageProcessor.convertToByte(true);
 		 classifiedImage = new ImagePlus("classification result", classifiedImageProcessor);
-		 classifiedImage.show();
+		 overlayButton.setEnabled(true);
+		 showColorOverlay = false;
+		 toggleOverlay();
 	}
 
-	void showOverlay(){
-		int width = trainingImage.getWidth();
-		int height = trainingImage.getHeight();
+	void toggleOverlay(){
+		showColorOverlay = !showColorOverlay;
+		if (showColorOverlay){
+			//do this every time cause most likely classification changed
+			int width = trainingImage.getWidth();
+			int height = trainingImage.getHeight();
 		
-		ImageStack redStack = new ImageStack(width, height);
-		redStack.addSlice("red", classifiedImage.getProcessor().duplicate());
-		ImageStack greenStack = new ImageStack(width, height);
-		trainingImage.show();
-		greenStack.addSlice("green", trainingImage.getProcessor().duplicate());
-		ImageStack blueStack = new ImageStack(width, height);
-		blueStack.addSlice("blue", trainingImage.getProcessor().duplicate());
+			ImageProcessor white = new ByteProcessor(width, height);
+			white.setMinAndMax(255, 255);
+			ImageProcessor black = new ByteProcessor(width, height);
+			
+			ImageStack redStack = new ImageStack(width, height);
+			redStack.addSlice("red", trainingImage.getProcessor().duplicate());
+			ImageStack greenStack = new ImageStack(width, height);
+			greenStack.addSlice("green", classifiedImage.getProcessor().duplicate());
+			ImageStack blueStack = new ImageStack(width, height);
+			blueStack.addSlice("blue", white.duplicate());
 		
-		RGBStackMerge merger = new RGBStackMerge();
-		ImageStack overlayStack = merger.mergeStacks(trainingImage.getWidth(), trainingImage.getHeight(), 
-						   1, redStack, greenStack, blueStack, true);
+			RGBStackMerge merger = new RGBStackMerge();
+			ImageStack overlayStack = merger.mergeStacks(trainingImage.getWidth(), trainingImage.getHeight(), 
+					   1, redStack, greenStack, blueStack, true);
 	
-		ImagePlus overlayImage = new ImagePlus("overlay image", overlayStack);
-		overlayImage.show();
-		//win.setDisplayImage(overlayImage);
+			overlayImage = new ImagePlus("overlay image", overlayStack);
+		}
+
+		drawExamples();
 	}
 	
 	void listSelected(final ItemEvent e){
@@ -452,6 +471,14 @@ public class RandomForest_Segmentation implements PlugIn {
 			//delete item from list
 			negExampleList.remove(index);
 		}
-		drawExamples();
+		
+		if (!showColorOverlay)
+			drawExamples();
+		else{
+			//FIXME I have no clue why drawExamples 
+			//does not do the trick if overlay is displayed
+			toggleOverlay();
+			toggleOverlay();
+		}
 	}
 }
