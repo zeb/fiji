@@ -1278,6 +1278,8 @@ static void /* no-return */ usage(void)
 		<< "\tuse <dir> to discover plugins" << endl
 		<< "--run <plugin> [<arg>]" << endl
 		<< "\trun <plugin> in ImageJ, optionally with arguments" << endl
+		<< "--edit <file>" << endl
+		<< "\tedit the given file in the script editor" << endl
 		<< endl
 		<< "Options to run programs other than ImageJ:" << endl
 		<< "--jdb" << endl
@@ -1496,6 +1498,16 @@ static int start_ij(void)
 			arg = string("run(\"") + arg + "\");";
 			add_option(options, arg, 1);
 		}
+		else if (handle_one_option(i, "--edit", arg))
+			for (;;) {
+				add_option(options, "-eval", 1);
+				arg = string("run(\"Script Editor\", \"")
+					+ arg + "\");";
+				add_option(options, arg, 1);
+				if (i + 1 >= main_argc)
+					break;
+				arg = main_argv[++i];
+			}
 		else if (handle_one_option(i, "--heap", arg) ||
 				handle_one_option(i, "--mem", arg) ||
 				handle_one_option(i, "--memory", arg))
@@ -2182,6 +2194,15 @@ static int launch_32bit_on_tiger(int argc, char **argv)
 	if (offset < 0 || strcmp(argv[0] + offset, match))
 		return 0; /* suffix not found, no replacement */
 
+	if (strlen(replace) > strlen(match)) {
+		char *buffer = (char *)malloc(offset + strlen(replace) + 1);
+		if (!buffer) {
+			cerr << "Could not allocate new argv[0]" << endl;
+			exit(1);
+		}
+		memcpy(buffer, argv[0], offset);
+		argv[0] = buffer;
+	}
 	strcpy(argv[0] + offset, replace);
 	execv(argv[0], argv);
 	fprintf(stderr, "Could not execute %s: %d(%s)\n",
