@@ -115,7 +115,6 @@ public class RandomForest_Segmentation implements PlugIn {
   		  				showOverlay();
   		  			}
   		  			else if(e.getSource() == posExampleList || e.getSource() == negExampleList){
-  		  				IJ.log("exampleList clicked");
   		  				deleteSelected(e);
   		  			}
   				}
@@ -252,6 +251,7 @@ public class RandomForest_Segmentation implements PlugIn {
 	}
 	
 	private void drawExamples(){
+		displayImage.setProcessor("Playground", trainingImage.getProcessor().convertToRGB());
 		displayImage.setColor(Color.GREEN);
 		for (Roi r : positiveExamples){
 			r.drawPixels(displayImage.getProcessor());
@@ -435,11 +435,17 @@ public class RandomForest_Segmentation implements PlugIn {
 		if (e.getSource() == posExampleList) {
 			//delete item from ROI
 			int index = posExampleList.getSelectedIndex();
+			positiveExamples.remove(index);
 			//delete item from list
-			
+			posExampleList.remove(index);
 		}
 		else{
-			
+			//delete item from ROI
+			int index = negExampleList.getSelectedIndex();
+			negativeExamples.remove(index);
+			//delete item from list
+			negExampleList.remove(index);
 		}
+		drawExamples();
 	}
 }
