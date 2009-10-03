@@ -101,7 +101,7 @@ build : prebuild-actions build-arch build-indep
 build-arch : build-arch-stamp
 
 build-arch-stamp : configure-stamp
-	JAVA_HOME=$(INSTALLED_JVM_ROOT) sh -x Fake.sh "CLASSPATH(plugins/VIB_.jar)=$(JAVA3D_JARS)" "CLASSPATH(plugins/TrakEM2_.jar)=plugins/VIB_.jar:plugins/loci_tools.jar:plugins/mpicbg_.jar:plugins/level_sets.jar:plugins/bUnwarpJ_.jar:$(JAVA3D_JARS)"
+	JAVA_HOME=$(INSTALLED_JVM_ROOT) sh -x Fake.sh "CLASSPATH(plugins/VIB_.jar)=$(JAVA3D_JARS)" "CLASSPATH(plugins/TrakEM2_.jar)=plugins/VIB_.jar:plugins/loci_tools.jar:plugins/mpicbg_.jar:plugins/level_sets.jar:plugins/bUnwarpJ_.jar:plugins/Fiji_Plugins.jar:$(JAVA3D_JARS)"
 	touch $@
 
 build-indep : build-indep-stamp
