@@ -152,6 +152,7 @@ install-arch-stamp : build-arch-stamp
 	cp -rv java/$(JRE_PREFIX) $(DESTDIR)/usr/lib/fiji/$(JRE_SUBMODULE)
 	install -d $(DESTDIR)/usr/share/doc/fiji/
 	install -m 644 ij.jar $(DESTDIR)/usr/lib/fiji/
+	install -d $(DESTDIR)/usr/lib/fiji/jni/
 	install -m 644 debian/README.JNI $(DESTDIR)/usr/lib/fiji/jni/README
 	install -m 644 LICENSES $(DESTDIR)/usr/share/doc/fiji/
 	install -m 644 NOTES $(DESTDIR)/usr/share/doc/fiji/
