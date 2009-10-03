@@ -85,6 +85,7 @@ public class RandomForest_Segmentation implements PlugIn {
   	final Button negExampleButton;
   	final Button trainButton;
   	final Button overlayButton;
+  	final Button resultButton;
   	
   	
   	public RandomForest_Segmentation() {
@@ -93,6 +94,8 @@ public class RandomForest_Segmentation implements PlugIn {
   	      	trainButton = new Button("train Classifier");
   	      	overlayButton = new Button("toggle Overlay");
   	      	overlayButton.setEnabled(false);
+  	      	resultButton = new Button("create result");
+  	      	resultButton.setEnabled(false);
   	      	posExampleList = new java.awt.List(5);
   	      	posExampleList.setForeground(Color.green);
   	      	negExampleList = new java.awt.List(5);
@@ -120,6 +123,9 @@ public class RandomForest_Segmentation implements PlugIn {
   		  			else if(e.getSource() == overlayButton){
   		  				toggleOverlay();
   		  			}
+  		  			else if(e.getSource() == resultButton){
+  						showClassificationImage();
+  					}
   		  			else if(e.getSource() == posExampleList || e.getSource() == negExampleList){
   		  				deleteSelected(e);
   		  			}
@@ -176,12 +182,14 @@ public class RandomForest_Segmentation implements PlugIn {
   	      	negExampleButton.addActionListener(listener);
   	      	trainButton.addActionListener(listener);
   	      	overlayButton.addActionListener(listener);
+  	      	resultButton.addActionListener(listener);
   	      	buttons.add(posExampleButton);
   	      	buttons.add(negExampleButton);
   	      	buttons.add(trainButton);
   	      	buttons.add(overlayButton);
+  	      	buttons.add(resultButton);
   	      	
-  	      	for (Component c : new Component[]{posExampleButton, negExampleButton, trainButton, overlayButton}) {
+  	      	for (Component c : new Component[]{posExampleButton, negExampleButton, trainButton, overlayButton, resultButton}) {
   	      		c.setMaximumSize(new Dimension(230, 50));
   	      		c.setPreferredSize(new Dimension(130, 30));
   	      	}
@@ -409,6 +417,7 @@ public class RandomForest_Segmentation implements PlugIn {
 		 classifiedImageProcessor.convertToByte(true);
 		 classifiedImage = new ImagePlus("classification result", classifiedImageProcessor);
 		 overlayButton.setEnabled(true);
+		 resultButton.setEnabled(true);
 		 showColorOverlay = false;
 		 toggleOverlay();
 	}
@@ -480,5 +489,9 @@ public class RandomForest_Segmentation implements PlugIn {
 			toggleOverlay();
 			toggleOverlay();
 		}
+	}
+	
+	void showClassificationImage(){
+		classifiedImage.show();
 	}
 }
