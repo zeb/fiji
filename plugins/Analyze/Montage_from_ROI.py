@@ -164,13 +164,17 @@ for et,t in enumerate(tifs):
 
     #Okay, start processing ROIs
     for er,r in enumerate(ROIs):
-        
+        #get the next ROI
         roiname=r.getName()
         slicenum=manager.getSliceNumber(roiname)       
         manager.select(er)
         i.setSlice(slicenum+syn_radius)
+
+        #move the ROI over to account for the padding we added earlier
         newr=r.clone()
-        newr.setLocation(r.startX+syn_radius,r.startY+syn_radius)
+        newr.setLocation(int(newr.getBounds().getX())+syn_radius,int(newr.getBounds().getY())+syn_radius)
+
+        #Make a substack with the shifted ROI
         dupe=ij.plugin.filter.Duplicater()
         i.setRoi(newr)
         smalli = dupe.duplicateSubstack(i,i.getTitle()+" "+r.getName(),slicenum,slicenum+2*syn_radius)
@@ -190,6 +194,7 @@ for er,r in enumerate(ROIs):
     for img in roiCurr:
         i = Opener().openImage(foldername+"tmp/", img.name)
         i.show()
+        
         IJ.run("8-bit");
         i=IJ.getImage()
         montage=ij.plugin.MontageMaker()
