@@ -12,8 +12,6 @@ public class Fake_Neuron
 	extends ImagePlus
 	implements PlugIn
 {
-	private int w = 320, h = 320, d = 64;
-	private String title = "Fake Neuron";
 	private byte[][] pixels;
 
 	private List<int[]> pixellist;
@@ -54,51 +52,39 @@ public class Fake_Neuron
 		for (int i = 0; i < z; i++)
 			stack.setPixels(this.pixels[i], i+1);
 
-		this.setStack(title, stack);
+		this.setStack(t, stack);
 
-		paintNeuron(null, null);
+		int p0[] = new int[4], p1[] = new int[4];
+
+		p0[0] = (int)(x * 0.1 * Math.random());
+		p0[1] = (int)(y * 0.1 * Math.random());
+		p0[2] = (int)(z * 0.1 * Math.random());
+		p0[3] = 5;
+
+		p1[0] = (int)(x - x * 0.1 * Math.random());
+		p1[1] = (int)(y - y * 0.1 * Math.random());
+		p1[2] = (int)(z - z * 0.1 * Math.random());
+		p1[3] = 5;
+
+
+		this.pixellist.add(p0);
+		buildNeuron(p0, p1);
+		this.pixellist.add(p1);
+
+		for (int p[] : this.pixellist)
+			paintBall(p);
 
 		this.show();
 
 		return;
 	}
 
-	private void paintNeuron(int a[], int z[])
+	private void buildNeuron(int a[], int z[])
 	{
-		int m[];
+		int m[] = new int[4];
 		double w = (double)this.getWidth();
 		double h = (double)this.getHeight();
 		double d = (double)this.getNSlices();
-
-
-		if (a == null) {
-			a = new int[4];
-			a[0] = (int)(w * 0.1 * Math.random());
-			a[1] = (int)(h * 0.1 * Math.random());
-			a[2] = (int)(d * 0.1 * Math.random());
-			a[3] = 5;
-			this.pixellist.add(a);
-			paintBall(a);
-		}
-		if (z == null) {
-			z = new int[4];
-			z[0] = (int)(w - w * 0.1 * Math.random());
-			z[1] = (int)(h - h * 0.1 * Math.random());
-			z[2] = (int)(d - d * 0.1 * Math.random());
-			z[3] = 5;
-			this.pixellist.add(z);
-			paintBall(z);
-		}
-
-		System.err.print("(x,y,z)₁ = (" + a[0] + "," + a[1] + "," + a[2] + ") ");
-		System.err.print("(x,y,z)₂ = (" + z[0] + "," + z[1] + "," + z[2] + ")");
-
-		m = new int[4];
-
-		if (Math.abs(a[0] - z[0]) < 2 && Math.abs(a[0] - z[0]) < 2 && Math.abs(a[2] - z[2]) < 2) {
-			System.err.println();
-			return;
-		}
 
 		for (int i = 0; i < 3; i++) {
 			double offset = (double)Math.abs(a[i] - z[i]) * 0.5;
@@ -106,16 +92,13 @@ public class Fake_Neuron
 		}
 		m[3] = (a[3] + z[3]) / 2;
 
-		System.err.println(" (x,y,z)₂ = (" + m[0] + "," + m[1] + "," + m[2] + ")");
+		if (Math.abs(a[0] - m[0]) > 1 || Math.abs(a[1] - m[1]) > 1 || Math.abs(a[2] - m[2]) > 1)
+			buildNeuron(a, m);
 
 		this.pixellist.add(m);
 
-		paintBall(m);
-
-		if ((a[0] & m[0] & ~1) != 0 || (a[1] & m[1] & ~1) != 0 || (a[2] & m[2] & ~1) != 0)
-			paintNeuron(a, m);
-		if ((m[0] & z[0] & ~1) != 0 || (m[1] & m[1] & ~1) != 0 || (m[2] & m[2] & ~1) != 0)
-			paintNeuron(m, z);
+		if (Math.abs(m[0] - z[0]) > 1 || Math.abs(m[1] - z[1]) > 1 || Math.abs(m[2] - z[2]) > 1)
+			buildNeuron(m, z);
 
 		return;
 	}
@@ -133,11 +116,25 @@ public class Fake_Neuron
 			for (int y1 = Math.max(0, y - r1); y1 < Math.min(this.getHeight(), y + r1 + 1); y1++) {
 				int r2 = (int)Math.sqrt(r1 * r1 - (y1 - y) * (y1 - y));
 
-				for (int z1 = Math.max(0, z - r2); z1 < Math.min(this.getNSlices(), z + r2 + 1); z1++) {
-					set_pixel(x1, y1, z1, (byte)255);
-				}
+				for (int z1 = Math.max(0, z - r2); z1 < Math.min(this.getNSlices(), z + r2 + 1); z1++)
+					if (this.pixels[z1][y1 * this.width + x1] < 64)
+						set_pixel(x1, y1, z1, intensity(distance(co, x1, y1, z1), (double)r));
 			}
 		}
+	}
+
+	private double distance(int a[], int x1, int y1, int z1)
+	{
+		double x = (double)(a[0] - x1);
+		double y = (double)(a[1] - y1);
+		double z = (double)(a[2] - z1);
+
+		return Math.sqrt(x*x + y*y + z*z);
+	}
+
+	private byte intensity(double dist, double r)
+	{
+		return (byte)((dist * dist) - dist * r - 255.0 * dist / r + 255);
 	}
 
 	private void set_pixel(int x, int y, int z, byte color)
