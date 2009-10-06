@@ -117,8 +117,7 @@ public class Fake_Neuron
 				int r2 = (int)Math.sqrt(r1 * r1 - (y1 - y) * (y1 - y));
 
 				for (int z1 = Math.max(0, z - r2); z1 < Math.min(this.getNSlices(), z + r2 + 1); z1++)
-					if (this.pixels[z1][y1 * this.width + x1] < 64)
-						set_pixel(x1, y1, z1, intensity(distance(co, x1, y1, z1), (double)r));
+					set_pixel(x1, y1, z1, intensity(distance(co, x1, y1, z1), (double)r));
 			}
 		}
 	}
@@ -134,12 +133,13 @@ public class Fake_Neuron
 
 	private byte intensity(double dist, double r)
 	{
-		return (byte)((dist * dist) - dist * r - 255.0 * dist / r + 255);
+		return (byte)((dist * dist) - dist * r - 255.0 * dist / r + 255.0);
 	}
 
 	private void set_pixel(int x, int y, int z, byte color)
 	{
-		this.pixels[z][y * this.width + x] = color;
+		this.pixels[z][y * this.width + x] = (byte)Math.max(
+				(int)color, (int)this.pixels[z][y * this.width + x]);
 		return;
 	}
 }
