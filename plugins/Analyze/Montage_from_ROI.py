@@ -59,7 +59,6 @@ def copy_data(image,newimage,position):
         if z <= 0 or z > d: continue
         dz = (z-cz)*(z-cz)
         pixels = image.getStack().getPixels(z)
-        #newpixels = newimage.
         for y in xrange(int(cy-syn_radius),int(cy+syn_radius)+1):
             if y < 0 or y >= h: continue
             dy = (y-cy)*(y-cy)
@@ -113,12 +112,16 @@ file_name = fd.getFile()
 foldername=fd.getDirectory()
 pivots=[]
 if None != file_name:
-    im=Opener().openImage(fd.getDirectory(), file_name)
-    if im != None:
-        pass
-    else:   
+    pass
+    #im=Opener().openImage(fd.getDirectory(), file_name)
+    #if im != None:
+    #    pass
+    #else:   
         #TODO: read in ROI     
-        pass
+    #    pass
+else:
+    pass #error
+    
 
 tifs= [f for f in File(fd.getDirectory()).listFiles(Filter())]
 tifs.sort()
@@ -180,6 +183,7 @@ for et,t in enumerate(tifs):
         smalli = dupe.duplicateSubstack(i,i.getTitle()+" "+r.getName(),slicenum,slicenum+2*syn_radius)
         IJ.saveAs(smalli,"Tiff",foldername+"tmp/"+smalli.getTitle())
         smalli.close()
+    i.close()
     while ij.WindowManager.getCurrentImage():
         ij.WindowManager.getCurrentImage().close()
 
@@ -190,13 +194,16 @@ for er,r in enumerate(ROIs):
     roiname=r.getName()
     roiCurr = [roi for roi in roiFiles if string.find(roi.name,roiname) != -1]
     roiCurr.sort(lambda a,b:cmp(a.name,b.name))
+    while ij.WindowManager.getCurrentImage():
+        ij.WindowManager.getCurrentImage().close()
     
     for img in roiCurr:
         i = Opener().openImage(foldername+"tmp/", img.name)
         i.show()
-        
-        IJ.run("8-bit");
         i=IJ.getImage()
+        if i.getBitDepth() == 32:
+            i.getProcessor().setMinAndMax(0,255)
+        IJ.run("8-bit");
         montage=ij.plugin.MontageMaker()
         montage.makeMontage(i, 1+2*syn_radius, 1, 4, 1, 1+2*syn_radius, 1, 2, False)
         i.close()
@@ -213,6 +220,8 @@ for er,r in enumerate(ROIs):
     while ij.WindowManager.getCurrentImage():
         ij.WindowManager.getCurrentImage().close()
 IJ.showProgress(1.0);
+
+Interp.batchMode = False
 
 print "Done"
 

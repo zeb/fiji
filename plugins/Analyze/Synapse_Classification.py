@@ -51,10 +51,10 @@ def load_pivots(filename):
             s.index=int(line_args[0])#index 
            
             s.size=float(line_args[1])#size
-            s.brightness=float(line_args[5])#brightness
+            s.brightness=float(line_args[2])#brightness
 
             #x,y,z
-            s.position=(float(line_args[11]),float(line_args[12]),float(line_args[13]))
+            s.position=(float(line_args[3]),float(line_args[4]),float(line_args[5]))
 
             new_pivots.append(s)
     return new_pivots
@@ -89,16 +89,16 @@ def scan_pivots(image):
 
 def print_pivots(pivots, filename):
     i1=open(filename, "w")
-    i1.write(' 	Volume (pixel^3)	Surface (pixel^2)	Nb of obj. voxels	Nb of surf. voxels	IntDen	Mean	StdDev	Median	Min	Max	X	Y	Z	Mean dist. to surf. (pixel)	SD dist. to surf. (pixel)	Median dist. to surf. (pixel)	XM	YM	ZM	BX	BY	BZ	B-width	B-height	B-depth\n')
+    i1.write('Index 	Volume (pixel^3)    brightness    X	Y	Z\n')
     for p in pivots:
-        i1.write(str(p.index)+'\t'+str(p.size)+'\t1\t1\t1\t'+str(p.brightness)+'\t1\t1\t1\t1\t1\t'+str(p.position[0])+'\t'+str(p.position[1])+'\t'+str(p.position[2])+'\t0\t0\t0\t'+str(p.position[0])+'\t'+str(p.position[1])+'\t'+str(p.position[2])+'\t'+str(int(p.position[0]))+'\t'+str(int(p.position[1]))+'\t'+str(int(p.position[2]))+'\t1\t1\t1\n')
+        i1.write(str(p.index)+'\t'+str(p.size)+'\t'+str(p.brightness)+'\t'+str(p.position[0])+'\t'+str(p.position[1])+'\t'+str(p.position[2])+'\n')
 
 def process_reference_channel(image):
     IJ.run("Maximum (3D) Point")
     i=IJ.getImage()
     pivots=scan_pivots(i)
     print_pivots(pivots,foldername+image.getTitle()+".pivots.xls")
-    #IJ.run("Close All Without Saving")
+    IJ.run("Close All Without Saving")
     return pivots
     
 
@@ -121,14 +121,21 @@ def extract_features(pivot, image):
     for z in xrange(int(cz-syn_radius),int(cz+syn_radius)+1):
         if z <= 0 or z > d: continue
         dz = (z-cz)*(z-cz)
+        if z>cz: sz = z-cz 
+        else: sz = cz-z
         pixels = image.getStack().getPixels(z)
         for y in xrange(int(cy-syn_radius),int(cy+syn_radius)+1):
             if y < 0 or y >= h: continue
             dy = (y-cy)*(y-cy)
+            if y> cy: sy= y-cy
+            else: sy = cy-y
             for x in xrange(int(cx-syn_radius),int(cx+syn_radius)+1):
                 if x < 0 or x >= w: continue
                 #Innermost loop, perform computation
                 dx = (x-cx)*(x-cx)
+                if x > cx: sx = x - cx 
+                else: sx = cx - x
+                    
 
                 #get pixel value
                 p=pixels[y*w + x]
@@ -136,10 +143,6 @@ def extract_features(pivot, image):
                     p = (p & 0xff)
                 elif bitdepth==16:
                     p = (p & 0xffff)
-                elif bitdepth==24:
-                    p = (p & 0xffffff)
-                elif bitdepth==32:
-                    p = (p & 0xffffffff)
                 
                 if dx+dy+dz > syn_radius*syn_radius: continue        
 
@@ -147,9 +150,9 @@ def extract_features(pivot, image):
                 brightness +=  p
 
                 #center of mass
-                cenx += p*sqrt(dx)                
-                ceny += p*sqrt(dy)    
-                cenz += p*sqrt(dz)    
+                cenx += p*sx                
+                ceny += p*sy    
+                cenz += p*sz    
 
                 #moment of inertia
                 momi += p*(dx+dy+dz)
@@ -169,6 +172,8 @@ def extract_feature_loop(pivots, images):
         print "Extracting features from",i.name,",",ei,"of",len(images)
         im=Opener().openImage(foldername, i.name)
         for ep,p in enumerate(pivots):            
+            if ep % 10000 == 0:
+                print "     Punctum",ep,"of",len(pivots)
             featurelist[ep].extend(extract_features(p,im))
         im.close()
     return featurelist
@@ -191,9 +196,10 @@ def make_ImageJ_ROI(pivots, images):
         print >>macro, 'roiManager("Add");'
  
 def make_subset(pivots):
-    subset = copy.copy(pivots)
-    while len(subset) > subset_size:
-        subset.pop(random.randint(0,len(subset)-1))
+    subset=[]
+    maxlen=len(pivots)
+    for i in range(0,subset_size):
+        subset.append(pivots[random.randint(0,maxlen)])
     return subset
        
 
@@ -213,12 +219,12 @@ if None != file_name:
         pivots=process_reference_channel(im)
     else:        
         pivots=load_pivots(fd.getDirectory()+file_name)       
-
+print len(pivots)
 tifs= [f for f in File(fd.getDirectory()).listFiles(Filter())]
 
 #tifimgs = [Opener().openImage(fd.getDirectory(), file.name) for file in File(fd.getDirectory()).listFiles(Filter())]
 #tifimgs.sort(lambda a,b:cmp(a.getTitle(),b.getTitle()))
-tifs.sort()
+tifs.sort(lambda a,b:cmp(a.name,b.name))
 print "Images to process: ",tifs
 
 subset=make_subset(pivots)
