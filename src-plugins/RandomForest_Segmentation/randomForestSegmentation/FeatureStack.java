@@ -24,6 +24,12 @@ package randomForestSegmentation;
  * Author: Verena Kaynig (verena.kaynig@inf.ethz.ch)
  */
 
+import java.io.BufferedWriter;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
+
 import weka.core.Attribute;
 import weka.core.FastVector;
 import weka.core.Instance;
@@ -79,6 +85,23 @@ public class FeatureStack {
 		gs.blur(ip, sigma);
 		wholeStack.addSlice("GaussianBlur_" + sigma, ip);
 	}
+	
+	public void writeConfigurationToFile(String filename){
+		try{
+			BufferedWriter out = new BufferedWriter(
+				new OutputStreamWriter(
+				new FileOutputStream(filename) ) );
+				try{	
+					for (int i=1; i <= wholeStack.getSize(); i++){
+					out.write(wholeStack.getSliceLabel(i));
+					out.newLine();
+					}
+					out.close();
+				}
+					catch(IOException e){System.out.println("IOException");}
+			}
+			catch(FileNotFoundException e){System.out.println("File not found!");}
+		}
 	
 	public void addGradient(float sigma){
 		GaussianBlur gs = new GaussianBlur();
@@ -153,9 +176,9 @@ public class FeatureStack {
 		ip.add(-ip.getMin());
 		ipTr.add(-ipTr.getMin());
 		ipDet.add(-ipDet.getMin());
-		wholeStack.addSlice("Hessian"+sigma, ip.convertToByte(true));
-		wholeStack.addSlice("HessianTrace"+sigma, ipTr.convertToByte(true));
-		wholeStack.addSlice("HessianDeterminant"+sigma, ipDet.convertToByte(true));
+		wholeStack.addSlice("Hessian_"+sigma, ip.convertToByte(true));
+		wholeStack.addSlice("HessianTrace_"+sigma, ipTr.convertToByte(true));
+		wholeStack.addSlice("HessianDeterminant_"+sigma, ipDet.convertToByte(true));
 	}
 	
 	public void addDoG(float sigma1, float sigma2){

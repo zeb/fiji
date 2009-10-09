@@ -306,7 +306,8 @@ public class RandomForest_Segmentation implements PlugIn {
 			}
 		}
 		
-//		featureStack.show();
+		featureStack.writeConfigurationToFile("featureStackConfiguration.txt");
+		//		featureStack.show();
 	}
 	
 	
