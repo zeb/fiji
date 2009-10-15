@@ -181,13 +181,9 @@ public class Python_Recorder extends JFrame implements PlugIn, CommandListenerPl
 		
 		// Create frame
 		this.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-
-//		BorderLayout thisLayout = new BorderLayout();
-//		getContentPane().setLayout(thisLayout);
 		this.setVisible(true);
 		{
 			jPanel = new JPanel();
-//			getContentPane().add(jPanel, BorderLayout.CENTER);
 			this.setContentPane(jPanel);
 			GridBagLayout jPanelLayout = new GridBagLayout();
 			jPanelLayout.rowWeights = new double[] {0.0, 0.0, 1.0, 0.0, 0.0};
@@ -208,7 +204,23 @@ public class Python_Recorder extends JFrame implements PlugIn, CommandListenerPl
 						// Create a new Script editor
 						current_editor = new TextEditor(null);
 						current_editor.setLanguage(current_language.toString());
-						current_editor.setVisible(true);						
+						current_editor.setVisible(true);
+						current_editor.addWindowListener(new WindowListener() {
+							public void windowOpened(WindowEvent e) {	}
+							public void windowIconified(WindowEvent e) { }
+							public void windowDeiconified(WindowEvent e) {	}
+							public void windowDeactivated(WindowEvent e) { }
+							public void windowClosed(WindowEvent e) {	}
+							public void windowActivated(WindowEvent e) {	}
+							// Invoked when the script editor is closed. Make sure we stop recording
+							public void windowClosing(WindowEvent e) {
+								is_recording = false;
+								jButton_start_record.setSelected(false);
+								current_editor = null;
+								jButton_start_record.setForeground(Color.black);
+								jButton_new.setEnabled(true);
+							}
+						});
 					}
 				});
 			}
@@ -220,7 +232,10 @@ public class Python_Recorder extends JFrame implements PlugIn, CommandListenerPl
 				jButton_start_record.setSelected(RECORD_AT_START);
 				jButton_start_record.addActionListener(new ActionListener()  {					
 					public void actionPerformed(ActionEvent e) {
-						if (jButton_start_record.isSelected()) { 
+						if (jButton_start_record.isSelected()) {
+							if (current_editor == null) { //create one
+								jButton_new.getActionListeners()[0].actionPerformed(null); // fire action
+							}
 							is_recording = true;
 							jButton_start_record.setForeground(Color.red);
 							jButton_new.setEnabled(false); // Grayed out when recording
@@ -435,14 +450,15 @@ public class Python_Recorder extends JFrame implements PlugIn, CommandListenerPl
 
 	public void windowActivated(WindowEvent e) {	}
 
-	public void windowClosed(WindowEvent e) {
+	public void windowClosing(WindowEvent e) {
 		// User closed the recorder. Shut it down
 		is_recording = false;
 		WindowManager.removeWindow(this); // remove it from ImageJ menu
 		Executer.removeCommandListener(this); // stop listening to IJ commands
+		this.removeAll(); // useless?
 	}
 
-	public void windowClosing(WindowEvent e) {	}
+	public void windowClosed(WindowEvent e) {	}
 
 	public void windowDeactivated(WindowEvent e) {	}
 
