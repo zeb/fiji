@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CommandTranslatorRule priority="2" name="Image opener rule">This rule catches calls to open images, in the File > Open... menu. 
+	<Matcher class_name="ij.plugin.Commands" arguments="open" modifiers=".+" command="(&lt;command&gt;;.+)"></Matcher>
+	<PythonTranslator>
+# Open the image given its path and store it in the variable 'image'
+image = IJ.openImage('/path/to/image.tiff')
+# then display it.
+image.show()
+</PythonTranslator>
+</CommandTranslatorRule>

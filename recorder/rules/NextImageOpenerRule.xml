@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CommandTranslatorRule priority="2" name="Next image opener rule">This rule catches calls to open next images, in the File > Open Next menu. It opens the next image in the same folder that of the current image. 
+	<Matcher class_name="ij.plugin.NextImageOpener" arguments="" modifiers=".+" command=".+"></Matcher>
+	<PythonTranslator>
+# Open the "next" image in a directory, with respect to the currently selected one
+forward = True; # browse direction is forward, set to False for backward
+# Interpret arguments
+if forward:
+	arg = 'forward'
+else:
+	arg = 'backward'
+# Invoke plugin with arguments
+NextImageOpener().run(arg)
+	</PythonTranslator>
+</CommandTranslatorRule>
