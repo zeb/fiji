@@ -57,7 +57,7 @@ do
 done ||
 die "Error checking out submodules"
 
-test -x Fiji.app/fiji-linux64 ||
+test -x Fiji.app/fiji-linux64 && test -f Fiji.app/fiji-win64.exe ||
 sh Fake.sh app-all ||
 die "Could not make Fiji for all platforms"
 
@@ -244,11 +244,22 @@ EOF
  sudo chown "$USER" "$FIJIROOT"$IMAGE_FILE &&
  case "$IMAGE_FILE" in
  fiji-usb.img)
-	# Make sure that the partition is readable on MacOSX:
-	# It does not like partition type 83(Linux), but then it really should
-	# be partition type 6(FAT16)...
-	printf "t\n6\nw\nq\n" |
-	fdisk "$FIJIROOT"$IMAGE_FILE
+	# Change the label to "FIJI_STICK" && partition type to 0x06 (FAT16)
+	cat << EOF | ./fiji --jython -- -
+f = open('fiji-usb.img', 'r+b')
+f.seek(0x1c2)
+f.write('\x06')
+f.seek(0)
+first_sectors = f.read(0x50000)
+offset = -1
+while True:
+	offset = first_sectors.find('DEBIAN_LIVE', offset + 1)
+	if offset < 0:
+		break
+	f.seek(offset)
+	f.write('FIJI_STICK ')
+f.close()
+EOF
 	;;
  esac ||
 die "Building LiveCD failed"

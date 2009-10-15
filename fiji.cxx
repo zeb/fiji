@@ -1278,6 +1278,8 @@ static void /* no-return */ usage(void)
 		<< "\tuse <dir> to discover plugins" << endl
 		<< "--run <plugin> [<arg>]" << endl
 		<< "\trun <plugin> in ImageJ, optionally with arguments" << endl
+		<< "--edit <file>" << endl
+		<< "\tedit the given file in the script editor" << endl
 		<< endl
 		<< "Options to run programs other than ImageJ:" << endl
 		<< "--jdb" << endl
@@ -1401,7 +1403,7 @@ static int start_ij(void)
 	struct options options;
 	JavaVMInitArgs args;
 	JNIEnv *env;
-	string class_path, ext_option, jvm_options, arg;
+	string class_path, ext_option, jvm_options, default_arguments, arg;
 	stringstream plugin_path;
 	int dashdash = 0;
 	bool allow_multiple = false, skip_build_classpath = false;
@@ -1457,6 +1459,7 @@ static int start_ij(void)
 	if (!get_fiji_bundle_variable("allowMultiple", value))
 		allow_multiple = parse_bool(value);
 	get_fiji_bundle_variable("JVMOptions", jvm_options);
+	get_fiji_bundle_variable("DefaultArguments", default_arguments);
 #else
 	read_file_as_string(string(fiji_dir) + "/jvm.cfg", jvm_options);
 #endif
@@ -1496,6 +1499,16 @@ static int start_ij(void)
 			arg = string("run(\"") + arg + "\");";
 			add_option(options, arg, 1);
 		}
+		else if (handle_one_option(i, "--edit", arg))
+			for (;;) {
+				add_option(options, "-eval", 1);
+				arg = string("run(\"Script Editor\", \"")
+					+ arg + "\");";
+				add_option(options, arg, 1);
+				if (i + 1 >= main_argc)
+					break;
+				arg = main_argv[++i];
+			}
 		else if (handle_one_option(i, "--heap", arg) ||
 				handle_one_option(i, "--mem", arg) ||
 				handle_one_option(i, "--memory", arg))
@@ -1709,6 +1722,8 @@ static int start_ij(void)
 
 	if (jvm_options != "")
 		add_options(options, jvm_options, 0);
+	if (default_arguments != "")
+		add_options(options, default_arguments, 1);
 
 	if (dashdash) {
 		for (int i = 1; i < dashdash; i++)
@@ -2182,6 +2197,15 @@ static int launch_32bit_on_tiger(int argc, char **argv)
 	if (offset < 0 || strcmp(argv[0] + offset, match))
 		return 0; /* suffix not found, no replacement */
 
+	if (strlen(replace) > strlen(match)) {
+		char *buffer = (char *)malloc(offset + strlen(replace) + 1);
+		if (!buffer) {
+			cerr << "Could not allocate new argv[0]" << endl;
+			exit(1);
+		}
+		memcpy(buffer, argv[0], offset);
+		argv[0] = buffer;
+	}
 	strcpy(argv[0] + offset, replace);
 	execv(argv[0], argv);
 	fprintf(stderr, "Could not execute %s: %d(%s)\n",
