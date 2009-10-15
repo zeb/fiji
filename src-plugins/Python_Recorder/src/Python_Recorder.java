@@ -127,10 +127,6 @@ public class Python_Recorder extends JFrame implements PlugIn, CommandListenerPl
 	public void run(String arg) {
 		// Register as a listener
 		Executer.addCommandListener(this);
-		// Create a new Script editor
-		current_editor = new TextEditor(null);
-		current_editor.setLanguage(current_language.toString());
-		current_editor.setVisible(true);
 	}
 
 	public String commandExecuting(String command) {
@@ -246,7 +242,7 @@ public class Python_Recorder extends JFrame implements PlugIn, CommandListenerPl
 						}
 					}
 				});
-				jButton_start_record.getActionListeners()[0].actionPerformed(null); // fire action
+				jButton_start_record.getActionListeners()[0].actionPerformed(null); // fire action - will create a new script editor
 			}
 			{
 				jButton_list_rules = new JButton();
