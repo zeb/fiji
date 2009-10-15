@@ -22,6 +22,8 @@ import java.awt.GridLayout;
 import java.awt.Insets;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.WindowEvent;
+import java.awt.event.WindowListener;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -61,7 +63,7 @@ import org.xml.sax.SAXException;
 * LEGALLY FOR ANY CORPORATE OR COMMERCIAL PURPOSE.
 */
 /** This is ImageJ's macro recorder. */
-public class Python_Recorder extends JFrame implements PlugIn, CommandListenerPlus {
+public class Python_Recorder extends JFrame implements PlugIn, CommandListenerPlus, WindowListener {
 
 	/** Rule collections	 */
 	SortedArrayList<Rule> rule_set = new SortedArrayList<Rule>();
@@ -132,7 +134,7 @@ public class Python_Recorder extends JFrame implements PlugIn, CommandListenerPl
 	}
 
 	public String commandExecuting(String command) {
-		System.out.println("commandExecuting: "+command);
+		System.out.println("commandExecuting: "+command); // FOR DEBUG
 		return command;
 	}
 
@@ -173,6 +175,9 @@ public class Python_Recorder extends JFrame implements PlugIn, CommandListenerPl
 	private void init() {
 		// Register this in ImageJ menus
 		WindowManager.addWindow(this);
+		
+		// Register as window listener for itself
+	    addWindowListener(this);
 		
 		// Create frame
 		this.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
@@ -423,6 +428,33 @@ public class Python_Recorder extends JFrame implements PlugIn, CommandListenerPl
 	    frame.setVisible(true);
 	}
 
+	/*
+	 * EVENTS CATCHING
+	 */
+	
+
+	public void windowActivated(WindowEvent e) {	}
+
+	public void windowClosed(WindowEvent e) {
+		// User closed the recorder. Shut it down
+		is_recording = false;
+		WindowManager.removeWindow(this); // remove it from ImageJ menu
+		Executer.removeCommandListener(this); // stop listening to IJ commands
+	}
+
+	public void windowClosing(WindowEvent e) {	}
+
+	public void windowDeactivated(WindowEvent e) {	}
+
+	public void windowDeiconified(WindowEvent e) {	}
+
+	public void windowIconified(WindowEvent e) {	}
+
+	public void windowOpened(WindowEvent e) {	}
+
+	
+	
+	
 	/*
 	 * MAIN
 	 */
