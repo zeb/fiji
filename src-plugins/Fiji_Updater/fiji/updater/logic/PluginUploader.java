@@ -40,9 +40,10 @@ import java.util.Map;
 public class PluginUploader {
 	protected FileUploader uploader;
 
-	// for checking a race: if somebody else updated in the meantime,
-	// complain.
+	// checking race condition:
+	// if somebody else updated in the meantime, complain loudly.
 	protected long xmlLastModified;
+	public long newLastModified;
 	List<SourceFile> files;
 	String backup, compressed, text;
 
@@ -69,7 +70,6 @@ public class PluginUploader {
 		}
 	}
 
-	// TODO: verify that the uploader takes server's timestamp
 	public void upload(Progress progress) throws Exception  {
 		uploader.addProgress(progress);
 		uploader.addProgress(new VerifyTimestamp());
@@ -89,12 +89,11 @@ public class PluginUploader {
 		// No errors thrown -> just remove temporary files
 		new File(backup).delete();
 		new File(Util.prefix(Updater.TXT_FILENAME)).delete();
+		newLastModified = getCurrentLastModified();
 	}
 
-	protected void updateUploadTimestamp(long lockLastModified)
+	protected void updateUploadTimestamp(long timestamp)
 			throws Exception {
-		long timestamp =
-			Long.parseLong(Util.timestamp(lockLastModified));
 		for (SourceFile f : files) {
 			if (!(f instanceof UploadableFile))
 				continue;
@@ -154,33 +153,40 @@ public class PluginUploader {
 			verifyTimestamp();
 		}
 
-		public void setTitle(String string) {}
+		public void setTitle(String string) {
+			try {
+				updateUploadTimestamp(uploader.timestamp);
+			} catch (Exception e) {
+				e.printStackTrace();
+				throw new RuntimeException("Could not update "
+					+ "the timestamps in db.xml.gz");
+			}
+		}
+
 		public void setCount(int count, int total) {}
 		public void itemDone(Object item) {}
 		public void setItemCount(int count, int total) {}
 		public void done() {}
 	}
 
-	protected void verifyTimestamp() {
+	protected long getCurrentLastModified() {
 		try {
 			URLConnection connection = new URL(Updater.MAIN_URL
 				+ Updater.XML_COMPRESSED).openConnection();
 			connection.setUseCaches(false);
 			long lastModified = connection.getLastModified();
 			connection.getInputStream().close();
-			if (xmlLastModified != lastModified)
-				throw new RuntimeException("db.xml.gz was "
-					+ "changed in the meantime");
-
-			connection = new URL(Updater.MAIN_URL
-					+ Updater.XML_LOCK).openConnection();
-			lastModified = connection.getLastModified();
-			connection.getInputStream().close();
-			updateUploadTimestamp(lastModified);
-		} catch (Exception e) {
-			e.printStackTrace();
-			throw new RuntimeException("Could not verify the "
-				+ "timestamp of db.xml.gz");
+			return lastModified;
 		}
+		catch (Exception e) {
+			e.printStackTrace();
+			return 0;
+		}
+	}
+
+	protected void verifyTimestamp() {
+		if (xmlLastModified != getCurrentLastModified())
+			throw new RuntimeException("db.xml.gz was "
+				+ "changed in the meantime");
 	}
 }
