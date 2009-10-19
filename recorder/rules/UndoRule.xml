@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CommandTranslatorRule priority="3" name="Undo rule">This rule catches calls to the "undo" command.
+	<Matcher class_name="ij.plugin.Commands" arguments="undo" modifiers=".+" command="(&lt;command&gt;;.+)"></Matcher>
+	<PythonTranslator>
+# Get currently selected image
+image = WindowManager.getCurrentImage()
+if image is not None:
+	Undo.undo()
+</PythonTranslator>
+</CommandTranslatorRule>

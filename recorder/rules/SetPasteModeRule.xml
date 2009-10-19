@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CommandTranslatorRule priority="3" name="Set Paste Mode rule">This rule allow to change settings for paste mode.
+	<Matcher class_name="ij.plugin.frame.PasteController" arguments="" modifiers=".+" command="(&lt;command&gt;;.+)"></Matcher>
+	<PythonTranslator>
+# Change (and store) settings for paste mode
+# All modes available:
+copy_mode = Blitter.COPY 		# classic 
+average_mode = Blitter.AVERAGE
+difference_mode = Blitter.DIFFERENCE
+transparent_white_mode = Blitter.COPY_TRANSPARENT
+transparent_zero_mode = Blitter.COPY_ZERO_TRANSPARENT
+and_mode = Blitter.AND
+or_mode = Blitter.OR
+xor_mode = Blitter.XOR
+add_mode = Blitter.ADD
+substract_mode = Blitter.SUBTRACT
+multiply_mode = Blitter.MULTIPLY
+divide_mode = Blitter.DIVIDE
+min_mode = Blitter.MIN
+max_mode = Blitter.MAX
+# Pick one
+mode = average_mode
+# Set it
+Roi.setPasteMode(mode)
+	</PythonTranslator>
+</CommandTranslatorRule>

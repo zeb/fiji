@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CommandTranslatorRule priority="3" name="Copy/Cut rule">This rule catches calls to the "cut" or "copy" commands.
+	<Matcher class_name="ij.plugin.Clipboard" arguments="(cut|copy)" modifiers=".+" command="(&lt;command&gt;;.+)"></Matcher>
+	<PythonTranslator>
+# Shall we copy, or cut?
+do_cut = False # set to True to cut
+# Get currently selected image
+image = WindowManager.getCurrentImage()
+# If present, cut or copy it to clipboard
+if image is not None:
+	image.copy(do_cut)
+	</PythonTranslator>
+</CommandTranslatorRule>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CommandTranslatorRule priority="3" name="Revert image rule">This rule catches calls to the revert command, as in File > Revert menu.
+	<Matcher class_name="ij.plugin.Commands" arguments="revert" modifiers=".+" command="(&lt;command&gt;;.+)"></Matcher>
+	<PythonTranslator>
+# Revert the image stored in 'image' if it exists
+if image is not None:
+	image.revert()
+</PythonTranslator>
+</CommandTranslatorRule>

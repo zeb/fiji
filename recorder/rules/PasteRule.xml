@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CommandTranslatorRule priority="3" name="Paste rule">This rule catches calls to the "paste" command.
+	<Matcher class_name="ij.plugin.Clipboard" arguments="paste" modifiers=".+" command="(&lt;command&gt;;.+)"></Matcher>
+	<PythonTranslator>
+# Paste internal clipboard content onto current image
+if ImagePlus.getClipboard() is not None: 
+	image = WindowManager.getCurrentImage()
+	if image is not None:
+		image.paste()
+	</PythonTranslator>
+</CommandTranslatorRule>
