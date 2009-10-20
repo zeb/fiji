@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CommandTranslatorRule priority="3" name="Select All rule">This rule catches calls to the "Select All" command in Edit > Selection menu, that creates a ROI around the whole image.
+	<Matcher class_name="ij.plugin.Selection" arguments="all" modifiers=".+" command="(&lt;command&gt;;.+)"></Matcher>
+	<PythonTranslator>
+# Create a ROI around the whole image
+# Get current ImagePlus
+image = WindowManager.getCurrentImage()
+# Create ROI
+roi = Roi(0, 0, image.getWidth(), image.getHeight())
+# Assign it to the image and display it 
+image.setRoi(roi, True)
+	</PythonTranslator>
+</CommandTranslatorRule>

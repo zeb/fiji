@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CommandTranslatorRule priority="3" name="Fit Ellipse rule">This rule catches calls to the "Fit Ellipse" command in Edit > Selection menu, that fit an ellipse to a closed ROI.
+	<Matcher class_name="ij.plugin.Selection" arguments="ellipse" modifiers=".+" command="(&lt;command&gt;;.+)"></Matcher>
+	<PythonTranslator>
+# Fit ellipse to ROI
+# Get current ImagePlus
+image = WindowManager.getCurrentImage()
+# Get current ROI
+roi = image.getRoi()
+if roi is not None:
+	# Only apply to closed ROIs
+	if not roi.isLine():
+		# Get current ImageProcessor
+		ip = image.getProcessor()
+		ip.setRoi(roi.getPolygon())
+		# Create an ellipse fitter object
+		ellipse_fitter = EllipseFitter()
+		ellipse_fitter.fit(ip, None)
+		ellipse_fitter.makeRoi(ip);
+		# Assign ellipse ROI to image
+		image.setRoi(PolygonRoi(ellipse_fitter.xCoordinates, ellipse_fitter.yCoordinates, ellipse_fitter.nCoordinates, Roi.FREEROI))		
+	</PythonTranslator>
+</CommandTranslatorRule>

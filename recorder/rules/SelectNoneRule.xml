@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CommandTranslatorRule priority="3" name="Select None rule">This rule catches calls to the "Select None" command in Edit > Selection menu, that remove any ROI from the selected image.
+	<Matcher class_name="ij.plugin.Selection" arguments="none" modifiers=".+" command="(&lt;command&gt;;.+)"></Matcher>
+	<PythonTranslator>
+# Remove any ROI in currently selected image
+# Get current ImagePlus
+image = WindowManager.getCurrentImage()
+# Remove ROI from it
+image.killRoi()
+	</PythonTranslator>
+</CommandTranslatorRule>

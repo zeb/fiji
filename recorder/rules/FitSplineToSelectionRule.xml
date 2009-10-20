@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CommandTranslatorRule priority="3" name="Fit Spline rule">This rule catches calls to the "Fit Spline" command in Edit > Selection menu, that fit a spline to a polygon.
+	<Matcher class_name="ij.plugin.Selection" arguments="spline" modifiers=".+" command="(&lt;command&gt;;.+)"></Matcher>
+	<PythonTranslator>
+# Fit spline to ROI
+# Get current ImagePlus
+image = WindowManager.getCurrentImage()
+# Get current ROI
+roi = image.getRoi()
+if roi is not None:
+	# Only apply to polyline ROIs
+	roi_type = roi.getType()
+	if roi_type == Roi.POLYGON or roi_type == Roi.POLYLINE or roi_type == FREEROI or roi_type == TRACED_ROI or roi_type == Roi.FREELINE:
+		roi.fitSpline()
+		# You can also specify the number of point, uncomment following line:
+		# roi.fitSpline(20)
+		# To remove the spline fit:
+		# roi.removeSplineFit()		
+		image.draw()		
+	</PythonTranslator>
+</CommandTranslatorRule>
