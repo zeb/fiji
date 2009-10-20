@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CommandTranslatorRule priority="3" name="Fill ROI rule">This rule catches calls to the "Fill" command, that fills the current ROI with the foreground color. It applies to a given ImageProcessor.
+	<Matcher class_name="ij.plugin.filter.Filler" arguments="fill" modifiers=".+" command="(&lt;command&gt;;.+)"></Matcher>
+	<PythonTranslator>
+# Get current ImagePlus
+image = WindowManager.getCurrentImage()
+# Get the current ROI
+roi = image.getRoi()
+# Get current ImageProcessor (i.e. the current displayed slice)
+ip = image.getProcessor()
+# Fill ROI with foreground color
+if roi is not None:
+	ip.fill(roi)
+# Refresh display
+image.updateAndDraw()
+	</PythonTranslator>
+</CommandTranslatorRule>
