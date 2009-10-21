@@ -119,55 +119,6 @@ module TestLib
     return menu
   end
 
-  def self.getComponentByPath(path, container = nil)
-    container ||= @currentWindow
-
-    return if path.nil?
-
-    if path.is_a? String and path =~ />/
-      path = path.split('>')
-    end
-
-    if path.is_a? String
-      match = path.match(/^([A-Z][_[:alnum:]]*(::[A-Z][_[:alnum:]]*)*)(\[([0-9]+)\])?(\{(.+)\})?$/)
-
-      return nil if match.nil?
-
-      name = match[1]
-      nth  = match[4]
-      text = match[6]
-
-
-      candidates = container.getComponents.select { |x| x.is_a? eval(name) }
-
-      unless nth.nil?
-	candidate = candidates[nth.to_i]
-	candidates = candidate.nil? ? [] : [candidate]
-      end
-
-      unless text.nil?
-	candidates = candidates.select do |elem|
-	  if elem.respond_to? :getLabel
-	    elem.getLabel == text
-	  elsif elem.respond_to? :getText
-	    elem.getText == text
-	  end
-	end
-      end
-
-      return candidates.first
-    end
-
-    if path.is_a? Array
-      path.each do |elem|
-	container = getComponentByPath(elem, container)
-	break unless container
-      end
-
-      return container
-    end
-  end
-
   def self.dispatchActionEvent(component)
     event = ActionEvent.new(component, ActionEvent::ACTION_PERFORMED,
 			    component.label, MouseEvent::BUTTON1)
