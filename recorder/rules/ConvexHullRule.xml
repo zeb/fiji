@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CommandTranslatorRule priority="3" name="Convex Hull rule">This rule catches calls to the "Convex Hull" command in Edit > Selection menu, that replace the current ROI by its convex hull.
+	<Matcher class_name="ij.plugin.Selection" arguments="hull" modifiers=".+" command="(&lt;command&gt;;.+)"></Matcher>
+	<PythonTranslator>
+# Get convex hull of the ROI
+# Get current ImagePlus
+image = WindowManager.getCurrentImage()
+# Get current ROI
+roi = image.getRoi()
+if roi is not None:
+	# Get hull as polygon
+	polygon = roi.getConvexHull()
+	# Create new ROI from polygon
+	image.setRoi(PolygonRoi(polygon.xpoints, polygon.ypoints, polygon.npoints, Roi.POLYGON));
+	</PythonTranslator>
+</CommandTranslatorRule>

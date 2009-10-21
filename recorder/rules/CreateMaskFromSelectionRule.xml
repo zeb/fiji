@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CommandTranslatorRule priority="3" name="Create Mask from Selection rule">This rule catches calls to the "Create Mask" command in Edit > Selection menu, that creates a mask from the current ROI as a new image .
+	<Matcher class_name="ij.plugin.Selection" arguments="mask" modifiers=".+" command="(&lt;command&gt;;.+)"></Matcher>
+	<PythonTranslator>
+# Create mask from ROI
+# Get current ImagePlus
+image = WindowManager.getCurrentImage()
+# Get current ROI
+roi = image.getRoi()
+if roi is not None:
+	# Prepare new image
+	mask_ip = ByteProcessor(image.getWidth(), image.getHeight());
+	mask_image = ImagePlus('Mask', mask_ip)
+	mask_image.show()
+	# Make mask
+	mask_ip.setRoi(roi)
+	mask_ip.setValue(255) # select white
+	mask_ip.fill(  ) # fill within roi
+	mask_image.updateAndDraw()
+	</PythonTranslator>
+</CommandTranslatorRule>

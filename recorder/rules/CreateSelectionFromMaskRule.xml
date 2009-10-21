@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CommandTranslatorRule priority="3" name="Create Selection from Mask rule">This rule catches calls to the "Create Selection" command in Edit > Selection menu, that creates a ROI from a mask (binary) image.
+	<Matcher class_name="ij.plugin.Selection" arguments="from" modifiers=".+" command="(&lt;command&gt;;.+)"></Matcher>
+	<PythonTranslator>
+# Create ROI from mask
+# Get current ImagePlus and ImageProcessor
+image = WindowManager.getCurrentImage()
+ip = image.getProcessor()
+# We can do it only for binary image
+if ip.isBinary():
+	# Make the ROI
+	roi_maker = ThresholdToSelection()
+	roi_maker.setup(None, image)
+	roi_maker.run(ip)
+	# Store it in a variable 
+	roi = image.getRoi()
+	
+	</PythonTranslator>
+</CommandTranslatorRule>
