@@ -52,7 +52,7 @@ public class JImagePanel extends JPanel implements Cloneable {
 	protected int imageWidth, imageHeight;
 
 	private BasicStroke listStroke;
-	private static Color showAllColor = new Color(128, 255, 255);
+	protected static Color showAllColor = new Color(128, 255, 255);
 	private static Color labelColor;
 
 	protected ImageJ ij;
@@ -79,19 +79,23 @@ public class JImagePanel extends JPanel implements Cloneable {
 		srcRect = new Rectangle(0, 0, imageWidth, imageHeight);
 		setDrawingSize(imageWidth, (int)(imageHeight));
 		magnification = 1.0;
-		addKeyListener(ij);  // ImageJ handles keyboard shortcuts
+		if (ij != null)
+			addKeyListener(ij);  // ImageJ handles keyboard shortcuts
 		setFocusTraversalKeysEnabled(false);
 	}
 
-	void updateImage(ImagePlus imp) {
+	/**
+	 * Update image in the panel with input image
+	 * @param imp input image
+	 */
+	void updateImage(ImagePlus imp) 
+	{
 		this.imp = imp;
-		int width = imp.getWidth();
-		int height = imp.getHeight();
-		imageWidth = width;
-		imageHeight = height;
-		srcRect = new Rectangle(0, 0, imageWidth, imageHeight);
-		setDrawingSize(imageWidth, (int)imageHeight);
-		magnification = 1.0;
+		this.imageWidth= imp.getWidth();
+		this.imageHeight = imp.getHeight();		
+		this.srcRect = new Rectangle(0, 0, this.imageWidth, this.imageHeight);
+		setDrawingSize(this.imageWidth, (int)this.imageHeight);
+		this.magnification = 1.0;
 	}
 
 	/** Update this JImagePanel to have the same zoom and scale settings as the one specified. */
@@ -164,7 +168,8 @@ public class JImagePanel extends JPanel implements Cloneable {
 
 	// Use double buffer to reduce flicker when drawing complex ROIs.
 	// Author: Erik Meijering
-	void paintDoubleBuffered(Graphics g) {
+	void paintDoubleBuffered(Graphics g) 
+	{
 		final int srcRectWidthMag = (int)(srcRect.width*magnification);
 		final int srcRectHeightMag = (int)(srcRect.height*magnification);
 		if (offScreenImage==null || offScreenWidth!=srcRectWidthMag || offScreenHeight!=srcRectHeightMag) {
