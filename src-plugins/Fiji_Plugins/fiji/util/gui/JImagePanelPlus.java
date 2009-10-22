@@ -348,7 +348,7 @@ public class JImagePanelPlus extends JImagePanel implements MouseListener, Mouse
 		if (IJ.spaceBarDown()) 
 		{
 			setCursor(handCursor);
-			IJ.log("hand cursor 1");
+			//IJ.log("hand cursor 1");
 			return;
 		}
 		int id = Toolbar.getToolId();
@@ -356,40 +356,40 @@ public class JImagePanelPlus extends JImagePanel implements MouseListener, Mouse
 		{
 			case Toolbar.MAGNIFIER:
 				setCursor(moveCursor);
-				IJ.log("move cursor 1");
+				//IJ.log("move cursor 1");
 				break;
 			case Toolbar.HAND:
 				setCursor(handCursor);
-				IJ.log("hand cursor 2");
+				//IJ.log("hand cursor 2");
 				break;
 			default:  //selection tool
 				if (id==Toolbar.SPARE1 || id>=Toolbar.SPARE2) {
 					if (Prefs.usePointerCursor)
 					{
 						setCursor(defaultCursor);
-						IJ.log("default cursor 1");
+						//IJ.log("default cursor 1");
 					}
 					else
 					{
 						setCursor(crosshairCursor);
-						IJ.log("cross cursor 1");
+						//IJ.log("cross cursor 1");
 					}
 				} 
 				else if (roi!=null && roi.getState() != Roi.CONSTRUCTING && 
 						roi.isHandle(sx, sy, screenX(roi.getBounds().x) - halfSize, screenY(roi.getBounds().y) - halfSize, screenX(roi.getBounds().x+roi.getBounds().width) - halfSize, screenY(roi.getBounds().y+roi.getBounds().height) - halfSize) >= 0)
 				{
 					setCursor(handCursor);
-					IJ.log("hand cursor 2");
+					//IJ.log("hand cursor 2");
 				}
 				else if (Prefs.usePointerCursor || (roi!=null && roi.getState()!=Roi.CONSTRUCTING && roi.contains(ox, oy)))
 				{
 					setCursor(defaultCursor);
-					IJ.log("default cursor 2");
+					//IJ.log("default cursor 2");
 				}
 				else
 				{
 					setCursor(crosshairCursor);
-					IJ.log("cross cursor 2");
+					//IJ.log("cross cursor 2");
 				}
 		}
 	}
