@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CommandTranslatorRule priority="3" name="Circle Fitter rule">This rule catches calls to the "Circle Fitter" plugin, in the Edit > Selection menu, that fits a circle ROI to the current image.
+	<Matcher class_name="ij.plugin.Selection" arguments="add" modifiers=".+" command="(&lt;command&gt;;.+)"></Matcher>
+	<PythonTranslator>
+# Fit circle ROI to image
+# Not implemented yet
+	</PythonTranslator>
+</CommandTranslatorRule>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CommandTranslatorRule priority="3" name="Convert Image Type rule">This rule catches calls to the Image > Type commands, that convert an image into another type.
+	<Matcher class_name="ij.plugin.Converter" arguments="(&lt;to_format&gt;;.+)" modifiers=".+" command="(&lt;command&gt;;.+)"></Matcher>
+	<PythonTranslator>
+# Convert image type
+converter = Converter() # it will pick the current image automatically
+converter.convert("${to_format}") # accepted strings: "8-bit", "16-bit", "32-bit", "8-bit Color", "RGB Color", "RGB Stack" or "HSB Stack"
+	</PythonTranslator>
+</CommandTranslatorRule>

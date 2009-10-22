@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CommandTranslatorRule priority="3" name="Add ROI to Manager rule">This rule catches calls to the "Add to Manager" command, in the Edit > Selection menu, that adds the current ROI to the ROI manager.
+	<Matcher class_name="ij.plugin.Selection" arguments="add" modifiers=".+" command="(&lt;command&gt;;.+)"></Matcher>
+	<PythonTranslator>
+# Add ROI to ROI manager
+# The ROI will be taken automatically from the current image
+roi_manager = RoiManager.getInstance()
+roi_manager.runCommand("add")
+	</PythonTranslator>
+</CommandTranslatorRule>
