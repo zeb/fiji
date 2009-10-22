@@ -58,9 +58,9 @@ public class JImagePanelPlus extends JImagePanel implements MouseListener, Mouse
 	/** disable popup menu flag */
 	private boolean disablePopupMenu;
 	/** show all ROIs flag */
-	private boolean showAllROIs;
+	private boolean showAllROIs = false;
 	/** custom ROI flag */
-	private boolean customRoi;
+	private boolean customRoi = false;
 	
 	/** allowed zoom levels */
 	private static final double[] zoomLevels = {
@@ -84,8 +84,10 @@ public class JImagePanelPlus extends JImagePanel implements MouseListener, Mouse
 	private int offScreenWidth = 0;
 	private int offScreenHeight = 0;
 	
-	private int sx2;
-	private int sy2;
+	/** ROI starting screen x- coordinate */
+	private int sx2 = 0;
+	/** ROI starting screen y- coordinate */
+	private int sy2 = 0;
 	
 	/**
 	 * Constructor with ImageJ interaction
@@ -130,17 +132,18 @@ public class JImagePanelPlus extends JImagePanel implements MouseListener, Mouse
 			return;
 		showCursorStatus = true;
 		
-		int toolID = Toolbar.getToolId();
-		ImageWindow win = imp.getWindow();
+		final int toolID = Toolbar.getToolId();
+		final ImageWindow win = imp.getWindow();
 		if (win!=null && win.running2 && toolID!=Toolbar.MAGNIFIER) 
 		{
 			win.running2 = false;
 			return;
 		}
 		
-		int x = e.getX();
-		int y = e.getY();
+		final int x = e.getX();
+		final int y = e.getY();
 		flags = e.getModifiers();
+		
 		//IJ.log("Mouse pressed: " + e.isPopupTrigger() + "  " + ij.modifiers(flags) + " button: " + e.getButton() + ": " + e);		
 		//if (toolID!=Toolbar.MAGNIFIER && e.isPopupTrigger()) {
 		if (toolID!=Toolbar.MAGNIFIER && ((e.isPopupTrigger() && e.getButton() != 0)||(!IJ.isMacintosh()&&(flags&Event.META_MASK)!=0))) 
@@ -162,8 +165,13 @@ public class JImagePanelPlus extends JImagePanel implements MouseListener, Mouse
 		}
 		if (showAllROIs) 
 		{
-			Roi roi = imp.getRoi();
-			if (!(roi!=null && (roi.contains(ox, oy)||roi.isHandle(x, y)>=0)) && roiManagerSelect(x, y))
+			final int size = Roi.HANDLE_SIZE+3;
+			final int halfSize = size/2;
+			final Roi roi = imp.getRoi();
+			
+			if (!(roi!=null && (roi.contains(ox, oy) || 
+					roi.isHandle(x, y, screenX(roi.getBounds().x) - halfSize, screenY(roi.getBounds().y) - halfSize, screenX(roi.getBounds().x+roi.getBounds().width) - halfSize, screenY(roi.getBounds().y+roi.getBounds().height) - halfSize)>=0)) 
+					&& roiManagerSelect(x, y))
  				return;
 		}
 		if (customRoi && displayList!=null)
@@ -188,7 +196,10 @@ public class JImagePanelPlus extends JImagePanel implements MouseListener, Mouse
 				setDrawingColor(ox, oy, IJ.altKeyDown());
 				break;
 			case Toolbar.WAND:
-				Roi roi = imp.getRoi();
+				final Roi roi = imp.getRoi();
+				final int size = Roi.HANDLE_SIZE+3;
+				final int halfSize = size/2;
+				
 				if (roi!=null && roi.contains(ox, oy)) {
 					Rectangle r = roi.getBounds();
 					if (r.width==imageWidth && r.height==imageHeight)
@@ -198,8 +209,9 @@ public class JImagePanelPlus extends JImagePanel implements MouseListener, Mouse
 						return;
 					}
 				}
-				if (roi!=null) {
-					int handle = roi.isHandle(x, y);
+				if (roi!=null) 
+				{
+					int handle = roi.isHandle(x, y, screenX(roi.getBounds().x) - halfSize, screenY(roi.getBounds().y) - halfSize, screenX(roi.getBounds().x+roi.getBounds().width) - halfSize, screenY(roi.getBounds().y+roi.getBounds().height) - halfSize);
 					if (handle>=0) {
 						roi.mouseDownInHandle(handle, x, y);
 						return;
@@ -252,7 +264,7 @@ public class JImagePanelPlus extends JImagePanel implements MouseListener, Mouse
 				imp.killRoi();
 			else 
 			{
-				roi.handleMouseUp(e.getX(), e.getY());
+				roi.handleMouseUp(e.getX(), e.getY(), this.getModifiers());
 				if (roi.getType()==Roi.LINE && roi.getLength()==0.0)
 					imp.killRoi();
 			}
@@ -277,7 +289,7 @@ public class JImagePanelPlus extends JImagePanel implements MouseListener, Mouse
 			IJ.setInputEvent(e);
 			Roi roi = imp.getRoi();
 			if (roi != null)
-				roi.handleMouseDrag(x, y, flags);
+				roi.handleMouseDragOffScreenCoords(xMouse, yMouse, flags);
 		}
 		repaint();
 	}
@@ -294,9 +306,9 @@ public class JImagePanelPlus extends JImagePanel implements MouseListener, Mouse
 		super.flags = e.getModifiers();
 		setCursor(sx, sy, ox, oy);
 		IJ.setInputEvent(e);
-		Roi roi = imp.getRoi();
+		final Roi roi = imp.getRoi();
 		if (roi!=null && (roi.getType()==Roi.POLYGON || roi.getType()==Roi.POLYLINE || roi.getType()==Roi.ANGLE) 
-		&& roi.getState()==Roi.CONSTRUCTING) 
+				&& roi.getState()==Roi.CONSTRUCTING) 
 		{
 			PolygonRoi pRoi = (PolygonRoi)roi;
 			pRoi.handleMouseMove(ox, oy);
@@ -326,13 +338,17 @@ public class JImagePanelPlus extends JImagePanel implements MouseListener, Mouse
 		this.xMouse = ox;
 		this.yMouse = oy;
 		this.mouseExited = false;
-		Roi roi = super.imp.getRoi();
+		final Roi roi = super.imp.getRoi();
+		final int size = Roi.HANDLE_SIZE+3;
+		final int halfSize = size/2;
+		
 		ImageWindow win = super.imp.getWindow();
 		if (win==null)
 			return;
 		if (IJ.spaceBarDown()) 
 		{
 			setCursor(handCursor);
+			IJ.log("hand cursor 1");
 			return;
 		}
 		int id = Toolbar.getToolId();
@@ -340,19 +356,41 @@ public class JImagePanelPlus extends JImagePanel implements MouseListener, Mouse
 		{
 			case Toolbar.MAGNIFIER:
 				setCursor(moveCursor);
+				IJ.log("move cursor 1");
 				break;
 			case Toolbar.HAND:
 				setCursor(handCursor);
+				IJ.log("hand cursor 2");
 				break;
 			default:  //selection tool
 				if (id==Toolbar.SPARE1 || id>=Toolbar.SPARE2) {
-					if (Prefs.usePointerCursor) setCursor(defaultCursor); else setCursor(crosshairCursor);
-				} else if (roi!=null && roi.getState()!=Roi.CONSTRUCTING && roi.isHandle(sx, sy)>=0)
+					if (Prefs.usePointerCursor)
+					{
+						setCursor(defaultCursor);
+						IJ.log("default cursor 1");
+					}
+					else
+					{
+						setCursor(crosshairCursor);
+						IJ.log("cross cursor 1");
+					}
+				} 
+				else if (roi!=null && roi.getState() != Roi.CONSTRUCTING && 
+						roi.isHandle(sx, sy, screenX(roi.getBounds().x) - halfSize, screenY(roi.getBounds().y) - halfSize, screenX(roi.getBounds().x+roi.getBounds().width) - halfSize, screenY(roi.getBounds().y+roi.getBounds().height) - halfSize) >= 0)
+				{
 					setCursor(handCursor);
+					IJ.log("hand cursor 2");
+				}
 				else if (Prefs.usePointerCursor || (roi!=null && roi.getState()!=Roi.CONSTRUCTING && roi.contains(ox, oy)))
+				{
 					setCursor(defaultCursor);
+					IJ.log("default cursor 2");
+				}
 				else
+				{
 					setCursor(crosshairCursor);
+					IJ.log("cross cursor 2");
+				}
 		}
 	}
 	
@@ -365,7 +403,8 @@ public class JImagePanelPlus extends JImagePanel implements MouseListener, Mouse
 		showCursorStatus = status;
 		if (status==true)
 			sx2 = sy2 = -1000;
-		else {
+		else 
+		{
 			sx2 = screenX(xMouse);
 			sy2 = screenY(yMouse);
 		}
@@ -375,7 +414,8 @@ public class JImagePanelPlus extends JImagePanel implements MouseListener, Mouse
 	 * Handle popup menu 
 	 * @param e mouse event
 	 */
-	protected void handlePopupMenu(MouseEvent e) {
+	protected void handlePopupMenu(MouseEvent e) 
+	{
 		if (disablePopupMenu) 
 			return;
 		if (IJ.debugMode) IJ.log("show popup: " + (e.isPopupTrigger()?"true":"false"));
@@ -383,9 +423,10 @@ public class JImagePanelPlus extends JImagePanel implements MouseListener, Mouse
 		int y = e.getY();
 		Roi roi = imp.getRoi();
 		if (roi!=null && (roi.getType()==Roi.POLYGON || roi.getType()==Roi.POLYLINE || roi.getType()==Roi.ANGLE)
-		&& roi.getState()==roi.CONSTRUCTING) {
-			roi.handleMouseUp(x, y); // simulate double-click to finalize
-			roi.handleMouseUp(x, y); // polygon or polyline selection
+		&& roi.getState()==Roi.CONSTRUCTING) 
+		{
+			roi.handleMouseUp(x, y, this.getModifiers()); // simulate double-click to finalize
+			roi.handleMouseUp(x, y, this.getModifiers()); // polygon or polyline selection
 			return;
 		}
 		PopupMenu popup = Menus.getPopupMenu();
@@ -442,7 +483,7 @@ public class JImagePanelPlus extends JImagePanel implements MouseListener, Mouse
 	 */
     boolean roiManagerSelect(int x, int y) 
     {
-		RoiManager rm=RoiManager.getInstance();
+		final RoiManager rm = RoiManager.getInstance();
 		if (rm==null) return false;
 		Hashtable rois = rm.getROIs();
 		java.awt.List list = rm.getList();
@@ -552,12 +593,15 @@ public class JImagePanelPlus extends JImagePanel implements MouseListener, Mouse
 	 */
 	protected void handleRoiMouseDown(MouseEvent e) 
 	{
-		int sx = e.getX();
-		int sy = e.getY();
-		int ox = offScreenX(sx);
-		int oy = offScreenY(sy);
-		Roi roi = imp.getRoi();
-		int handle = roi!=null?roi.isHandle(sx, sy):-1;		
+		final int sx = e.getX();
+		final int sy = e.getY();
+		final int ox = offScreenX(sx);
+		final int oy = offScreenY(sy);
+		final Roi roi = imp.getRoi();
+		final int size = Roi.HANDLE_SIZE+3;
+		final int halfSize = size/2;
+		
+		int handle = roi!=null?roi.isHandle(sx, sy, screenX(roi.getBounds().x) - halfSize, screenY(roi.getBounds().y) - halfSize, screenX(roi.getBounds().x+roi.getBounds().width) - halfSize, screenY(roi.getBounds().y+roi.getBounds().height) - halfSize):-1;		
 		setRoiModState(e, roi, handle);
 		if (roi!=null) {
 			if (handle>=0) {
@@ -573,7 +617,7 @@ public class JImagePanelPlus extends JImagePanel implements MouseListener, Mouse
 			}
 			if (roi.contains(ox, oy)) {
 				if (roi.modState==Roi.NO_MODS)
-					roi.handleMouseDown(sx, sy);
+					roi.handleMouseDownScreenCoords(offScreenX(sx), offScreenY(sy));
 				else {
 					imp.killRoi();
 					imp.createNewRoi(sx,sy);
@@ -627,16 +671,19 @@ public class JImagePanelPlus extends JImagePanel implements MouseListener, Mouse
 		if (roi!=null || showAllROIs || displayList!=null) 
 		{
 			if (roi != null) 
+			{
 				roi.updatePaste();
+				super.setImageUpdated();
+			}
 			if (!IJ.isMacOSX()) 
 			{
 				paintDoubleBuffered(g);
-				//return;
+				return;
 			}
 		}
 		
 		if (roi != null) 
-			roi.draw(g);
+			roi.draw(g, this.getMagnification(), screenX(xMouse), screenY(yMouse) );
 		if (showAllROIs) 
 			showAllROIs(g);
 		if (srcRect.width<imageWidth || srcRect.height<imageHeight)
@@ -677,7 +724,7 @@ public class JImagePanelPlus extends JImagePanel implements MouseListener, Mouse
 			if (displayList!=null) 
 				drawDisplayList(offScreenGraphics);
 			if (roi!=null) 
-				roi.draw(offScreenGraphics);
+				roi.draw(offScreenGraphics, magnification, this.screenX(roi.getBounds().x), this.screenY(roi.getBounds().y));
 			if (showAllROIs) 
 				showAllROIs(offScreenGraphics);
 			if (srcRect.width<imageWidth ||srcRect.height<imageHeight)
@@ -792,7 +839,7 @@ public class JImagePanelPlus extends JImagePanel implements MouseListener, Mouse
 				roi.setLineColor(null);
 				roi.setFillColor(null);
 				roi.setLineWidth(1);
-				roi.draw(g);
+				roi.draw(g, this.getMagnification(), screenX(xMouse), screenY(yMouse) );
 				roi.setLineColor(lineColor);
 				roi.setFillColor(fillColor);
 				roi.setLineWidth(lineWidth);
@@ -809,9 +856,12 @@ public class JImagePanelPlus extends JImagePanel implements MouseListener, Mouse
      */
     void drawRoi(Graphics g, Roi roi, int index) 
     {
-		ImagePlus imp2 = roi.getImage();
+		final ImagePlus imp2 = roi.getImage();
+		
 		roi.setImage(imp);
-		Color saveColor = roi.getLineColor();
+		
+		final Color saveColor = roi.getLineColor();
+		
 		if (saveColor==null) {
 			if (index>=0 || listColor==null)
 				roi.setLineColor(showAllColor);
@@ -821,9 +871,10 @@ public class JImagePanelPlus extends JImagePanel implements MouseListener, Mouse
 		if (roi instanceof TextRoi)
 			((TextRoi)roi).drawText(g);
 		else
-			roi.drawDisplayList(g);
+			roi.drawDisplayList(g, this.getMagnification(), screenX(roi.getBounds().x), screenY(roi.getBounds().y) );
 		roi.setLineColor(saveColor);
-		if (index>=0) {
+		if (index >= 0) 
+		{
 			g.setColor(showAllColor);
 			drawRoiLabel(g, index, roi.getBounds());
 		}
@@ -837,10 +888,12 @@ public class JImagePanelPlus extends JImagePanel implements MouseListener, Mouse
 	{
 		int x = screenX(r.x);
 		int y = screenY(r.y);
-		double mag = getMagnification();
-		int width = (int)(r.width*mag);
-		int height = (int)(r.height*mag);
-		int size = width>40 && height>40?12:9;
+		
+		final double mag = getMagnification();
+		final int width = (int)(r.width*mag);
+		final int height = (int)(r.height*mag);
+		final int size = width>40 && height>40?12:9;
+		
 		if (size==12)
 			g.setFont(largeFont);
 		else
@@ -1167,9 +1220,11 @@ public class JImagePanelPlus extends JImagePanel implements MouseListener, Mouse
 		return newMag;
 	}
 
-	/** Zooms in by making the window bigger. If it can't
-		be made bigger, then make the source rectangle 
-		(srcRect) smaller and center it at (x,y). */
+	/** 
+	 * Zooms in by making the window bigger. If it can't
+	 * be made bigger, then make the source rectangle
+	 * (srcRect) smaller and center it at (x,y). 
+	 */
 	public void zoomIn(int x, int y) 
 	{
 		if (magnification>=32) 
