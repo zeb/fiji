@@ -1,5 +1,5 @@
 Source: fiji
-Section: unknown
+Section: graphics
 Priority: extra
 Maintainer: Mark Longair <mhl@pobox.com>
 Build-Depends: debhelper (>= 5), gcc, lsb-release, dpkg-dev, openjdk-6-jdk, libjama-java (>= 1.0.2), ant, ant-optional, bsh
