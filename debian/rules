@@ -64,18 +64,18 @@ CWD_BASENAME=$(shell basename `realpath .`)
 REQUIRED_DIRECTORY_NAME=${PACKAGE_IN_CHANGELOG}-${VERSION_IN_CHANGELOG}
 
 prebuild-actions :
-	if test $(CWD_BASENAME) != $(REQUIRED_DIRECTORY_NAME); then \
+	@if test $(CWD_BASENAME) != $(REQUIRED_DIRECTORY_NAME); then \
 		echo "Warning: the current directory name ($(CWD_BASENAME)) does not match" && \
 		echo "the package name and version in the new changelog." && \
 		echo "Rename this directory to: $(REQUIRED_DIRECTORY_NAME)" && \
 		false; fi
-	if test x$$(ls -1 java/ | wc -l) != x2; then \
+	@if test x$$(ls -1 java/ | wc -l) != x2; then \
 		echo "You have more than two subdirectories of java/." && \
 		echo "Most likely you have submodules other than java/linux and java/linux-amd64" && \
 		echo "in that directory; remove them or you'll end up with a gigantic source" && \
 		echo "package." && \
 		false; fi
-	if test x$$(find java -name '*.jar' | wc -l) != x6; then \
+	@if test x$$(find java -name '*.jar' | wc -l) != x6; then \
 		echo "You don't have exactly three .jar files under java/" && \
 		echo "This indicates that one of the submodules isn't on" && \
 		echo "the just-java3d branch" && \
