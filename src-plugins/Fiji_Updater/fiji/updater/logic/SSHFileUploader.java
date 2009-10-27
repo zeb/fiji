@@ -9,6 +9,8 @@ import com.jcraft.jsch.Session;
 
 import fiji.updater.Updater;
 
+import fiji.updater.util.Canceled;
+
 import ij.IJ;
 
 import java.io.IOException;
@@ -69,6 +71,8 @@ public class SSHFileUploader extends FileUploader {
 	//Steps to accomplish entire upload task
 	public synchronized void upload(List<SourceFile> sources)
 			throws IOException {
+		setCommand("date +%Y%m%d%H%M%S");
+		timestamp = readNumber(in);
 		setTitle("Uploading");
 
 		String uploadFilesCommand = "scp -p -t -r " + uploadDir;
@@ -77,7 +81,14 @@ public class SSHFileUploader extends FileUploader {
 			throw new IOException("Failed to set command " + uploadFilesCommand);
 		}
 
-		uploadFiles(sources);
+		try {
+			uploadFiles(sources);
+		} catch (Canceled cancel) {
+			setCommand("rm " + uploadDir + Updater.XML_LOCK);
+			out.close();
+			channel.disconnect();
+			throw cancel;
+		}
 
 		//Unlock process
 		// TODO: avoid blind assumptions!!!
@@ -186,6 +197,7 @@ public class SSHFileUploader extends FileUploader {
 		try {
 			channel = session.openChannel("exec");
 			((ChannelExec)channel).setCommand(command);
+			channel.setInputStream(null);
 
 			// get I/O streams for remote scp
 			out = channel.getOutputStream();
@@ -207,6 +219,17 @@ public class SSHFileUploader extends FileUploader {
 		out.close();
 		channel.disconnect();
 		session.disconnect();
+	}
+
+	protected long readNumber(InputStream in) throws IOException {
+		long result = 0;
+		for (;;) {
+			int b = in.read();
+			if (b >= '0' && b <= '9')
+				result = 10 * result + b - '0';
+			else if (b == '\n')
+				return result;
+		}
 	}
 
 	private int checkAck(InputStream in) throws IOException {
