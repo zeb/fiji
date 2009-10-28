@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CommandTranslatorRule priority="3" name="Color Splitter rule">This rule catches calls to the "Split Channels" command in the Image > Color menu. It creates one new image per channel in the original image.
+	<Matcher class_name="ij.plugin.filter.RGBStackSplitter" arguments="" modifiers=".+" command="(&lt;command&gt;;.+)"></Matcher>
+	<PythonTranslator>
+# Split channels
+keep_source = True # set to False to discard source image
+# Get current image and stack within
+image = WindowManager.getCurrentImage()
+stack = image.getImageStack() # this hsould be a RGB stack 
+if stack is not None:
+	# Instantiate plugin
+	channel_splitter = RGBStackSplitter()
+	# Split
+	channel_splitter.split(stack, keep_source)
+	# Get reference to resulting stacks
+	red_stack   = channel_splitter.red
+	green_stack = channel_splitter.green
+	blue_stack  = channel_splitter.blue
+	# For convenience, put them in a list
+	stack_list = [red_stack, green_stack, blue_stack]
+	color_list = ['red', 'green', 'blue']
+	for i in range(3):
+		st = stack_list[i]		
+		# Create new image
+		title = image.getTitle() + '-' + color_list[i] 
+		new_image = ImagePlus(title, st)
+		# Copy old settings to new images
+		new_image.setCalibration(image.getCalibration())
+		new_image.setFileInfo(image.getOriginalFileInfo())
+		# Display it
+		new_image.show()
+	</PythonTranslator>
+</CommandTranslatorRule>

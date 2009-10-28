@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CommandTranslatorRule priority="3" name="Contrast Adjuster rule">This rule catches calls to the contrast adjustment commands. So far, the translation only offers to set the min and max of the range displayed.
+	<Matcher class_name="ij.plugin.frame.ContrastAdjuster" arguments=".*" modifiers=".+" command="(&lt;command&gt;;.+)"></Matcher>
+	<PythonTranslator>
+# Set min and max of diplayed range
+min = 0
+max = 255 # typical border values for 8-bit image
+# Get current image
+image = WindowManager.getCurrentImage()
+image.setDisplayRange(min, max) 
+image.updateAndDraw()
+	</PythonTranslator>
+</CommandTranslatorRule>
