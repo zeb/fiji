@@ -81,7 +81,7 @@ public class UpdaterFrame extends JFrame
 	//For developers
 	// TODO: no more Hungarian notation
 	private JButton btnUpload;
-	private JButton btnEditDetails;
+	boolean canUpload;
 
 	public UpdaterFrame() {
 		super("Fiji Updater");
@@ -196,20 +196,8 @@ public class UpdaterFrame extends JFrame
 		JPanel rightPanel = SwingTools.verticalPanel();
 
 		rightPanel.add(Box.createVerticalGlue());
-		if (Util.isDeveloper) {
-			JPanel editButtonPanel = SwingTools.horizontalPanel();
-			editButtonPanel.add(Box.createHorizontalGlue());
-			btnEditDetails = SwingTools.button("Edit Details",
-					"Edit selected plugin's details", new ActionListener() {
-				public void actionPerformed(ActionEvent e) {
-					clickToEditDescriptions();
-				}
-			}, editButtonPanel);
-			btnEditDetails.setEnabled(false);
-			rightPanel.add(editButtonPanel);
-		}
 
-		pluginDetails = new PluginDetails();
+		pluginDetails = new PluginDetails(this);
 		SwingTools.tab(pluginDetails, "Details",
 				"Individual Plugin information",
 				350, 315, rightPanel);
@@ -393,19 +381,6 @@ public class UpdaterFrame extends JFrame
 		return rows.length != 1 ? null : table.getPlugin(rows[0]);
 	}
 
-	// TODO: why should this function need to know that it is triggered by a click?  That is so totally unnecessary.
-	private void clickToEditDescriptions() {
-		// TODO: embed this, rather than having an extra editor
-		PluginObject plugin = getSingleSelectedPlugin();
-		if (plugin == null) {
-			IJ.error("Cannot edit multiple items at once");
-			return;
-		}
-		loadedFrame = new DetailsEditor(this, plugin);
-		showFrame();
-		setEnabled(false);
-	}
-
 	public void applyChanges() {
 		ResolveDependencies resolver = new ResolveDependencies(this);
 		if (!resolver.resolve())
@@ -495,9 +470,12 @@ public class UpdaterFrame extends JFrame
 
 	public void pluginsChanged() {
 		// TODO: once this is editable, make sure changes are committed
-		pluginDetails.setText("");
+		pluginDetails.reset();
 		for (PluginObject plugin : table.getSelectedPlugins())
 			pluginDetails.showPluginDetails(plugin);
+		if (Util.isDeveloper &&
+				pluginDetails.getDocument().getLength() > 0)
+			pluginDetails.setEditableForDevelopers();
 
 		for (PluginAction button : pluginActions)
 			button.enableIfValid();
@@ -505,12 +483,9 @@ public class UpdaterFrame extends JFrame
 		apply.setEnabled(plugins.hasChanges());
 		cancel.setLabel(plugins.hasChanges() ? "Cancel" : "Close");
 
-		if (Util.isDeveloper) {
-			btnEditDetails.setEnabled(getSingleSelectedPlugin()
-					!= null);
+		if (Util.isDeveloper)
 			// TODO: has to change when details editor is embedded
-			btnUpload.setEnabled(plugins.hasUploadOrRemove());
-		}
+			enableUploadOrNot();
 
 		int size = plugins.size();
 		int install = 0, uninstall = 0, upload = 0;
@@ -596,6 +571,15 @@ public class UpdaterFrame extends JFrame
 					+ list + "'");
 	}
 
+	void markUploadable() {
+		canUpload = true;
+		enableUploadOrNot();
+	}
+
+	void enableUploadOrNot() {
+		btnUpload.setEnabled(canUpload || plugins.hasUploadOrRemove());
+	}
+
 	protected void upload() {
 		ResolveDependencies resolver =
 			new ResolveDependencies(this, true);
@@ -620,6 +604,9 @@ public class UpdaterFrame extends JFrame
 				else
 					plugin.setStatus(Status.NOT_INSTALLED);
 			updatePluginsTable();
+			canUpload = false;
+			xmlLastModified = uploader.newLastModified;
+			enableUploadOrNot();
 		} catch (Canceled e) {
 			// TODO: teach uploader to remove the lock file
 			IJ.error("Canceled");
