@@ -1,8 +1,21 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <CommandTranslatorRule priority="3" name="Circle Fitter rule">This rule catches calls to the "Circle Fitter" plugin, in the Edit > Selection menu, that fits a circle ROI to the current image.
-	<Matcher class_name="ij.plugin.Selection" arguments="add" modifiers=".+" command="(&lt;command&gt;;.+)"></Matcher>
+	<Matcher class_name="fiji.util.Circle_Fitter" arguments="" modifiers=".+" command="(&lt;command&gt;;.+)"></Matcher>
 	<PythonTranslator>
-# Fit circle ROI to image
-# Not implemented yet
+# Fit Circle ROI to current image
+import fiji
+# Get current image
+image = WindowManager.getCurrentImage()
+# Instantiate plugin
+circle_fitter = fiji.util.Circle_Fitter()
+# Set it to operate on current ImageProcessor
+ip = image.getProcessor()
+circle_fitter.setImageProcessor(ip)
+# Use auto-threshold - to set it manually, un-comment next line
+# circle_fitter.setThreshold(150)
+circle_fitter.setAutoThreshold()
+# Calculate ROI
+roi = circle_fitter.calculateRoi()
+image.setRoi(roi)
 	</PythonTranslator>
 </CommandTranslatorRule>
