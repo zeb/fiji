@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CommandTranslatorRule priority="3" name="Color Merge rule">This rule catches calls to the "Merge Channels..." command in the Image > Color menu. It creates a new image by merging multiple single channel images.
+	<Matcher class_name="ij.plugin.RGBStackMerge" arguments="" modifiers=".+" command="(&lt;command&gt;;.+)"></Matcher>
+	<PythonTranslator>
+# Merge channels
+keep_source = True # set to False to discard source images
+ # Specify sources: you must provide image references here
+image_red 	= WindowManager.getImage(1)
+image_green 	= WindowManager.getImage(2) 
+image_blue 	= None # WindowManager.getImage(3)
+# Prepare - we assume everything is fine with dimensions and bit depth
+images = [image_red, image_green, image_blue]
+stacks = []
+for im in images:
+	if im is not None:
+		width 	= im.getWidth()
+		height 	= im.getHeight()
+		slices 	= im.getNSlices()
+		calibration = im.getCalibration()
+		stacks.append( im.getImageStack() )
+	else:
+		stacks.append( None )
+# Instantiate plugin
+rgb_merger = RGBStackMerge()
+# Execute merge
+new_stack = rgb_merger.mergeStacks(width, height, slices, stacks[0], stacks[1], stacks[2], keep_source)
+new_image = ImagePlus('RGB', new_stack)
+new_image.setCalibration(calibration)
+new_image.show()
+	</PythonTranslator>
+</CommandTranslatorRule>
