@@ -34,8 +34,8 @@ include_class 'javax.swing.JTextField'
 include_class 'java.lang.Long'
 
 module Recorder
-  def record(function, argument)
-    puts "TestLib::#{function}('#{argument}')"
+  def record(function, *args)
+    puts "TestLib::#{function}(#{args.collect { |x| x.inspect }.join(', ')})"
   end
 
   def getMenuPath(menuItem)
