@@ -66,6 +66,7 @@ module Recorder
 
     record('clickButton', label)
   end
+
 end
 
 if __FILE__ == $0
@@ -76,13 +77,31 @@ if __FILE__ == $0
 
   TestLib.startIJ
 
-  listener = AWTEventListener.new
-  class << listener
+  class RecordEventListener
+    include AWTEventListener
+
+    private
+    @lastMouseXY
+    @mouseDragOrigin
+
+    def mouseMoveDirection(x, y)
+      dir = [x - @lastMouseXY[0], y - @lastMouseXY[1]]
+      @lastMouseXY = [x, y]
+
+      return dir
+    end
+
+    public
+    def initialize
+      super
+      @lastMouseXY = nil
+      @mouseDragOrigin = nil
+    end
+
     def eventDispatched(event)
       if event.is_a?(ContainerEvent) or
 		event.is_a?(HierarchyEvent) or
 		event.is_a?(InputMethodEvent) or
-		event.is_a?(MouseEvent) or
 		event.is_a?(PaintEvent) or
 		event.is_a?(TextEvent)
 	return
@@ -101,10 +120,54 @@ if __FILE__ == $0
 		event.getID == WindowEvent::WINDOW_OPENED
 	record('waitForWindow', event.getSource.getTitle)
       elsif event.getID == FocusEvent::FOCUS_GAINED
-	$verout.puts(getComponentPath(event.getSource))
+	$verout.puts(Main.getPath(event.getSource))
       elsif event.is_a? ComponentEvent
 	if event.is_a? FocusEvent
-	  $verout.puts("FocusEvent on component:\n\tevent = #{event.inspect}\n\tsource = #{event.getSource.inspect}")
+	  $verout.puts(
+		       "FocusEvent on component:\n" +
+		       "\tevent = #{event.inspect}\n" +
+		       "\tsource = #{event.getSource.inspect}"
+	  )
+	elsif event.is_a? MouseEvent
+	  case event.getID
+
+	  # Mouse Button pressed
+	  when MouseEvent::MOUSE_PRESSED
+	    @mousePressed[event.getButton] = true
+
+	    if @mouseDragOrigin
+	      root = @mouseDragOrigin[0]
+	    else
+	      co = event.getSource
+	      root = co
+
+	      while not (root.is_a?(Dialog) or root.is_a?(Frame))
+#	      unless (root.is_a?(Dialog) or root.is_a?(Frame))
+		root = root.getParent
+	      end
+
+	      @mouseDragOrigin = [root, event.getButton]
+	      @lastXY = [event.getXOnScreen, event.getYOnScreen]
+	    end
+
+	    record('mousePress', event.getButton, root.getTitle,
+		   event.getXOnScreen - root.getX,
+		   event.getYOnScreen - root.getY)
+
+	  # Mouse Button released
+	  when MouseEvent::MOUSE_RELEASED
+	    if @mouseDragOrigin and @mouseDragOrigin[1] == event.getButton
+	      @mouseDragOrigin = nil
+	    end
+
+	    record('mouseRelease', event.getButton)
+
+	  # Mouse dragged
+	  when MouseEvent::MOUSE_DRAGGED
+	    if @mouseDragOrigin
+	      record('mouseMove', *mouseMoveDirection(event.getXOnScreen, event.getYOnScreen))
+	    end
+	  end
 	end
       elsif $verbose
 	$verout.puts "Unknown Event:\n\tevent = #{event.inspect}\n\tsource = #{event.getSource.inspect}"
@@ -113,7 +176,7 @@ if __FILE__ == $0
     end
   end
 
-  Toolkit.getDefaultToolkit.addAWTEventListener(listener, Long::MAX_VALUE)
+  Toolkit.getDefaultToolkit.addAWTEventListener(RecordEventListener.new, Long::MAX_VALUE)
 
   puts "require 'testlib'", '', 'TestLib::startIJ'
 end
