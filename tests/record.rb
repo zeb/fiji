@@ -53,32 +53,6 @@ module Recorder
     record('clickMenuItem', result)
   end
 
-  def getComponentPath(component)
-    path = ''
-    while component
-      break if component.is_a? Window
-      idx = parent.getComponents.select { |x| x.class == component.class }.index(component)
-      if component.respond_to? :getLabel
-	label = component.getLabel
-      elsif component.respond_to? :getText
-	label = component.getText
-      else
-	label = nil
-      end
-
-      pathelem = component.class.to_s
-      pathelem += "[#{idx}]"   if idx   and idx > 0
-      pathelem += "{#{label}}" if label and not label.empty?
-
-      path = pathelem + '>' + path
-
-      component = parent
-    end
-
-    return path
-  end
-
-
   def getButton(button)
     label = button.getLabel
     while button
