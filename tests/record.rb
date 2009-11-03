@@ -133,10 +133,12 @@ if __FILE__ == $0
 
 	  # Mouse Button pressed
 	  when MouseEvent::MOUSE_PRESSED
-	    @mousePressed[event.getButton] = true
-
 	    if @mouseDragOrigin
-	      root = @mouseDragOrigin[0]
+	      roottitle = nil
+	      rootx = @mouseDragOrigin[0].getX
+	      rooty = @mouseDragOrigin[0].getY
+
+	      record('mousePress', event.getButton)
 	    else
 	      co = event.getSource
 	      root = co
@@ -147,13 +149,12 @@ if __FILE__ == $0
 	      end
 
 	      @mouseDragOrigin = [root, event.getButton]
-	      @lastXY = [event.getXOnScreen, event.getYOnScreen]
+	      @lastMouseXY = [event.getXOnScreen, event.getYOnScreen]
+
+	      record('mousePress', event.getButton, root.getTitle,
+		     event.getXOnScreen - root.getX,
+		     event.getYOnScreen - root.getY)
 	    end
-
-	    record('mousePress', event.getButton, root.getTitle,
-		   event.getXOnScreen - root.getX,
-		   event.getYOnScreen - root.getY)
-
 	  # Mouse Button released
 	  when MouseEvent::MOUSE_RELEASED
 	    if @mouseDragOrigin and @mouseDragOrigin[1] == event.getButton

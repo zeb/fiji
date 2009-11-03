@@ -17,6 +17,7 @@ include_class 'java.awt.Container'
 include_class 'java.awt.Dialog'
 include_class 'java.awt.Frame'
 include_class 'java.awt.MenuBar'
+include_class 'java.awt.Robot'
 include_class 'java.awt.Toolkit'
 
 include_class 'java.awt.event.AWTEventListener'
@@ -68,8 +69,12 @@ module Java::JavaAwt
 end
 
 module TestLib
+  private
   @currentWindow = nil
+  @robot = nil
+  @mouseDragOrigin = nil
 
+  public
   def self.startIJ
     Main.premain
     @currentWindow = Java::Ij::ImageJ.new
@@ -141,6 +146,40 @@ module TestLib
     end
 
     return nil
+  end
+
+  def self.mousePress(button, *origin)
+    $stderr.puts("button = #{button}")
+    @robot ||= Robot.new
+    unless origin.empty?
+      raise ArgumentError.new('wrong number of arguments') unless origin.length == 3
+      frame = Main.waitForWindow(origin[0])
+      screenx = frame.getX + origin[1]
+      screeny = frame.getY + origin[2]
+      @mouseDragOrigin = [button, screenx, screeny]
+
+      puts frame.inspect, screenx, screeny
+
+      @robot.mouseMove(screenx, screeny)
+    end
+
+    @robot.mousePress(button)
+  end
+
+  def self.mouseRelease(button)
+    @robot ||= Robot.new
+
+    @mouseDragOrigin = nil if @mouseDragOrigin[0] == button
+    @robot.mouseRelease(button)
+  end
+
+  def self.mouseMove(x, y)
+    @robot ||= Robot.new
+
+    @mouseDragOrigin[1] += x
+    @mouseDragOrigin[2] += y
+
+    @robot.mouseMove(*@mouseDragOrigin[1..2])
   end
 
   def self.clickButton(label)
