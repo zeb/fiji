@@ -11,6 +11,7 @@ TestLib::clickMenuItem("Plugins>3D Viewer")
 TestLib::waitForWindow("ImageJ 3D Viewer")
 TestLib::waitForWindow("Add ...")
 TestLib::clickButton("  OK  ")
+sleep 5
 TestLib::mousePress(1, "ImageJ 3D Viewer", 273, 347)
 TestLib::mouseMove(0, -4)
 TestLib::mouseMove(0, -5)

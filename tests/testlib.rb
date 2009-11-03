@@ -163,14 +163,14 @@ module TestLib
       @robot.mouseMove(screenx, screeny)
     end
 
-    @robot.mousePress(button)
+    @robot.mousePress(eval "MouseEvent::BUTTON#{button}_MASK")
   end
 
   def self.mouseRelease(button)
     @robot ||= Robot.new
 
     @mouseDragOrigin = nil if @mouseDragOrigin[0] == button
-    @robot.mouseRelease(button)
+    @robot.mouseRelease(eval "MouseEvent::BUTTON#{button}_MASK")
   end
 
   def self.mouseMove(x, y)
