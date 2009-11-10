@@ -1596,9 +1596,31 @@ static int start_ij(void)
 			else
 				cerr << main_argv[i] << "!\n";
 		}
-		else if (!strcmp(main_argv[i], "--ant"))
+		else if (!strcmp(main_argv[i], "--ant")) {
 			main_class = "org.apache.tools.ant.Main";
-		else if (!strcmp(main_argv[i], "--retrotranslator") ||
+			// Classes from the package "ant":
+			class_path += string("/usr/share/java/ant-bootstrap.jar" PATH_SEP);
+			class_path += string("/usr/share/java/ant.jar" PATH_SEP);
+			class_path += string("/usr/share/java/ant-launcher.jar" PATH_SEP);
+			// Classes from the package "ant-optional":
+			class_path += string("/usr/share/java/ant-antlr.jar" PATH_SEP);
+			class_path += string("/usr/share/java/ant-apache-bcel.jar" PATH_SEP);
+			class_path += string("/usr/share/java/ant-apache-bsf.jar" PATH_SEP);
+			class_path += string("/usr/share/java/ant-apache-log4j.jar" PATH_SEP);
+			class_path += string("/usr/share/java/ant-apache-oro.jar" PATH_SEP);
+			class_path += string("/usr/share/java/ant-apache-regexp.jar" PATH_SEP);
+			class_path += string("/usr/share/java/ant-apache-resolver.jar" PATH_SEP);
+			class_path += string("/usr/share/java/ant-commons-logging.jar" PATH_SEP);
+			class_path += string("/usr/share/java/ant-commons-net.jar" PATH_SEP);
+			class_path += string("/usr/share/java/ant-javamail.jar" PATH_SEP);
+			class_path += string("/usr/share/java/ant-jdepend.jar" PATH_SEP);
+			class_path += string("/usr/share/java/ant-jmf.jar" PATH_SEP);
+			class_path += string("/usr/share/java/ant-jsch.jar" PATH_SEP);
+			class_path += string("/usr/share/java/ant-junit.jar" PATH_SEP);
+			class_path += string("/usr/share/java/ant-nodeps.jar" PATH_SEP);
+			class_path += string("/usr/share/java/ant-swing.jar" PATH_SEP);
+			class_path += string("/usr/share/java/ant-trax.jar" PATH_SEP);
+		}else if (!strcmp(main_argv[i], "--retrotranslator") ||
 				!strcmp(main_argv[i], "--retro"))
 			retrotranslator = true;
 		else if (handle_one_option(i, "--fiji-dir", arg))
