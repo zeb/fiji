@@ -90,7 +90,6 @@ SUBMODULE_TARGETS=\
 	plugins/ij-ImageIO_.jar \
 	jars/jacl.jar \
 	jars/batik.jar \
-	jars/junit-4.5.jar \
 	jars/rsyntaxtextarea.jar \
 	jars/autocomplete.jar \
 
@@ -182,7 +181,6 @@ plugins/TrakEM2_.jar <- ij.jar plugins/VIB_.jar plugins/mpicbg_.jar plugins/bUnw
 plugins/ij-ImageIO_.jar <- ij-plugins/
 jars/jacl.jar <- tcljava/
 jars/batik.jar <- batik/
-jars/junit-4.5.jar <- junit/
 jars/rsyntaxtextarea.jar <- RSyntaxTextArea/
 jars/autocomplete.jar <- AutoComplete/
 
@@ -351,7 +349,6 @@ precompile-submodules[] <- \
 	precompiled/ij-ImageIO_.jar \
 	precompiled/jacl.jar \
 	precompiled/batik.jar \
-	precompiled/junit-4.5.jar \
 	precompiled/rsyntaxtextarea.jar \
 	precompiled/autocomplete.jar \
 
@@ -360,7 +357,6 @@ precompiled/clojure.jar <- jars/clojure.jar
 precompiled/clojure-contrib.jar <- jars/clojure.jar jars/clojure-contrib.jar
 precompiled/jacl.jar <- jars/jacl.jar
 precompiled/batik.jar <- jars/batik.jar
-precompiled/junit-4.5.jar <- jars/junit-4.5.jar
 precompiled/rsyntaxtextarea.jar <- jars/rsyntaxtextarea.jar
 precompiled/autocomplete.jar <- jars/autocomplete.jar
 precompiled/* <- plugins/*

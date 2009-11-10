@@ -101,7 +101,7 @@ build : prebuild-actions build-arch build-indep
 build-arch : build-arch-stamp
 
 build-arch-stamp : configure-stamp
-	JAVA_HOME=$(INSTALLED_JVM_ROOT) sh -x Fake.sh "CLASSPATH(plugins/VIB_.jar)=$(JAVA3D_JARS):/usr/share/java/jama.jar" "CLASSPATH(plugins/mpicbg_.jar)=:/usr/share/java/jama.jar" "CLASSPATH(plugins/TrakEM2_.jar)=plugins/VIB_.jar:plugins/loci_tools.jar:plugins/mpicbg_.jar:plugins/level_sets.jar:plugins/bUnwarpJ_.jar:plugins/Fiji_Plugins.jar:$(JAVA3D_JARS):/usr/share/java/jama.jar" "CLASSPATH(jars/fiji-scripting.jar)=/usr/share/java/bsh.jar" "CLASSPATH(plugins/BeanShell_Interpreter.jar)=/usr/share/java/bsh.jar" "CLASSPATH(plugins/IO_.jar)=/usr/share/java/batik-all.jar:/usr/share/java/xml-apis-ext.jar" "CLASSPATH(jars/zs.jar)=/usr/share/java/jama.jar"
+	JAVA_HOME=$(INSTALLED_JVM_ROOT) sh -x Fake.sh "CLASSPATH(plugins/VIB_.jar)=$(JAVA3D_JARS):/usr/share/java/jama.jar:/usr/share/java/junit4.jar" "CLASSPATH(plugins/mpicbg_.jar)=:/usr/share/java/jama.jar" "CLASSPATH(plugins/TrakEM2_.jar)=plugins/VIB_.jar:plugins/loci_tools.jar:plugins/mpicbg_.jar:plugins/level_sets.jar:plugins/bUnwarpJ_.jar:plugins/Fiji_Plugins.jar:$(JAVA3D_JARS):/usr/share/java/jama.jar" "CLASSPATH(jars/fiji-scripting.jar)=/usr/share/java/bsh.jar" "CLASSPATH(plugins/BeanShell_Interpreter.jar)=/usr/share/java/bsh.jar" "CLASSPATH(plugins/IO_.jar)=/usr/share/java/batik-all.jar:/usr/share/java/xml-apis-ext.jar" "CLASSPATH(jars/zs.jar)=/usr/share/java/jama.jar"
 	touch $@
 
 build-indep : build-indep-stamp
