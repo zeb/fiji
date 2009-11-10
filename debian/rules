@@ -144,6 +144,7 @@ install-arch-stamp : build-arch-stamp
 		-e 's,@@LD_LIBRARY_PATH@@,$(NEW_LD_LIBRARY_PATH),' > $(DESTDIR)/usr/bin/fiji
 	chmod 755 $(DESTDIR)/usr/bin/fiji
 	cp -rv plugins $(DESTDIR)/usr/lib/fiji/
+	cp -rv misc $(DESTDIR)/usr/lib/fiji/
 	cp -rv jars $(DESTDIR)/usr/lib/fiji/
 	cp -rv macros $(DESTDIR)/usr/lib/fiji/
 	install -d $(DESTDIR)/usr/share/fiji/
