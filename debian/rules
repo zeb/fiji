@@ -164,6 +164,8 @@ install-arch-stamp : build-arch-stamp
 	install -m 644 images/fiji-logo-32x32-b.xpm $(DESTDIR)/usr/share/pixmaps/
 	install -d $(DESTDIR)/usr/share/applications/
 	install -m 644 debian/fiji.desktop $(DESTDIR)/usr/share/applications/
+	install -d $(DESTDIR)/etc/default/
+	install -m 644 debian/etc-default-fiji $(DESTDIR)/etc/default/fiji
 	dh_install -s
 	touch install-arch-stamp
 
