@@ -69,8 +69,9 @@ prebuild-actions :
 		echo "the package name and version in the new changelog." && \
 		echo "Rename this directory to: $(REQUIRED_DIRECTORY_NAME)" && \
 		false; fi
-	@if test x$$(find java -name '*.jar' | wc -l) != x6; then \
-		echo "You don't have exactly three .jar files under java/" && \
+	@if test x$$(find java/linux java/linux-amd64 -name '*.jar' | wc -l) != x6; then \
+		echo "You don't have exactly six .jar files in total under" && \
+		echo "java/linux and java/linux-amd64" && \
 		echo "This indicates that one of the submodules isn't on" && \
 		echo "the just-java3d branch" && \
 		false; fi
