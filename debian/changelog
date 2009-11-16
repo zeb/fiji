@@ -1,10 +1,15 @@
 fiji (20091110) unstable; urgency=low
 
-  * Update to upstream 9c9fdc0d30473b5.  This also includes
-    a change in the launcher so that JNI libraries can be added
-    more easily.
+  * Update to upstream 9c9fdc0d30473b5.  This version of the
+    package has more dependencies and so the package is smaller.
+    The package now depends on openjdk-6-jdk instead of
+    sun-java6-jdk, but you can change this in either
+    /etc/default/fiji or by setting JAVA_HOME.  This version
+    also includes a change in the launcher so that other
+    packages that need to depend on Fiji but need JNI libraries
+    can be added more easily.
 
- -- Mark Longair <mhl@pobox.com>  Tue, 22 Sep 2009 11:43:15 +0000
+ -- Mark Longair <mhl@pobox.com>  Mon, 16 Nov 2009 12:26:47 +0000
 
 fiji (20091003) unstable; urgency=low
 

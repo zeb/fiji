@@ -1,0 +1,9 @@
+fiji (20091110) unstable; urgency=low
+
+  This version of the package now depends on openjdk-6-jdk
+  instead of sun-java6-jdk.  If you want to carry on using Fiji
+  with sun-java6, you should install sun-java6-jdk and then edit
+  /etc/default/fiji to set FIJI_JAVA_HOME.  Users can still
+  override this by setting JAVA_HOME in their environment.
+
+ -- Mark Longair <mhl@pobox.com>  Mon, 16 Nov 2009 12:26:47 +0000
