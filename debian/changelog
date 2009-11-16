@@ -1,4 +1,4 @@
-fiji (20091110) unstable; urgency=low
+fiji (20091116) unstable; urgency=low
 
   * Update to upstream 9c9fdc0d30473b5.  This version of the
     package has more dependencies and so the package is smaller.

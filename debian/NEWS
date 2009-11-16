@@ -1,4 +1,4 @@
-fiji (20091110) unstable; urgency=low
+fiji (20091116) unstable; urgency=low
 
   This version of the package now depends on openjdk-6-jdk
   instead of sun-java6-jdk.  If you want to carry on using Fiji
