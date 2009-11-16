@@ -1,0 +1,44 @@
+#!/bin/sh
+
+echo "== Cleaning . with git clean -f -X"
+git clean -f -X
+
+SUBMODULES=`git submodule status | awk '{ print $2; }'`
+
+for d in $SUBMODULES
+do
+    echo "== Cleaning $d with git clean -f -X"
+    ( cd $d && git clean -f -X )
+done
+
+# This misses some files, largely because -X doesn't remove
+# directories which are ignored, it seems.  You can discover those
+# that were missed with:
+#
+#  find . -name '*.class'|xargs -n 1 dirname|sort|uniq
+
+ANT_CLEAN_DIRECTORIES="clojure/ \
+    clojure-contrib/ \
+    bio-formats/"
+
+for d in $ANT_CLEAN_DIRECTORIES
+do
+    echo "== Cleaning $d with ant"
+    ( cd $d && ant clean )
+done
+
+MISSED_DIRECTORIES="AutoComplete/ant-classes/org/fife/ui/autocomplete/ \
+    ij-plugins/imageio/src/net/sf/ \
+    RSyntaxTextArea/ant-classes/ \
+    src-plugins/com/sun/ \
+    src-plugins/ \
+    VIB \
+    clojure/src/jvm/clojure \
+    tcljava/src/jacl/ \
+    tcljava/src/tcljava/tcl/lang"
+
+for d in $MISSED_DIRECTORIES
+do
+    echo "== Removing .class files from $d"
+    find "$d" -name '*.class' -print0 | xargs -0 rm -f -v
+done
