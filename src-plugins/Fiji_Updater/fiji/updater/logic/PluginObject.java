@@ -282,10 +282,15 @@ public class PluginObject {
 			throw new Error("Invalid action requested for plugin "
 					+ filename + "(" + action
 					+ ", " + status + ")");
-		if (action == Action.UPLOAD)
-			markForUpload();
-		else if (action == Action.REMOVE)
-			markForRemoval();
+		if (action == Action.UPLOAD) {
+			PluginCollection plugins =
+				PluginCollection.getInstance();
+			Iterable<String> dependencies =
+				plugins.analyzeDependencies(this);
+			if (dependencies != null)
+				for (String dependency : dependencies)
+					addDependency(dependency);
+		}
 		this.action = action;
 	}
 
@@ -303,7 +308,7 @@ public class PluginObject {
 		setNoAction();
 	}
 
-	private void markForUpload() {
+	public void markUploaded() {
 		if (!isFiji()) {
 			status = Status.INSTALLED;
 			newChecksum = current.checksum;
@@ -321,18 +326,9 @@ public class PluginObject {
 						+ " is already uploaded");
 			setVersion(newChecksum, newTimestamp);
 		}
-		filesize = Util.getFilesize(filename);
-
-		PluginCollection plugins = PluginCollection.getInstance();
-		// TODO: complain if not Fiji (and offer to add them)
-		Iterable<String> dependencies =
-			plugins.analyzeDependencies(this);
-		if (dependencies != null)
-			for (String dependency : dependencies)
-					addDependency(dependency);
 	}
 
-	protected void markForRemoval() {
+	public void markRemoved() {
 		// TODO: check dependencies (but not here; _after_ all marking)
 		addPreviousVersion(current.checksum, current.timestamp);
 		setStatus(Status.OBSOLETE);
@@ -345,12 +341,14 @@ public class PluginObject {
 
 	public String getChecksum() {
 		return action == Action.UPLOAD ? newChecksum :
-			current == null ? null : current.checksum;
+			action == Action.REMOVE || current == null ?
+			null : current.checksum;
 	}
 
 	public long getTimestamp() {
-		return action == Action.UPLOAD ?
-			newTimestamp : current == null ? 0 : current.timestamp;
+		return action == Action.UPLOAD ? newTimestamp :
+			action == Action.REMOVE || current == null ?
+			0 : current.timestamp;
 	}
 
 	public Iterable<Dependency> getDependencies() {

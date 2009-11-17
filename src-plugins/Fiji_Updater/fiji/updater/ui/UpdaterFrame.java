@@ -445,8 +445,13 @@ public class UpdaterFrame extends JFrame
 				.clone(plugins.toUninstall());
 			installer.start();
 			for (PluginObject plugin : uninstalled)
-				table.firePluginChanged(plugin);
+				if (!plugin.isFiji())
+					PluginCollection.getInstance()
+						.remove(plugin);
+				else
+					plugin.setStatus(Status.NOT_INSTALLED);
 			updatePluginsTable();
+			pluginsChanged();
 			info("Updated successfully.  Please restart Fiji!");
 		} catch (Canceled e) {
 			// TODO: remove "update/" directory
@@ -599,10 +604,14 @@ public class UpdaterFrame extends JFrame
 				return;
 			uploader.upload(getProgress("Uploading..."));
 			for (PluginObject plugin : plugins.toUploadOrRemove())
-				if (plugin.getAction() == Action.UPLOAD)
+				if (plugin.getAction() == Action.UPLOAD) {
+					plugin.markUploaded();
 					plugin.setStatus(Status.INSTALLED);
-				else
+				}
+				else {
+					plugin.markRemoved();
 					plugin.setStatus(Status.NOT_INSTALLED);
+				}
 			updatePluginsTable();
 			canUpload = false;
 			xmlLastModified = uploader.newLastModified;
