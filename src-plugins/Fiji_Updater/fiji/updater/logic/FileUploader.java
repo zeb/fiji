@@ -4,6 +4,7 @@ import fiji.updater.Updater;
 
 import fiji.updater.util.Progress;
 import fiji.updater.util.Progressable;
+import fiji.updater.util.Util;
 
 import ij.IJ;
 
@@ -19,6 +20,7 @@ import java.net.URL;
 import java.net.URLConnection;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 /*
@@ -35,6 +37,7 @@ import java.util.List;
 public class FileUploader extends Progressable {
 	protected final String uploadDir;
 	int total;
+	long timestamp;
 
 	public FileUploader() {
 		this("/var/www/update/");
@@ -51,21 +54,18 @@ public class FileUploader extends Progressable {
 	}
 
 	//Steps to accomplish entire upload task
-	public synchronized void upload(List<SourceFile> sources)
-			throws IOException {
+	public synchronized void upload(List<SourceFile> sources,
+			List<String> locks) throws IOException {
+		long now = new Date().getTime();
+		timestamp = Long.parseLong(Util.timestamp(now));
 		setTitle("Uploading");
 
 		calculateTotalSize(sources);
 		int count = 0;
 
-		File lock = null;
-		File db = new File(uploadDir + Updater.XML_COMPRESSED);
 		byte[] buffer = new byte[65536];
 		for (SourceFile source : sources) {
 			File file = new File(uploadDir + source.getFilename());
-			/* The first file must be the lock */
-			if (lock == null)
-				lock = file;
 			File dir = file.getParentFile();
 			if (!dir.exists())
 				dir.mkdirs();
@@ -94,11 +94,15 @@ public class FileUploader extends Progressable {
 			itemDone(source);
 		}
 
-		File backup = new File(db.getAbsolutePath() + ".old");
-		if (backup.exists())
-			backup.delete();
-		db.renameTo(backup);
-		lock.renameTo(db);
+		for (String lock : locks) {
+			File file = new File(uploadDir + lock);
+			File lockFile = new File(uploadDir + lock + ".lock");
+			File backup = new File(uploadDir + lock + ".old");
+			if (backup.exists())
+				backup.delete();
+			file.renameTo(backup);
+			lockFile.renameTo(file);
+		}
 
 		done();
 	}
