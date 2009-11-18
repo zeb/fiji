@@ -12,7 +12,8 @@ import random
 global foldername
 global syn_radius
 foldername=None
-syn_radius=5
+syn_radius=2
+small_radius=2
 subset_size = 300
 
 class Filter(FilenameFilter):
@@ -115,6 +116,8 @@ def extract_features(pivot, image):
     dx,dy,dz=0,0,0
     cenx,ceny,cenz=0.0,0.0,0.0
     momi=0.0
+    maxloc=[-1,-1,-1]
+    maxpix=-1
 
     bitdepth = image.getBitDepth() 
 
@@ -157,12 +160,52 @@ def extract_features(pivot, image):
                 #moment of inertia
                 momi += p*(dx+dy+dz)
 
+                #max brightness?
+                if p > maxpix:
+                    maxpix=p
+                    maxloc = [x,y,z]
+               
+    #now do a small search around the origin of the maximum intensity
+    brightness2=0
+    dist=sqrt( (maxloc[2]-cz)*(maxloc[2]-cz) + (maxloc[1]-cy)*(maxloc[1]-cy) + (maxloc[0]-cx)*(maxloc[0]-cx))
+    for z in xrange(int(maxloc[2]-small_radius),int(maxloc[2]+small_radius)+1):
+        if z <= 0 or z > d: continue
+        dz = (z-maxloc[2])*(z-maxloc[2])
+        if z>maxloc[2]: sz = z-maxloc[2] 
+        else: sz = maxloc[2]-z
+        pixels = image.getStack().getPixels(z)
+        for y in xrange(int(maxloc[1]-small_radius),int(maxloc[1]+small_radius)+1):
+            if y < 0 or y >= h: continue
+            dy = (y-maxloc[1])*(y-maxloc[1])
+            if y> maxloc[1]: sy= y-maxloc[1]
+            else: sy = maxloc[1]-y
+            for x in xrange(int(maxloc[0]-small_radius),int(maxloc[0]+small_radius)+1):
+                if x < 0 or x >= w: continue
+                #Innermost loop, perform computation
+                dx = (x-maxloc[0])*(x-maxloc[0])
+                if x > maxloc[0]: sx = x - maxloc[0] 
+                else: sx = maxloc[0] - x    
+
+                #get pixel value
+                p=pixels[y*w + x]
+                if bitdepth==8:
+                    p = (p & 0xff)
+                elif bitdepth==16:
+                    p = (p & 0xffff)
+                
+                if dx+dy+dz > small_radius*small_radius: continue        
+
+                #integrated brightness
+                brightness2 +=  p                    
+
+
     if brightness:
         cenmass=1.0*sqrt(cenx*cenx+ceny*ceny+cenz*cenz)/brightness
         momi /= 1.0*brightness
     else:
         cenmass=sqrt(cenx*cenx+ceny*ceny+cenz*cenz)
-    return [brightness,cenmass,momi]
+    
+    return [brightness,cenmass,momi,brightness2,dist]
 
 def extract_feature_loop(pivots, images):
     featurelist=[]
@@ -199,9 +242,16 @@ def make_subset(pivots):
     subset=[]
     maxlen=len(pivots)
     for i in range(0,subset_size):
-        subset.append(pivots[random.randint(0,maxlen)])
+        subset.append(pivots[random.randint(0,maxlen-1)])
     return subset
-       
+    
+def printSimpleFeatures(filename, features):
+    f=open(filename,'w')
+    for r in features:
+        for c in r:
+            f.write(str(c)+', ')
+        f.write('\n')
+    f.close()     
 
 ##############################
 ''' Start of actual script '''
@@ -230,9 +280,11 @@ print "Images to process: ",tifs
 subset=make_subset(pivots)
 features = extract_feature_loop(pivots,tifs)
 subset_features = extract_feature_loop(subset,tifs)
-print_features(pivots,features,foldername+file_name+'Features.txt')
+#print_features(pivots,features,foldername+file_name+'Features.txt')
+printSimpleFeatures(foldername+file_name+'Features.txt',features)
 print_pivots(subset,foldername+file_name+'SubsetObjects.xls')
-print_features(subset,subset_features,foldername+file_name+'SubsetFeatures.txt')
+#print_features(subset,subset_features,foldername+file_name+'SubsetFeatures.txt')
+printSimpleFeatures(foldername+file_name+'SubsetFeatures.txt',subset_features)
 make_ImageJ_ROI(subset, tifs)
 print "Done"
 
