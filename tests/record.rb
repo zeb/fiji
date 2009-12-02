@@ -72,7 +72,7 @@ end
 if __FILE__ == $0
   include Recorder
 
-  $verbose = true
+  $verbose = false
   $verout = $stdout
 
   TestLib.startIJ
@@ -120,10 +120,10 @@ if __FILE__ == $0
 		event.getID == WindowEvent::WINDOW_OPENED
 	record('waitForWindow', event.getSource.getTitle)
       elsif event.getID == FocusEvent::FOCUS_GAINED
-	$verout.puts(Main.getPath(event.getSource))
+	$verbose and $verout.puts(Main.getPath(event.getSource))
       elsif event.is_a? ComponentEvent
 	if event.is_a? FocusEvent
-	  $verout.puts(
+	  $verbose and $verout.puts(
 		       "FocusEvent on component:\n" +
 		       "\tevent = #{event.inspect}\n" +
 		       "\tsource = #{event.getSource.inspect}"
