@@ -150,6 +150,7 @@ PLUGIN_TARGETS=plugins/Jython_Interpreter.jar \
 	plugins/Calculator_Plus.jar \
 	plugins/3D_Objects_Counter.jar \
 	plugins/IsoData_Classifier.jar \
+	plugins/ImageJ_SURF.jar \
 	\
 	misc/Fiji.jar
 
@@ -256,6 +257,7 @@ plugins/Script_Editor.jar <- src-plugins/Script_Editor/**/*.java  \
 							icon.png[images/icon.png] \
 							var.png[images/var.png]    \
 							funtion.png[images/function.png]
+CLASSPATH(plugins/ImageJ_SURF.jar)=plugins/mpicbg_.jar
 
 plugins/*_*.jar <- src-plugins/*_*/**/*.java
 
