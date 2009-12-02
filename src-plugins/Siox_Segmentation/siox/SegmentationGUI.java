@@ -32,6 +32,7 @@ import java.awt.geom.Area;
 import fiji.util.gui.OverlayedImageCanvas;
 import ij.IJ;
 import ij.ImagePlus;
+import ij.Prefs;
 import ij.gui.ImageWindow;
 import ij.gui.Roi;
 import ij.gui.ShapeRoi;
@@ -126,16 +127,15 @@ public class SegmentationGUI extends ImageWindow implements ActionListener
   	    all.add(imagePanel);
   	    all.add(controlPanel);
   	    
-  	    add(all);  	      	    
+  	    add(all);  	      	      	   
 		
-	    this.pack();	    	    	    
-	    this.setVisible(true);
-	    	   
+	    this.pack();	 	    
+	    this.setVisible(true);    	   
 	}
     
 
 	
-	@Override
+	//@Override
 	public synchronized void actionPerformed(ActionEvent e) 
 	{
 		if (e.getSource() == controlPanel.bgJRadioButton && lastButton != controlPanel.bgJRadioButton) {
@@ -146,24 +146,20 @@ public class SegmentationGUI extends ImageWindow implements ActionListener
 		else if (e.getSource() == controlPanel.fgJRadioButton && lastButton != controlPanel.fgJRadioButton) {
 			roiOverlay.setColor(Color.RED);
 			backgroundRoi = setNewRoi(foregroundRoi, roiOverlay);		
-			lastButton = controlPanel.fgJRadioButton;
+			lastButton = controlPanel.fgJRadioButton;			
 		}
 		else if (e.getSource() == controlPanel.segmentJButton) {
 			segment();
 		}
-		else if (e.getSource() == controlPanel.addJRadioButton && lastButton != controlPanel.addJRadioButton) {
-			controlPanel.subJRadioButton.setSelected(false);
-			lastButton = controlPanel.addJRadioButton;
-			controlPanel.updateComponentEnabling();
+		else if (e.getSource() == controlPanel.addJRadioButton && lastButton != controlPanel.addJRadioButton) {			
 			roiOverlay.setColor(Color.RED);
-			subRoi = setNewRoi(addRoi, roiOverlay);						
+			subRoi = setNewRoi(addRoi, roiOverlay);
+			lastButton = controlPanel.addJRadioButton;
 		}
-		else if (e.getSource() == controlPanel.subJRadioButton && lastButton != controlPanel.subJRadioButton) {
-			controlPanel.addJRadioButton.setSelected(false);
-			lastButton = controlPanel.subJRadioButton;
-			controlPanel.updateComponentEnabling();
+		else if (e.getSource() == controlPanel.subJRadioButton && lastButton != controlPanel.subJRadioButton) {			
 			roiOverlay.setColor(Color.GREEN);
-			addRoi = setNewRoi(subRoi, roiOverlay);			
+			addRoi = setNewRoi(subRoi, roiOverlay);
+			lastButton = controlPanel.subJRadioButton;
 		}
 		else if (e.getSource() == controlPanel.refineJButton) {
 			refine();
@@ -173,8 +169,8 @@ public class SegmentationGUI extends ImageWindow implements ActionListener
 		}
 		else if (e.getSource() == controlPanel.createMaskJButton) {
 			createBinaryMask();
-		}
-
+		}		
+			
 	}
 
 	/**
@@ -185,7 +181,10 @@ public class SegmentationGUI extends ImageWindow implements ActionListener
 		if (null != confMatrix)
 		{
 			final ByteProcessor result = (ByteProcessor) confMatrix.convertToByte(false);
-			result.setMinAndMax(0, 1);
+			result.multiply(255);
+			// Set background color based on the Process > Binary > Options 
+			if(!Prefs.blackBackground)
+				result.invert();
 			new ImagePlus("Mask", result).show();
 		}
 				
@@ -203,10 +202,9 @@ public class SegmentationGUI extends ImageWindow implements ActionListener
 		confMatrix = null;
 		
 		// Set initial status
-		controlPanel.status = foregroundRoi != null ? 
-				ControlJPanel.FG_ADDED_STATUS : ControlJPanel.ROI_DEFINED_STATUS;
-		controlPanel.updateComponentEnabling();		
-		lastButton = controlPanel.fgJRadioButton;
+		controlPanel.status = ControlJPanel.FG_ADDED_STATUS;			
+		lastButton = controlPanel.fgJRadioButton.isSelected() ? 
+				controlPanel.fgJRadioButton : controlPanel.bgJRadioButton;
 		roiOverlay.setColor(Color.RED);
 		roiOverlay.setComposite( transparency050 );
 		
@@ -218,6 +216,8 @@ public class SegmentationGUI extends ImageWindow implements ActionListener
 			imp.setRoi(foregroundRoi);
 			roiOverlay.setRoi(backgroundRoi);
 		}
+		
+		controlPanel.updateComponentEnabling();
 		
 		imp.changes = true;		
 		imp.updateAndDraw();		
@@ -356,6 +356,11 @@ public class SegmentationGUI extends ImageWindow implements ActionListener
 		controlPanel.updateComponentEnabling();
 		
 		roiOverlay.setComposite( transparency100 );
+		
+		// Set up next panel components
+		controlPanel.subJRadioButton.setSelected(true);
+		controlPanel.addJRadioButton.setSelected(false);
+		lastButton = controlPanel.subJRadioButton; 
 	}
 
 
@@ -375,7 +380,5 @@ public class SegmentationGUI extends ImageWindow implements ActionListener
 		imp.changes = true;
 		imp.updateAndDraw();		
 	}
-	
-
 	
 }// end class SegmentationGUI
