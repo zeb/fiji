@@ -1,35 +1,77 @@
 package fiji.plugin.constrainedshapes;
 
+import ij.ImagePlus;
+import ij.gui.ImageCanvas;
 import ij.gui.Roi;
 import ij.gui.ShapeRoi;
 
 import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
+import java.awt.event.MouseMotionListener;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Point2D;
 import java.util.ArrayList;
 
-public class TwoCircleRoi extends ShapeRoi {
+public class TwoCircleRoi extends ShapeRoi implements MouseListener, MouseMotionListener {
+
 
 	/*
 	 * FIELDS
 	 */
 	
 	private static final long serialVersionUID = 1L;
-
+	/** Min dist to drag a handle, in unzoomed pixels */
+	private static final double DRAG_TOLERANCE = 10;
+	
 	private TwoCircleShape tcs;
+	private ArrayList<Handle> handles; 
+	private AffineTransform canvas_affine_transform = new AffineTransform();
+	private InteractionStatus status;
+	private Point start_drag;
 	
 	/*
-	 * INNER CLASS
+	 * INNER CLASS * ENUMS
 	 */
 	
+	/**
+	 * This internal class is used to deal with the small handles that appear on
+	 * the ROI. They are used to resize the shape when the user click-drags on 
+	 * them.
+	 */
 	private static class Handle {
 		private static final long serialVersionUID = 1L;
 		private static final Color HANDLE_COLOR = Color.WHITE;
-		public enum Type { CIRCLE_1_CENTER, CIRCLE_2_CENTER, CIRCLE_1_RADIUS, CIRCLE_2_RADIUS }
+		
+		public enum Type { 
+			CIRCLE_1_CENTER, CIRCLE_2_CENTER, CIRCLE_1_RADIUS, CIRCLE_2_RADIUS;
+			/**
+			 * Return the {@link ClickLocation} corresponfing to this handle.
+			 */
+			public ClickLocation getClickLocation() {
+				ClickLocation cl = ClickLocation.HANDLE_C1;
+				switch (this) {
+				case CIRCLE_1_CENTER:
+					cl = ClickLocation.HANDLE_C1;
+					break;
+				case CIRCLE_2_CENTER:
+					cl = ClickLocation.HANDLE_C2;
+					break;
+				case CIRCLE_1_RADIUS:
+					cl = ClickLocation.HANDLE_R1;
+					break;
+				case CIRCLE_2_RADIUS:
+					cl = ClickLocation.HANDLE_R2;
+					break;
+				}
+				return cl;
+			}			
+		}
 		public Type type;
 		public Point2D center = new Point2D.Double();
 		public int size = 7;
@@ -37,9 +79,15 @@ public class TwoCircleRoi extends ShapeRoi {
 			this.center = new Point2D.Double(_x, _y);
 			this.type = _type;
 		}
-		public void draw(Graphics g) {
-			final int ix = (int) center.getX();
-			final int iy = (int) center.getY();
+		public void draw(Graphics g, AffineTransform at) {
+			Point2D dest = new Point2D.Double();
+			if ( at == null) { 
+				dest = center;
+			} else {
+				at.transform(center, dest);
+			}
+			final int ix = (int) dest.getX();
+			final int iy = (int) dest.getY();
 			switch (type) {
 			case CIRCLE_1_RADIUS:
 			case CIRCLE_2_RADIUS:
@@ -57,11 +105,45 @@ public class TwoCircleRoi extends ShapeRoi {
 				break;
 			}
 		}
-		public void transform(AffineTransform at) {
-			at.transform(this.center, this.center); // we do not touch the size
-		}
 	}
 	
+	/**
+	 * Enum type to return where the user clicked relative to this ROI.
+	 */
+	public static enum ClickLocation { 
+		OUTSIDE, INSIDE, HANDLE_C1, HANDLE_C2, HANDLE_R1, HANDLE_R2;
+		/**
+		 * Return the {@link InteractionStatus} expected when clicking this location.
+		 */
+		public InteractionStatus getInteractionStatus() {
+			InteractionStatus is = InteractionStatus.FREE;
+			switch (this) {
+			case INSIDE:
+				is = InteractionStatus.MOVING_ROI;
+				break;
+			case  HANDLE_C1:
+				is = InteractionStatus.MOVING_C1;
+				break;
+			case HANDLE_C2:
+				is = InteractionStatus.MOVING_C2;
+				break;
+			case HANDLE_R1:
+				is = InteractionStatus.RESIZING_C1;
+				break;
+			case HANDLE_R2:
+				is = InteractionStatus.RESIZING_C2;
+				break;
+			}
+			return is;
+		}	
+	}
+	
+	/**
+	 * Enum type to specify the current user interaction status.
+	 */
+	private enum InteractionStatus { FREE, MOVING_ROI, MOVING_C1, MOVING_C2, RESIZING_C1, RESIZING_C2 };
+
+
 	/*
 	 * CONSTRUCTOR
 	 */
@@ -69,40 +151,96 @@ public class TwoCircleRoi extends ShapeRoi {
 	public TwoCircleRoi(TwoCircleShape _tcs) {
 		super(_tcs);
 		this.tcs = _tcs;
+		this.status = InteractionStatus.FREE;
 	}
 
-	
+	/*
+	 * PUBLIC METHODS
+	 */
 	
 	/**
+	 * Draw this ROI on the current {@link ImageCanvas}. 
 	 * Overrides the {@link ShapeRoi#draw(java.awt.Graphics)} method, so that 
 	 * we can draw our shape with handles.
 	 */
 	public void draw(Graphics g) {
 		if (ic == null) {return;}
+		refreshAffineTransform();
 		Graphics2D g2 = (Graphics2D) g;
-		// Prepare affine transform to deal with magnification
-		AffineTransform at = g2.getDeviceConfiguration().getDefaultTransform();
-		final double mag = ic.getMagnification();
-		final Rectangle r = ic.getSrcRect();
-		at.setTransform(mag, 0.0, 0.0, mag, -r.x*mag, -r.y*mag);
-		at.translate(tcs.getBounds().x, tcs.getBounds().y);
-
 		g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 		g2.setColor(Roi.getColor());		
-		g2.draw(at.createTransformedShape(tcs));
-		g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
-		drawHandle(g, prepareHandles(at));
-		
+		g2.draw(canvas_affine_transform.createTransformedShape(tcs));
+		prepareHandles();
+		drawHandles(g);
+		imp.draw();
 	}
 	
+	/**
+	 * Return the location of the given point with respect to this shape. The point
+	 * coordinates are supposed to be in the {@link ImageCanvas} coordinates.
+	 * @param p  The point to locate
+	 * @return  The point location with respect to this shape.
+	 */
+	public ClickLocation getClickLocation(Point2D p) { // DEBUG DEBUG DEBUG
+		refreshAffineTransform();
+		double dist;
+		Point2D coords = new Point2D.Double();
+		for (Handle h : handles) {
+			coords = h.center;
+			canvas_affine_transform.transform(h.center, coords);
+			dist = coords.distance(p);
+			if (dist < DRAG_TOLERANCE) {
+				return h.type.getClickLocation();
+			}
+		}
+		if (canvas_affine_transform.createTransformedShape(tcs).contains(p)) {
+			return ClickLocation.INSIDE;
+		} 
+		return ClickLocation.OUTSIDE;
+	}
+	
+	
+	@Override
+	public void setImage(ImagePlus imp) {
+		this.imp = imp;
+		cachedMask = null;
+		if (imp==null) {
+			ic = null;
+			clipboard = null;
+			xMax = 99999;
+			yMax = 99999;
+		} else {
+			ic = imp.getCanvas();
+			xMax = imp.getWidth();
+			yMax = imp.getHeight();
+			ic.addMouseMotionListener(this);
+			ic.addMouseListener(this);
+		}
+	}
 	
 	/*
 	 * PRIVATE METHODS
 	 */
 	
+	/**
+	 * Refresh the {@link AffineTransform} of this shape, according to current {@link ImageCanvas}
+	 * settings.
+	 */
+	private void refreshAffineTransform() {
+		canvas_affine_transform = new AffineTransform();
+		if (ic == null) { return; }
+		final double mag = ic.getMagnification();
+		final Rectangle r = ic.getSrcRect();
+		canvas_affine_transform.setTransform(mag, 0.0, 0.0, mag, -r.x*mag, -r.y*mag);
+	}
 	
-	private ArrayList<Handle> prepareHandles(AffineTransform at) {
-		ArrayList<Handle> handles = new ArrayList<Handle>(2);
+	/**
+	 * Regenerate the {@link #handles} field. The {@link Handle} coordinates are generated
+	 * with respect to the {@link TwoCircleShape} object. They will be transformed in the 
+	 * {@link ImageCanvas} coordinates when drawn.
+	 */
+	private void prepareHandles() {	
+		handles = new ArrayList<Handle>(4); // there will be at least 4 of them
 		// Prepare handles
 		final double xc1 = tcs.xc1;
 		final double xc2 = tcs.xc2;
@@ -116,8 +254,6 @@ public class TwoCircleRoi extends ShapeRoi {
 		// Center handles
 		Handle hc1 = new Handle(xc1, yc1, Handle.Type.CIRCLE_1_CENTER);
 		Handle hc2 = new Handle(xc2, yc2, Handle.Type.CIRCLE_2_CENTER);
-		hc1.transform(at);
-		hc2.transform(at);
 		handles.add(hc1);
 		handles.add(hc2);
 		// The following handles depend on tcs arrangement
@@ -134,24 +270,18 @@ public class TwoCircleRoi extends ShapeRoi {
 			if (a>lx2) {
 				Handle ht1 = new Handle(xc1-dxt1, yc1+dyt1, Handle.Type.CIRCLE_1_RADIUS);
 				Handle hb1 = new Handle(xc1+dxt1, yc1-dyt1, Handle.Type.CIRCLE_1_RADIUS);
-				ht1.transform(at);
-				hb1.transform(at);
 				handles.add(ht1);
 				handles.add(hb1);
 			}
 			if (a>lx1) {
 				Handle ht2 = new Handle(xc2-dxt2, yc2+dyt2, Handle.Type.CIRCLE_2_RADIUS);
 				Handle hb2 = new Handle(xc2+dxt2, yc2-dyt2, Handle.Type.CIRCLE_2_RADIUS);
-				ht2.transform(at);
-				hb2.transform(at);
 				handles.add(ht2);
 				handles.add(hb2);
 			}
 			// Pole handles
 			Handle hp1 = new Handle(xc1-dyt1, yc1-dxt1, Handle.Type.CIRCLE_1_RADIUS);
 			Handle hp2 = new Handle(xc2+dyt2, yc2+dxt2, Handle.Type.CIRCLE_2_RADIUS);
-			hp1.transform(at);
-			hp2.transform(at);
 			handles.add(hp1);
 			handles.add(hp2);
 			break;
@@ -160,28 +290,21 @@ public class TwoCircleRoi extends ShapeRoi {
 		{
 			Handle ht1 = new Handle(xc1-dxt1, yc1+dyt1, Handle.Type.CIRCLE_1_RADIUS);
 			Handle hb1 = new Handle(xc1+dxt1, yc1-dyt1, Handle.Type.CIRCLE_1_RADIUS);
-			ht1.transform(at);
-			hb1.transform(at);
 			handles.add(ht1);
 			handles.add(hb1);
 			Handle ht2 = new Handle(xc2-dxt2, yc2+dyt2, Handle.Type.CIRCLE_2_RADIUS);
 			Handle hb2 = new Handle(xc2+dxt2, yc2-dyt2, Handle.Type.CIRCLE_2_RADIUS);
-			ht2.transform(at);
-			hb2.transform(at);
 			handles.add(ht2);
 			handles.add(hb2);
 			Handle hp1 = new Handle(xc1-dyt1, yc1-dxt1, Handle.Type.CIRCLE_1_RADIUS);
 			Handle hp2 = new Handle(xc2+dyt2, yc2+dxt2, Handle.Type.CIRCLE_2_RADIUS);
-			hp1.transform(at);
-			hp2.transform(at);
 			handles.add(hp1);
 			handles.add(hp2);
 			Handle hi1 = new Handle(xc1+dyt1, yc1+dxt1, Handle.Type.CIRCLE_1_RADIUS);
 			Handle hi2 = new Handle(xc2-dyt2, yc2-dxt2, Handle.Type.CIRCLE_2_RADIUS);
-			hi1.transform(at);
-			hi2.transform(at);
 			handles.add(hi1);
 			handles.add(hi2);
+			break;
 		}
 		case CIRCLE_1_SWALLOWED:
 		{
@@ -189,14 +312,11 @@ public class TwoCircleRoi extends ShapeRoi {
 			Handle hb2 = new Handle(xc2+dxt2, yc2-dyt2, Handle.Type.CIRCLE_2_RADIUS);
 			Handle hp2 = new Handle(xc2+dyt2, yc2+dxt2, Handle.Type.CIRCLE_2_RADIUS);
 			Handle hi2 = new Handle(xc2-dyt2, yc2-dxt2, Handle.Type.CIRCLE_2_RADIUS);
-			ht2.transform(at);
-			hb2.transform(at);
-			hp2.transform(at);
-			hi2.transform(at);
 			handles.add(ht2);
 			handles.add(hb2);
 			handles.add(hp2);
 			handles.add(hi2);
+			break;
 		}
 		case CIRCLE_2_SWALLOWED:
 		{
@@ -204,26 +324,23 @@ public class TwoCircleRoi extends ShapeRoi {
 			Handle hb1 = new Handle(xc1+dxt1, yc1-dyt1, Handle.Type.CIRCLE_1_RADIUS);
 			Handle hp1 = new Handle(xc1+dyt1, yc1+dxt1, Handle.Type.CIRCLE_1_RADIUS);
 			Handle hi1 = new Handle(xc1-dyt1, yc1-dxt1, Handle.Type.CIRCLE_1_RADIUS);
-			ht1.transform(at);
-			hb1.transform(at);
-			hp1.transform(at);
-			hi1.transform(at);
 			handles.add(ht1);
 			handles.add(hb1);
 			handles.add(hp1);
 			handles.add(hi1);
+			break;
 		}
 		}
-		return handles;
 	}
 	
 	
 	/**
-	 * Non destructively draw the list of handles given in argument, using the {@link Graphics}
-	 * object given.
+	 * Non destructively draw the list of this ROI, using the {@link Graphics}
+	 * object given. The {@link #canvas_affine_transform} is used to position
+	 * the handles correctly with respect to the canvas zoom level.
 	 */
-	private void drawHandle(Graphics g, ArrayList<Handle> handles) {
-		double size = (tcs.getBounds().x * tcs.getBounds().y)*mag;
+	private void drawHandles(Graphics g) {
+		double size = (tcs.getBounds().width * tcs.getBounds().height)*mag;
 		int handle_size;
 		if (size>600.0) {
 			handle_size = 8;
@@ -234,7 +351,7 @@ public class TwoCircleRoi extends ShapeRoi {
 		}
 		for (Handle h : handles) {
 			h.size = handle_size;
-			h.draw(g);
+			h.draw(g, canvas_affine_transform);
 		}
 	}
 	
@@ -246,16 +363,99 @@ public class TwoCircleRoi extends ShapeRoi {
 	 * For testing purposes.
 	 */
 	public static void main(String[] args) {
+		final Point2D.Float C1 = new Point2D.Float(200 ,150);
+		final Point2D.Float C2 = new Point2D.Float(250 ,200);
+		final float R1 = 50;
+		final float R2 = 75;
+		//
 		ij.ImagePlus imp = ij.IJ.openImage("http://rsb.info.nih.gov/ij/images/AuPbSn40.jpg");
 		imp.show();
 		
-		TwoCircleShape tcs = new TwoCircleShape(200, 150, 50, 250, 200, 100);
+		TwoCircleShape tcs = new TwoCircleShape(C1.x, C1.y, R1, C2.x, C2.y, R2);
 		TwoCircleRoi roi = new TwoCircleRoi(tcs);
 		imp.setRoi(roi);
-		imp.updateAndDraw();
 		// test zoom
 		imp.getCanvas().zoomIn(2, 2);
+
 		imp.updateAndDraw();
 	}
 
+	/*
+	 * MOUSELISTENER METHODS
+	 */
+	
+	
+	public void mousePressed(MouseEvent e) { 
+		refreshAffineTransform();
+		Point p = e.getPoint();		
+		ClickLocation cl = getClickLocation(p); 
+		switch (cl) {
+		case OUTSIDE:
+			ic.removeMouseListener(this);
+			ic.removeMouseMotionListener(this);
+			imp.killRoi();
+			break;
+		default:
+			status = cl.getInteractionStatus();
+			start_drag = p;
+		}
+	}
+
+	public void mouseReleased(MouseEvent e) { }
+
+	public void mouseDragged(MouseEvent e) {
+		refreshAffineTransform();
+		Point p = e.getPoint();
+		Point2D c = new Point2D.Float();
+		
+		switch (status) {
+		case MOVING_ROI:
+			tcs.xc1 += (p.x-start_drag.x)/canvas_affine_transform.getScaleX();
+			tcs.xc2 += (p.x-start_drag.x)/canvas_affine_transform.getScaleX();
+			tcs.yc1 += (p.y-start_drag.y)/canvas_affine_transform.getScaleY();
+			tcs.yc2 += (p.y-start_drag.y)/canvas_affine_transform.getScaleX();
+			break;
+		case MOVING_C1:
+			tcs.xc1 += (p.x-start_drag.x)/canvas_affine_transform.getScaleX();
+			tcs.yc1 += (p.y-start_drag.y)/canvas_affine_transform.getScaleY();
+			break;
+		case MOVING_C2:
+			tcs.xc2 += (p.x-start_drag.x)/canvas_affine_transform.getScaleX();
+			tcs.yc2 += (p.y-start_drag.y)/canvas_affine_transform.getScaleY();
+			break;
+		case RESIZING_C1:
+			canvas_affine_transform.transform(tcs.getC1(), c);
+			tcs.r1 = (float) (c.distance(p)/canvas_affine_transform.getScaleX());			
+			break;
+		case RESIZING_C2:
+			canvas_affine_transform.transform(tcs.getC2(), c);
+			tcs.r2 = (float) (c.distance(p)/canvas_affine_transform.getScaleX());			
+			break;
+		}
+		start_drag = p;
+		draw(ic.getGraphics());
+		
+	}
+
+	public void mouseMoved(MouseEvent e) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	public void mouseClicked(MouseEvent e) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	public void mouseEntered(MouseEvent e) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	public void mouseExited(MouseEvent e) {
+		// TODO Auto-generated method stub
+		
+	}
+	
+	
 }

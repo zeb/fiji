@@ -136,6 +136,14 @@ public class TwoCircleShape implements Shape, Sampling2DShape {
 		}
 	}
 	
+	public Point2D getC1() {
+		return new Point2D.Float(xc1, yc1);
+	}
+
+	public Point2D getC2() {
+		return new Point2D.Float(xc2, yc2);
+	}
+	
 	/*
 	 * PRIVATE METHODS
 	 */
