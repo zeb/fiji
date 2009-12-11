@@ -101,9 +101,6 @@ public class TwoCircleShape implements Shape, Sampling2DShape {
 			final double alpha1 = Math.acos(lx1/r1); // cap angle seen from C1
 			final double alpha2 = Math.acos(lx2/r2); // cap angle seen from C1
 
-//			System.out.println(String.format("a=%.1f - phi=%.1f - lx1=%.1f - lx2 = %.1f - alpha1 = %.1f - alpha2 = %.1f",
-//					a, Math.toDegrees(phi), lx1, lx2, Math.toDegrees(alpha1), Math.toDegrees(alpha2)));
-			
 			final double corr = (Math.PI-alpha1)/(Math.PI-alpha2) * r1/r2;
 			final int N1 = (int) Math.round( n_points/(1+1/corr)) - 1;
 			final int N2 = n_points - N1;
