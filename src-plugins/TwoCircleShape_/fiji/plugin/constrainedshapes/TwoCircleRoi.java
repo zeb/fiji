@@ -39,6 +39,7 @@ public class TwoCircleRoi extends ShapeRoi implements MouseListener, MouseMotion
 	 * INNER CLASS * ENUMS
 	 */
 	
+	
 	/**
 	 * This internal class is used to deal with the small handles that appear on
 	 * the ROI. They are used to resize the shape when the user click-drags on 
@@ -51,7 +52,7 @@ public class TwoCircleRoi extends ShapeRoi implements MouseListener, MouseMotion
 		public enum Type { 
 			CIRCLE_1_CENTER, CIRCLE_2_CENTER, CIRCLE_1_RADIUS, CIRCLE_2_RADIUS;
 			/**
-			 * Return the {@link ClickLocation} corresponfing to this handle.
+			 * Return the {@link ClickLocation} corresponding to this handle.
 			 */
 			public ClickLocation getClickLocation() {
 				ClickLocation cl = ClickLocation.HANDLE_C1;
@@ -106,6 +107,8 @@ public class TwoCircleRoi extends ShapeRoi implements MouseListener, MouseMotion
 			}
 		}
 	}
+	
+	
 	
 	/**
 	 * Enum type to return where the user clicked relative to this ROI.
@@ -181,8 +184,7 @@ public class TwoCircleRoi extends ShapeRoi implements MouseListener, MouseMotion
 	 * @param p  The point to locate
 	 * @return  The point location with respect to this shape.
 	 */
-	public ClickLocation getClickLocation(Point2D p) { // DEBUG DEBUG DEBUG
-		refreshAffineTransform();
+	public ClickLocation getClickLocation(Point2D p) { 
 		double dist;
 		Point2D coords = new Point2D.Double();
 		for (Handle h : handles) {
@@ -215,6 +217,11 @@ public class TwoCircleRoi extends ShapeRoi implements MouseListener, MouseMotion
 			yMax = imp.getHeight();
 			ic.addMouseMotionListener(this);
 			ic.addMouseListener(this);
+			/* WARNING! Here we un-register the ImageCanvas from itself, so that it does not handle clicks. 
+			 * This is far from perfect, but is a simple way not to have to create a toolbar tool for
+			 * this ROI kind. DEBUG TODO */
+			ic.removeMouseListener(ic);
+			ic.removeMouseMotionListener(ic);			
 		}
 	}
 	
@@ -224,7 +231,9 @@ public class TwoCircleRoi extends ShapeRoi implements MouseListener, MouseMotion
 	
 	/**
 	 * Refresh the {@link AffineTransform} of this shape, according to current {@link ImageCanvas}
-	 * settings.
+	 * settings. It is normally called only by the {@link #draw(Graphics)} method, for it
+	 * is called every time something changed in the canvas, and that is when this transform needs
+	 * to be updated.
 	 */
 	private void refreshAffineTransform() {
 		canvas_affine_transform = new AffineTransform();
@@ -368,7 +377,7 @@ public class TwoCircleRoi extends ShapeRoi implements MouseListener, MouseMotion
 		final float R1 = 50;
 		final float R2 = 75;
 		//
-		ij.ImagePlus imp = ij.IJ.openImage("http://rsb.info.nih.gov/ij/images/AuPbSn40.jpg");
+		ij.ImagePlus imp = ij.IJ.openImage("http://rsb.info.nih.gov/ij/images/Blobs.jpg");
 		imp.show();
 		
 		TwoCircleShape tcs = new TwoCircleShape(C1.x, C1.y, R1, C2.x, C2.y, R2);
@@ -376,7 +385,6 @@ public class TwoCircleRoi extends ShapeRoi implements MouseListener, MouseMotion
 		imp.setRoi(roi);
 		// test zoom
 		imp.getCanvas().zoomIn(2, 2);
-
 		imp.updateAndDraw();
 	}
 
@@ -386,13 +394,14 @@ public class TwoCircleRoi extends ShapeRoi implements MouseListener, MouseMotion
 	
 	
 	public void mousePressed(MouseEvent e) { 
-		refreshAffineTransform();
 		Point p = e.getPoint();		
 		ClickLocation cl = getClickLocation(p); 
 		switch (cl) {
 		case OUTSIDE:
 			ic.removeMouseListener(this);
 			ic.removeMouseMotionListener(this);
+			ic.addMouseListener(ic); // TODO DEBUG
+			ic.addMouseMotionListener(ic); // TODO DEBUG
 			imp.killRoi();
 			break;
 		default:
@@ -400,8 +409,6 @@ public class TwoCircleRoi extends ShapeRoi implements MouseListener, MouseMotion
 			start_drag = p;
 		}
 	}
-
-	public void mouseReleased(MouseEvent e) { }
 
 	public void mouseDragged(MouseEvent e) {
 		refreshAffineTransform();
@@ -434,28 +441,13 @@ public class TwoCircleRoi extends ShapeRoi implements MouseListener, MouseMotion
 		}
 		start_drag = p;
 		draw(ic.getGraphics());
-		
 	}
 
-	public void mouseMoved(MouseEvent e) {
-		// TODO Auto-generated method stub
-		
-	}
-
-	public void mouseClicked(MouseEvent e) {
-		// TODO Auto-generated method stub
-		
-	}
-
-	public void mouseEntered(MouseEvent e) {
-		// TODO Auto-generated method stub
-		
-	}
-
-	public void mouseExited(MouseEvent e) {
-		// TODO Auto-generated method stub
-		
-	}
+	public void mouseReleased(MouseEvent e) { }
+	public void mouseMoved(MouseEvent e) {	}
+	public void mouseClicked(MouseEvent e) {	}
+	public void mouseEntered(MouseEvent e) {	}
+	public void mouseExited(MouseEvent e) {	}
 	
 	
 }

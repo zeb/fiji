@@ -1,5 +1,7 @@
 package fiji.plugin.constrainedshapes;
 
+import ij.process.ImageProcessor;
+
 import java.awt.BorderLayout;
 import java.awt.Canvas;
 import java.awt.Graphics;
@@ -19,7 +21,43 @@ import javax.swing.WindowConstants;
 
 public class TwoCircleShape implements Shape, Sampling2DShape {
 
+	/*
+	 * INNER CLASSES & ENUMS
+	 */
 	
+	/**
+	 * Enum to specify how we compute an energy value from a list of pixel values.
+	 * If the usage requires it, we can make this a proper interface with taylored 
+	 * implementing classes.
+	 */
+	public static enum EvalFunction  {
+		/** Will return the mean of the pixel intensities, which will minimize it. */
+		MEAN,
+		/** Will return the opposite of the pixel value mean, effectively maximizing it. */
+		MINUS_MEAN;
+		public float compute(final float[] pixel_list)  {			
+			float result = 0.0f;
+			switch (this) {
+			case MEAN:
+				result = pixel_list[0];
+				for (int i = 1; i < pixel_list.length; i++) {
+					result += pixel_list[i];
+				}
+				result /= pixel_list.length;
+				break;
+			case MINUS_MEAN:
+				result = - pixel_list[0];
+				for (int i = 1; i < pixel_list.length; i++) {
+					result -= pixel_list[i];
+				}
+				result /= pixel_list.length;
+				break;
+			}
+			return result;
+		}
+	}
+	
+	/** Enum that describes the instance two circles arrangement. Useful for drawing.	 */
 	public enum Arrangement { ISOLATED, CIRCLE_1_SWALLOWED, CIRCLE_2_SWALLOWED, INTERSECTING }
 
 	/*
@@ -52,6 +90,48 @@ public class TwoCircleShape implements Shape, Sampling2DShape {
 	/*
 	 * PUBLIC METHODS
 	 */
+	
+	public float eval(final ImageProcessor ip, final EvalFunction function) { 
+		return eval(ip, function, (int)getPerimeter());
+	}
+	
+	// SHOULD IT BE A TWOCIRCLEROI METHOD? TODO
+	public float eval(final ImageProcessor ip, final EvalFunction function, final int n_points) {
+		final float[][] pixels_as_float = ip.getFloatArray();
+		final double[][] xy = sample(n_points);
+		final double[] x = xy[0];
+		final double[] y = xy[1];
+		final float[] pixel_list = new float[x.length];
+		for (int i = 0; i < pixel_list.length; i++) {
+			pixel_list[i] = pixels_as_float[(int)x[i]][(int)y[i]]; // MAYBE PUT SOME INTERPOLATION HERE TODO
+		}
+		return function.compute(pixel_list);
+	}
+	
+	/**
+	 * Return the perimeter of this shape.
+	 */
+	public double getPerimeter() {
+		double l = Double.NaN;
+		final double a = Math.sqrt((xc2-xc1)*(xc2-xc1) + (yc2-yc1)*(yc2-yc1)); // distance C1 to C2
+		final boolean separated_circles = a > r1+r2; // true if the two circles do not intersect, resulting in having 2 separated circles 
+		final boolean circle_1_swallowed = r2 > r1 + a; // true if circle 1 is totally within circle 2, resulting in having only 1 circle
+		final boolean circle_2_swallowed = r1 > r2 + a;
+		if (circle_1_swallowed) { 
+			l = 2 * Math.PI * r2;
+		} else if (circle_2_swallowed) {
+			l = 2 * Math.PI * r1;
+		} else if (separated_circles) {
+			l = 2 * Math.PI * (r1+r2);
+		} else { 
+			final double lx1 = ( a*a - r2*r2 + r1*r1 ) / (2*a); // distance C1 to cap
+			final double lx2 = ( a*a + r2*r2 - r1*r1 ) / (2*a); // distance C2 to cap
+			final double alpha1 = Math.acos(lx1/r1); // cap angle seen from C1
+			final double alpha2 = Math.acos(lx2/r2); // cap angle seen from C1
+			l = 2 * ( Math.PI - alpha1) * r1 + 2 * ( Math.PI - alpha2) * r2; 
+		}
+		return l;
+	}
 	
 	public double[][] sample(final int n_points) {
 		double[] x = new double[n_points];
