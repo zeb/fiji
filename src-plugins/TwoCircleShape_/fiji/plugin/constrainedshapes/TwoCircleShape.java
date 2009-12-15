@@ -1,7 +1,5 @@
 package fiji.plugin.constrainedshapes;
 
-import ij.process.ImageProcessor;
-
 import java.awt.BorderLayout;
 import java.awt.Canvas;
 import java.awt.Graphics;
@@ -19,44 +17,9 @@ import java.awt.geom.Rectangle2D;
 import javax.swing.JFrame;
 import javax.swing.WindowConstants;
 
-public class TwoCircleShape implements Shape, Sampling2DShape {
+public class TwoCircleShape extends Sampling2DShape   {
 
-	/*
-	 * INNER CLASSES & ENUMS
-	 */
-	
-	/**
-	 * Enum to specify how we compute an energy value from a list of pixel values.
-	 * If the usage requires it, we can make this a proper interface with taylored 
-	 * implementing classes.
-	 */
-	public static enum EvalFunction  {
-		/** Will return the mean of the pixel intensities, which will minimize it. */
-		MEAN,
-		/** Will return the opposite of the pixel value mean, effectively maximizing it. */
-		MINUS_MEAN;
-		public float compute(final float[] pixel_list)  {			
-			float result = 0.0f;
-			switch (this) {
-			case MEAN:
-				result = pixel_list[0];
-				for (int i = 1; i < pixel_list.length; i++) {
-					result += pixel_list[i];
-				}
-				result /= pixel_list.length;
-				break;
-			case MINUS_MEAN:
-				result = - pixel_list[0];
-				for (int i = 1; i < pixel_list.length; i++) {
-					result -= pixel_list[i];
-				}
-				result /= pixel_list.length;
-				break;
-			}
-			return result;
-		}
-	}
-	
+
 	/** Enum that describes the instance two circles arrangement. Useful for drawing.	 */
 	public enum Arrangement { ISOLATED, CIRCLE_1_SWALLOWED, CIRCLE_2_SWALLOWED, INTERSECTING }
 
@@ -68,7 +31,7 @@ public class TwoCircleShape implements Shape, Sampling2DShape {
 	 * Circle 1 & 2 coordinates and radius. We store them as array to be able to deal with 
 	 * multiple shapes.
 	 */
-	public float xc1, yc1, r1, xc2, yc2, r2;
+	public double xc1, yc1, r1, xc2, yc2, r2;
 	
 	/*
 	 * CONSTRUCTORS
@@ -91,21 +54,29 @@ public class TwoCircleShape implements Shape, Sampling2DShape {
 	 * PUBLIC METHODS
 	 */
 	
-	public float eval(final ImageProcessor ip, final EvalFunction function) { 
-		return eval(ip, function, (int)getPerimeter());
+
+	public int getNumParameters() {
+		return 6;
 	}
 	
-	// SHOULD IT BE A TWOCIRCLEROI METHOD? TODO
-	public float eval(final ImageProcessor ip, final EvalFunction function, final int n_points) {
-		final float[][] pixels_as_float = ip.getFloatArray();
-		final double[][] xy = sample(n_points);
-		final double[] x = xy[0];
-		final double[] y = xy[1];
-		final float[] pixel_list = new float[x.length];
-		for (int i = 0; i < pixel_list.length; i++) {
-			pixel_list[i] = pixels_as_float[(int)x[i]][(int)y[i]]; // MAYBE PUT SOME INTERPOLATION HERE TODO
-		}
-		return function.compute(pixel_list);
+	public double[] getParameters() {
+		double[] arr = new double[6];
+		arr[0] = xc1;
+		arr[1] = yc1;
+		arr[2] = r1;
+		arr[3] = xc2;
+		arr[4] = yc2;
+		arr[5] = r2;
+		return arr;
+	}
+	
+	public void setParameters(double[] arr) {
+		this.xc1 = arr[0];
+		this.yc1 = arr[1];
+		this.r1 = arr[2];
+		this.xc2 = arr[3];
+		this.yc2 = arr[4];
+		this.r2 = arr[5];
 	}
 	
 	/**
@@ -161,7 +132,7 @@ public class TwoCircleShape implements Shape, Sampling2DShape {
 			} 
 
 		}else 	if (separated_circles) {
-			final int N1 = Math.round(n_points / (1+r2/r1));
+			final int N1 = (int) Math.round(n_points / (1+r2/r1));
 			final int N2 = n_points - N1;
 			double theta;
 			for (int i=0; i<N1; i++) {
@@ -217,11 +188,17 @@ public class TwoCircleShape implements Shape, Sampling2DShape {
 	}
 	
 	public Point2D getC1() {
-		return new Point2D.Float(xc1, yc1);
+		return new Point2D.Double(xc1, yc1);
 	}
 
 	public Point2D getC2() {
-		return new Point2D.Float(xc2, yc2);
+		return new Point2D.Double(xc2, yc2);
+	}
+	
+	public TwoCircleShape clone() {
+		TwoCircleShape new_shape = new TwoCircleShape();
+		new_shape.setParameters(this.getParameters());
+		return new_shape;
 	}
 	
 	/*
@@ -236,12 +213,12 @@ public class TwoCircleShape implements Shape, Sampling2DShape {
 	 * @see {@link #contains(Point2D)}, 
 	 */
 	private GeneralPath getPath() {
-		final float xb1 = xc1 - r1;
-		final float yb1 = yc1 - r1;		
-		final float xb2 = xc2 - r2;
-		final float yb2 = yc2 - r2;		
-		final Ellipse2D circle1 = new Ellipse2D.Float(xb1, yb1, 2*r1, 2*r1);
-		final Ellipse2D circle2 = new Ellipse2D.Float(xb2, yb2, 2*r2, 2*r2);
+		final double xb1 = xc1 - r1;
+		final double yb1 = yc1 - r1;		
+		final double xb2 = xc2 - r2;
+		final double yb2 = yc2 - r2;		
+		final Ellipse2D circle1 = new Ellipse2D.Double(xb1, yb1, 2*r1, 2*r1);
+		final Ellipse2D circle2 = new Ellipse2D.Double(xb2, yb2, 2*r2, 2*r2);
 		GeneralPath path = new GeneralPath();
 		path.append(circle1, false);
 		path.append(circle2, false);
@@ -269,7 +246,6 @@ public class TwoCircleShape implements Shape, Sampling2DShape {
 				g2.setStroke(new CircleStroke(2));
 				for (TwoCircleShape s : shape) {					
 					g2.draw(s);
-					g2.drawString(s.getArrangement().toString(), s.xc1, s.yc1);
 				}				
 			}
 		}
