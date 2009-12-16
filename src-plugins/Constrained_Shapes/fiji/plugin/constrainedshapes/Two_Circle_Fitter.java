@@ -1,9 +1,13 @@
 package fiji.plugin.constrainedshapes;
 
+import java.awt.Color;
+
 import ij.ImagePlus;
 import ij.WindowManager;
 import ij.gui.GenericDialog;
+import ij.gui.Roi;
 import ij.plugin.PlugIn;
+import ij.process.ImageProcessor;
 
 public class Two_Circle_Fitter implements PlugIn {
 
@@ -11,6 +15,14 @@ public class Two_Circle_Fitter implements PlugIn {
 		final ImagePlus imp = WindowManager.getCurrentImage();
 		displayICWindow(imp);
 		Sampling2DShape tcs = ( (TwoCircleRoi)imp.getRoi() ).getSampling2DShape();
+		ImageProcessor ip = imp.getProcessor();
+		Sampling2DShapeFitter fitter = new Sampling2DShapeFitter(tcs, ip);
+		fitter.setMethod(Sampling2DShapeFitter.Method.ORTHOGONAL_SEARCH);
+		fitter.setFunction(Sampling2DShape.EvalFunction.MEAN);
+		TwoCircleShape result = (TwoCircleShape) fitter.optimize();
+		TwoCircleRoi roi = new TwoCircleRoi(result);
+		Roi.setColor(Color.BLUE);
+		imp.setRoi(roi);
 	}
 	
 	
