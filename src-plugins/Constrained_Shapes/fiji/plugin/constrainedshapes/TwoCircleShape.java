@@ -38,10 +38,10 @@ public class TwoCircleShape extends Sampling2DShape   {
 	 */
 	
 	public TwoCircleShape() {
-		this(Float.NaN, Float.NaN, Float.NaN, Float.NaN, Float.NaN, Float.NaN);
+		this(Double.NaN, Double.NaN, Double.NaN, Double.NaN, Double.NaN, Double.NaN);
 	}
 	
-	public TwoCircleShape(float _xc1, float _yc1, float _r1, float _xc2, float _yc2, float _r2) {
+	public TwoCircleShape(double _xc1, double _yc1, double _r1, double _xc2, double _yc2, double _r2) {
 		xc1 = _xc1;
 		yc1 = _yc1;
 		r1 = _r1;

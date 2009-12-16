@@ -386,7 +386,7 @@ public class TwoCircleRoi extends ShapeRoi implements MouseListener, MouseMotion
 		final float R1 = 50;
 		final float R2 = 75;
 		//
-		ij.ImagePlus imp = ij.IJ.openImage("http://rsb.info.nih.gov/ij/images/Blobs.jpg");
+		ij.ImagePlus imp = ij.IJ.openImage("http://rsb.info.nih.gov/ij/images/blobs.gif");
 		imp.show();
 		
 		TwoCircleShape tcs = new TwoCircleShape(C1.x, C1.y, R1, C2.x, C2.y, R2);
