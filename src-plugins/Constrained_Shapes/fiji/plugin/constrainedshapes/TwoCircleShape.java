@@ -201,6 +201,11 @@ public class TwoCircleShape extends Sampling2DShape   {
 		return new_shape;
 	}
 	
+	public String toString() {
+		return String.format("TwoCircleShape: xc1=%5.1f, yc1=%5.1f, r1=%5.1f, xc2=%5.1f, yc2=%5.1f, r2=%5.1f - %s", 
+				xc1, yc1, r1, xc2, yc2, r2, getArrangement());
+	}
+	
 	/*
 	 * PRIVATE METHODS
 	 */
@@ -271,16 +276,12 @@ public class TwoCircleShape extends Sampling2DShape   {
 	
 	public PathIterator getPathIterator(AffineTransform at) {
 		return getPath().getPathIterator(at);
-//		return new SamplingPathIterator(this, 20);
 	}
 
 	public PathIterator getPathIterator(AffineTransform at, double flatness) {
-//		return new SamplingPathIterator(this, 20);
 		return getPath().getPathIterator(at, flatness);
 	}
 
-	
-	
 	public boolean contains(Point2D p) {
 		return getPath().contains(p);
 	}

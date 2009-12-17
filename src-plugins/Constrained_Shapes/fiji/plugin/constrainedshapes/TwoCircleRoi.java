@@ -220,8 +220,8 @@ public class TwoCircleRoi extends ShapeRoi implements MouseListener, MouseMotion
 			/* WARNING! Here we un-register the ImageCanvas from itself, so that it does not handle clicks. 
 			 * This is far from perfect, but is a simple way not to have to create a toolbar tool for
 			 * this ROI kind. DEBUG TODO */
-			ic.removeMouseListener(ic);
-			ic.removeMouseMotionListener(ic);			
+//			ic.removeMouseListener(ic);
+//			ic.removeMouseMotionListener(ic);			
 		}
 	}
 	
@@ -357,7 +357,7 @@ public class TwoCircleRoi extends ShapeRoi implements MouseListener, MouseMotion
 	 * object given. The {@link #canvas_affine_transform} is used to position
 	 * the handles correctly with respect to the canvas zoom level.
 	 */
-	private void drawHandles(Graphics g) {
+	private synchronized void drawHandles(Graphics g) {
 		double size = (tcs.getBounds().width * tcs.getBounds().height)*mag;
 		int handle_size;
 		if (size>600.0) {
@@ -407,11 +407,6 @@ public class TwoCircleRoi extends ShapeRoi implements MouseListener, MouseMotion
 		ClickLocation cl = getClickLocation(p); 
 		switch (cl) {
 		case OUTSIDE:
-			ic.removeMouseListener(this);
-			ic.removeMouseMotionListener(this);
-			ic.addMouseListener(ic); // TODO DEBUG
-			ic.addMouseMotionListener(ic); // TODO DEBUG
-			imp.killRoi();
 			break;
 		default:
 			status = cl.getInteractionStatus();

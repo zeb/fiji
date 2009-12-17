@@ -1,27 +1,23 @@
 package fiji.plugin.constrainedshapes;
 
 import ij.process.ImageProcessor;
-import pal.math.ConjugateDirectionSearch;
-import pal.math.ConjugateGradientSearch;
-import pal.math.DifferentialEvolution;
-import pal.math.MultivariateFunction;
-import pal.math.MultivariateMinimum;
-import pal.math.OrthogonalSearch;
-import pal.math.StochasticOSearch;
+import fiji.util.optimization.ConjugateDirectionSearch;
+import fiji.util.optimization.ConjugateGradientSearch;
+import fiji.util.optimization.MinimiserMonitor;
+import fiji.util.optimization.MultivariateFunction;
+import fiji.util.optimization.MultivariateMinimum;
+import fiji.util.optimization.OrthogonalHints;
 
 public class Sampling2DShapeFitter implements MultivariateFunction {
 
 	
 	/*
-	 * ENUM
+	 * ENUM 
 	 */
 	
 	public static enum Method {
 		CONJUGATE_DIRECTION_SEARCH,
-		CONJUGATE_GRADIENT_SEARCH,
-		DIFFERENTIAL_EVOLUTION,
-		ORTHOGONAL_SEARCH,
-		STOCHASTIC_ORTHOGONAL_SEARCH;
+		CONJUGATE_GRADIENT_SEARCH;
 		
 		public MultivariateMinimum instantiate(final Sampling2DShape shape) {
 			MultivariateMinimum optimizer = null;
@@ -30,17 +26,8 @@ public class Sampling2DShapeFitter implements MultivariateFunction {
 				optimizer = new ConjugateDirectionSearch();
 				break;
 			case CONJUGATE_GRADIENT_SEARCH:
-				optimizer = new ConjugateGradientSearch(2); // BEALE_SORENSON_HESTENES_STIEFEL_UPDATE
+				optimizer = new ConjugateGradientSearch(1); 
 				break;
-			case DIFFERENTIAL_EVOLUTION:
-				optimizer = new DifferentialEvolution(shape.getNumParameters());
-				break;
-			case ORTHOGONAL_SEARCH:
-				optimizer = new OrthogonalSearch();
-				break;
-			case STOCHASTIC_ORTHOGONAL_SEARCH:
-				optimizer = new StochasticOSearch();
-				break;				
 			}
 			return optimizer;
 		}
@@ -54,6 +41,7 @@ public class Sampling2DShapeFitter implements MultivariateFunction {
 	private ImageProcessor ip; // Can't default.
 	private Sampling2DShape.EvalFunction function = Sampling2DShape.EvalFunction.MEAN; 
 	private int n_points = 500; // Default value
+	private MinimiserMonitor monitor = null;
 	
 	private double[] lower_bounds;
 	private double[] upper_bounds;
@@ -83,7 +71,9 @@ public class Sampling2DShapeFitter implements MultivariateFunction {
 	public Sampling2DShape optimize() {
 		MultivariateMinimum optimizer = method.instantiate(shape);
 		double[] xvec = shape.getParameters().clone();
-		optimizer.optimize(this, shape.getParameters(), 0.0	, 0.0);
+		
+		optimizer.findMinimum(this, xvec, 0, 0, monitor);
+		
 		Sampling2DShape minimum = shape.clone();
 		minimum.setParameters(xvec);
 		return minimum;
@@ -103,7 +93,8 @@ public class Sampling2DShapeFitter implements MultivariateFunction {
 	 * MULTIVARIATEFUNCTION METHODS
 	 */
 	
-	public double evaluate(double[] argument) {
+	public double evaluate(double[] params) {
+		shape.setParameters(params);
 		return shape.eval(ip, function, n_points);
 	}
 
@@ -117,6 +108,12 @@ public class Sampling2DShapeFitter implements MultivariateFunction {
 
 	public double getUpperBound(int n) {
 		return upper_bounds[n];
+	}
+
+
+	public OrthogonalHints getOrthogonalHints() {
+		// TODO Auto-generated method stub
+		return null;
 	}
 
 	
@@ -134,5 +131,8 @@ public class Sampling2DShapeFitter implements MultivariateFunction {
 	public void setImageProcessor(ImageProcessor ip) { 		this.ip = ip; 	}
 	public void setMethod(Method method) {		this.method = method;	}
 	public Method getMethod() {		return method;	}
+	public void setMonitor(MinimiserMonitor monitor) {		this.monitor = monitor;	}
+	public MinimiserMonitor getMonitor() {		return monitor;	}
+
 
 }
