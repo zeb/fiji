@@ -7,6 +7,8 @@
 
 package fiji.util.optimization;
 
+import Jama.Matrix; 
+
 /**
  * <p>Title: LMSSolver </p>
  * <p>Description: An interface for objects that can perform a Least Mean Squares type regression.  </p>
@@ -37,11 +39,11 @@ public interface LMSSolver {
 			public static final LMSSolver INSTANCE = new SimpleSolver();
 			public double[] solve( double[][] xMatrix, double[] dMatrix ) {
 				Matrix m = new Matrix( xMatrix );
-				Matrix mTranspose = m.getTranspose();
-				Matrix ls = ( mTranspose.getMultiplied( m ) ).getInverse().getMultiplied( mTranspose );
-				Matrix d = new Matrix( new double[][] {dMatrix} ).getTranspose();
-				Matrix result = ls.getMultiplied( d );
-				return result.toArray();
+				Matrix mTranspose = m.transpose();
+				Matrix ls = ( mTranspose.times( m ) ).inverse().times( mTranspose );
+				Matrix d = new Matrix( new double[][] {dMatrix} ).transpose();
+				Matrix result = ls.times( d );
+				return result.getColumnPackedCopy();
 			}
 		}
 	}
