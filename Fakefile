@@ -136,7 +136,7 @@ PLUGIN_TARGETS=plugins/Jython_Interpreter.jar \
 	plugins/Refresh_Javas.jar \
 	plugins/Auto_Threshold.jar \
 	plugins/Arrow_.jar \
-	plugins/TwoCircleShape_.jar \
+	plugins/Constrained_Shapes.jar \
 	plugins/Stack_Manipulation.jar \
 	plugins/FlowJ_.jar \
 	plugins/PIV_analyser.jar \
@@ -226,7 +226,7 @@ CLASSPATH(plugins/register_virtual_stack_slices.jar)=plugins/TrakEM2_.jar:plugin
 
 CLASSPATH(plugins/Siox_Segmentation.jar)=jars/fiji-lib.jar
 
-CLASSPATH(plugins/TwoCircleShape_.jar)=plugins/Arrow_.jar
+CLASSPATH(plugins/Constrained_Shapes.jar)=plugins/VIB_.jar
 
 CLASSPATH(plugins/LSM_Toolbox.jar)=plugins/LSM_Reader.jar
 MAINCLASS(plugins/LSM_Toolbox.jar)=org.imagearchive.lsm.toolbox.gui.AboutDialog
