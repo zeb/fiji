@@ -27,6 +27,7 @@ import ij.util.*;
   *
   * Plugin Version:
   * 2009-01-08
+  * 2009-12-11 BTT small fix to verbose (defaults to false now) option and title for mask
   * 
   * The following has been information is copied directly from the header
   * of Wilkinson's rats.c.
@@ -63,7 +64,7 @@ public class RATS_ implements PlugInFilter {
 	ImagePlus imp;
 	ImageProcessor ip, topIp, botIp, threshIp;
 	RATSQuadtree qtTop, qtBot; //the quadtree (top level)
-  private boolean bVerbose = true; //produce informational messages
+  private boolean bVerbose = false; //produce informational messages
   private double[] minSzPx = {32.0, 32.0};//anticipates future non-square leaves?
   private double sigma = 25.0; //aka "noise" as S.D. of image background
   private double lambda = 3.0; //scaling factor
@@ -108,7 +109,7 @@ public class RATS_ implements PlugInFilter {
           minSzPx[0] = Tools.parseDouble(s[1]);
           minSzPx[1] = minSzPx[0];
         }else if (s[0].equalsIgnoreCase("verbose")) {
-          bVerbose = (s.length == 1) ? true : s[1].equalsIgnoreCase("true");
+          bVerbose = true;
         }else {
             IJ.log("oops! unrecognized argument: " + opts[i]);
         }
@@ -164,7 +165,7 @@ public class RATS_ implements PlugInFilter {
    if (bVerbose) tock("  Resize:");
    
    this.threshIp = new FloatProcessor(thresh);
-   String title = imp.getTitle()+"-mask";
+   String title = imp.getShortTitle()+"-mask";
    ImagePlus resultImp = new ImagePlus(title, threshIp.convertToByte(true));
    resultImp.show();
   }
@@ -389,5 +390,5 @@ public class RATS_ implements PlugInFilter {
      IJ.log(message + " " + elapsedTime + " ms"); 
      return elapsedTime;
   }  
- 
+
 }//class
