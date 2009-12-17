@@ -96,6 +96,7 @@ SUBMODULE_TARGETS=\
 	jars/junit-4.5.jar \
 	jars/rsyntaxtextarea.jar \
 	jars/autocomplete.jar \
+	jars/weka.jar \
 
 PLUGIN_TARGETS=plugins/Jython_Interpreter.jar \
 	plugins/Clojure_Interpreter.jar \
@@ -193,6 +194,7 @@ jars/batik.jar <- batik/
 jars/junit-4.5.jar <- junit/
 jars/rsyntaxtextarea.jar <- RSyntaxTextArea/
 jars/autocomplete.jar <- AutoComplete/
+jars/weka.jar <- weka/
 
 # From source
 javaVersion(misc/Fiji.jar)=1.5
@@ -368,6 +370,7 @@ precompile-submodules[] <- \
 	precompiled/junit-4.5.jar \
 	precompiled/rsyntaxtextarea.jar \
 	precompiled/autocomplete.jar \
+	precompiled/weka.jar \
 
 precompiled/ij.jar <- ij.jar
 precompiled/clojure.jar <- jars/clojure.jar
@@ -377,6 +380,7 @@ precompiled/batik.jar <- jars/batik.jar
 precompiled/junit-4.5.jar <- jars/junit-4.5.jar
 precompiled/rsyntaxtextarea.jar <- jars/rsyntaxtextarea.jar
 precompiled/autocomplete.jar <- jars/autocomplete.jar
+precompiled/weka.jar <- jars/weka.jar
 precompiled/* <- plugins/*
 
 precompile[] <- precompile-fiji precompile-fake precompile-submodules
