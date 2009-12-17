@@ -188,7 +188,8 @@ plugins/loci_tools.jar <- bio-formats/
 jars/VectorString.jar <- TrakEM2/
 CLASSPATH(plugins/TrakEM2_.jar)=plugins/VIB_.jar:plugins/mpicbg_.jar:plugins/loci_tools.jar:plugins/bUnwarpJ_.jar:plugins/level_sets.jar:plugins/Fiji_Plugins.jar
 plugins/TrakEM2_.jar <- ij.jar plugins/VIB_.jar plugins/mpicbg_.jar plugins/bUnwarpJ_.jar plugins/level_sets.jar plugins/Fiji_Plugins.jar jars/VectorString.jar TrakEM2/
-plugins/T2-NIT.jar <- clojure.jar jars/weka.jar TrakEM2/
+CLASSPATH(plugins/T2-NIT.jar)=plugins/TrakEM2_.jar:jars/weka.jar:ij.jar:jars/VectorString.jar
+plugins/T2-NIT.jar <- ij.jar clojure.jar jars/weka.jar plugins/TrakEM2_.jar TrakEM2/
 plugins/ij-ImageIO_.jar <- ij-plugins/
 jars/jacl.jar <- tcljava/
 jars/batik.jar <- batik/
