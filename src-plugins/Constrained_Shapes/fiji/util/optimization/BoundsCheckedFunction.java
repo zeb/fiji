@@ -17,7 +17,7 @@ package fiji.util.optimization;
  * @author Korbinian Strimmer
  */
 public class BoundsCheckedFunction implements MultivariateFunction
-{	
+{
 	/**
 	 * construct bound-checked multivariate function
 	 * (a large number will be returned on function evaluation if argument
@@ -31,7 +31,7 @@ public class BoundsCheckedFunction implements MultivariateFunction
 	{
 		this(func, 1000000);
 	}
-	
+
 	/**
 	 * construct constrained multivariate function
 	 *
@@ -44,10 +44,10 @@ public class BoundsCheckedFunction implements MultivariateFunction
 		f = func;
 		veryLarge = largeNumber;
 	}
-		
+
 	/**
 	 * computes function value, taking into account the constraints on the
-	 * argument 
+	 * argument
 	 *
 	 * @param x function argument
 	 *
@@ -57,7 +57,7 @@ public class BoundsCheckedFunction implements MultivariateFunction
 	public double evaluate(double[] x)
 	{
 		int len = f.getNumArguments();
-		
+
 		for (int i = 0; i < len; i++)
 		{
 			if (x[i] < f.getLowerBound(i) ||
@@ -66,7 +66,7 @@ public class BoundsCheckedFunction implements MultivariateFunction
 				return veryLarge;
 			}
 		}
-		
+
 		return f.evaluate(x);
 	}
 
@@ -85,11 +85,15 @@ public class BoundsCheckedFunction implements MultivariateFunction
 		return f.getUpperBound(n);
 	}
 
+	/**
+	 * @return null
+	 */
+	public OrthogonalHints getOrthogonalHints() { return null; }
 
 	//
 	// Private stuff
 	//
-	
+
 	private MultivariateFunction f;
 	private double veryLarge;
 }

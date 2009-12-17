@@ -11,7 +11,7 @@ package fiji.util.optimization;
 /**
  * Binomial coefficients
  *
- * @version $Id: Binomial.java,v 1.1 2006/06/01 15:27:32 gene099 Exp $
+ * @version $Id: Binomial.java,v 1.6 2001/07/13 14:39:13 korbinian Exp $
  *
  * @author Korbinian Strimmer
  */

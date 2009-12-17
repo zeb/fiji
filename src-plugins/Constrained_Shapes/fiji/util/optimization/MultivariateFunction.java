@@ -14,7 +14,7 @@ package fiji.util.optimization;
  *
  * @author Korbinian Strimmer
  */
-public interface MultivariateFunction 
+public interface MultivariateFunction
 {
 	/**
 	 * compute function value
@@ -24,8 +24,8 @@ public interface MultivariateFunction
 	 * @return function value
 	 */
 	double evaluate(double[] argument);
-	
-	
+
+
 	/**
 	 * get number of arguments
 	 *
@@ -41,7 +41,7 @@ public interface MultivariateFunction
 	 * @return lower bound
 	 */
 	double getLowerBound(int n);
-	
+
 	/**
 	 * get upper bound of argument n
 	 *
@@ -50,4 +50,13 @@ public interface MultivariateFunction
 	 * @return upper bound
 	 */
 	double getUpperBound(int n);
+
+	/**
+	 * @return an Orthogonal Hints object that can be used by Orthogonal based optimisers
+	 * to get information about the function
+	 * @return if no such information just return null!
+	 */
+	OrthogonalHints getOrthogonalHints();
+
+
 }

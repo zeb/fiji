@@ -13,7 +13,7 @@ package fiji.util.optimization;
  * class for drawing numbers from an urn with and
  * without laying back
  *
- * @version $Id: UrnModel.java,v 1.1 2006/06/01 15:27:32 gene099 Exp $
+ * @version $Id: UrnModel.java,v 1.4 2001/07/13 14:39:13 korbinian Exp $
  *
  * @author Korbinian Strimmer
  */

@@ -12,6 +12,8 @@ package fiji.util.optimization;
 /**
  * interface for a function of several variables with a gradient
  *
+ * @version $Id: MFWithGradient.java,v 1.2 2001/07/13 14:39:13 korbinian Exp $
+ *
  * @author Korbinian Strimmer
  */
 public interface MFWithGradient extends MultivariateFunction

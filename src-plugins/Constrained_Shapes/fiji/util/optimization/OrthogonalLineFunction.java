@@ -22,13 +22,27 @@ public class OrthogonalLineFunction implements UnivariateFunction
 	 *
 	 * @param func multivariate function
 	 */
-	public OrthogonalLineFunction(MultivariateFunction func)
-	{
+	public OrthogonalLineFunction(MultivariateFunction func)	{
+		this(func, 0, null);
+	}
+	/**
+	 * construct univariate function from multivariate function
+	 *
+	 *
+	 * @param func multivariate function
+	 * @param the initial arguments to the base MultivariateFunction (may be null)
+	 * @param selectedDimension The selected dimension/argument that the line "runs" along
+	 */
+	public OrthogonalLineFunction(MultivariateFunction func, int selectedDimension, double[] initialArguments )	{
 		f = func;
 		numArgs = f.getNumArguments();
 		x = new double[numArgs];
-	}
 
+		this.n = selectedDimension;
+		if(initialArguments!=null) {
+			System.arraycopy(initialArguments,0,x,0,Math.min(x.length,initialArguments.length));
+		}
+	}
 	/**
 	 * set (change) values of all arguments (start values)
 	 *
@@ -66,16 +80,19 @@ public class OrthogonalLineFunction implements UnivariateFunction
 	{
 		n = num;
 		bak = x[n];
+		if(f.getLowerBound(num) == f.getUpperBound(num)){
+			System.out.println("Warning! Range is zero on parameter:"+num);
+		}
 	}
-	
+
 	// implementation of UnivariateFunction
-	
+
 	public double evaluate(double arg)
 	{
 		x[n] = arg;
 		double v = f.evaluate(x);
 		x[n] = bak;
-		
+
 		return v;
 	}
 
@@ -93,7 +110,7 @@ public class OrthogonalLineFunction implements UnivariateFunction
 	//
 	// Private stuff
 	//
-	
+
 	private MultivariateFunction f;
 	private int numArgs, n;
 	private double bak;

@@ -23,9 +23,9 @@ public class LineFunction implements UnivariateFunction
 	public LineFunction(MultivariateFunction func)
 	{
 		f = func;
-		
+
 		dim = f.getNumArguments();
-		
+
 		x = new double[dim];
 	}
 
@@ -40,18 +40,18 @@ public class LineFunction implements UnivariateFunction
 	{
 		s = start;
 		d = dir;
-		
+
 		computeBounds();
 	}
 
-	
+
 	/**
 	 * get point associated with the one-dimensional parameter
 	 * (bounds of of multivariate function are NOT checked)
 	 *
 	 * @param lambda argument
 	 * @param p array for coordinates of corresponding point
-	 */  
+	 */
 	public void getPoint(double lambda, double[] p)
 	{
 		for (int i = 0; i < dim; i++)
@@ -60,21 +60,21 @@ public class LineFunction implements UnivariateFunction
 		}
 	}
 
-	
+
 	// implementation of UnivariateFunction
-	
+
 	/**
 	 * evaluate f(start+lambda*dir)
 	 */
 	public double evaluate(double lambda)
 	{
 		getPoint(lambda, x);
-		
+
 		return f.evaluate(x);
 	}
 
 	public double getLowerBound()
-	{		
+	{
 		return lowerBound;
 	}
 
@@ -82,7 +82,7 @@ public class LineFunction implements UnivariateFunction
 	{
 		return upperBound;
 	}
-	
+
 	/**
 	 * find parameter lambda within the given bounds
 	 * that minimizes the univariate function
@@ -106,7 +106,7 @@ public class LineFunction implements UnivariateFunction
 	/**
 	 * get parameter that limits the upper bound
 	 *
-	 * @return parameter number 
+	 * @return parameter number
 	 */
 	public int getUpperBoundParameter()
 	{
@@ -116,7 +116,7 @@ public class LineFunction implements UnivariateFunction
 	/**
 	 * get parameter that limits the lower bound
 	 *
-	 * @return parameter number 
+	 * @return parameter number
 	 */
 	public int getLowerBoundParameter()
 	{
@@ -134,7 +134,7 @@ public class LineFunction implements UnivariateFunction
 	 */
 	public boolean checkPoint(double[] p)
 	{
-		boolean modified = false; 
+		boolean modified = false;
 		for (int i = 0; i < dim; i++)
 		{
 			if (p[i] < f.getLowerBound(i))
@@ -148,7 +148,7 @@ public class LineFunction implements UnivariateFunction
 				modified = true;
 			}
 		}
-		
+
 		return modified;
 	}
 
@@ -168,7 +168,7 @@ public class LineFunction implements UnivariateFunction
 	{
 		// this seems to be a reasonable small value
 		double EPS = MachineAccuracy.SQRT_EPSILON;
-		
+
 		int numActive = 0;
 		for (int i = 0; i < dim; i++)
 		{
@@ -176,7 +176,7 @@ public class LineFunction implements UnivariateFunction
 			if (p[i] <= f.getLowerBound(i)+EPS)
 			{
 				// no search towards lower boundary
-				if (grad[i] > 0) 
+				if (grad[i] > 0)
 				{
 					active[i] = false;
 				}
@@ -194,14 +194,14 @@ public class LineFunction implements UnivariateFunction
 				numActive++;
 			}
 		}
-		
+
 		return numActive;
 	}
 
 	/**
 	 * check direction vector. If it points out of the defined
 	 * area at a point at the boundary the corresponding component
-	 * of the direction vector is set to zero. 
+	 * of the direction vector is set to zero.
 	 *
 	 * @param p coordinates of point
 	 * @param dir direction vector at that point
@@ -212,14 +212,14 @@ public class LineFunction implements UnivariateFunction
 	{
 		// this seems to be a reasonable small value
 		double EPS = MachineAccuracy.SQRT_EPSILON;
-		
+
 		int numChanged = 0;
 		for (int i = 0; i < dim; i++)
 		{
 			if (p[i] <= f.getLowerBound(i)+EPS)
 			{
 				// no search towards lower boundary
-				if (dir[i] < 0) 
+				if (dir[i] < 0)
 				{
 					dir[i] = 0;
 					numChanged++;
@@ -235,7 +235,7 @@ public class LineFunction implements UnivariateFunction
 				}
 			}
 		}
-		
+
 		return numChanged;
 	}
 
@@ -243,14 +243,14 @@ public class LineFunction implements UnivariateFunction
 	//
 	// Private stuff
 	//
-	
+
 	private MultivariateFunction f;
 	private int lowerBoundParam, upperBoundParam;
 	private int dim;
 	private double lowerBound, upperBound;
 	private double[] s, d, x, min, max;
 	private UnivariateMinimum um = null;
-	
+
 	private void computeBounds()
 	{
 		boolean firstVisit = true;
@@ -259,14 +259,14 @@ public class LineFunction implements UnivariateFunction
 			if (d[i] != 0)
 			{
 				double upper = (f.getUpperBound(i) - s[i])/d[i];
-				double lower = (f.getLowerBound(i) - s[i])/d[i];			
+				double lower = (f.getLowerBound(i) - s[i])/d[i];
 				if (lower > upper)
 				{
 					double tmp = upper;
 					upper = lower;
 					lower = tmp;
 				}
-				
+
 				if (firstVisit)
 				{
 					lowerBound = lower;

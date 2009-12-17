@@ -17,6 +17,8 @@ package fiji.util.optimization;
  * (Richard P. Brent.  1973.   Algorithms for finding zeros and extrema
  *  of functions without calculating derivatives.  Prentice-Hall.)
  *
+ * @version $Id: UnivariateMinimum.java,v 1.9 2003/05/14 05:53:36 matt Exp $
+ *
  * @author Korbinian Strimmer
  */
 public class UnivariateMinimum
@@ -27,16 +29,16 @@ public class UnivariateMinimum
 
 	/** last minimum */
 	public double minx;
-	
+
 	/** function value at minimum */
 	public double fminx;
-	
+
 	/** curvature at minimum */
-	public double f2minx; 
-	
+	public double f2minx;
+
 	/** total number of function evaluations neccessary */
 	public int numFun;
-	
+
 	/**
 	 * maximum number of function evaluations
 	 * (default 0 indicates no limit on calls)
@@ -49,32 +51,32 @@ public class UnivariateMinimum
 	 *
 	 * @param x   first estimate
 	 * @param f   function
-	 * 
+	 *
 	 * @return position of minimum
 	 */
 	public double findMinimum(double x, UnivariateFunction f)
 	{
 		double tol = MachineAccuracy.EPSILON;
-		
+
 		return optimize(x, f, tol);
 	}
 
 	/**
-	 * Find minimum 
+	 * Find minimum
 	 * (first estimate given, desired number of fractional digits specified)
 	 *
 	 * @param x   first estimate
 	 * @param f   function
 	 * @param fracDigits desired fractional digits
-	 * 
+	 *
 	 * @return position of minimum
 	 */
 	public double findMinimum(double x, UnivariateFunction f, int fracDigits)
 	{
 		double tol = Math.pow(10, -1-fracDigits);
-		
+
 		double optx = optimize(x, f, tol);
-		
+
 		//return trim(optx, fracDigits);
 		return optx;
 	}
@@ -84,13 +86,13 @@ public class UnivariateMinimum
 	 * (no first estimate given)
 	 *
 	 * @param f   function
-	 * 
+	 *
 	 * @return position of minimum
 	 */
 	public double findMinimum(UnivariateFunction f)
 	{
 		double tol = MachineAccuracy.EPSILON;
-				
+
 		return optimize(f, tol);
 	}
 
@@ -100,52 +102,79 @@ public class UnivariateMinimum
 	 *
 	 * @param f   function
 	 * @param fracDigits desired fractional digits
-	 * 
+	 *
 	 * @return position of minimum
 	 */
 	public double findMinimum(UnivariateFunction f, int fracDigits)
 	{
 		double tol = Math.pow(10, -1-fracDigits);
-		
+
 		double optx = optimize(f, tol);
-		
+
 		//return trim(optx, fracDigits);
-		return optx; 
+		return optx;
 	}
 
 	/**
 	 * The actual optimization routine (Brent's golden section method)
-         *
+	 *
+	 * @param f univariate function
+	 * @param tol absolute tolerance of each parameter
+	 * @param lowerBound the lower bound of input
+	 * @param upperBound the upper bound of input
+	 *
+	 * @return  position of minimum
+	 */
+	public double optimize(UnivariateFunction f, double tol, double lowerBound, double upperBound)
+	{
+		numFun = 2;
+		return minin(lowerBound, upperBound, f.evaluate(lowerBound), f.evaluate(upperBound), f, tol);
+	}
+	/**
+	 * The actual optimization routine (Brent's golden section method)
+	 *
 	 * @param f univariate function
 	 * @param tol absolute tolerance of each parameter
 	 *
 	 * @return  position of minimum
- 	 */
+	 */
 	public double optimize(UnivariateFunction f, double tol)
 	{
-		numFun = 2;
-		double min = f.getLowerBound();
-		double max = f.getUpperBound();
-		
-		return minin(min, max, f.evaluate(min), f.evaluate(max), f, tol);
+		return optimize(f,tol,f.getLowerBound(), f.getUpperBound());
 	}
 
 	/**
 	 * The actual optimization routine (Brent's golden section method)
-         *
+	 *
 	 * @param x initial guess
 	 * @param f univariate function
 	 * @param tol absolute tolerance of each parameter
+	 * @param lowerBound the lower bound of input
+	 * @param upperBound the upper bound of input
 	 *
 	 * @return  position of minimum
- 	 */
-	public double optimize(double x, UnivariateFunction f, double tol)
+	 */
+	public double optimize(double x, UnivariateFunction f, double tol, double lowerBound, double upperBound)
 	{
-		double[] range = bracketize(f.getLowerBound(), x, f.getUpperBound(), f);
+		double[] range = bracketize(lowerBound, x, upperBound, f);
 
 		return minin(range[0], range[1], range[2], range[3], f, tol);
 	}
+	/**
+	 * The actual optimization routine (Brent's golden section method)
+				 *
+	 * @param x initial guess
+	 * @param f univariate function
+	 * @param tol absolute tolerance of each parameter
+	 * @note bounded by the given bounds of the function f
+	 *
+	 * @return  position of minimum
+	 */
+	public double optimize(double x, UnivariateFunction f, double tol)
+	{
 
+		return optimize(x,f,tol,f.getLowerBound(),f.getUpperBound());
+	}
 	//
 	// Private stuff
 	//
@@ -158,10 +187,10 @@ public class UnivariateMinimum
 	private double trim(double x, int fracDigits)
 	{
 		double m = Math.pow(10, fracDigits);
-		
+
 		return Math.round(x*m)/m;
 	}
-	
+
 	private double constrain(double x, boolean toMax, double min, double max)
 	{
 		if (toMax)
@@ -186,7 +215,7 @@ public class UnivariateMinimum
 				return x;
 			}
 		}
-	}	
+	}
 
 	private double[] bracketize(double min, double a, double max, UnivariateFunction f)
 	{
@@ -195,7 +224,7 @@ public class UnivariateMinimum
 			throw new IllegalArgumentException("Argument min (" + min +
 			") larger than argument max (" + max + ")");
 		}
-		
+
 		if (a < min)
 		{
 			a = min;
@@ -211,8 +240,8 @@ public class UnivariateMinimum
 			throw new IllegalArgumentException("Starting point not in given range ("
 			+ min + ", " + a + ", " + max + ")");
 		}
-		
-		
+
+
 		// Get second point
 		double b;
 		if (a - min < max - a)
@@ -223,22 +252,22 @@ public class UnivariateMinimum
 		{
 			b = a - delta*(a - min);
 		}
-	
+
 		numFun = 0;
-    
+
 		double fa = f.evaluate(a); numFun++;
 		double fb = f.evaluate(b); numFun++;
-		
+
 		double tmp;
 		if (fb > fa)
 		{
 			tmp = a; a = b; b = tmp;
 			tmp = fa; fa = fb; fb = tmp;
 		}
-		
+
 		// From here on we always have fa >= fb
 		// Our aims is to determine a new point c with fc >= fb
-		
+
 		// Direction of search (towards min or towards max)
 		boolean searchToMax;
 		double ulim;
@@ -252,12 +281,12 @@ public class UnivariateMinimum
 			searchToMax = false;
 			ulim = min;
 		}
-		
+
 		// First guess: default magnification
 		double c = b + GOLD * (b - a);
 		c = constrain(c, searchToMax, min, max);
 		double fc = f.evaluate(c); numFun++;
-        
+
 		while (fb > fc)
 		{
 			// Compute u as minimum of a parabola through a, b, c
@@ -265,27 +294,27 @@ public class UnivariateMinimum
 			double q = (b - c) * (fb - fa);
 			if (q == r)
 			{
-                		q += MachineAccuracy.EPSILON;
+										q += MachineAccuracy.EPSILON;
 			}
 			double u = b - ((b - c) * q - (b - a) * r) / 2.0 / (q - r);
 			u = constrain(u, searchToMax, min, max);
-			double fu = 0; // Don't evaluate now
-			
+			double fu = 0; // Don�t evaluate now
+
 			boolean magnify = false;
-			
+
 			// Check out all possibilities
-			
+
 			// u is between b and c
 			if ((b - u) * (u - c) > 0)
 			{
 				fu = f.evaluate(u); numFun++;
-				
+
 				// minimum between b and c
 				if (fu < fc)
 				{
 					a = b; b = u;
 					fa = fb; fb = fu;
-					
+
 					break;
 				}
 				// minimum between a and u
@@ -293,26 +322,26 @@ public class UnivariateMinimum
 				{
 					c = u;
 					fc = fu;
-					
+
 					break;
 				}
-				
+
 				magnify = true;
-            		}
+								}
 			// u is between c and limit
 			else if ((c - u) * (u - ulim) > 0)
 			{
 				fu = f.evaluate(u); numFun++;
-				
+
 				// u is not a minimum
 				if (fu < fc)
 				{
 					b = c; c = u;
-					fb = fc; fc = fu; 
-					
+					fb = fc; fc = fu;
+
 					magnify = true;
 				}
-            		}
+								}
 			//  u equals limit
 			else if (u == ulim)
 			{
@@ -335,7 +364,7 @@ public class UnivariateMinimum
 			a = b; b = c; c = u;
 			fa = fb; fb = fc; fc = fu;
 		}
-		
+
 		// Once we are here be have a minimum in [a, c]
 		double[] result = new double[4];
 		result[0] = a;
@@ -359,9 +388,9 @@ public class UnivariateMinimum
 		{
 			minx = a;
 			fminx = fa;
-		
+
 			f2minx = NumericalDerivative.secondDerivative(f, minx);
-		
+
 			return  minx;
 
 			//throw new IllegalArgumentException("Borders of range not distinct");
@@ -468,9 +497,9 @@ public class UnivariateMinimum
 		}
 		minx = z;
 		fminx = fz;
-		
+
 		f2minx = NumericalDerivative.secondDerivative(f, minx);
-		
+
 		return  z;
 	}
 }

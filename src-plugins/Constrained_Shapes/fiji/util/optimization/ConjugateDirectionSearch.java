@@ -21,17 +21,10 @@ package fiji.util.optimization;
  * of a conjugate direction search method proposed by Powell)
  *
  * @author Korbinian Strimmer
+ * @note A part of this code has been hacked. See the section marked by ************* - MG
  */
-public class ConjugateDirectionSearch extends MultivariateMinimum 
+public class ConjugateDirectionSearch extends MultivariateMinimum
 {
-	// Just put this in here so we can have a public class which
-	// doesn't need to be in its own file:
-	public static class OptimizationError extends RuntimeException {
-		public OptimizationError(String s) {
-			super(s);
-		}
-	}
-
 	//
 	// Public stuff
 	//
@@ -44,65 +37,63 @@ public class ConjugateDirectionSearch extends MultivariateMinimum
 		// random number generator
 		rng = new MersenneTwisterFast();
 	}
-	
-	
+
+
 	// Variables that control aspects of the inner workings of the
-	// minimization algorithm. Setting them is optional, they      
-	// are all set to some reasonable default values given below.        
+	// minimization algorithm. Setting them is optional, they
+	// are all set to some reasonable default values given below.
 
 	/**
-	 *  controls the printed output from the routine        
-	 *  (0 -> no output, 1 -> print only starting and final values,            
-	 *   2 -> detailed map of the minimization process,         
-	 *   3 -> print also eigenvalues and vectors of the       
-	 *   search directions), the default value is 0                                
+	 *  controls the printed output from the routine
+	 *  (0 -> no output, 1 -> print only starting and final values,
+	 *   2 -> detailed map of the minimization process,
+	 *   3 -> print also eigenvalues and vectors of the
+	 *   search directions), the default value is 0
 	 */
 	public int prin = 0;
-	
+
 	/**
-	 * step is a steplength parameter and should be set equal     
-	 * to the expected distance from the solution.          
-	 * exceptionally small or large values of step lead to   
-	 * slower convergence on the first few iterations        
-	 * the default value for step is 1.0                     
+	 * step is a steplength parameter and should be set equal
+	 * to the expected distance from the solution.
+	 * exceptionally small or large values of step lead to
+	 * slower convergence on the first few iterations
+	 * the default value for step is 1.0
 	 */
 	public double step = 1.0;
-	
+
 	/**
-	 * scbd is a scaling parameter. 1.0 is the default and        
-	 * indicates no scaling. if the scales for the different 
-	 * parameters are very different, scbd should be set to  
-	 * a value of about 10.0.                                
+	 * scbd is a scaling parameter. 1.0 is the default and
+	 * indicates no scaling. if the scales for the different
+	 * parameters are very different, scbd should be set to
+	 * a value of about 10.0.
 	 */
 	public double scbd = 1.0;
-	
+
 	/**
 	 * illc  should be set to true
-	 * if the problem is known to  
-	 * be ill-conditioned. the default is false. this   
-	 * variable is automatically set, when the problem   
-         * is found to to be ill-conditioned during iterations.  
+	 * if the problem is known to
+	 * be ill-conditioned. the default is false. this
+	 * variable is automatically set, when the problem
+				 * is found to to be ill-conditioned during iterations.
 	 */
 	public boolean illc = false;
 
-    /** MHL: added this so we can interrupt the optimization if
-        we need to. */
-    public boolean interrupt = false;
- 	
- 	// implementation of abstract method 
-	
-	public void optimize(MultivariateFunction f, double[] xvector,
-		double tolfx, double tolx)
+	// implementation of abstract method
+
+	public void optimize(MultivariateFunction f, double[] xvector, double tolfx, double tolx) {
+		optimize(f,xvector,tolfx,tolx,null);
+	}
+	public void optimize(MultivariateFunction f, double[] xvector, double tolfx, double tolx, MinimiserMonitor monitor)
 	{
 		t = tolx;
-		
+
 		fun = f;
 		x = xvector;
-		
-		checkBounds(x);
-		h = step;		
 
 		dim = fun.getNumArguments();;
+
+		checkBounds(x);
+		h = step;
 
 		d = new double[dim];
 		y = new double[dim];
@@ -111,7 +102,7 @@ public class ConjugateDirectionSearch extends MultivariateMinimum
 		q1 = new double[dim];
 		v = new double[dim][dim];
 		tflin = new double[dim];
-		
+
 		small = MachineAccuracy.EPSILON*MachineAccuracy.EPSILON;
 		vsmall = small*small;
 		large = 1.0/small;
@@ -120,9 +111,9 @@ public class ConjugateDirectionSearch extends MultivariateMinimum
 		nl = kt = 0;
 		numFun = 1;
 		fx = fun.evaluate(x);
-		
+
 		stopCondition(fx, x, tolfx, tolx, true);
-		
+
 		qf1 = fx;
 		t2 = small + Math.abs(t);
 		t = t2;
@@ -153,31 +144,31 @@ public class ConjugateDirectionSearch extends MultivariateMinimum
 			System.out.println("...   illc  ... " + illc);
 			System.out.println("... maxFun  ... " + maxFun);
 		}
-   		if (prin > 0)
-   			System.out.println();
+			if (prin > 0)
+				System.out.println();
 
 		while(true)
 		{
 			sf = d[0];
 			s = d[0] = 0.0;
-	
+
 			/* minimize along first direction */
-			
+
 			min1 = d[0];
 			min2 = s;
 			min(0, 2, fx, false);
 			d[0] = min1;
 			s = min2;
-			
+
 			if (s <= 0.0)
 				for (i = 0; i < dim; i++)
 				{
 					v[i][0] = -v[i][0];
-				}	
+				}
 			if ((sf <= (0.9 * d[0])) || ((0.9 * sf) >= d[0]))
 				for (i=1; i < dim; i++)
 					d[i] = 0.0;
-			
+
 			boolean gotoFret = false;
 			for (k=1; k < dim; k++)
 			{
@@ -191,16 +182,12 @@ public class ConjugateDirectionSearch extends MultivariateMinimum
 				boolean gotoNext;
 				do
 				{
-                    if( interrupt ) {
-                        return;
-                    }
-
 					kl = k;
 					df = 0.0;
 					if (illc)
 					{        /* random step to get off resolution valley */
-		          			for (i=0; i < dim; i++)
-		          			{
+										for (i=0; i < dim; i++)
+										{
 							z[i] = (0.1 * ldt + t2 * Math.pow(10.0,(double)kt)) * (rng.nextDouble() - 0.5);
 							s = z[i];
 							for (j=0; j < dim; j++)
@@ -208,38 +195,31 @@ public class ConjugateDirectionSearch extends MultivariateMinimum
 								x[j] += s * v[j][i];
 							}
 						}
-						
+
 						checkBounds(x);
 
 						fx = fun.evaluate(x);
 						numFun++;
-
-                        if( interrupt ) {
-                            return;
-                        }
-						
 					}
-		       
-					/* minimize along non-conjugate directions */ 
+
+					/* minimize along non-conjugate directions */
 					for (k2=k; k2 < dim; k2++)
-					{  
+					{
 						sl = fx;
 						s = 0.0;
-						
+
 						min1 = d[k2];
 						min2 = s;
 						min(k2, 2, fx, false);
-                        if(interrupt)
-                            return;
 						d[k2] = min1;
 						s = min2;
-						
+
 						if (illc)
 						{
 							double szk = s + z[k2];
-		         				s = d[k2] * szk*szk;
-			   			}
-						else 
+										s = d[k2] * szk*szk;
+							}
+						else
 							s = sl - fx;
 						if (df < s)
 						{
@@ -247,7 +227,7 @@ public class ConjugateDirectionSearch extends MultivariateMinimum
 							kl = k2;
 						}
 					}
-					
+
 					if (!illc && (df < Math.abs(100.0 * MachineAccuracy.EPSILON * fx)))
 					{
 						illc = true;
@@ -257,20 +237,18 @@ public class ConjugateDirectionSearch extends MultivariateMinimum
 						gotoNext = false;
 				} while (gotoNext);
 
-				
-				
-	 			if ((k == 1) && (prin > 1))
+
+
+				if ((k == 1) && (prin > 1))
 					vecprint("\n... New Direction ...", d);
-				/* minimize along conjugate directions */ 
+				/* minimize along conjugate directions */
 				for (k2=0; k2<=k-1; k2++)
 				{
 					s = 0.0;
-					
+
 					min1 = d[k2];
 					min2 = s;
 					min(k2, 2, fx, false);
-                    if(interrupt)
-                        return;
 					d[k2] = min1;
 					s = min2;
 				}
@@ -286,7 +264,7 @@ public class ConjugateDirectionSearch extends MultivariateMinimum
 					lds = lds + sl*sl;
 				}
 				checkBounds(x);
-				
+
 				lds = Math.sqrt(lds);
 				if (lds > small)
 				{
@@ -299,29 +277,30 @@ public class ConjugateDirectionSearch extends MultivariateMinimum
 					d[k] = 0.0;
 					for (i=0; i < dim; i++)
 						v[i][k] = y[i] / lds;
-					
+
 					min1 = d[k];
 					min2 = lds;
 					min(k, 4, f1, true);
-                    if(interrupt)
-                        return;
 					d[k] = min1;
 					lds = min2;
-					
+
 					if (lds <= 0.0)
 					{
 						lds = -lds;
 						for (i=0; i< dim; i++)
 							v[i][k] = -v[i][k];
 					}
-	 			}
+				}
 				ldt = ldfac * ldt;
 				if (ldt < lds)
 					ldt = lds;
 				if (prin > 1)
 					print();
-				
-				
+				if(monitor!=null) {
+
+					monitor.newMinimum(fx,x,f);
+				}
+
 				if(stopCondition(fx, x, tolfx, tolx, false))
 				{
 					kt++;
@@ -335,12 +314,12 @@ public class ConjugateDirectionSearch extends MultivariateMinimum
 					gotoFret = true;
 					break;
 				}
-				
+
 			}
-	   
-	   		if (gotoFret) break;
-	   
-   
+
+				if (gotoFret) break;
+
+
 			/*  try quadratic extrapolation in case    */
 			/*  we are stuck in a curved valley        */
 			quadr();
@@ -383,8 +362,8 @@ public class ConjugateDirectionSearch extends MultivariateMinimum
 						z[i] = scbd;
 					}
 				}
-	   		}
-	   		for (i=1; i < dim; i++)
+				}
+				for (i=1; i < dim; i++)
 				for (j=0; j<=i-1; j++)
 				{
 					s = v[i][j];
@@ -418,7 +397,7 @@ public class ConjugateDirectionSearch extends MultivariateMinimum
 					d[i] = vsmall;
 				else if ((dn * d[i]) < small)
 					d[i] = vlarge;
-				else 
+				else
 					d[i] = Math.pow(dn * d[i],-2.0);
 			}
 			sort();               /* the new eigenvalues and eigenvectors */
@@ -432,7 +411,7 @@ public class ConjugateDirectionSearch extends MultivariateMinimum
 				vecprint("\n... Eigenvalues of A ...",d);
 			if (prin > 2)
 				matprint("\n... Eigenvectors of A ...",v);
-		
+
 			if ((maxFun > 0) && (nl > maxFun))
 			{
 				if (prin > 0)
@@ -447,10 +426,10 @@ public class ConjugateDirectionSearch extends MultivariateMinimum
 			System.out.println("\n... Function value reduced to " + fx + " ...");
 			System.out.println("... after " + numFun + " function calls.");
 		}
-	   
+
 		//return (fx);
 	}
-                                                                	
+
 
 	//
 	// Private stuff
@@ -460,9 +439,9 @@ public class ConjugateDirectionSearch extends MultivariateMinimum
 	private int i, j, k, k2, nl, kl, kt;
 	private double s, sl, dn, dmin,
 		fx, f1, lds, ldt, sf, df,
-		qf1, qd0, qd1, qa, qb, qc, small, vsmall, large, 
+		qf1, qd0, qd1, qa, qb, qc, small, vsmall, large,
 		vlarge, ldfac, t2;
-		
+
 	// need to be initialised
 	private double[] d;
 	private double[] y;
@@ -473,7 +452,7 @@ public class ConjugateDirectionSearch extends MultivariateMinimum
 
 	private double[] tflin;
 
-	private int dim;	
+	private int dim;
 	private double[] x;
 	private MultivariateFunction fun;
 
@@ -484,7 +463,7 @@ public class ConjugateDirectionSearch extends MultivariateMinimum
 	private MersenneTwisterFast rng;
 
 	// sort d and v in descending order
-	private void sort()		
+	private void sort()
 	{
 		int k, i, j;
 		double s;
@@ -501,11 +480,11 @@ public class ConjugateDirectionSearch extends MultivariateMinimum
 				}
 			}
 			if (k > i)
-       			{
+						{
 				d[k] = d[i];
 				d[i] = s;
 				for (j=0; j < dim; j++)
-	  			{
+					{
 					s = v[j][i];
 					v[j][i] = v[j][k];
 					v[j][k] = s;
@@ -543,9 +522,21 @@ public class ConjugateDirectionSearch extends MultivariateMinimum
 			System.out.println();
 		}
 	}
-
-	private double flin(double l, int j)
+	// **********
+	// MG: I Changed this because sometimes l is NaN and that stuffs things over.
+	// Since I don't know why this happens I just hacked this in
+	/**
+	 * I've changed this so that if l is invalid then the original f value is returned
+	 * @param l
+	 * @param j
+	 * @param f the original f vlaue
+	 * @return
+	 */
+	private double flin(double l, int j, double f)
 	{
+		if(Double.isNaN(l)) {
+		  return f;
+		}
 		if (j != -1)
 		{ /* linear search */
 			for (int i = 0; i < dim; i++)
@@ -561,24 +552,29 @@ public class ConjugateDirectionSearch extends MultivariateMinimum
 				tflin[i] = qa*q0[i]+qb*x[i]+qc*q1[i];
 			}
 		}
-		
+
+
 		checkBounds(tflin);
-		
+
 		numFun++;
-		return fun.evaluate(tflin);
+		return fun.evaluate( tflin );
+
 	}
 
 	private void checkBounds(double[] p)
 	{
 		for (int i = 0; i < dim; i++)
 		{
-			if (p[i] < fun.getLowerBound(i))
-			{
-				p[i] = fun.getLowerBound(i);
+			final double v = p[i];
+
+		  final double lower = fun.getLowerBound(i);
+			final double upper = fun.getUpperBound(i);
+			if (v < lower)	{
+				p[i] = lower;
 			}
-			if (p[i] > fun.getUpperBound(i))
+			if (v > upper)
 			{
-				p[i] = fun.getUpperBound(i);
+				p[i] = upper;
 			}
 		}
 	}
@@ -629,9 +625,8 @@ public class ConjugateDirectionSearch extends MultivariateMinimum
 		if (!fk || Math.abs(min2) < t2)
 		{
 			min2 = (min2 > 0 ? t2 : -t2);
-            f1 = flin(min2, j);
-            if(interrupt)
-                return;           
+
+			f1 = flin( min2, j,f1 );
 		}
 		if (f1 <= fm)
 		{
@@ -645,10 +640,7 @@ public class ConjugateDirectionSearch extends MultivariateMinimum
 			if (dz)
 			{
 				x2 = (f0 < f1 ? -(min2) : 2*(min2));
-				f2 = flin(x2, j);
-                if(interrupt)
-                    return;
-
+				f2 = flin(x2, j,f1); //I used f1 because I can't use f2...
 				if (f2 <= fm)
 				{
 					xm = x2;
@@ -669,12 +661,10 @@ public class ConjugateDirectionSearch extends MultivariateMinimum
 			if (Math.abs(x2) > h)
 				x2 = (x2 > 0 ? h : -h);
 
-			f2 = flin(x2, j);
-            if(interrupt)
-                return;
-		
+			f2 = flin(x2, j,f1); //I used f1 because I can't use f2...
+
 			gotoNext = false;
-		
+
 			while ((k < nits) && (f2 > f0))
 			{
 				k++;
@@ -683,15 +673,13 @@ public class ConjugateDirectionSearch extends MultivariateMinimum
 					gotoNext = true;
 					break;
 				}
-				
-				
+
+
 				x2 *= 0.5;
-				f2 = flin(x2, j);
-                if(interrupt)
-                    return;
+				f2 = flin(x2, j,f2);
 			}
 		} while (gotoNext);
-		
+
 
 		nl++;
 		if (f2 > fm)
@@ -724,7 +712,7 @@ public class ConjugateDirectionSearch extends MultivariateMinimum
 	}
 
 	// Look for a minimum along the curve q0, q1, q2
-	private void quadr()	
+	private void quadr()
 	{
 		int i;
 		double l, s;
@@ -743,7 +731,7 @@ public class ConjugateDirectionSearch extends MultivariateMinimum
 			min(-1, 2, qf1, true);
 			s = min1;
 			l = min2;
-			
+
 			qa = l*(l-qd1)/(qd0*(qd0+qd1));
 			qb = (l+qd0)*(qd1-l)/(qd0*qd1);
 			qc = l*(l+qd0)/(qd1*(qd0+qd1));
@@ -758,7 +746,7 @@ public class ConjugateDirectionSearch extends MultivariateMinimum
 			s = q0[i]; q0[i] = x[i];
 			x[i] = qa*s + qb*x[i] + qc*q1[i];
 		}
-		
+
 		checkBounds(x);
 	}
 
@@ -785,7 +773,7 @@ public class ConjugateDirectionSearch extends MultivariateMinimum
 			else
 			{
 				f = ab[i][i];
-				if (f < 0.0) 
+				if (f < 0.0)
 					g = Math.sqrt(s);
 				else
 					g = -Math.sqrt(s);
@@ -809,16 +797,16 @@ public class ConjugateDirectionSearch extends MultivariateMinimum
 				g = 0.0;
 			}
 			else
-		    	{
+					{
 				f = ab[i][i+1];
 				if (f < 0.0)
 					g = Math.sqrt(s);
-				else 
+				else
 					g = - Math.sqrt(s);
 				h = f*g - s;
 				ab[i][i+1] = f - g;
 				for (j=l; j<n; j++)
-			    		e[j] = ab[i][j]/h;
+							e[j] = ab[i][j]/h;
 				for (j=l; j<n; j++)
 				{
 					s = 0;
@@ -838,10 +826,10 @@ public class ConjugateDirectionSearch extends MultivariateMinimum
 			if (g != 0.0)
 			{
 				h = ab[i][i+1]*g;
-		   		for (j=l; j<n; j++) ab[j][i] = ab[i][j] / h;
-		    		for (j=l; j<n; j++)
+					for (j=l; j<n; j++) ab[j][i] = ab[i][j] / h;
+						for (j=l; j<n; j++)
 				{
-			   		s = 0.0;
+						s = 0.0;
 					for (k=l; k<n; k++) s += ab[i][k] * ab[k][j];
 					for (k=l; k<n; k++) ab[k][j] += s * ab[k][i];
 				}
@@ -870,14 +858,14 @@ public class ConjugateDirectionSearch extends MultivariateMinimum
 						skipNext = true;
 						break;
 					}
-			    
+
 					if (Math.abs(q[l-1]) <= eps)
 						break;
 				}
-		
+
 				if (skipNext == false)
 				{
-			
+
 					c = 0.0; s = 1.0;
 					for (i=l; i<=k; i++)
 					{
@@ -889,7 +877,7 @@ public class ConjugateDirectionSearch extends MultivariateMinimum
 						{
 							double fg = f/g;
 							h = Math.abs(g)*Math.sqrt(1.0+fg*fg);
-					   	}
+							}
 						else
 						{
 							double gf = g/f;
@@ -903,15 +891,15 @@ public class ConjugateDirectionSearch extends MultivariateMinimum
 						c = g/h; s = -f/h;
 					}
 				}
-			
+
 				z = q[k];
 				if (l == k)
 				{
 					converged = true;
 					break;
 				}
-			
-			
+
+
 				/* shift from bottom 2x2 minor */
 				x = q[l]; y = q[k-l]; g = e[k-1]; h = e[k];
 				f = ((y-z)*(y+z) + (g-h)*(g+h)) / (2.0*h*y);
@@ -936,7 +924,7 @@ public class ConjugateDirectionSearch extends MultivariateMinimum
 						z = (f!=0.0 ? Math.abs(f)*Math.sqrt(1.0+hf*hf) : 0.0);
 					}
 					e[i-1] = z;
-					if (z == 0.0) 
+					if (z == 0.0)
 						f = z = 1.0;
 					c = f/z; s = h/z;
 					f = x*c + g*s; g = - x*s + g*c; h = y*s;
@@ -964,19 +952,18 @@ public class ConjugateDirectionSearch extends MultivariateMinimum
 					f = c*g + s*y; x = - s*g + c*y;
 				}
 				e[l] = 0.0; e[k] = f; q[k] = x;
-       
-       
+
+
 			} while (kt <= 30);
-       
+
 			if (!converged)
 			{
 				e[k] = 0.0;
-				// System.out.println("\n+++ qr failed\n");
-				// System.exit(1);
-				throw new OptimizationError("ConjugateDirectionSearch: +++ qr failed");
+				System.out.println("\n+++ qr failed\n");
+				System.exit(1);
 			}
 
- 
+
 			if (z < 0.0)
 			{
 				q[k] = - z;
@@ -984,5 +971,15 @@ public class ConjugateDirectionSearch extends MultivariateMinimum
 					ab[j][k] = - ab[j][k];
 			}
 		}
+	}
+
+	/**
+	 * Generate a MultivariateMinimum.Factory for a ConjugateDirectionSearch
+	 */
+	public static final Factory generateFactory() {	return SearchFactory.INSTANCE;	}
+	// ============ The Factory Class for Orthogonal Searches ===================
+	private static final class SearchFactory implements Factory {
+		private static final SearchFactory INSTANCE = new SearchFactory();
+		public MultivariateMinimum generateNewMinimiser() {		return new ConjugateDirectionSearch();	}
 	}
 }

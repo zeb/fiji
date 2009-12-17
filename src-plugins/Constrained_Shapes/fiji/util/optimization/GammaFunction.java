@@ -12,7 +12,7 @@ package fiji.util.optimization;
 /**
  * gamma function
  *
- * @version $Id: GammaFunction.java,v 1.1 2006/06/01 15:27:32 gene099 Exp $
+ * @version $Id: GammaFunction.java,v 1.2 2001/07/13 14:39:13 korbinian Exp $
  *
  * @author Korbinian Strimmer
  */
