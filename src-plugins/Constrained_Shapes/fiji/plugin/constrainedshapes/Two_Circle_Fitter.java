@@ -52,11 +52,11 @@ public class Two_Circle_Fitter implements PlugIn, ActionListener, MinimiserMonit
 		
 		canvas.removeMouseListener(canvas);
 		canvas.removeMouseMotionListener(canvas); // So as to avoid roi clashes
-		getImagePlus().saveRoi();
-		getImagePlus().setRoi(roi);
+		imp.saveRoi();
+		imp.setRoi(roi);
 
 		// Display dialog, and wait for user clicks
-		displayICWindow(getImagePlus());
+		displayICWindow(imp);
 
 		// Put the plugin to halt until the user presses the dialog's button
 		try {
@@ -99,7 +99,7 @@ public class Two_Circle_Fitter implements PlugIn, ActionListener, MinimiserMonit
 		TwoCircleRoi roi;
 		for (int i = start; i <= stop; i += step) {
 			getImagePlus().setSlice(i);
-			ip = getImagePlus().getImageStack().getProcessor(i);
+			ip = imp.getImageStack().getProcessor(i);
 			optimizer.setImageProcessor(ip);
 			optimizer.setShape(tcs);
 			optimizer.setFunction(getTargetFunction());
@@ -111,8 +111,8 @@ public class Two_Circle_Fitter implements PlugIn, ActionListener, MinimiserMonit
 
 			tcs = (TwoCircleShape) optimizer.optimize();
 			roi = new TwoCircleRoi(tcs);
-			getImagePlus().setRoi(roi);
-			getImagePlus().updateAndDraw();
+			imp.setRoi(roi);
+			imp.updateAndDraw();
 		}
 		return tcs;
 	}
@@ -143,7 +143,7 @@ public class Two_Circle_Fitter implements PlugIn, ActionListener, MinimiserMonit
 	 * PRIVATE METHODS
 	 */
 	
-	private synchronized void displayICWindow(final ImagePlus imp) {
+	private void displayICWindow(final ImagePlus imp) {
 		ImageWindow window = imp.getWindow();
 		final Rectangle r = window.getBounds();		 
 
@@ -166,7 +166,7 @@ public class Two_Circle_Fitter implements PlugIn, ActionListener, MinimiserMonit
 	 */
 
 	public synchronized void actionPerformed(ActionEvent e) {
-		this.notify(); // We simply wake the thread so that this plugin execution resumes.
+		this.notifyAll(); // We simply wake the thread so that this plugin execution resumes.
 	}
 	
 	/*
@@ -178,7 +178,6 @@ public class Two_Circle_Fitter implements PlugIn, ActionListener, MinimiserMonit
 		canvas.paint(graphics);
 		graphics.draw(current);
 	}
-
 
 	public void updateProgress(double progress) {	}
 
