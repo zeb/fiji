@@ -7,8 +7,8 @@ import java.awt.event.FocusEvent;
 import java.awt.event.FocusListener;
 import java.util.ArrayList;
 import java.util.EventObject;
-import fiji.plugin.constrainedshapes.Sampling2DShape.EvalFunction;
-import fiji.plugin.constrainedshapes.Sampling2DShapeFitter.Method;
+import fiji.plugin.constrainedshapes.GeomShape.EvalFunction;
+import fiji.plugin.constrainedshapes.GeomShapeFitter.Method;
 import ij.ImageListener;
 import ij.ImagePlus;
 
@@ -119,11 +119,11 @@ public class TCSDialog extends javax.swing.JDialog implements ImageListener, Act
 		return (ActionListener[]) action_listeners.toArray();
 	}
 	
-	public Sampling2DShape.EvalFunction getSelectedTargetFunction() {
+	public GeomShape.EvalFunction getSelectedTargetFunction() {
 		return (EvalFunction) jComboBoxTargetFunction.getSelectedItem();
 	}
 	
-	public Sampling2DShapeFitter.Method getSelectedMethod() {
+	public GeomShapeFitter.Method getSelectedMethod() {
 		return (Method) jComboBoxMethod.getSelectedItem();
 	}
 	
@@ -307,12 +307,12 @@ public class TCSDialog extends javax.swing.JDialog implements ImageListener, Act
 				jLabelOptimizer.setBounds(96, 126, 47, 16);
 			}
 			{
-				jComboBoxTargetFunction = new JComboBox(Sampling2DShape.EvalFunction.values());
+				jComboBoxTargetFunction = new JComboBox(GeomShape.EvalFunction.values());
 				getContentPane().add(jComboBoxTargetFunction);
 				jComboBoxTargetFunction.setBounds(173, 92, 189, 27);
 			}
 			{
-				jComboBoxMethod = new JComboBox(Sampling2DShapeFitter.Method.values());
+				jComboBoxMethod = new JComboBox(GeomShapeFitter.Method.values());
 				getContentPane().add(jComboBoxMethod);
 				jComboBoxMethod.setBounds(173, 122, 189, 27);
 			}

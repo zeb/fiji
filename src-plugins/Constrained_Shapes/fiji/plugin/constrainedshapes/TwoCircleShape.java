@@ -17,7 +17,7 @@ import java.awt.geom.Rectangle2D;
 import javax.swing.JFrame;
 import javax.swing.WindowConstants;
 
-public class TwoCircleShape extends Sampling2DShape   {
+public class TwoCircleShape extends GeomShape   {
 
 
 	/** Enum that describes the instance two circles arrangement. Useful for drawing.	 */

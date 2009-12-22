@@ -1,7 +1,7 @@
 package fiji.plugin.constrainedshapes;
 
-import fiji.plugin.constrainedshapes.Sampling2DShape.EvalFunction;
-import fiji.plugin.constrainedshapes.Sampling2DShapeFitter.Method;
+import fiji.plugin.constrainedshapes.GeomShape.EvalFunction;
+import fiji.plugin.constrainedshapes.GeomShapeFitter.Method;
 import fiji.util.optimization.MinimiserMonitor;
 import fiji.util.optimization.MultivariateFunction;
 import ij.IJ;
@@ -25,8 +25,8 @@ public class Two_Circle_Fitter implements PlugIn, ActionListener, MinimiserMonit
 	 */
 	
 	private TCSDialog dialog;
-	private Sampling2DShape.EvalFunction target_function = EvalFunction.MEAN;
-	private Sampling2DShapeFitter.Method method = Method.CONJUGATE_DIRECTION_SEARCH;
+	private GeomShape.EvalFunction target_function = EvalFunction.MEAN;
+	private GeomShapeFitter.Method method = Method.CONJUGATE_DIRECTION_SEARCH;
 	private int[] slice_parameters = new int[] {1, 1, 1};
 	private ImagePlus imp;
 	private ImageCanvas canvas;
@@ -95,7 +95,7 @@ public class Two_Circle_Fitter implements PlugIn, ActionListener, MinimiserMonit
 		final int step  = getSliceParameters()[2];
 		
 		ImageProcessor ip = null;
-		Sampling2DShapeFitter optimizer = new Sampling2DShapeFitter(tcs, ip);
+		GeomShapeFitter optimizer = new GeomShapeFitter(tcs, ip);
 		TwoCircleRoi roi;
 		for (int i = start; i <= stop; i += step) {
 			getImagePlus().setSlice(i);
@@ -129,8 +129,8 @@ public class Two_Circle_Fitter implements PlugIn, ActionListener, MinimiserMonit
 		
 		Two_Circle_Fitter instance = new Two_Circle_Fitter();
 		instance.setImagePlus(imp);
-		instance.setMethod(Sampling2DShapeFitter.Method.CONJUGATE_DIRECTION_SEARCH);
-		instance.setTargetFunction(Sampling2DShape.EvalFunction.MEAN);
+		instance.setMethod(GeomShapeFitter.Method.CONJUGATE_DIRECTION_SEARCH);
+		instance.setTargetFunction(GeomShape.EvalFunction.MEAN);
 				
 		TwoCircleShape start_point = new TwoCircleShape(207.6, 210.0, 90.0, 328.4, 320.0, 60.0);
 		System.out.println("Fitting from "+start_point);
@@ -187,10 +187,10 @@ public class Two_Circle_Fitter implements PlugIn, ActionListener, MinimiserMonit
 	 */
 
 
-	public void setMethod(Sampling2DShapeFitter.Method method) {		this.method = method;	}
-	public Sampling2DShapeFitter.Method getMethod() {		return method;	}
-	public void setTargetFunction(Sampling2DShape.EvalFunction target_function) {		this.target_function = target_function;	}
-	public Sampling2DShape.EvalFunction getTargetFunction() {		return target_function;	}
+	public void setMethod(GeomShapeFitter.Method method) {		this.method = method;	}
+	public GeomShapeFitter.Method getMethod() {		return method;	}
+	public void setTargetFunction(GeomShape.EvalFunction target_function) {		this.target_function = target_function;	}
+	public GeomShape.EvalFunction getTargetFunction() {		return target_function;	}
 	public void setSliceParameters(int[] slice_parameters) {		this.slice_parameters = slice_parameters;	}
 	public int[] getSliceParameters() {		return slice_parameters;	}
 	public ImagePlus getImagePlus() {		return imp;	}

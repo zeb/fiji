@@ -13,7 +13,7 @@ import ij.process.ImageProcessor;
  * @author Jean-Yves Tinevez - Dec 2009
  *
  */
-public abstract class Sampling2DShape implements Shape, Cloneable {
+public abstract class GeomShape implements Shape, Cloneable {
 
 	/*
 	 * INNER CLASSES & ENUMS
@@ -63,7 +63,7 @@ public abstract class Sampling2DShape implements Shape, Cloneable {
 
 	/**
 	 * Return the number of parameters needed to entirely specify this shape. This 
-	 * will be used e.g. by {@link Sampling2DShapeFitter} to adapt prepare the 
+	 * will be used e.g. by {@link GeomShapeFitter} to adapt prepare the 
 	 * optimizer for the fit.
 	 * @see {@link #getParameters()}, {@link #setParameters(double[])}
 	 */
@@ -81,7 +81,7 @@ public abstract class Sampling2DShape implements Shape, Cloneable {
 	 */
 	public abstract void setParameters(double[] params);
 	
-	public abstract Sampling2DShape clone();
+	public abstract GeomShape clone();
 	
 	/*
 	 * PUBLIC METHODS

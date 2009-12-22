@@ -7,7 +7,7 @@ public class SamplingPathIterator implements PathIterator {
 	/*
 	 * FIELDS 
 	 */
-	Sampling2DShape shape;
+	GeomShape shape;
 	double[] x;
 	double[] y;
 	int current_index, n_points;
@@ -16,7 +16,7 @@ public class SamplingPathIterator implements PathIterator {
 	 * CONSTRUCTORS
 	 */
 	
-	public SamplingPathIterator(Sampling2DShape _shape, int n) {
+	public SamplingPathIterator(GeomShape _shape, int n) {
 		this.shape = _shape;
 		this.n_points = n;
 		double[][] xy = shape.sample(n);

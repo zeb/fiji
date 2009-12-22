@@ -8,7 +8,7 @@ import fiji.util.optimization.MultivariateFunction;
 import fiji.util.optimization.MultivariateMinimum;
 import fiji.util.optimization.OrthogonalHints;
 
-public class Sampling2DShapeFitter implements MultivariateFunction {
+public class GeomShapeFitter implements MultivariateFunction {
 
 	
 	/*
@@ -19,7 +19,7 @@ public class Sampling2DShapeFitter implements MultivariateFunction {
 		CONJUGATE_DIRECTION_SEARCH,
 		CONJUGATE_GRADIENT_SEARCH;
 		
-		public MultivariateMinimum instantiate(final Sampling2DShape shape) {
+		public MultivariateMinimum instantiate(final GeomShape shape) {
 			MultivariateMinimum optimizer = null;
 			switch (this) {
 			case CONJUGATE_DIRECTION_SEARCH:
@@ -37,9 +37,9 @@ public class Sampling2DShapeFitter implements MultivariateFunction {
 	 * FIELDS
 	 */
 	
-	private Sampling2DShape shape; // Can't default.
+	private GeomShape shape; // Can't default.
 	private ImageProcessor ip; // Can't default.
-	private Sampling2DShape.EvalFunction function = Sampling2DShape.EvalFunction.MEAN; 
+	private GeomShape.EvalFunction function = GeomShape.EvalFunction.MEAN; 
 	private int n_points = 500; // Default value
 	private MinimiserMonitor monitor = null;
 	
@@ -52,7 +52,7 @@ public class Sampling2DShapeFitter implements MultivariateFunction {
 	 * CONSTRUCTOR
 	 */
 	
-	public Sampling2DShapeFitter(Sampling2DShape _shape, ImageProcessor _ip) {
+	public GeomShapeFitter(GeomShape _shape, ImageProcessor _ip) {
 		this.shape = _shape;
 		this.ip = _ip;
 		lower_bounds = new double[shape.getNumParameters()];
@@ -68,13 +68,13 @@ public class Sampling2DShapeFitter implements MultivariateFunction {
 	 * PUBLIC METHOD
 	 */
 	
-	public Sampling2DShape optimize() {
+	public GeomShape optimize() {
 		MultivariateMinimum optimizer = method.instantiate(shape);
 		double[] xvec = shape.getParameters().clone();
 		
 		optimizer.findMinimum(this, xvec, 0, 0, monitor);
 		
-		Sampling2DShape minimum = shape.clone();
+		GeomShape minimum = shape.clone();
 		minimum.setParameters(xvec);
 		return minimum;
 	}
@@ -121,10 +121,10 @@ public class Sampling2DShapeFitter implements MultivariateFunction {
 	 * GETTERS AND SETTERS
 	 */
 
-	public Sampling2DShape getShape() {	return shape;	}
-	public void setShape(Sampling2DShape shape) {	this.shape = shape; }
-	public Sampling2DShape.EvalFunction getFunction() {		return function;	}
-	public void setFunction(Sampling2DShape.EvalFunction function) {		this.function = function;	}
+	public GeomShape getShape() {	return shape;	}
+	public void setShape(GeomShape shape) {	this.shape = shape; }
+	public GeomShape.EvalFunction getFunction() {		return function;	}
+	public void setFunction(GeomShape.EvalFunction function) {		this.function = function;	}
 	public int getNPoints() {		return n_points; 	}
 	public void setNPoints(int nPoints) {		n_points = nPoints; 	}
 	public ImageProcessor getImageProcessor() { 		return ip; 	}
