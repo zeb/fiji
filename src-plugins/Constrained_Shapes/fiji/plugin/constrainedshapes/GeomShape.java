@@ -70,24 +70,51 @@ public abstract class GeomShape implements Shape, Cloneable {
 	public abstract int getNumParameters();
 	
 	/**
-	 * Return the parameters that specify entirely this shape as a souble array.
+	 * Return a reference to the parameters that specify entirely this shape as a double array.
+	 * <p>
+	 * By contract, this array is sufficient to determine entirely the shape, and modifying
+	 * it, even through a reference, must modify the shape.
+	 * 
 	 * @see {@link #getNumParameters()}, {@link #setParameters(double[])}
 	 */
 	public abstract double[] getParameters();
 
 	/**
-	 * Specify the parameter needed to describe entirely this shape.
+	 * Specify the parameters needed to describe entirely this shape.
+	 * <p>
+	 * By contract, this method must internally <strong>replace</strong>
+	 * the array describing the shape by the new one given in argument. 
+	 * Previous references to the parameter
+	 * array would then be invalidated by calling this method.
 	 * @see {@link #getParameters()}, {@link #getNumParameters()}
 	 */
 	public abstract void setParameters(double[] params);
 	
+	/**
+	 * Return a copy of this shape. The copy will be made by instantiating a new object, and
+	 * setting its parameter array to be a copy that of this object. 
+	 */
 	public abstract GeomShape clone();
 	
 	/*
 	 * PUBLIC METHODS
 	 */
 	
-	// SHOULD IT BE A TWOCIRCLEROI METHOD? TODO
+	/**
+	 * Compute an evaluation of this shape on the given {@link ImageProcessor}, using 
+	 * the evaluating function {@link EvalFunction}.
+	 * <p>
+	 * This shape is first sampled over <code>n_points</code> using the concrete method 
+	 * {@link #sample(int)}. This method returns a list of pixel coordinates that define a sampling 
+	 * of this geometrical shape over <code>n_points</code>.
+	 * Pixel values for these coordinates are then retrieved, and a value is computed through the 
+	 * {@link EvalFunction} <code>function</code>, and returned by this method.
+	 * 
+	 *  @param ip  The {@link ImageProcessor} to evaluate this shape on
+	 *  @param function  The {@link EvalFunction} that will give a value from a pixel list
+	 *  @param n_points  The number of points to sample this shape on
+	 *  @return  The calculated value
+	 */
 	public float eval(final ImageProcessor ip, final EvalFunction function, final int n_points) {
 		final float[][] pixels_as_float = ip.getFloatArray();
 		final int width = pixels_as_float.length;

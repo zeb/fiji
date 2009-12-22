@@ -28,10 +28,18 @@ public class TwoCircleShape extends GeomShape   {
 	 */
 	
 	/**
-	 * Circle 1 & 2 coordinates and radius. We store them as array to be able to deal with 
-	 * multiple shapes.
+	 * Parameter array for this shape. As specified in the mother abstract class {@link GeomShape},
+	 * we store them as a double array of 6 elements. Array content is the following:
+	 * <ul>
+	 * 	<li> [0]: <code>xc1</code>, the x coordinate of circle 1 center
+	 * 	<li> [1]: <code>yc1</code>, the y coordinate of circle 1 center
+	 * 	<li> [2]: <code>r1</code>, the radius of circle 1
+	 * 	<li> [3]: <code>xc2</code>, the x coordinate of circle 2 center
+	 * 	<li> [4]: <code>yc2</code>, the y coordinate of circle 2 center
+	 * 	<li> [5]: <code>r2</code>, the radius of circle 2
+	 * </ul>
 	 */
-	public double xc1, yc1, r1, xc2, yc2, r2;
+	private double[] params = new double[6];;
 	
 	/*
 	 * CONSTRUCTORS
@@ -42,12 +50,12 @@ public class TwoCircleShape extends GeomShape   {
 	}
 	
 	public TwoCircleShape(double _xc1, double _yc1, double _r1, double _xc2, double _yc2, double _r2) {
-		xc1 = _xc1;
-		yc1 = _yc1;
-		r1 = _r1;
-		xc2 = _xc2;
-		yc2 = _yc2;
-		r2 = _r2;
+		params[0] 	= _xc1;
+		params[1]	= _yc1;
+		params[2]	= _r1;
+		params[3]	= _xc2;
+		params[4]	= _yc2;
+		params[5]	= _r2;
 	}
 	
 	/*
@@ -59,30 +67,24 @@ public class TwoCircleShape extends GeomShape   {
 		return 6;
 	}
 	
-	public double[] getParameters() {
-		double[] arr = new double[6];
-		arr[0] = xc1;
-		arr[1] = yc1;
-		arr[2] = r1;
-		arr[3] = xc2;
-		arr[4] = yc2;
-		arr[5] = r2;
-		return arr;
+	public double[] getParameters() {		
+		return params;
 	}
 	
-	public void setParameters(double[] arr) {
-		this.xc1 = arr[0];
-		this.yc1 = arr[1];
-		this.r1 = arr[2];
-		this.xc2 = arr[3];
-		this.yc2 = arr[4];
-		this.r2 = arr[5];
+	public void setParameters(double[] arr) {		
+		this.params = arr;
 	}
 	
 	/**
 	 * Return the perimeter of this shape.
 	 */
 	public double getPerimeter() {
+		final double xc1 = params[0];
+		final double yc1 = params[1];
+		final double r1  = params[2];
+		final double xc2 = params[3];
+		final double yc2 = params[4];
+		final double r2  = params[5];
 		double l = Double.NaN;
 		final double a = Math.sqrt((xc2-xc1)*(xc2-xc1) + (yc2-yc1)*(yc2-yc1)); // distance C1 to C2
 		final boolean separated_circles = a > r1+r2; // true if the two circles do not intersect, resulting in having 2 separated circles 
@@ -105,8 +107,15 @@ public class TwoCircleShape extends GeomShape   {
 	}
 	
 	public double[][] sample(final int n_points) {
-		double[] x = new double[n_points];
-		double[] y = new double[n_points];
+		final double xc1 = params[0];
+		final double yc1 = params[1];
+		final double r1  = params[2];
+		final double xc2 = params[3];
+		final double yc2 = params[4];
+		final double r2  = params[5];
+		
+		final double[] x = new double[n_points];
+		final double[] y = new double[n_points];
 		
 		final double phi = Math.atan2(yc2-yc1, xc2-xc1); // angle of C1C2 with x axis
 		final double a = Math.sqrt((xc2-xc1)*(xc2-xc1) + (yc2-yc1)*(yc2-yc1)); // distance C1 to C2
@@ -171,6 +180,13 @@ public class TwoCircleShape extends GeomShape   {
 	}
 
 	public Arrangement getArrangement() {
+		final double xc1 = params[0];
+		final double yc1 = params[1];
+		final double r1  = params[2];
+		final double xc2 = params[3];
+		final double yc2 = params[4];
+		final double r2  = params[5];
+		
 		final double a = Math.sqrt((xc2-xc1)*(xc2-xc1) + (yc2-yc1)*(yc2-yc1)); // distance C1 to C2
 		final boolean separated_circles = a > r1+r2; // true if the two circles do not intersect, resulting in having 2 separated circles 
 		final boolean circle_1_swallowed = r2 > r1 + a; // true if circle 1 is totally within circle 2, resulting in having only 1 circle
@@ -188,11 +204,11 @@ public class TwoCircleShape extends GeomShape   {
 	}
 	
 	public Point2D getC1() {
-		return new Point2D.Double(xc1, yc1);
+		return new Point2D.Double(params[0], params[1]);
 	}
 
 	public Point2D getC2() {
-		return new Point2D.Double(xc2, yc2);
+		return new Point2D.Double(params[4], params[5]);
 	}
 	
 	public TwoCircleShape clone() {
@@ -203,7 +219,7 @@ public class TwoCircleShape extends GeomShape   {
 	
 	public String toString() {
 		return String.format("TwoCircleShape: xc1=%5.1f, yc1=%5.1f, r1=%5.1f, xc2=%5.1f, yc2=%5.1f, r2=%5.1f - %s", 
-				xc1, yc1, r1, xc2, yc2, r2, getArrangement());
+				params[0], params[1], params[2], params[3], params[4], params[5], getArrangement());
 	}
 	
 	/*
@@ -218,6 +234,13 @@ public class TwoCircleShape extends GeomShape   {
 	 * @see {@link #contains(Point2D)}, 
 	 */
 	private GeneralPath getPath() {
+		final double xc1 = params[0];
+		final double yc1 = params[1];
+		final double r1  = params[2];
+		final double xc2 = params[3];
+		final double yc2 = params[4];
+		final double r2  = params[5];
+		
 		final double xb1 = xc1 - r1;
 		final double yb1 = yc1 - r1;		
 		final double xb2 = xc2 - r2;

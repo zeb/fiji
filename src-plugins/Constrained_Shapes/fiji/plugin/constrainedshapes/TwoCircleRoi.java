@@ -216,12 +216,7 @@ public class TwoCircleRoi extends ShapeRoi implements MouseListener, MouseMotion
 			xMax = imp.getWidth();
 			yMax = imp.getHeight();
 			ic.addMouseMotionListener(this);
-			ic.addMouseListener(this);
-			/* WARNING! Here we un-register the ImageCanvas from itself, so that it does not handle clicks. 
-			 * This is far from perfect, but is a simple way not to have to create a toolbar tool for
-			 * this ROI kind. DEBUG TODO */
-//			ic.removeMouseListener(ic);
-//			ic.removeMouseMotionListener(ic);			
+			ic.addMouseListener(this);		
 		}
 	}
 	
@@ -260,13 +255,13 @@ public class TwoCircleRoi extends ShapeRoi implements MouseListener, MouseMotion
 	private void prepareHandles() {	
 		handles = new ArrayList<Handle>(4); // there will be at least 4 of them
 		// Prepare handles
-		final double xc1 = tcs.xc1;
-		final double xc2 = tcs.xc2;
-		final double yc1 = tcs.yc1;
-		final double yc2 = tcs.yc2;
-		final double r1 = tcs.r1 ;
-		final double r2 = tcs.r2 ;
-		final double a = Math.sqrt((xc2-xc1)*(xc2-xc1) + (yc2-yc1)*(yc2-yc1)); // distance C1 to C2
+		final double[] params = tcs.getParameters();
+		final double xc1 = params[0];
+		final double yc1 = params[1];
+		final double r1  = params[2];
+		final double xc2 = params[3];
+		final double yc2 = params[4];
+		final double r2  = params[5];		final double a = Math.sqrt((xc2-xc1)*(xc2-xc1) + (yc2-yc1)*(yc2-yc1)); // distance C1 to C2
 		final double lx1 = ( a*a - r2*r2 + r1*r1 ) / (2*a); // distance C1 to cap
 		final double lx2 = ( a*a + r2*r2 - r1*r1 ) / (2*a); // distance C2 to cap
 		// Center handles
@@ -418,29 +413,30 @@ public class TwoCircleRoi extends ShapeRoi implements MouseListener, MouseMotion
 		refreshAffineTransform();
 		Point p = e.getPoint();
 		Point2D c = new Point2D.Float();
+		final double[] params = tcs.getParameters();
 		
 		switch (status) {
 		case MOVING_ROI:
-			tcs.xc1 += (p.x-start_drag.x)/canvas_affine_transform.getScaleX();
-			tcs.xc2 += (p.x-start_drag.x)/canvas_affine_transform.getScaleX();
-			tcs.yc1 += (p.y-start_drag.y)/canvas_affine_transform.getScaleY();
-			tcs.yc2 += (p.y-start_drag.y)/canvas_affine_transform.getScaleX();
+			params[0] += (p.x-start_drag.x)/canvas_affine_transform.getScaleX();
+			params[3] += (p.x-start_drag.x)/canvas_affine_transform.getScaleX();
+			params[1] += (p.y-start_drag.y)/canvas_affine_transform.getScaleY();
+			params[4] += (p.y-start_drag.y)/canvas_affine_transform.getScaleX();
 			break;
 		case MOVING_C1:
-			tcs.xc1 += (p.x-start_drag.x)/canvas_affine_transform.getScaleX();
-			tcs.yc1 += (p.y-start_drag.y)/canvas_affine_transform.getScaleY();
+			params[0] += (p.x-start_drag.x)/canvas_affine_transform.getScaleX();
+			params[1] += (p.y-start_drag.y)/canvas_affine_transform.getScaleY();
 			break;
 		case MOVING_C2:
-			tcs.xc2 += (p.x-start_drag.x)/canvas_affine_transform.getScaleX();
-			tcs.yc2 += (p.y-start_drag.y)/canvas_affine_transform.getScaleY();
+			params[3] += (p.x-start_drag.x)/canvas_affine_transform.getScaleX();
+			params[4] += (p.y-start_drag.y)/canvas_affine_transform.getScaleY();
 			break;
 		case RESIZING_C1:
 			canvas_affine_transform.transform(tcs.getC1(), c);
-			tcs.r1 = (float) (c.distance(p)/canvas_affine_transform.getScaleX());			
+			params[2] = c.distance(p)/canvas_affine_transform.getScaleX();			
 			break;
 		case RESIZING_C2:
 			canvas_affine_transform.transform(tcs.getC2(), c);
-			tcs.r2 = (float) (c.distance(p)/canvas_affine_transform.getScaleX());			
+			params[5] = c.distance(p)/canvas_affine_transform.getScaleX();			
 			break;
 		}
 		start_drag = p;

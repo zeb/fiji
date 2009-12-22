@@ -78,14 +78,11 @@ public class Two_Circle_Fitter implements PlugIn, ActionListener, MinimiserMonit
 		
 		// Close dialog
 		dialog.dispose();
-		getImagePlus().restoreRoi();
 		
 		// Start calculation
 		IJ.showStatus("Executing fit...");
 		exec(tcs, true);
 		IJ.showStatus("Fitting done.");
-		
-
 	}
 
 	
@@ -98,7 +95,6 @@ public class Two_Circle_Fitter implements PlugIn, ActionListener, MinimiserMonit
 		GeomShapeFitter optimizer = new GeomShapeFitter();
 		optimizer.setFunction(target_function);
 		optimizer.setMethod(method);
-		TwoCircleRoi roi;
 		for (int i = start; i <= stop; i += step) {
 			imp.setSlice(i);
 			ip = imp.getImageStack().getProcessor(i);
@@ -108,12 +104,12 @@ public class Two_Circle_Fitter implements PlugIn, ActionListener, MinimiserMonit
 				graphics.setColor(Color.BLUE);
 				optimizer.setMonitor(this);
 			}
-
 			optimizer.optimize();
-			roi = new TwoCircleRoi(tcs);
-			imp.setRoi(roi);
 			imp.updateAndDraw();
 		}
+		TwoCircleRoi roi;
+		roi = new TwoCircleRoi(tcs);
+		imp.setRoi(roi);  // If we set it now, the optimization process will change the ROI during processing
 		return tcs;
 	}
 
@@ -134,7 +130,7 @@ public class Two_Circle_Fitter implements PlugIn, ActionListener, MinimiserMonit
 				
 		TwoCircleShape start_point = new TwoCircleShape(207.6, 210.0, 90.0, 328.4, 320.0, 60.0);
 		System.out.println("Fitting from "+start_point);
-		TwoCircleShape tcs = instance.exec(start_point, true);
+		TwoCircleShape tcs = instance.exec(start_point, false);
 		System.out.println("Fitting done: "+tcs);
 		
 	}
@@ -143,6 +139,9 @@ public class Two_Circle_Fitter implements PlugIn, ActionListener, MinimiserMonit
 	 * PRIVATE METHODS
 	 */
 	
+	/**
+	 * Display the user interface dialog.
+	 */
 	private void displayICWindow(final ImagePlus imp) {
 		ImageWindow window = imp.getWindow();
 		final Rectangle r = window.getBounds();		 
@@ -186,14 +185,13 @@ public class Two_Circle_Fitter implements PlugIn, ActionListener, MinimiserMonit
 	 * SETTERS AND GETTERS
 	 */
 
-
-	public void setMethod(GeomShapeFitter.Method method) {		this.method = method;	}
-	public GeomShapeFitter.Method getMethod() {		return method;	}
-	public void setTargetFunction(GeomShape.EvalFunction target_function) {		this.target_function = target_function;	}
-	public GeomShape.EvalFunction getTargetFunction() {		return target_function;	}
-	public void setSliceParameters(int[] slice_parameters) {		this.slice_parameters = slice_parameters;	}
-	public int[] getSliceParameters() {		return slice_parameters;	}
-	public ImagePlus getImagePlus() {		return imp;	}
+	public void setMethod(GeomShapeFitter.Method method) { this.method = method; }
+	public GeomShapeFitter.Method getMethod() {	return method; }
+	public void setTargetFunction(GeomShape.EvalFunction target_function) {	this.target_function = target_function; }
+	public GeomShape.EvalFunction getTargetFunction() { return target_function;	}
+	public void setSliceParameters(int[] slice_parameters) { this.slice_parameters = slice_parameters; }
+	public int[] getSliceParameters() { return slice_parameters; }
+	public ImagePlus getImagePlus() { return imp; }
 	
 	public void setImagePlus(ImagePlus imp) {		
 		this.imp = imp;	
