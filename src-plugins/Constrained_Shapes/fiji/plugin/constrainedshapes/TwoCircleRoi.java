@@ -221,7 +221,17 @@ public class TwoCircleRoi extends ShapeRoi implements MouseListener, MouseMotion
 	}
 	
 	public String getToolIcon() {
-		return "C000D38D39D3dD53D62D63D7dD8cD9cDc2Dc3Dc9DcaDd3Dd9C000D29D2aD2cD2dD37D3aD3cD3eD43D44D45D47D48D4dD4eD54D55D61D6dD6eD71D72D7cD7eD81D82D8dD9bDa1Da2DaaDabDb1Db2DbaDbbDc1DcbDd4Dd5Dd7Dd8De3De4De5De7De8De9C000C111C222C333C444D1aD1bD1cD28D2bD2eD35D36D3bD46D49D4fD52D56D57D5dD5eD5fD6fD80D8bD8eD90D91D92D9aDa0DacDd2Dd6DdaDe6Df5Df6Df7C444C555C666C777C888D19D1dD34D3fD42D51D58D64D70D73D7bD7fD8aD9dDb0Db3Db9DbcDc4Dc8Dd1DdbDe2DeaDf4Df8C888C999CaaaCbbbD18D1eD27D2fD33D41D4aD4cD59D60D65D6cD7aD83D8fD9eDa3Da9Dc0Dc5Dc7DccDe1DebDf3Df9CbbbCcccCdddCeeeCfff";
+		return "C000D38D39D3dD53D62D63D7dD8cD9cDc2Dc3Dc9DcaDd3Dd9" +
+				"C000D29D2aD2cD2dD37D3aD3cD3eD43D44D45D47D48D4dD4e" +
+				"D54D55D61D6dD6eD71D72D7cD7eD81D82D8dD9bDa1Da2Daa" +
+				"DabDb1Db2DbaDbbDc1DcbDd4Dd5Dd7Dd8De3De4De5De7De8De9" +
+				"C000C111C222C333C444D1aD1bD1cD28D2bD2eD35D36D3bD46" +
+				"D49D4fD52D56D57D5dD5eD5fD6fD80D8bD8eD90D91D92D9aDa0" +
+				"DacDd2Dd6DdaDe6Df5Df6Df7C444C555C666C777C888D19D1dD34" +
+				"D3fD42D51D58D64D70D73D7bD7fD8aD9dDb0Db3Db9DbcDc4Dc8Dd1" +
+				"DdbDe2DeaDf4Df8C888C999CaaaCbbbD18D1eD27D2fD33D41D4aD4c" +
+				"D59D60D65D6cD7aD83D8fD9eDa3Da9Dc0Dc5Dc7DccDe1DebDf3Df9" +
+				"CbbbCcccCdddCeeeCfff";
 	}
 	
 	public GeomShape getSampling2DShape() {
@@ -261,7 +271,12 @@ public class TwoCircleRoi extends ShapeRoi implements MouseListener, MouseMotion
 		final double r1  = params[2];
 		final double xc2 = params[3];
 		final double yc2 = params[4];
-		final double r2  = params[5];		final double a = Math.sqrt((xc2-xc1)*(xc2-xc1) + (yc2-yc1)*(yc2-yc1)); // distance C1 to C2
+		final double r2  = params[5];
+		
+		final double dx = xc2 - xc1;
+		final double dy = yc2 - yc1;
+		
+		final double a = Math.sqrt(dx*dx + dy*dy); // distance C1 to C2
 		final double lx1 = ( a*a - r2*r2 + r1*r1 ) / (2*a); // distance C1 to cap
 		final double lx2 = ( a*a + r2*r2 - r1*r1 ) / (2*a); // distance C2 to cap
 		// Center handles
@@ -270,11 +285,11 @@ public class TwoCircleRoi extends ShapeRoi implements MouseListener, MouseMotion
 		handles.add(hc1);
 		handles.add(hc2);
 		// The following handles depend on tcs arrangement
-		final double phi = Math.atan2(yc2-yc1, xc2-xc1);
-		final float dxt1 = (float) (r1 * Math.sin(phi));
-		final float dyt1 = (float) (r1 * Math.cos(phi));
-		final float dxt2 = (float) (r2 * Math.sin(phi));
-		final float dyt2 = (float) (r2 * Math.cos(phi));
+		final double phi = Math.atan2(dy, dx);
+		final double dxt1 = r1 * Math.sin(phi);
+		final double dyt1 = r1 * Math.cos(phi);
+		final double dxt2 = r2 * Math.sin(phi);
+		final double dyt2 = r2 * Math.cos(phi);
 		TwoCircleShape.Arrangement arrangement = tcs.getArrangement();
 		switch (arrangement) {
 		case INTERSECTING:
@@ -353,11 +368,11 @@ public class TwoCircleRoi extends ShapeRoi implements MouseListener, MouseMotion
 	 * the handles correctly with respect to the canvas zoom level.
 	 */
 	private synchronized void drawHandles(Graphics g) {
-		double size = (tcs.getBounds().width * tcs.getBounds().height)*mag;
+		double size = Math.min(tcs.getParameters()[2],tcs.getParameters()[5]) * mag;
 		int handle_size;
-		if (size>600.0) {
+		if (size>10) {
 			handle_size = 8;
-		} else if (size>150.0) {
+		} else if (size>5) {
 			handle_size = 6;
 		} else {			
 			handle_size = 4;
@@ -420,7 +435,7 @@ public class TwoCircleRoi extends ShapeRoi implements MouseListener, MouseMotion
 			params[0] += (p.x-start_drag.x)/canvas_affine_transform.getScaleX();
 			params[3] += (p.x-start_drag.x)/canvas_affine_transform.getScaleX();
 			params[1] += (p.y-start_drag.y)/canvas_affine_transform.getScaleY();
-			params[4] += (p.y-start_drag.y)/canvas_affine_transform.getScaleX();
+			params[4] += (p.y-start_drag.y)/canvas_affine_transform.getScaleY();
 			break;
 		case MOVING_C1:
 			params[0] += (p.x-start_drag.x)/canvas_affine_transform.getScaleX();
