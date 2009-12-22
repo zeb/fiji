@@ -7,12 +7,13 @@ import java.awt.event.FocusEvent;
 import java.awt.event.FocusListener;
 import java.util.ArrayList;
 import java.util.EventObject;
-import fiji.plugin.constrainedshapes.GeomShape.EvalFunction;
-import fiji.plugin.constrainedshapes.GeomShapeFitter.Method;
+import static fiji.plugin.constrainedshapes.GeomShape.EvalFunction;
+import static fiji.plugin.constrainedshapes.GeomShapeFitter.Method;
 import ij.ImageListener;
 import ij.ImagePlus;
 
 import javax.swing.JButton;
+import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JTextField;
@@ -21,6 +22,19 @@ import javax.swing.SwingUtilities;
 import javax.swing.WindowConstants;
 import javax.swing.border.LineBorder;
 
+
+/**
+* This code was edited or generated using CloudGarden's Jigloo
+* SWT/Swing GUI Builder, which is free for non-commercial
+* use. If Jigloo is being used commercially (ie, by a corporation,
+* company or business for any purpose whatever) then you
+* should purchase a license for each developer using Jigloo.
+* Please visit www.cloudgarden.com for details.
+* Use of Jigloo implies acceptance of these licensing terms.
+* A COMMERCIAL LICENSE HAS NOT BEEN PURCHASED FOR
+* THIS MACHINE, SO JIGLOO OR THIS CODE CANNOT BE USED
+* LEGALLY FOR ANY CORPORATE OR COMMERCIAL PURPOSE.
+*/
 public class TCSDialog extends javax.swing.JDialog implements ImageListener, ActionListener, FocusListener {
 
 	public static final int OK = 0;
@@ -46,16 +60,18 @@ public class TCSDialog extends javax.swing.JDialog implements ImageListener, Act
 	private JTextField jTextFieldStep;
 	private JTextField jTextFieldLast;
 	private JTextField jTextFieldFirst;
-	
-	private ImagePlus source_imp;
-	private int[] slicing_values;
-	private int[] previous_values;
+	private JCheckBox jCheckBoxMonitor;
 	private JComboBox jComboBoxMethod;
 	private JComboBox jComboBoxTargetFunction;
 	private JLabel jLabelOptimizer;
 	private JLabel jLabelTargetFunction;
+	
+	private ImagePlus source_imp;
+	private int[] slicing_values;
+	private int[] previous_values;
 	private int[] upper_bounds; // inclusive
 	private int[] lower_bounds;
+	private boolean do_monitor;
 	
 	private ArrayList<ActionListener> action_listeners = new ArrayList<ActionListener>();
 
@@ -131,6 +147,11 @@ public class TCSDialog extends javax.swing.JDialog implements ImageListener, Act
 		return slicing_values;
 	}
 	
+	public boolean doMonitor() {
+		do_monitor = jCheckBoxMonitor.isSelected();
+		return do_monitor;
+	}
+	
 	
 	/*
 	 * IMAGEOBSERVER METHODS
@@ -140,7 +161,7 @@ public class TCSDialog extends javax.swing.JDialog implements ImageListener, Act
 	 * Terminate dialog if source ImagePlus is closed.
 	 */
 	public void imageClosed(ImagePlus imp) {
-		if (source_imp == imp) {			dispose();		}
+		if (source_imp == imp) { dispose(); }
 	}
 
 	public void imageOpened(ImagePlus imp) {	}
@@ -208,7 +229,7 @@ public class TCSDialog extends javax.swing.JDialog implements ImageListener, Act
 			{
 				getContentPane().setLayout(null);
 				this.setResizable(false);
-				this.setPreferredSize(new java.awt.Dimension(400, 225));
+				this.setPreferredSize(new java.awt.Dimension(400, 259));
 				this.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
 				this.setTitle("TCS fitter");
 			}
@@ -278,14 +299,14 @@ public class TCSDialog extends javax.swing.JDialog implements ImageListener, Act
 				jButtonOK = new JButton();
 				getContentPane().add(jButtonOK);
 				jButtonOK.setText("OK");
-				jButtonOK.setBounds(287, 163, 75, 29);
+				jButtonOK.setBounds(287, 191, 75, 29);
 				jButtonOK.addActionListener(this);
 			}
 			{
 				jButtonCancel = new JButton();
 				getContentPane().add(jButtonCancel);
 				jButtonCancel.setText("Cancel");
-				jButtonCancel.setBounds(20, 163, 86, 29);
+				jButtonCancel.setBounds(20, 191, 86, 29);
 				jButtonCancel.addActionListener(this);
 			}
 			{
@@ -310,14 +331,25 @@ public class TCSDialog extends javax.swing.JDialog implements ImageListener, Act
 				jComboBoxTargetFunction = new JComboBox(GeomShape.EvalFunction.values());
 				getContentPane().add(jComboBoxTargetFunction);
 				jComboBoxTargetFunction.setBounds(173, 92, 189, 27);
+				jComboBoxTargetFunction.setFont(new java.awt.Font("Lucida Grande",0,9));
 			}
 			{
 				jComboBoxMethod = new JComboBox(GeomShapeFitter.Method.values());
 				getContentPane().add(jComboBoxMethod);
 				jComboBoxMethod.setBounds(173, 122, 189, 27);
+				jComboBoxMethod.setFont(new java.awt.Font("Lucida Grande",0,9));
+			}
+			{
+				jCheckBoxMonitor = new JCheckBox();
+				jCheckBoxMonitor.setSelected(do_monitor);
+				getContentPane().add(jCheckBoxMonitor);
+				jCheckBoxMonitor.setText("Monitor fitting process");
+				jCheckBoxMonitor.setBounds(124, 156, 221, 23);
+				jCheckBoxMonitor.setIconTextGap(5);
 			}
 
 			pack();
+			this.setSize(400, 259);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}

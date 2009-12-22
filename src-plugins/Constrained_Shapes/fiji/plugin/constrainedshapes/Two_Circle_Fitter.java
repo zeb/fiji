@@ -1,9 +1,8 @@
 package fiji.plugin.constrainedshapes;
 
 import fiji.plugin.constrainedshapes.GeomShape.EvalFunction;
-import fiji.plugin.constrainedshapes.GeomShapeFitter.Method;
-import fiji.util.optimization.MinimiserMonitor;
-import fiji.util.optimization.MultivariateFunction;
+
+import static fiji.plugin.constrainedshapes.GeomShapeFitter.Method;
 import ij.IJ;
 import ij.ImagePlus;
 import ij.WindowManager;
@@ -18,7 +17,7 @@ import java.awt.Rectangle;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 
-public class Two_Circle_Fitter implements PlugIn, ActionListener, MinimiserMonitor {
+public class Two_Circle_Fitter implements PlugIn, ActionListener {
 
 	/*
 	 * FIELDS
@@ -31,7 +30,6 @@ public class Two_Circle_Fitter implements PlugIn, ActionListener, MinimiserMonit
 	private ImagePlus imp;
 	private ImageCanvas canvas;
 	private Graphics2D graphics;
-	private TwoCircleShape current = new TwoCircleShape();
 	
 	/*
 	 * INNER CLASSES
@@ -41,7 +39,9 @@ public class Two_Circle_Fitter implements PlugIn, ActionListener, MinimiserMonit
 
 	public synchronized void run(String arg) {
 
-		setImagePlus(WindowManager.getCurrentImage());
+		ImagePlus current = WindowManager.getCurrentImage();
+		if (current == null) { return; }
+		setImagePlus(current);
 		
 		// Prepare a starting two-circle shape
 		final int width = getImagePlus().getWidth();
@@ -66,22 +66,23 @@ public class Two_Circle_Fitter implements PlugIn, ActionListener, MinimiserMonit
 		}
 
 		// Retrieve the adjusted two-circle shape
-		tcs = (TwoCircleShape) ( (TwoCircleRoi)getImagePlus().getRoi() ).getSampling2DShape();
+		tcs = (TwoCircleShape) ( (TwoCircleRoi)imp.getRoi() ).getSampling2DShape();
 		imp.killRoi();
 		canvas.addMouseListener(canvas);
 		canvas.addMouseMotionListener(canvas); // Restore listeners
 		
 		// Retrieve dialog parameters
-		setMethod(dialog.getSelectedMethod());
-		setTargetFunction(dialog.getSelectedTargetFunction());
-		setSliceParameters(dialog.getSliceParameters());
+		method = dialog.getSelectedMethod();
+		target_function = dialog.getSelectedTargetFunction();
+		slice_parameters = dialog.getSliceParameters();
+		boolean do_monitor = dialog.doMonitor();
 		
 		// Close dialog
 		dialog.dispose();
 		
 		// Start calculation
 		IJ.showStatus("Executing fit...");
-		exec(tcs, true);
+		exec(tcs, do_monitor);
 		IJ.showStatus("Fitting done.");
 	}
 
@@ -95,21 +96,21 @@ public class Two_Circle_Fitter implements PlugIn, ActionListener, MinimiserMonit
 		GeomShapeFitter optimizer = new GeomShapeFitter();
 		optimizer.setFunction(target_function);
 		optimizer.setMethod(method);
+		TwoCircleRoi roi = new TwoCircleRoi(tcs);
+		if (do_monitor) {	
+			graphics.setColor(Color.BLUE);
+			imp.setRoi(roi); // If we set it now, the optimization process will change the ROI during processing
+		}
+
 		for (int i = start; i <= stop; i += step) {
 			imp.setSlice(i);
 			ip = imp.getImageStack().getProcessor(i);
 			optimizer.setImageProcessor(ip);
 			optimizer.setShape(tcs);
-			if (do_monitor) {	
-				graphics.setColor(Color.BLUE);
-				optimizer.setMonitor(this);
-			}
 			optimizer.optimize();
 			imp.updateAndDraw();
 		}
-		TwoCircleRoi roi;
-		roi = new TwoCircleRoi(tcs);
-		imp.setRoi(roi);  // If we set it now, the optimization process will change the ROI during processing
+		imp.setRoi(roi);  
 		return tcs;
 	}
 
@@ -130,7 +131,7 @@ public class Two_Circle_Fitter implements PlugIn, ActionListener, MinimiserMonit
 				
 		TwoCircleShape start_point = new TwoCircleShape(207.6, 210.0, 90.0, 328.4, 320.0, 60.0);
 		System.out.println("Fitting from "+start_point);
-		TwoCircleShape tcs = instance.exec(start_point, false);
+		TwoCircleShape tcs = instance.exec(start_point, true);
 		System.out.println("Fitting done: "+tcs);
 		
 	}
@@ -168,17 +169,6 @@ public class Two_Circle_Fitter implements PlugIn, ActionListener, MinimiserMonit
 		this.notifyAll(); // We simply wake the thread so that this plugin execution resumes.
 	}
 	
-	/*
-	 * MINIMIZERMONITOR METHODS
-	 */
-
-	public void newMinimum(double value, double[] parameterValues, MultivariateFunction beingOptimized) {
-		current.setParameters(parameterValues);
-		canvas.paint(graphics);
-		graphics.draw(current);
-	}
-
-	public void updateProgress(double progress) {	}
 
 
 	/*

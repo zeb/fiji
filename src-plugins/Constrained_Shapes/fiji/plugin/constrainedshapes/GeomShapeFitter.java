@@ -15,8 +15,7 @@ public class GeomShapeFitter implements MultivariateFunction {
 	 */
 	
 	public static enum Method {
-		CONJUGATE_DIRECTION_SEARCH,
-		CONJUGATE_GRADIENT_SEARCH;
+		CONJUGATE_DIRECTION_SEARCH; // TODO add the rest!
 		
 		public MultivariateMinimum instantiate(GeomShape shape) {
 			MultivariateMinimum optimizer = null;
