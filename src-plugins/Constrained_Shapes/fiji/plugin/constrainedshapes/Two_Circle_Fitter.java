@@ -95,21 +95,21 @@ public class Two_Circle_Fitter implements PlugIn, ActionListener, MinimiserMonit
 		final int step  = getSliceParameters()[2];
 		
 		ImageProcessor ip = null;
-		GeomShapeFitter optimizer = new GeomShapeFitter(tcs, ip);
+		GeomShapeFitter optimizer = new GeomShapeFitter();
+		optimizer.setFunction(target_function);
+		optimizer.setMethod(method);
 		TwoCircleRoi roi;
 		for (int i = start; i <= stop; i += step) {
-			getImagePlus().setSlice(i);
+			imp.setSlice(i);
 			ip = imp.getImageStack().getProcessor(i);
 			optimizer.setImageProcessor(ip);
 			optimizer.setShape(tcs);
-			optimizer.setFunction(getTargetFunction());
-			optimizer.setMethod(getMethod());
 			if (do_monitor) {	
 				graphics.setColor(Color.BLUE);
 				optimizer.setMonitor(this);
 			}
 
-			tcs = (TwoCircleShape) optimizer.optimize();
+			optimizer.optimize();
 			roi = new TwoCircleRoi(tcs);
 			imp.setRoi(roi);
 			imp.updateAndDraw();
