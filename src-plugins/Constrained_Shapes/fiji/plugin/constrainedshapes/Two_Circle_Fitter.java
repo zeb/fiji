@@ -38,6 +38,7 @@ public class Two_Circle_Fitter implements PlugIn, ActionListener, MinimiserMonit
 	private int[] slice_parameters = new int[] {1, 1, 1};
 	private ImagePlus imp;
 	private ImageCanvas canvas;
+	private RoiListStackWindow stack_window;
 	
 	/*
 	 * PUBLIC METHODS
@@ -50,7 +51,12 @@ public class Two_Circle_Fitter implements PlugIn, ActionListener, MinimiserMonit
 
 		ImagePlus current = WindowManager.getCurrentImage();
 		if (current == null) { return; }
+
 		setImagePlus(current);
+		if (current.getStack().getSize() > 1) {
+			stack_window = new RoiListStackWindow(imp, canvas);
+			stack_window.show();
+		}
 		
 		TwoCircleShape tcs;
 		Roi roi = imp.getRoi();
@@ -104,6 +110,7 @@ public class Two_Circle_Fitter implements PlugIn, ActionListener, MinimiserMonit
 		optimizer.setFunction(target_function);
 		optimizer.setMethod(method);
 		TwoCircleRoi roi = new TwoCircleRoi(tcs);
+		TwoCircleRoi roi_to_store;
 		imp.setRoi(roi);
 		if (do_monitor) {	
 			optimizer.setMonitor(this);
@@ -123,8 +130,12 @@ public class Two_Circle_Fitter implements PlugIn, ActionListener, MinimiserMonit
 			optimizer.setShape(tcs);
 			optimizer.optimize();
 			results[index] = tcs.clone();
-			index++;
+			if (imp.getStack().getSize() > 1) {
+				roi_to_store = new TwoCircleRoi(results[index]);
+				stack_window.setRoi(roi_to_store, i);
+			}
 			imp.draw();
+			index++;
 		}
 		Roi.setColor(orig_color);
 		imp.draw();
@@ -261,7 +272,7 @@ public class Two_Circle_Fitter implements PlugIn, ActionListener, MinimiserMonit
 
 	public void newMinimum(double value, double[] parameterValues,
 			MultivariateFunction beingOptimized) {
-		imp.draw(); // Will refresh llok of the roi
+		imp.draw(); // This is enough to refresh the shape display as it is optimized.
 	}
 
 	public void updateProgress(double progress) {	}

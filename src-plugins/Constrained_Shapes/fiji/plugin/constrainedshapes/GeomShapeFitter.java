@@ -2,10 +2,12 @@ package fiji.plugin.constrainedshapes;
 
 import ij.process.ImageProcessor;
 import fiji.util.optimization.ConjugateDirectionSearch;
+import fiji.util.optimization.DifferentialEvolution;
 import fiji.util.optimization.MinimiserMonitor;
 import fiji.util.optimization.MultivariateFunction;
 import fiji.util.optimization.MultivariateMinimum;
 import fiji.util.optimization.OrthogonalHints;
+import fiji.util.optimization.OrthogonalSearch;
 
 public class GeomShapeFitter implements MultivariateFunction {
 
@@ -15,7 +17,9 @@ public class GeomShapeFitter implements MultivariateFunction {
 	 */
 	
 	public static enum Method {
-		CONJUGATE_DIRECTION_SEARCH; // TODO add the rest!
+		CONJUGATE_DIRECTION_SEARCH,
+		DIFFERENTIAL_EVOLUTION,
+		ORTHOGONAL_SEARCH; 
 		
 		public MultivariateMinimum instantiate(GeomShape shape) {
 			MultivariateMinimum optimizer = null;
@@ -23,6 +27,10 @@ public class GeomShapeFitter implements MultivariateFunction {
 			case CONJUGATE_DIRECTION_SEARCH:
 				optimizer = new ConjugateDirectionSearch();
 				break;
+			case DIFFERENTIAL_EVOLUTION:
+				optimizer = new DifferentialEvolution(shape.getNumParameters());
+			case ORTHOGONAL_SEARCH:
+				optimizer = new OrthogonalSearch();
 			}
 			return optimizer;
 		}
@@ -102,8 +110,7 @@ public class GeomShapeFitter implements MultivariateFunction {
 
 
 	public OrthogonalHints getOrthogonalHints() {
-		// TODO Auto-generated method stub
-		return null;
+		return OrthogonalHints.Utils.getNull();
 	}
 
 	
