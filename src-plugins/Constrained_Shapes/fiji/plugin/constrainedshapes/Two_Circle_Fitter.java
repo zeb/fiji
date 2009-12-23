@@ -66,7 +66,7 @@ public class Two_Circle_Fitter implements PlugIn, ActionListener {
 		}
 
 		// Retrieve the adjusted two-circle shape
-		tcs = (TwoCircleShape) ( (TwoCircleRoi)imp.getRoi() ).getSampling2DShape();
+		tcs = (TwoCircleShape) ( (TwoCircleRoi)imp.getRoi() ).getShape();
 		imp.killRoi();
 		canvas.addMouseListener(canvas);
 		canvas.addMouseMotionListener(canvas); // Restore listeners

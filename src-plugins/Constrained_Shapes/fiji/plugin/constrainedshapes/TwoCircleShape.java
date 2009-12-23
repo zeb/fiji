@@ -46,7 +46,8 @@ public class TwoCircleShape extends GeomShape   {
 	 */
 	
 	public TwoCircleShape() {
-		this(Double.NaN, Double.NaN, Double.NaN, Double.NaN, Double.NaN, Double.NaN);
+//		this(Double.NaN, Double.NaN, Double.NaN, Double.NaN, Double.NaN, Double.NaN);
+		this(0, 0, 0, 0, 0, 0);
 	}
 	
 	public TwoCircleShape(double _xc1, double _yc1, double _r1, double _xc2, double _yc2, double _r2) {
@@ -206,9 +207,19 @@ public class TwoCircleShape extends GeomShape   {
 	public Point2D getC1() {
 		return new Point2D.Double(params[0], params[1]);
 	}
+	
+	public void setC1(Point2D p) {
+		params[0] = p.getX();
+		params[1] = p.getY();
+	}
 
 	public Point2D getC2() {
 		return new Point2D.Double(params[3], params[4]);
+	}
+	
+	public void setC2(Point2D p) {
+		params[3] = p.getX();
+		params[4] = p.getY();
 	}
 	
 	public TwoCircleShape clone() {

@@ -1,9 +1,14 @@
 package fiji.plugin.constrainedshapes;
 
+import ij.IJ;
+import ij.ImageListener;
 import ij.ImagePlus;
+import ij.WindowManager;
 import ij.gui.ImageCanvas;
 import ij.gui.Roi;
 import ij.gui.ShapeRoi;
+import ij.gui.Toolbar;
+import ij.plugin.PlugIn;
 
 import java.awt.Color;
 import java.awt.Graphics;
@@ -18,7 +23,7 @@ import java.awt.geom.AffineTransform;
 import java.awt.geom.Point2D;
 import java.util.ArrayList;
 
-public class TwoCircleRoi extends ShapeRoi implements MouseListener, MouseMotionListener {
+public class TwoCircleRoi extends ShapeRoi implements MouseListener, MouseMotionListener, ImageListener, PlugIn {
 
 
 	/*
@@ -30,10 +35,17 @@ public class TwoCircleRoi extends ShapeRoi implements MouseListener, MouseMotion
 	private static final double DRAG_TOLERANCE = 10;
 	
 	private TwoCircleShape tcs;
-	private ArrayList<Handle> handles; 
+	private ArrayList<Handle> handles = new ArrayList<Handle>(4);
 	private AffineTransform canvas_affine_transform = new AffineTransform();
 	private InteractionStatus status;
 	private Point start_drag;
+	private Toolbar toolbar;
+	private int toolID = -1;
+	
+	/**
+	 * If true, handles for user interaction will be drawn.
+	 */
+	public boolean displayHandle = true;
 	
 	/*
 	 * INNER CLASS * ENUMS
@@ -144,19 +156,48 @@ public class TwoCircleRoi extends ShapeRoi implements MouseListener, MouseMotion
 	/**
 	 * Enum type to specify the current user interaction status.
 	 */
-	private enum InteractionStatus { FREE, MOVING_ROI, MOVING_C1, MOVING_C2, RESIZING_C1, RESIZING_C2 };
+	private static enum InteractionStatus { FREE, MOVING_ROI, MOVING_C1, MOVING_C2, RESIZING_C1, RESIZING_C2, CREATING_C1, CREATING_C2 };
 
 
 	/*
 	 * CONSTRUCTOR
 	 */
 	
+	/**
+	 * Empty constructor, needed to be run as a plugin
+	 */
+	public TwoCircleRoi() {
+		super(new Roi(0,0,1,1)); // dummy super constructor, we only want the ROI methods  
+		this.tcs = new TwoCircleShape();
+		this.status = InteractionStatus.CREATING_C1;
+	}
+	
 	public TwoCircleRoi(TwoCircleShape _tcs) {
-		super(_tcs);
+		super(new Roi(0,0,1,1)); // dummy super constructor, we only want the ROI methods  
 		this.tcs = _tcs;
 		this.status = InteractionStatus.FREE;
 	}
 
+	
+	/*
+	 * RUN METHOD
+	 */
+	
+	public void run(String arg) {
+		toolbar = Toolbar.getInstance();
+		if (toolbar == null) {
+			IJ.error("No toolbar found");
+			return;
+		}
+
+		toolID = toolbar.addTool(getToolName() + " - "	+ getToolIcon());
+		if (toolID < 0) {
+			IJ.error("Could not register tool");
+			return;
+		}
+		toolbar.setTool(toolID);
+		registerTool();
+	}
 	/*
 	 * PUBLIC METHODS
 	 */
@@ -173,9 +214,10 @@ public class TwoCircleRoi extends ShapeRoi implements MouseListener, MouseMotion
 		g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 		g2.setColor(Roi.getColor());		
 		g2.draw(canvas_affine_transform.createTransformedShape(tcs));
-		prepareHandles();
-		drawHandles(g);
-		imp.draw();
+		if (displayHandle) {
+			prepareHandles();
+			drawHandles(g);
+		}
 	}
 	
 	/**
@@ -184,7 +226,10 @@ public class TwoCircleRoi extends ShapeRoi implements MouseListener, MouseMotion
 	 * @param p  The point to locate
 	 * @return  The point location with respect to this shape.
 	 */
-	public ClickLocation getClickLocation(Point2D p) { 
+	public ClickLocation getClickLocation(Point2D p) {
+		if (tcs == null) { // There is no shape yet
+			return ClickLocation.OUTSIDE;
+		}
 		double dist;
 		Point2D coords = new Point2D.Double();
 		for (Handle h : handles) {
@@ -201,25 +246,6 @@ public class TwoCircleRoi extends ShapeRoi implements MouseListener, MouseMotion
 		return ClickLocation.OUTSIDE;
 	}
 	
-	
-	@Override
-	public void setImage(ImagePlus imp) {
-		this.imp = imp;
-		cachedMask = null;
-		if (imp==null) {
-			ic = null;
-			clipboard = null;
-			xMax = 99999;
-			yMax = 99999;
-		} else {
-			ic = imp.getCanvas();
-			xMax = imp.getWidth();
-			yMax = imp.getHeight();
-			ic.addMouseMotionListener(this);
-			ic.addMouseListener(this);		
-		}
-	}
-	
 	public String getToolIcon() {
 		return "C000D38D39D3dD53D62D63D7dD8cD9cDc2Dc3Dc9DcaDd3Dd9" +
 				"C000D29D2aD2cD2dD37D3aD3cD3eD43D44D45D47D48D4dD4e" +
@@ -234,9 +260,60 @@ public class TwoCircleRoi extends ShapeRoi implements MouseListener, MouseMotion
 				"CbbbCcccCdddCeeeCfff";
 	}
 	
-	public GeomShape getSampling2DShape() {
+	public String getToolName() {
+		return "Two_circle_shape";
+	}
+	
+	public GeomShape getShape() {
 		return tcs;
 	}
+	
+	
+	/*
+	 * DEFAULT VISIBILITY METHODS
+	 */
+	
+	void registerTool() {
+		int[] ids = WindowManager.getIDList();
+		if (ids != null)
+			for (int id : ids)
+				registerTool(WindowManager.getImage(id));
+		ImagePlus.addImageListener(this);
+	}
+
+	void registerTool(ImagePlus image) {
+		if (image == null)
+			return;
+		registerTool(image.getCanvas());
+	}
+
+	void registerTool(ImageCanvas canvas) {
+		if (canvas == null)
+			return;
+		canvas.addMouseListener(this);
+		canvas.addMouseMotionListener(this);
+	}
+
+	void unregisterTool() {
+		for (int id : WindowManager.getIDList())
+			unregisterTool(WindowManager.getImage(id));
+		ImagePlus.removeImageListener(this);
+	}
+
+	void unregisterTool(ImagePlus image) {
+		if (image == null)
+			return;
+		unregisterTool(image.getCanvas());
+	}
+
+	void unregisterTool(ImageCanvas canvas) {
+		if (canvas == null)
+			return;
+		canvas.removeMouseListener(this);
+		canvas.removeMouseMotionListener(this);
+	}
+
+	
 	
 	
 	/*
@@ -263,7 +340,7 @@ public class TwoCircleRoi extends ShapeRoi implements MouseListener, MouseMotion
 	 * {@link ImageCanvas} coordinates when drawn.
 	 */
 	private void prepareHandles() {	
-		handles = new ArrayList<Handle>(4); // there will be at least 4 of them
+		handles.clear();
 		// Prepare handles
 		final double[] params = tcs.getParameters();
 		final double xc1 = params[0];
@@ -363,11 +440,11 @@ public class TwoCircleRoi extends ShapeRoi implements MouseListener, MouseMotion
 	
 	
 	/**
-	 * Non destructively draw the list of this ROI, using the {@link Graphics}
+	 * Non destructively draw the handles of this ROI, using the {@link Graphics}
 	 * object given. The {@link #canvas_affine_transform} is used to position
 	 * the handles correctly with respect to the canvas zoom level.
 	 */
-	private synchronized void drawHandles(Graphics g) {
+	private void drawHandles(Graphics g) {
 		double size = Math.min(tcs.getParameters()[2],tcs.getParameters()[5]) * mag;
 		int handle_size;
 		if (size>10) {
@@ -381,6 +458,15 @@ public class TwoCircleRoi extends ShapeRoi implements MouseListener, MouseMotion
 			h.size = handle_size;
 			h.draw(g, canvas_affine_transform);
 		}
+	}
+	
+	/**
+	 * Reset this ROI to null, and make it ready to be re-drawn by user interaction
+	 */
+	private void reset() {
+		this.tcs = new TwoCircleShape();
+		this.status = InteractionStatus.CREATING_C1;
+		handles.clear();
 	}
 	
 	/*
@@ -413,18 +499,46 @@ public class TwoCircleRoi extends ShapeRoi implements MouseListener, MouseMotion
 	
 	
 	public void mousePressed(MouseEvent e) { 
+
+		if (Toolbar.getInstance() != toolbar) {
+			unregisterTool();
+			IJ.showStatus("unregistered " + getToolName() + " Tool");
+			return;
+		}
+		if (Toolbar.getToolId() != toolID)
+			return;
+
+		
+		ImageCanvas canvas = (ImageCanvas) e.getSource();
+		ic = canvas;
+		imp = ic.getImage();
+		
 		Point p = e.getPoint();		
-		ClickLocation cl = getClickLocation(p); 
+		ClickLocation cl = getClickLocation(p);
 		switch (cl) {
 		case OUTSIDE:
+			switch (status) {
+			case CREATING_C1:
+				tcs.setC1(p);
+				break;
+			case CREATING_C2:
+				tcs.setC2(p);
+				break;
+			default:
+				// If drag is small, then we will kill this roi
+			}
+			imp.setRoi(this);
 			break;
 		default:
 			status = cl.getInteractionStatus();
-			start_drag = p;
 		}
+		start_drag = p;
 	}
 
 	public void mouseDragged(MouseEvent e) {
+		
+		if (Toolbar.getToolId() != toolID) return;
+		
 		refreshAffineTransform();
 		Point p = e.getPoint();
 		Point2D c = new Point2D.Float();
@@ -446,23 +560,64 @@ public class TwoCircleRoi extends ShapeRoi implements MouseListener, MouseMotion
 			params[4] += (p.y-start_drag.y)/canvas_affine_transform.getScaleY();
 			break;
 		case RESIZING_C1:
+		case CREATING_C1:
 			canvas_affine_transform.transform(tcs.getC1(), c);
 			params[2] = c.distance(p)/canvas_affine_transform.getScaleX();			
 			break;
 		case RESIZING_C2:
+		case CREATING_C2:
 			canvas_affine_transform.transform(tcs.getC2(), c);
 			params[5] = c.distance(p)/canvas_affine_transform.getScaleX();			
 			break;
+			
 		}
 		start_drag = p;
-		draw(ic.getGraphics());
+		imp.draw(); // This will in turn call the draw(Graphics) method of this object
 	}
 
-	public void mouseReleased(MouseEvent e) { }
+	public void mouseReleased(MouseEvent e) {
+		
+		if (Toolbar.getToolId() != toolID) return;
+		
+		switch (status) {
+		case CREATING_C1:
+			status = InteractionStatus.CREATING_C2;
+			break;
+		case CREATING_C2:
+			status = InteractionStatus.FREE;
+			break;
+		}
+	}
+	
+	public void mouseClicked(MouseEvent e) {
+		
+		if (Toolbar.getToolId() != toolID) return;
+
+		ClickLocation cl = getClickLocation(e.getPoint());
+		if (cl == ClickLocation.OUTSIDE ) {
+			reset();
+			imp.killRoi();
+			status = InteractionStatus.CREATING_C1;
+		}
+	}
+	
 	public void mouseMoved(MouseEvent e) {	}
-	public void mouseClicked(MouseEvent e) {	}
 	public void mouseEntered(MouseEvent e) {	}
 	public void mouseExited(MouseEvent e) {	}
+
+	/*
+	 * IMAGELISTENER METHODS
+	 */
+
+	public void imageClosed(ImagePlus imp) {
+		unregisterTool(imp);
+	}
+
+	public void imageOpened(ImagePlus imp) {
+		registerTool(imp);		
+	}
+
+	public void imageUpdated(ImagePlus imp) {	}
 	
 	
 }
