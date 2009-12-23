@@ -1,6 +1,8 @@
 package fiji.plugin.constrainedshapes;
 
 import fiji.plugin.constrainedshapes.GeomShape.EvalFunction;
+import fiji.util.optimization.MinimiserMonitor;
+import fiji.util.optimization.MultivariateFunction;
 
 import static fiji.plugin.constrainedshapes.GeomShapeFitter.Method;
 import ij.IJ;
@@ -18,7 +20,7 @@ import java.awt.Rectangle;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 
-public class Two_Circle_Fitter implements PlugIn, ActionListener {
+public class Two_Circle_Fitter implements PlugIn, ActionListener, MinimiserMonitor {
 
 	/*
 	 * FIELDS
@@ -30,7 +32,6 @@ public class Two_Circle_Fitter implements PlugIn, ActionListener {
 	private int[] slice_parameters = new int[] {1, 1, 1};
 	private ImagePlus imp;
 	private ImageCanvas canvas;
-	private Graphics2D graphics;
 	
 	/*
 	 * INNER CLASSES
@@ -82,10 +83,11 @@ public class Two_Circle_Fitter implements PlugIn, ActionListener {
 	}
 
 	
-	public TwoCircleShape exec(TwoCircleShape tcs, boolean do_monitor) {
+	public TwoCircleShape[] exec(TwoCircleShape tcs, boolean do_monitor) {
 		final int start = getSliceParameters()[0];
 		final int stop  = getSliceParameters()[1];
 		final int step  = getSliceParameters()[2];
+		final Color orig_color = Roi.getColor();
 		
 		ImageProcessor ip = null;
 		GeomShapeFitter optimizer = new GeomShapeFitter();
@@ -93,20 +95,26 @@ public class Two_Circle_Fitter implements PlugIn, ActionListener {
 		optimizer.setMethod(method);
 		TwoCircleRoi roi = new TwoCircleRoi(tcs);
 		if (do_monitor) {	
-			graphics.setColor(Color.BLUE);
-			imp.setRoi(roi); // If we set it now, the optimization process will change the ROI during processing
+			optimizer.setMonitor(this);
+			Roi.setColor(Color.BLUE);
+			imp.setRoi(roi);
 		}
 
+		TwoCircleShape[] results = new TwoCircleShape[ 1 + (int) Math.floor( (stop-start)/step) ];
+		int index = 0;
 		for (int i = start; i <= stop; i += step) {
 			imp.setSlice(i);
 			ip = imp.getImageStack().getProcessor(i);
 			optimizer.setImageProcessor(ip);
 			optimizer.setShape(tcs);
 			optimizer.optimize();
+			results[index] = tcs.clone();
+			index++;
 			imp.updateAndDraw();
 		}
+		Roi.setColor(orig_color);
 		imp.setRoi(roi);  
-		return tcs;
+		return results;
 	}
 
 	/*
@@ -126,8 +134,11 @@ public class Two_Circle_Fitter implements PlugIn, ActionListener {
 				
 		TwoCircleShape start_point = new TwoCircleShape(207.6, 210.0, 90.0, 328.4, 320.0, 60.0);
 		System.out.println("Fitting from "+start_point);
-		TwoCircleShape tcs = instance.exec(start_point, true);
-		System.out.println("Fitting done: "+tcs);
+		TwoCircleShape[] results = instance.exec(start_point, true);
+		System.out.println("Fitting done:");
+		for (int i = 0; i < results.length; i++) {
+			System.out.println(results[i]);
+		}
 		
 	}
 	
@@ -186,8 +197,15 @@ public class Two_Circle_Fitter implements PlugIn, ActionListener {
 	public void setImagePlus(ImagePlus imp) {		
 		this.imp = imp;	
 		this.canvas = imp.getCanvas();
-		this.graphics = (Graphics2D) canvas.getGraphics();
 	}
+
+
+	public void newMinimum(double value, double[] parameterValues,
+			MultivariateFunction beingOptimized) {
+		imp.draw(); // Will refresh llok of the roi
+	}
+
+	public void updateProgress(double progress) {	}
 
 
 	

@@ -173,7 +173,7 @@ public class TwoCircleRoi extends ShapeRoi implements MouseListener, MouseMotion
 	}
 	
 	public TwoCircleRoi(TwoCircleShape _tcs) {
-		super(new Roi(0,0,1,1)); // dummy super constructor, we only want the ROI methods  
+		super(_tcs); // dummy super constructor, we only want the ROI methods  
 		this.tcs = _tcs;
 		this.status = InteractionStatus.FREE;
 	}
