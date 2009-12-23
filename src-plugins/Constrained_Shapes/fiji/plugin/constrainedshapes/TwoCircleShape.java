@@ -39,7 +39,7 @@ public class TwoCircleShape extends GeomShape   {
 	 * 	<li> [5]: <code>r2</code>, the radius of circle 2
 	 * </ul>
 	 */
-	private double[] params = new double[6];;
+	private double[] params = new double[6];
 	
 	/*
 	 * CONSTRUCTORS
@@ -70,6 +70,17 @@ public class TwoCircleShape extends GeomShape   {
 	
 	public double[] getParameters() {		
 		return params;
+	}
+	
+	public static String[] getParameterNames() {
+		return new String[] {
+				"xc1",
+				"yc1",
+				"r1",
+				"xc2",
+				"yc2",
+				"r2"
+		};
 	}
 	
 	public void setParameters(double[] arr) {		

@@ -66,7 +66,7 @@ public class GeomShapeFitter implements MultivariateFunction {
 	 */
 	public void optimize() {
 		if ( (shape==null) || (ip==null)) { return; }
-		optimizer.findMinimum(this, shape.getParameters(), 0, 0, monitor);
+		optimizer.findMinimum(this, shape.getParameters(), 1, 1, monitor);
 	}
 	
 	

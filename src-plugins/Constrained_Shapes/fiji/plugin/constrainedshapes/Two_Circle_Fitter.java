@@ -15,10 +15,16 @@ import ij.plugin.PlugIn;
 import ij.process.ImageProcessor;
 
 import java.awt.Color;
-import java.awt.Graphics2D;
+import java.awt.Dimension;
+import java.awt.GridLayout;
 import java.awt.Rectangle;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+
+import javax.swing.JFrame;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTable;
 
 public class Two_Circle_Fitter implements PlugIn, ActionListener, MinimiserMonitor {
 
@@ -34,9 +40,10 @@ public class Two_Circle_Fitter implements PlugIn, ActionListener, MinimiserMonit
 	private ImageCanvas canvas;
 	
 	/*
-	 * INNER CLASSES
+	 * PUBLIC METHODS
 	 */
 
+	
 
 
 	public synchronized void run(String arg) {
@@ -78,8 +85,11 @@ public class Two_Circle_Fitter implements PlugIn, ActionListener, MinimiserMonit
 		
 		// Start calculation
 		IJ.showStatus("Executing fit...");
-		exec(tcs, do_monitor);
+		TwoCircleShape[] results = exec(tcs, do_monitor);
 		IJ.showStatus("Fitting done.");
+		
+		//Display result table
+		displayResults(results);
 	}
 
 	
@@ -94,15 +104,19 @@ public class Two_Circle_Fitter implements PlugIn, ActionListener, MinimiserMonit
 		optimizer.setFunction(target_function);
 		optimizer.setMethod(method);
 		TwoCircleRoi roi = new TwoCircleRoi(tcs);
+		imp.setRoi(roi);
 		if (do_monitor) {	
 			optimizer.setMonitor(this);
 			Roi.setColor(Color.BLUE);
-			imp.setRoi(roi);
 		}
 
 		TwoCircleShape[] results = new TwoCircleShape[ 1 + (int) Math.floor( (stop-start)/step) ];
 		int index = 0;
 		for (int i = start; i <= stop; i += step) {
+			if (IJ.escapePressed()) {
+				IJ.resetEscape();
+				break;
+			}
 			imp.setSlice(i);
 			ip = imp.getImageStack().getProcessor(i);
 			optimizer.setImageProcessor(ip);
@@ -110,13 +124,58 @@ public class Two_Circle_Fitter implements PlugIn, ActionListener, MinimiserMonit
 			optimizer.optimize();
 			results[index] = tcs.clone();
 			index++;
-			imp.updateAndDraw();
+			imp.draw();
 		}
 		Roi.setColor(orig_color);
-		imp.setRoi(roi);  
+		imp.draw();
 		return results;
 	}
 
+	
+	public void displayResults(TwoCircleShape[] results) {	
+		
+		String[] tcs_params = TwoCircleShape.getParameterNames(); 
+		String[] column_names = new String[tcs_params.length + 1];
+		column_names[0] = "Frame";
+		for (int i = 1; i < column_names.length; i++) {
+			column_names[i] = tcs_params[i-1];
+		}
+		final int start = getSliceParameters()[0];
+		final int step  = getSliceParameters()[2];
+			
+		Object[][]table_data = new Object[results.length][column_names.length];
+		TwoCircleShape tcs;
+		double[] params;
+		int index = start;
+		for (int i = 0; i < table_data.length; i++) {
+			tcs = results[i];
+			params = tcs.getParameters();
+			table_data[i][0]	= index;
+			for (int j = 0; j < params.length; j++) {
+				table_data[i][j+1] 	= params[j];
+			}
+			index += step;
+		}
+
+		JTable table = new JTable(table_data, column_names);
+		table.setPreferredScrollableViewportSize(new Dimension(500, 70));
+
+		JScrollPane scrollPane = new JScrollPane(table);
+		table.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
+		
+		JPanel		table_panel = new JPanel(new GridLayout());
+		table_panel.add(scrollPane);	
+	    JFrame 		frame = new JFrame("Two-circle fit for "+imp.getShortTitle());
+
+	    frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+	    //Create and set up the content pane.
+	    frame.setContentPane(table_panel);
+
+	    //Display the window.
+	    frame.pack();
+	    frame.setVisible(true);
+
+	}
 	/*
 	 * MAIN METHOD
 	 */
