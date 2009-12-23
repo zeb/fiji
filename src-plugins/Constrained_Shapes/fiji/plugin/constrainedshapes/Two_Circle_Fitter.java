@@ -8,6 +8,7 @@ import ij.ImagePlus;
 import ij.WindowManager;
 import ij.gui.ImageCanvas;
 import ij.gui.ImageWindow;
+import ij.gui.Roi;
 import ij.plugin.PlugIn;
 import ij.process.ImageProcessor;
 
@@ -43,17 +44,11 @@ public class Two_Circle_Fitter implements PlugIn, ActionListener {
 		if (current == null) { return; }
 		setImagePlus(current);
 		
-		// Prepare a starting two-circle shape
-		final int width = getImagePlus().getWidth();
-		final int height = getImagePlus().getHeight();
-		final double radius = Math.min(width, height)/4;
-		TwoCircleShape tcs = new TwoCircleShape(width/2.0-0.8*radius, height/2.0, radius, width/2.0+0.8*radius, height/2.0, radius);
-		TwoCircleRoi roi = new TwoCircleRoi(tcs);
-		
-		canvas.removeMouseListener(canvas);
-		canvas.removeMouseMotionListener(canvas); // So as to avoid roi clashes
-		imp.saveRoi();
-		imp.setRoi(roi);
+		TwoCircleShape tcs;
+		Roi roi = imp.getRoi();
+		if ( !(roi instanceof TwoCircleRoi) ) {
+			new TwoCircleRoi().run("");
+		}
 
 		// Display dialog, and wait for user clicks
 		displayICWindow(imp);
@@ -166,7 +161,12 @@ public class Two_Circle_Fitter implements PlugIn, ActionListener {
 	 */
 
 	public synchronized void actionPerformed(ActionEvent e) {
-		this.notifyAll(); // We simply wake the thread so that this plugin execution resumes.
+		Roi roi = imp.getRoi();
+		if (roi instanceof TwoCircleRoi) {
+			this.notifyAll(); // We simply wake the thread so that this plugin execution resumes.
+		} else {
+			IJ.error("Please specify a Two-circle Roi.");
+		}
 	}
 	
 

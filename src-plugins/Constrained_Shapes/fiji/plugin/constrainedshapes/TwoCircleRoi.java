@@ -192,8 +192,10 @@ public class TwoCircleRoi extends ShapeRoi implements MouseListener, MouseMotion
 
 		toolID = toolbar.addTool(getToolName() + " - "	+ getToolIcon());
 		if (toolID < 0) {
-			IJ.error("Could not register tool");
-			return;
+			if (toolbar.getToolId(getToolName()) == -1) {
+				IJ.error("Could not register tool");
+				return;
+			}
 		}
 		toolbar.setTool(toolID);
 		registerTool();
@@ -467,6 +469,8 @@ public class TwoCircleRoi extends ShapeRoi implements MouseListener, MouseMotion
 		this.tcs = new TwoCircleShape();
 		this.status = InteractionStatus.CREATING_C1;
 		handles.clear();
+		imp.killRoi();
+		status = InteractionStatus.CREATING_C1;
 	}
 	
 	/*
@@ -595,9 +599,7 @@ public class TwoCircleRoi extends ShapeRoi implements MouseListener, MouseMotion
 
 		ClickLocation cl = getClickLocation(e.getPoint());
 		if (cl == ClickLocation.OUTSIDE ) {
-			reset();
-			imp.killRoi();
-			status = InteractionStatus.CREATING_C1;
+			reset();			
 		}
 	}
 	
