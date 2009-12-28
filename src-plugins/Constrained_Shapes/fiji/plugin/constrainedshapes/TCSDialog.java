@@ -7,8 +7,8 @@ import java.awt.event.FocusEvent;
 import java.awt.event.FocusListener;
 import java.util.ArrayList;
 import java.util.EventObject;
+
 import static fiji.plugin.constrainedshapes.GeomShape.EvalFunction;
-import static fiji.plugin.constrainedshapes.GeomShapeFitter.Method;
 import ij.ImageListener;
 import ij.ImagePlus;
 
@@ -61,9 +61,7 @@ public class TCSDialog extends javax.swing.JDialog implements ImageListener, Act
 	private JTextField jTextFieldLast;
 	private JTextField jTextFieldFirst;
 	private JCheckBox jCheckBoxMonitor;
-	private JComboBox jComboBoxMethod;
 	private JComboBox jComboBoxTargetFunction;
-	private JLabel jLabelOptimizer;
 	private JLabel jLabelTargetFunction;
 	
 	private ImagePlus source_imp;
@@ -138,10 +136,6 @@ public class TCSDialog extends javax.swing.JDialog implements ImageListener, Act
 	
 	public GeomShape.EvalFunction getSelectedTargetFunction() {
 		return (EvalFunction) jComboBoxTargetFunction.getSelectedItem();
-	}
-	
-	public GeomShapeFitter.Method getSelectedMethod() {
-		return (Method) jComboBoxMethod.getSelectedItem();
 	}
 	
 	public int[] getSliceParameters() {
@@ -323,22 +317,10 @@ public class TCSDialog extends javax.swing.JDialog implements ImageListener, Act
 				jLabelTargetFunction.setBounds(46, 96, 97, 16);
 			}
 			{
-				jLabelOptimizer = new JLabel();
-				getContentPane().add(jLabelOptimizer);
-				jLabelOptimizer.setText("Method");
-				jLabelOptimizer.setBounds(96, 126, 47, 16);
-			}
-			{
 				jComboBoxTargetFunction = new JComboBox(GeomShape.EvalFunction.values());
 				getContentPane().add(jComboBoxTargetFunction);
 				jComboBoxTargetFunction.setBounds(173, 92, 189, 27);
 				jComboBoxTargetFunction.setFont(new java.awt.Font("Lucida Grande",0,9));
-			}
-			{
-				jComboBoxMethod = new JComboBox(GeomShapeFitter.Method.values());
-				getContentPane().add(jComboBoxMethod);
-				jComboBoxMethod.setBounds(173, 122, 189, 27);
-				jComboBoxMethod.setFont(new java.awt.Font("Lucida Grande",0,9));
 			}
 			{
 				jCheckBoxMonitor = new JCheckBox();

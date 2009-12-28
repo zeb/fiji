@@ -15,7 +15,6 @@
 package fiji.util.optimization;
 
 import java.io.*;
-import java.util.*;
 
 
 /**
@@ -62,6 +61,7 @@ import java.util.*;
  */
 public class MersenneTwisterFast implements Serializable
 		{
+		private static final long serialVersionUID = 1L;
 		// Period parameters
 		private static final int N = 624;
 		private static final int M = 397;

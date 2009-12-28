@@ -46,8 +46,8 @@ public class TwoCircleShape extends GeomShape   {
 	 */
 	
 	public TwoCircleShape() {
-//		this(Double.NaN, Double.NaN, Double.NaN, Double.NaN, Double.NaN, Double.NaN);
-		this(0, 0, 0, 0, 0, 0);
+		this(Double.NaN, Double.NaN, Double.NaN, Double.NaN, Double.NaN, Double.NaN);
+//		this(0, 0, 0, 0, 0, 0);
 	}
 	
 	public TwoCircleShape(double _xc1, double _yc1, double _r1, double _xc2, double _yc2, double _r2) {
@@ -68,6 +68,20 @@ public class TwoCircleShape extends GeomShape   {
 		return 6;
 	}
 	
+	/**
+	 * Return the parameter array for this shape. 
+	 * As specified in the mother abstract class {@link GeomShape},
+	 * we store them as a double array of 6 elements. Array content is the following:
+	 * <ul>
+	 * 	<li> [0]: <code>xc1</code>, the x coordinate of circle 1 center
+	 * 	<li> [1]: <code>yc1</code>, the y coordinate of circle 1 center
+	 * 	<li> [2]: <code>r1</code>, the radius of circle 1
+	 * 	<li> [3]: <code>xc2</code>, the x coordinate of circle 2 center
+	 * 	<li> [4]: <code>yc2</code>, the y coordinate of circle 2 center
+	 * 	<li> [5]: <code>r2</code>, the radius of circle 2
+	 * </ul>
+	 * @see #setParameters(double[])
+	 */
 	public double[] getParameters() {		
 		return params;
 	}
@@ -83,6 +97,21 @@ public class TwoCircleShape extends GeomShape   {
 		};
 	}
 	
+	/**
+	 * Sets the parameter array for this shape. This <b>replaces</b> the 
+	 * previous one, and as such, invalidates previous references to it.
+	 * <p>  
+	 * Array content is the following:
+	 * <ul>
+	 * 	<li> [0]: <code>xc1</code>, the x coordinate of circle 1 center
+	 * 	<li> [1]: <code>yc1</code>, the y coordinate of circle 1 center
+	 * 	<li> [2]: <code>r1</code>, the radius of circle 1
+	 * 	<li> [3]: <code>xc2</code>, the x coordinate of circle 2 center
+	 * 	<li> [4]: <code>yc2</code>, the y coordinate of circle 2 center
+	 * 	<li> [5]: <code>r2</code>, the radius of circle 2
+	 * </ul>
+	 * @see #getParameters()
+	 */
 	public void setParameters(double[] arr) {		
 		this.params = arr;
 	}

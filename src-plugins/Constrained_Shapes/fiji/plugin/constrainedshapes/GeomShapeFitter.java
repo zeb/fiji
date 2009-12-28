@@ -2,24 +2,19 @@ package fiji.plugin.constrainedshapes;
 
 import ij.process.ImageProcessor;
 import fiji.util.optimization.ConjugateDirectionSearch;
-import fiji.util.optimization.DifferentialEvolution;
 import fiji.util.optimization.MinimiserMonitor;
 import fiji.util.optimization.MultivariateFunction;
 import fiji.util.optimization.MultivariateMinimum;
 import fiji.util.optimization.OrthogonalHints;
-import fiji.util.optimization.OrthogonalSearch;
 
 public class GeomShapeFitter implements MultivariateFunction {
 
-	
 	/*
 	 * ENUM 
 	 */
 	
 	public static enum Method {
-		CONJUGATE_DIRECTION_SEARCH,
-		DIFFERENTIAL_EVOLUTION,
-		ORTHOGONAL_SEARCH; 
+		CONJUGATE_DIRECTION_SEARCH; // Unfortunately so far, the only one that works here 
 		
 		public MultivariateMinimum instantiate(GeomShape shape) {
 			MultivariateMinimum optimizer = null;
@@ -27,10 +22,6 @@ public class GeomShapeFitter implements MultivariateFunction {
 			case CONJUGATE_DIRECTION_SEARCH:
 				optimizer = new ConjugateDirectionSearch();
 				break;
-			case DIFFERENTIAL_EVOLUTION:
-				optimizer = new DifferentialEvolution(shape.getNumParameters());
-			case ORTHOGONAL_SEARCH:
-				optimizer = new OrthogonalSearch();
 			}
 			return optimizer;
 		}
@@ -40,10 +31,18 @@ public class GeomShapeFitter implements MultivariateFunction {
 	 * FIELDS
 	 */
 	
-	private GeomShape shape; // Can't default.
+	private int n_points = 500; // Default value TODO
+	/** 
+	 * Sets the desired precision of the optimization process. 
+	 * These 2 numbers set the desired number of digits after 
+	 * dot of parameters and function.
+	 */
+	private static final int PARAMETER_PRECISION = 1;
+	private static final int FUNCTION_PRECISION = 1;
+	
+	private GeomShape shape; // Can't be null because of constructor.
 	private ImageProcessor ip; 
 	private GeomShape.EvalFunction function = GeomShape.EvalFunction.MEAN; 
-	private int n_points = 500; // Default value TODO
 	private MinimiserMonitor monitor = null;
 	
 	private double[] lower_bounds;
@@ -52,7 +51,18 @@ public class GeomShapeFitter implements MultivariateFunction {
 	private Method method = Method.CONJUGATE_DIRECTION_SEARCH;
 	private MultivariateMinimum optimizer;
 	
+	/*
+	 * CONSTRUCTOR
+	 */
 	
+	/**
+	 * No empty constructor, for we need to initialize the fitter in a way 
+	 * that depends on the {@link GeomShape} it will work on. 
+	 */
+	public GeomShapeFitter(GeomShape _shape) {
+		setShape(_shape);
+	}
+		
 	/*
 	 * PUBLIC METHOD
 	 */
@@ -74,9 +84,13 @@ public class GeomShapeFitter implements MultivariateFunction {
 	 */
 	public void optimize() {
 		if ( (shape==null) || (ip==null)) { return; }
-		optimizer.findMinimum(this, shape.getParameters(), 1, 1, monitor);
+		optimizer.findMinimum(
+				this, 
+				shape.getParameters(), 
+				FUNCTION_PRECISION, 
+				PARAMETER_PRECISION, 
+				monitor);
 	}
-	
 	
 	public void setLowerBound(int n, double value) {
 		this.lower_bounds[n] = value;
@@ -85,7 +99,6 @@ public class GeomShapeFitter implements MultivariateFunction {
 	public void setUpperBound(int n, double value) {
 		this.upper_bounds[n] = value;
 	}
-	
 	
 	/*
 	 * MULTIVARIATEFUNCTION METHODS
@@ -108,11 +121,9 @@ public class GeomShapeFitter implements MultivariateFunction {
 		return upper_bounds[n];
 	}
 
-
 	public OrthogonalHints getOrthogonalHints() {
 		return OrthogonalHints.Utils.getNull();
 	}
-
 	
 	/*
 	 * GETTERS AND SETTERS
@@ -156,7 +167,7 @@ public class GeomShapeFitter implements MultivariateFunction {
 		this.optimizer = method.instantiate(_shape);
 		this.lower_bounds = arr1;
 		this.upper_bounds = arr2;
-		this.shape = _shape;
+		this.shape = _shape;		
 	}
 
 }

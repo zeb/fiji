@@ -5,6 +5,7 @@ import ij.ImageListener;
 import ij.ImagePlus;
 import ij.WindowManager;
 import ij.gui.ImageCanvas;
+import ij.gui.ImageWindow;
 import ij.gui.Roi;
 import ij.gui.ShapeRoi;
 import ij.gui.Toolbar;
@@ -167,13 +168,13 @@ public class TwoCircleRoi extends ShapeRoi implements MouseListener, MouseMotion
 	 * Empty constructor, needed to be run as a plugin
 	 */
 	public TwoCircleRoi() {
-		super(new Roi(0,0,1,1)); // dummy super constructor, we only want the ROI methods  
+		super(new Roi(0,0,0,0)); // dummy super constructor, we only want the ROI methods  
 		this.tcs = new TwoCircleShape();
 		this.status = InteractionStatus.CREATING_C1;
 	}
 	
 	public TwoCircleRoi(TwoCircleShape _tcs) {
-		super(_tcs); // dummy super constructor, we only want the ROI methods  
+		this(); // dummy super constructor, we only want the ROI methods  
 		this.tcs = _tcs;
 		this.status = InteractionStatus.FREE;
 	}
@@ -440,7 +441,6 @@ public class TwoCircleRoi extends ShapeRoi implements MouseListener, MouseMotion
 		}
 	}
 	
-	
 	/**
 	 * Non destructively draw the handles of this ROI, using the {@link Graphics}
 	 * object given. The {@link #canvas_affine_transform} is used to position
@@ -501,7 +501,6 @@ public class TwoCircleRoi extends ShapeRoi implements MouseListener, MouseMotion
 	 * MOUSELISTENER METHODS
 	 */
 	
-	
 	public void mousePressed(MouseEvent e) { 
 
 		if (Toolbar.getInstance() != toolbar) {
@@ -512,11 +511,25 @@ public class TwoCircleRoi extends ShapeRoi implements MouseListener, MouseMotion
 		if (Toolbar.getToolId() != toolID)
 			return;
 
+		// Deal with changing window
+		ImageCanvas source = (ImageCanvas) e.getSource();
+		if (source != ic) {
+			// We changed image window. Update fields accordingly
+			ImageWindow window = (ImageWindow) source.getParent();
+			imp = window.getImagePlus();
+			ic = source;
+			Roi current_roi = imp.getRoi();
+			if ( (current_roi == null) || !(current_roi instanceof TwoCircleRoi)) {
+				status = InteractionStatus.CREATING_C1;
+				tcs = new TwoCircleShape();
+			} else {
+				TwoCircleRoi roi = (TwoCircleRoi) current_roi;
+				tcs = (TwoCircleShape) roi.getShape();
+				status = InteractionStatus.FREE;
+			}
+		}
 		
-		ImageCanvas canvas = (ImageCanvas) e.getSource();
-		ic = canvas;
-		imp = ic.getImage();
-		
+		refreshAffineTransform();
 		Point p = e.getPoint();		
 		ClickLocation cl = getClickLocation(p);
 		switch (cl) {
@@ -620,6 +633,5 @@ public class TwoCircleRoi extends ShapeRoi implements MouseListener, MouseMotion
 	}
 
 	public void imageUpdated(ImagePlus imp) {	}
-	
 	
 }
