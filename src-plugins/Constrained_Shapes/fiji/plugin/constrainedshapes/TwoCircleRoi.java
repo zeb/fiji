@@ -1,57 +1,75 @@
 package fiji.plugin.constrainedshapes;
 
-import ij.IJ;
-import ij.ImageListener;
-import ij.ImagePlus;
-import ij.WindowManager;
+import fiji.plugin.constrainedshapes.TwoCircleTool.InteractionStatus;
 import ij.gui.ImageCanvas;
-import ij.gui.ImageWindow;
-import ij.gui.Roi;
 import ij.gui.ShapeRoi;
-import ij.gui.Toolbar;
-import ij.plugin.PlugIn;
+import ij.process.ByteProcessor;
+import ij.process.ImageProcessor;
 
 import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
-import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
-import java.awt.event.MouseEvent;
-import java.awt.event.MouseListener;
-import java.awt.event.MouseMotionListener;
 import java.awt.geom.AffineTransform;
+import java.awt.geom.Ellipse2D;
 import java.awt.geom.Point2D;
+import java.awt.image.BufferedImage;
+import java.awt.image.DataBufferByte;
+import java.awt.image.Raster;
 import java.util.ArrayList;
 
-public class TwoCircleRoi extends ShapeRoi implements MouseListener, MouseMotionListener, ImageListener, PlugIn {
-
+public class TwoCircleRoi extends ShapeRoi  {
 
 	/*
 	 * FIELDS
 	 */
 	
+
+	/**
+	 * 
+	 */
 	private static final long serialVersionUID = 1L;
 	/** Min dist to drag a handle, in unzoomed pixels */
 	private static final double DRAG_TOLERANCE = 10;
-	
 	private TwoCircleShape tcs;
 	private ArrayList<Handle> handles = new ArrayList<Handle>(4);
 	private AffineTransform canvas_affine_transform = new AffineTransform();
-	private InteractionStatus status;
-	private Point start_drag;
-	private Toolbar toolbar;
-	private int toolID = -1;
-	
-	/**
-	 * If true, handles for user interaction will be drawn.
-	 */
-	public boolean displayHandle = true;
 	
 	/*
 	 * INNER CLASS * ENUMS
 	 */
 	
+	/**
+	 * Enum type to return where the user clicked relative to this ROI.
+	 */
+	public static enum ClickLocation { 
+		OUTSIDE, INSIDE, HANDLE_C1, HANDLE_C2, HANDLE_R1, HANDLE_R2;
+		/**
+		 * Return the {@link InteractionStatus} expected when clicking this location.
+		 */
+		public InteractionStatus getInteractionStatus() {
+			InteractionStatus is = InteractionStatus.FREE;
+			switch (this) {
+			case INSIDE:
+				is = InteractionStatus.MOVING_ROI;
+				break;
+			case  HANDLE_C1:
+				is = InteractionStatus.MOVING_C1;
+				break;
+			case HANDLE_C2:
+				is = InteractionStatus.MOVING_C2;
+				break;
+			case HANDLE_R1:
+				is = InteractionStatus.RESIZING_C1;
+				break;
+			case HANDLE_R2:
+				is = InteractionStatus.RESIZING_C2;
+				break;
+			}
+			return is;
+		}	
+	}
 	
 	/**
 	 * This internal class is used to deal with the small handles that appear on
@@ -93,6 +111,7 @@ public class TwoCircleRoi extends ShapeRoi implements MouseListener, MouseMotion
 			this.center = new Point2D.Double(_x, _y);
 			this.type = _type;
 		}
+		
 		public void draw(Graphics g, AffineTransform at) {
 			Point2D dest = new Point2D.Double();
 			if ( at == null) { 
@@ -122,106 +141,24 @@ public class TwoCircleRoi extends ShapeRoi implements MouseListener, MouseMotion
 	}
 	
 	
-	
-	/**
-	 * Enum type to return where the user clicked relative to this ROI.
-	 */
-	public static enum ClickLocation { 
-		OUTSIDE, INSIDE, HANDLE_C1, HANDLE_C2, HANDLE_R1, HANDLE_R2;
-		/**
-		 * Return the {@link InteractionStatus} expected when clicking this location.
-		 */
-		public InteractionStatus getInteractionStatus() {
-			InteractionStatus is = InteractionStatus.FREE;
-			switch (this) {
-			case INSIDE:
-				is = InteractionStatus.MOVING_ROI;
-				break;
-			case  HANDLE_C1:
-				is = InteractionStatus.MOVING_C1;
-				break;
-			case HANDLE_C2:
-				is = InteractionStatus.MOVING_C2;
-				break;
-			case HANDLE_R1:
-				is = InteractionStatus.RESIZING_C1;
-				break;
-			case HANDLE_R2:
-				is = InteractionStatus.RESIZING_C2;
-				break;
-			}
-			return is;
-		}	
-	}
-	
-	/**
-	 * Enum type to specify the current user interaction status.
-	 */
-	private static enum InteractionStatus { FREE, MOVING_ROI, MOVING_C1, MOVING_C2, RESIZING_C1, RESIZING_C2, CREATING_C1, CREATING_C2 };
-
-
 	/*
 	 * CONSTRUCTOR
 	 */
 	
-	/**
-	 * Empty constructor, needed to be run as a plugin
-	 */
 	public TwoCircleRoi() {
-		super(new Roi(0,0,0,0)); // dummy super constructor, we only want the ROI methods  
-		this.tcs = new TwoCircleShape();
-		this.status = InteractionStatus.CREATING_C1;
+		this(new TwoCircleShape());
 	}
 	
 	public TwoCircleRoi(TwoCircleShape _tcs) {
-		this(); // dummy super constructor, we only want the ROI methods  
+		super(1, 1, new Ellipse2D.Float(0, 0, 1, 1)); // we don't care for superclass content
 		this.tcs = _tcs;
-		this.status = InteractionStatus.FREE;
+		type = COMPOSITE;
+		cachedMask = null;
 	}
-
 	
-	/*
-	 * RUN METHOD
-	 */
-	
-	public void run(String arg) {
-		toolbar = Toolbar.getInstance();
-		if (toolbar == null) {
-			IJ.error("No toolbar found");
-			return;
-		}
-
-		toolID = toolbar.addTool(getToolName() + " - "	+ getToolIcon());
-		if (toolID < 0) {
-			if (toolbar.getToolId(getToolName()) == -1) {
-				IJ.error("Could not register tool");
-				return;
-			}
-		}
-		toolbar.setTool(toolID);
-		registerTool();
-	}
 	/*
 	 * PUBLIC METHODS
 	 */
-	
-	/**
-	 * Draw this ROI on the current {@link ImageCanvas}. 
-	 * Overrides the {@link ShapeRoi#draw(java.awt.Graphics)} method, so that 
-	 * we can draw our shape with handles.
-	 */
-	public void draw(Graphics g) {
-		if (ic == null) {return;}
-		refreshAffineTransform();
-		Graphics2D g2 = (Graphics2D) g;
-		g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-		g2.setColor(Roi.getColor());		
-		g2.draw(canvas_affine_transform.createTransformedShape(tcs));
-		if (displayHandle) {
-			prepareHandles();
-			drawHandles(g);
-		}
-	}
 	
 	/**
 	 * Return the location of the given point with respect to this shape. The point
@@ -248,95 +185,74 @@ public class TwoCircleRoi extends ShapeRoi implements MouseListener, MouseMotion
 		} 
 		return ClickLocation.OUTSIDE;
 	}
+		
+	/*
+	 * SHAPEROI METHODS
+	 */
 	
-	public String getToolIcon() {
-		return "C000D38D39D3dD53D62D63D7dD8cD9cDc2Dc3Dc9DcaDd3Dd9" +
-				"C000D29D2aD2cD2dD37D3aD3cD3eD43D44D45D47D48D4dD4e" +
-				"D54D55D61D6dD6eD71D72D7cD7eD81D82D8dD9bDa1Da2Daa" +
-				"DabDb1Db2DbaDbbDc1DcbDd4Dd5Dd7Dd8De3De4De5De7De8De9" +
-				"C000C111C222C333C444D1aD1bD1cD28D2bD2eD35D36D3bD46" +
-				"D49D4fD52D56D57D5dD5eD5fD6fD80D8bD8eD90D91D92D9aDa0" +
-				"DacDd2Dd6DdaDe6Df5Df6Df7C444C555C666C777C888D19D1dD34" +
-				"D3fD42D51D58D64D70D73D7bD7fD8aD9dDb0Db3Db9DbcDc4Dc8Dd1" +
-				"DdbDe2DeaDf4Df8C888C999CaaaCbbbD18D1eD27D2fD33D41D4aD4c" +
-				"D59D60D65D6cD7aD83D8fD9eDa3Da9Dc0Dc5Dc7DccDe1DebDf3Df9" +
-				"CbbbCcccCdddCeeeCfff";
-	}
-	
-	public String getToolName() {
-		return "Two_circle_shape";
-	}
-	
-	public GeomShape getShape() {
+	@Override
+	public TwoCircleShape getShape() {
 		return tcs;
 	}
 	
+	/**
+	 * Draw this ROI on the current {@link ImageCanvas}. 
+	 * Overrides the {@link ShapeRoi#draw(java.awt.Graphics)} method, so that 
+	 * we can draw our shape with handles.
+	 */
+	@Override
+	public void draw(Graphics g) {
+		refreshAffineTransform();
+		Graphics2D g2 = (Graphics2D) g;
+		g.setColor(strokeColor!=null? strokeColor:ROIColor);
+		g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+		g2.draw(canvas_affine_transform.createTransformedShape(tcs));
+		prepareHandles();
+		drawHandles(g2);
+	}
+	
+	/**Draws the shape of this object onto the specified ImageProcessor.
+	 * <br> This method will always draw a flattened version of the actual shape
+	 * (i.e., all curve segments will be approximated by line segments).
+	 */
+	@Override
+	public void drawPixels(ImageProcessor ip) {
+		new ShapeRoi(tcs).drawPixels(ip);
+	}
+
+	/** Returns this ROI's mask pixels as a ByteProcessor with pixels "in" the mask
+	set to white (255) and pixels "outside" the mask set to black (0). 
+	*/
+	@Override
+	public ImageProcessor getMask() {
+		if(tcs==null) return null;
+		final int width = imp.getWidth();
+		final int height = imp.getHeight();
+		BufferedImage bi = new BufferedImage(width, height, BufferedImage.TYPE_BYTE_GRAY);
+		Graphics2D g2d = bi.createGraphics();
+		g2d.setColor(Color.white);
+		g2d.fill(tcs);
+		Raster raster = bi.getRaster();
+		DataBufferByte buffer = (DataBufferByte)raster.getDataBuffer();		
+		byte[] mask = buffer.getData();
+		cachedMask = new ByteProcessor(width, height, mask, null);
+        return cachedMask;
+	}
 	
 	/*
-	 * DEFAULT VISIBILITY METHODS
+	 * ROI METHODS
 	 */
 	
-	void registerTool() {
-		int[] ids = WindowManager.getIDList();
-		if (ids != null)
-			for (int id : ids)
-				registerTool(WindowManager.getImage(id));
-		ImagePlus.addImageListener(this);
+	/** Return this selection's bounding rectangle. */
+	@Override
+	public Rectangle getBounds() {
+		return tcs.getBounds();
 	}
-
-	void registerTool(ImagePlus image) {
-		if (image == null)
-			return;
-		registerTool(image.getCanvas());
-	}
-
-	void registerTool(ImageCanvas canvas) {
-		if (canvas == null)
-			return;
-		canvas.addMouseListener(this);
-		canvas.addMouseMotionListener(this);
-	}
-
-	void unregisterTool() {
-		for (int id : WindowManager.getIDList())
-			unregisterTool(WindowManager.getImage(id));
-		ImagePlus.removeImageListener(this);
-	}
-
-	void unregisterTool(ImagePlus image) {
-		if (image == null)
-			return;
-		unregisterTool(image.getCanvas());
-	}
-
-	void unregisterTool(ImageCanvas canvas) {
-		if (canvas == null)
-			return;
-		canvas.removeMouseListener(this);
-		canvas.removeMouseMotionListener(this);
-	}
-
-	
-	
 	
 	/*
 	 * PRIVATE METHODS
 	 */
-	
-	/**
-	 * Refresh the {@link AffineTransform} of this shape, according to current {@link ImageCanvas}
-	 * settings. It is normally called only by the {@link #draw(Graphics)} method, for it
-	 * is called every time something changed in the canvas, and that is when this transform needs
-	 * to be updated.
-	 */
-	private void refreshAffineTransform() {
-		canvas_affine_transform = new AffineTransform();
-		if (ic == null) { return; }
-		final double mag = ic.getMagnification();
-		final Rectangle r = ic.getSrcRect();
-		canvas_affine_transform.setTransform(mag, 0.0, 0.0, mag, -r.x*mag, -r.y*mag);
-	}
-	
+		
 	/**
 	 * Regenerate the {@link #handles} field. The {@link Handle} coordinates are generated
 	 * with respect to the {@link TwoCircleShape} object. They will be transformed in the 
@@ -447,7 +363,17 @@ public class TwoCircleRoi extends ShapeRoi implements MouseListener, MouseMotion
 	 * the handles correctly with respect to the canvas zoom level.
 	 */
 	private void drawHandles(Graphics g) {
-		double size = Math.min(tcs.getParameters()[2],tcs.getParameters()[5]) * mag;
+		final double[] params = tcs.getParameters();
+		final double r1 = params[2];
+		final double r2 = params[5];
+		double size = 4;
+		if (Double.isNaN(r2)) {
+			size = r1 * ic.getMagnification();
+		} else if (Double.isNaN(r1)) {
+			size = r2 * ic.getMagnification();
+		} else {
+			size = Math.min(r1,r2) * ic.getMagnification();
+		}
 		int handle_size;
 		if (size>10) {
 			handle_size = 8;
@@ -462,15 +388,20 @@ public class TwoCircleRoi extends ShapeRoi implements MouseListener, MouseMotion
 		}
 	}
 	
+	
+	
 	/**
-	 * Reset this ROI to null, and make it ready to be re-drawn by user interaction
+	 * Refresh the {@link AffineTransform} of this shape, according to current {@link ImageCanvas}
+	 * settings. It is normally called only by the {@link #draw(Graphics)} method, for it
+	 * is called every time something changed in the canvas, and that is when this transform needs
+	 * to be updated.
 	 */
-	private void reset() {
-		this.tcs = new TwoCircleShape();
-		this.status = InteractionStatus.CREATING_C1;
-		handles.clear();
-		imp.killRoi();
-		status = InteractionStatus.CREATING_C1;
+	private void refreshAffineTransform() {
+		canvas_affine_transform = new AffineTransform();
+		if (ic == null) { return; }
+		final double mag = ic.getMagnification();
+		final Rectangle r = ic.getSrcRect();
+		canvas_affine_transform.setTransform(mag, 0.0, 0.0, mag, -r.x*mag, -r.y*mag);
 	}
 	
 	/*
@@ -481,8 +412,8 @@ public class TwoCircleRoi extends ShapeRoi implements MouseListener, MouseMotion
 	 * For testing purposes.
 	 */
 	public static void main(String[] args) {
-		final Point2D.Float C1 = new Point2D.Float(200 ,150);
-		final Point2D.Float C2 = new Point2D.Float(250 ,200);
+		final Point2D.Float C1 = new Point2D.Float(100 ,50);
+		final Point2D.Float C2 = new Point2D.Float(150 ,100);
 		final float R1 = 50;
 		final float R2 = 75;
 		//
@@ -497,141 +428,4 @@ public class TwoCircleRoi extends ShapeRoi implements MouseListener, MouseMotion
 		imp.updateAndDraw();
 	}
 
-	/*
-	 * MOUSELISTENER METHODS
-	 */
-	
-	public void mousePressed(MouseEvent e) { 
-
-		if (Toolbar.getInstance() != toolbar) {
-			unregisterTool();
-			IJ.showStatus("unregistered " + getToolName() + " Tool");
-			return;
-		}
-		if (Toolbar.getToolId() != toolID)
-			return;
-
-		// Deal with changing window
-		ImageCanvas source = (ImageCanvas) e.getSource();
-		if (source != ic) {
-			// We changed image window. Update fields accordingly
-			ImageWindow window = (ImageWindow) source.getParent();
-			imp = window.getImagePlus();
-			ic = source;
-			Roi current_roi = imp.getRoi();
-			if ( (current_roi == null) || !(current_roi instanceof TwoCircleRoi)) {
-				status = InteractionStatus.CREATING_C1;
-				tcs = new TwoCircleShape();
-			} else {
-				TwoCircleRoi roi = (TwoCircleRoi) current_roi;
-				tcs = (TwoCircleShape) roi.getShape();
-				status = InteractionStatus.FREE;
-			}
-		}
-		
-		refreshAffineTransform();
-		Point p = e.getPoint();		
-		ClickLocation cl = getClickLocation(p);
-		switch (cl) {
-		case OUTSIDE:
-			switch (status) {
-			case CREATING_C1:
-				tcs.setC1(p);
-				break;
-			case CREATING_C2:
-				tcs.setC2(p);
-				break;
-			default:
-				// If drag is small, then we will kill this roi
-			}
-			imp.setRoi(this);
-			break;
-		default:
-			status = cl.getInteractionStatus();
-		}
-		start_drag = p;
-	}
-
-	public void mouseDragged(MouseEvent e) {
-		
-		if (Toolbar.getToolId() != toolID) return;
-		
-		refreshAffineTransform();
-		Point p = e.getPoint();
-		Point2D c = new Point2D.Float();
-		final double[] params = tcs.getParameters();
-		
-		switch (status) {
-		case MOVING_ROI:
-			params[0] += (p.x-start_drag.x)/canvas_affine_transform.getScaleX();
-			params[3] += (p.x-start_drag.x)/canvas_affine_transform.getScaleX();
-			params[1] += (p.y-start_drag.y)/canvas_affine_transform.getScaleY();
-			params[4] += (p.y-start_drag.y)/canvas_affine_transform.getScaleY();
-			break;
-		case MOVING_C1:
-			params[0] += (p.x-start_drag.x)/canvas_affine_transform.getScaleX();
-			params[1] += (p.y-start_drag.y)/canvas_affine_transform.getScaleY();
-			break;
-		case MOVING_C2:
-			params[3] += (p.x-start_drag.x)/canvas_affine_transform.getScaleX();
-			params[4] += (p.y-start_drag.y)/canvas_affine_transform.getScaleY();
-			break;
-		case RESIZING_C1:
-		case CREATING_C1:
-			canvas_affine_transform.transform(tcs.getC1(), c);
-			params[2] = c.distance(p)/canvas_affine_transform.getScaleX();			
-			break;
-		case RESIZING_C2:
-		case CREATING_C2:
-			canvas_affine_transform.transform(tcs.getC2(), c);
-			params[5] = c.distance(p)/canvas_affine_transform.getScaleX();			
-			break;
-			
-		}
-		start_drag = p;
-		imp.draw(); // This will in turn call the draw(Graphics) method of this object
-	}
-
-	public void mouseReleased(MouseEvent e) {
-		
-		if (Toolbar.getToolId() != toolID) return;
-		
-		switch (status) {
-		case CREATING_C1:
-			status = InteractionStatus.CREATING_C2;
-			break;
-		case CREATING_C2:
-			status = InteractionStatus.FREE;
-			break;
-		}
-	}
-	
-	public void mouseClicked(MouseEvent e) {
-		
-		if (Toolbar.getToolId() != toolID) return;
-
-		ClickLocation cl = getClickLocation(e.getPoint());
-		if (cl == ClickLocation.OUTSIDE ) {
-			reset();			
-		}
-	}
-	
-	public void mouseMoved(MouseEvent e) {	}
-	public void mouseEntered(MouseEvent e) {	}
-	public void mouseExited(MouseEvent e) {	}
-
-	/*
-	 * IMAGELISTENER METHODS
-	 */
-
-	public void imageClosed(ImagePlus imp) {
-		unregisterTool(imp);
-	}
-
-	public void imageOpened(ImagePlus imp) {
-		registerTool(imp);		
-	}
-
-	public void imageUpdated(ImagePlus imp) {	}
-	
 }

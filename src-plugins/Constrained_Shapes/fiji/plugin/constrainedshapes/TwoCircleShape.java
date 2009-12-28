@@ -269,8 +269,8 @@ public class TwoCircleShape extends GeomShape   {
 	}
 	
 	public String toString() {
-		return String.format("TwoCircleShape: xc1=%5.1f, yc1=%5.1f, r1=%5.1f, xc2=%5.1f, yc2=%5.1f, r2=%5.1f - %s", 
-				params[0], params[1], params[2], params[3], params[4], params[5], getArrangement());
+		return String.format("xc1=%5.0f, yc1=%5.0f, r1=%5.0f, xc2=%5.0f, yc2=%5.0f, r2=%5.0f", 
+				params[0], params[1], params[2], params[3], params[4], params[5]);
 	}
 	
 	/*
@@ -290,15 +290,19 @@ public class TwoCircleShape extends GeomShape   {
 		final double yc2 = params[4];
 		final double r2  = params[5];
 		
-		final double xb1 = xc1 - r1;
-		final double yb1 = yc1 - r1;		
-		final double xb2 = xc2 - r2;
-		final double yb2 = yc2 - r2;		
-		final Ellipse2D circle1 = new Ellipse2D.Double(xb1, yb1, 2*r1, 2*r1);
-		final Ellipse2D circle2 = new Ellipse2D.Double(xb2, yb2, 2*r2, 2*r2);
 		GeneralPath path = new GeneralPath();
-		path.append(circle1, false);
-		path.append(circle2, false);
+		if ( !( Double.isNaN(xc1) || Double.isNaN(yc1) || Double.isNaN(r1)) ) {
+			final double xb1 = xc1 - r1;
+			final double yb1 = yc1 - r1;		
+			final Ellipse2D circle1 = new Ellipse2D.Double(xb1, yb1, 2*r1, 2*r1);
+			path.append(circle1, false);
+		}
+		if ( !( Double.isNaN(xc2) || Double.isNaN(yc2) || Double.isNaN(r2)) ) {
+			final double xb2 = xc2 - r2;
+			final double yb2 = yc2 - r2;		
+			final Ellipse2D circle2 = new Ellipse2D.Double(xb2, yb2, 2*r2, 2*r2);
+			path.append(circle2, false);
+		}
 		Area area = new Area(path); // We want the outline
 		return new GeneralPath(area);
 	}

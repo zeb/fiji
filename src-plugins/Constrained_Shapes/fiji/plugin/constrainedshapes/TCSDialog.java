@@ -22,23 +22,10 @@ import javax.swing.SwingUtilities;
 import javax.swing.WindowConstants;
 import javax.swing.border.LineBorder;
 
-
-/**
-* This code was edited or generated using CloudGarden's Jigloo
-* SWT/Swing GUI Builder, which is free for non-commercial
-* use. If Jigloo is being used commercially (ie, by a corporation,
-* company or business for any purpose whatever) then you
-* should purchase a license for each developer using Jigloo.
-* Please visit www.cloudgarden.com for details.
-* Use of Jigloo implies acceptance of these licensing terms.
-* A COMMERCIAL LICENSE HAS NOT BEEN PURCHASED FOR
-* THIS MACHINE, SO JIGLOO OR THIS CODE CANNOT BE USED
-* LEGALLY FOR ANY CORPORATE OR COMMERCIAL PURPOSE.
-*/
 public class TCSDialog extends javax.swing.JDialog implements ImageListener, ActionListener, FocusListener {
 
 	public static final int OK = 0;
-	public static final int CANCELED = 0;
+	public static final int CANCELED = 1;
 	
 	private static final long serialVersionUID = 1L;
 
@@ -215,7 +202,10 @@ public class TCSDialog extends javax.swing.JDialog implements ImageListener, Act
 	private void fireActionProperty(int event_id, String command) {
 		ActionEvent action = new ActionEvent(this, event_id, command);
 		for (ActionListener l : action_listeners) {
-			l.actionPerformed(action);
+			synchronized (l) {
+				l.notifyAll();
+				l.actionPerformed(action);				
+			}
 		}
 	}
 	

@@ -43,16 +43,15 @@ public class Two_Circle_Fitter implements PlugIn, ActionListener, MinimiserMonit
 	private ImagePlus imp;
 	private ImageCanvas canvas;
 	private RoiListStackWindow stack_window;
+	boolean user_has_canceled = false;
+	boolean launched_from_run_method = false;
 	
 	/*
 	 * PUBLIC METHODS
 	 */
 
-	
-
-
 	public synchronized void run(String arg) {
-
+		launched_from_run_method = true;
 		ImagePlus current = WindowManager.getCurrentImage();
 		if (current == null) { return; }
 
@@ -60,12 +59,13 @@ public class Two_Circle_Fitter implements PlugIn, ActionListener, MinimiserMonit
 		if (current.getStack().getSize() > 1) {
 			stack_window = new RoiListStackWindow(imp, canvas);
 			stack_window.show();
+			new TwoCircleTool().run("");
 		}
 		
 		TwoCircleShape tcs;
 		Roi roi = imp.getRoi();
 		if ( !(roi instanceof TwoCircleRoi) ) {
-			new TwoCircleRoi().run("");
+			new TwoCircleTool().run("");
 		}
 
 		// Display dialog, and wait for user clicks
@@ -73,16 +73,28 @@ public class Two_Circle_Fitter implements PlugIn, ActionListener, MinimiserMonit
 
 		// Put the plugin to halt until the user presses the dialog's button
 		try {
-			this.wait();
+			while (true) {
+				this.wait();
+				// User has canceled?
+				if (user_has_canceled) {
+					dialog.dispose();
+					IJ.showStatus("Two-circle fitter canceled.");
+					return;
+				}
+				roi = imp.getRoi();
+				if (roi instanceof TwoCircleRoi) {
+					break;
+				} else {
+					IJ.error("Please specify a Two-Circle Roi.");
+				}
+			}
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
-
+		
 		// Retrieve the adjusted two-circle shape
 		tcs = (TwoCircleShape) ( (TwoCircleRoi)imp.getRoi() ).getShape();
 		imp.killRoi();
-		canvas.addMouseListener(canvas);
-		canvas.addMouseMotionListener(canvas); // Restore listeners
 		
 		// Retrieve dialog parameters
 		method = DEFAULT_METHOD;
@@ -148,6 +160,9 @@ public class Two_Circle_Fitter implements PlugIn, ActionListener, MinimiserMonit
 				IJ.resetEscape();
 				break;
 			}
+			if (launched_from_run_method) {
+				IJ.showProgress(index*step/(double)(stop-start));
+			}
 			imp.setSlice(i);
 			ip = imp.getImageStack().getProcessor(i);
 			optimizer.setImageProcessor(ip);
@@ -159,6 +174,9 @@ public class Two_Circle_Fitter implements PlugIn, ActionListener, MinimiserMonit
 			}
 			imp.draw();
 			index++;
+		}
+		if (launched_from_run_method) {
+			IJ.showProgress(2.0); // to erase it
 		}
 		Roi.setColor(orig_color);
 		imp.draw();
@@ -266,11 +284,8 @@ public class Two_Circle_Fitter implements PlugIn, ActionListener, MinimiserMonit
 	 */
 
 	public synchronized void actionPerformed(ActionEvent e) {
-		Roi roi = imp.getRoi();
-		if (roi instanceof TwoCircleRoi) {
-			this.notifyAll(); // We simply wake the thread so that this plugin execution resumes.
-		} else {
-			IJ.error("Please specify a Two-circle Roi.");
+		if (e.getID() == TCSDialog.CANCELED) {
+			user_has_canceled = true;
 		}
 	}
 	

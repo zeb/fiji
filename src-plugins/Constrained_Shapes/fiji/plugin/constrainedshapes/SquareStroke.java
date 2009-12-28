@@ -1,24 +1,23 @@
 package fiji.plugin.constrainedshapes;
 
+import java.awt.Rectangle;
 import java.awt.Shape;
 import java.awt.Stroke;
-import java.awt.geom.Ellipse2D;
 import java.awt.geom.GeneralPath;
 import java.awt.geom.PathIterator;
 
-public class CircleStroke implements Stroke {
-
+public class SquareStroke implements Stroke {
 	/*
 	 * FIELDS
 	 */
 	
-	private float size;
+	private int size;
 	
 	/*
 	 * CONSTRUCTOR
 	 */
 	
-	public CircleStroke(float _size) {
+	public SquareStroke(int _size) {
 		this.size = _size;
 	}
 	
@@ -27,25 +26,25 @@ public class CircleStroke implements Stroke {
 		final PathIterator pi = p.getPathIterator(null);
 		int segment_type;
 		float[] coords = new float[6];
-		float x = 0;
-		float y = 0;
+		int x = 0;
+		int y = 0;
 		while (!pi.isDone()) {
 			segment_type = pi.currentSegment(coords);
 			switch (segment_type) {
 			case PathIterator.SEG_LINETO:
 			case PathIterator.SEG_MOVETO:
-				x = coords[0];
-				y = coords[1];
+				x = (int) coords[0];
+				y = (int) coords[1];
 				path.append(convolve(x,y), false);
 				break;
 			case PathIterator.SEG_QUADTO:
-				x = coords[2];
-				y = coords[3];
+				x = (int) coords[2];
+				y = (int) coords[3];
 				path.append(convolve(x,y), false);
 				break;
 			case PathIterator.SEG_CUBICTO:
-				x = coords[4];
-				y = coords[5];
+				x = (int) coords[4];
+				y = (int) coords[5];
 				path.append(convolve(x,y), false);
 				break;
 			case PathIterator.SEG_CLOSE:
@@ -56,8 +55,8 @@ public class CircleStroke implements Stroke {
 		return path;
 	}
 		
-	private Shape convolve(final float x, final float y) {
-		return new Ellipse2D.Float(x-size/2, y-size/2, size, size);
+	private Shape convolve(final int x, final int y) {
+		return new Rectangle(x-size/2, y-size/2, size, size);
 	}
 
 }
