@@ -13,6 +13,11 @@ public class GeomShapeFitter implements MultivariateFunction {
 	 * ENUM 
 	 */
 	
+	/**
+	 * This is used as a factory to return an optimization method. As now,
+	 * since there is only one working optimizer in the PAL package, there 
+	 * is only one method in this enum. 
+	 */
 	public static enum Method {
 		CONJUGATE_DIRECTION_SEARCH; // Unfortunately so far, the only one that works here 
 		
@@ -31,7 +36,7 @@ public class GeomShapeFitter implements MultivariateFunction {
 	 * FIELDS
 	 */
 	
-	private int n_points = 500; // Default value TODO
+	private int n_points = 500;
 	/** 
 	 * Sets the desired precision of the optimization process. 
 	 * These 2 numbers set the desired number of digits after 
@@ -92,18 +97,52 @@ public class GeomShapeFitter implements MultivariateFunction {
 				monitor);
 	}
 	
+	/**
+	 * Set the <code>n</code>th parameter lower bound to be <code>value</code>.
+	 * @see {@link #setLowerBounds(double[])}, {@link #setUpperBounds(double[])}, {@link #setUpperBound(int, double)}
+	 */
 	public void setLowerBound(int n, double value) {
 		this.lower_bounds[n] = value;
 	}
 	
+	/**
+	 * Set the <code>n</code>th parameter upper bound to be <code>value</code>.
+	 * @see {@link #setLowerBounds(double[])}, {@link #setUpperBounds(double[])}, {@link #setLowerBound(int, double)}
+	 */
 	public void setUpperBound(int n, double value) {
 		this.upper_bounds[n] = value;
+	}
+	
+	/**
+	 * <string>Replace</string> the lower bound array by the one in argument. No error check are made
+	 * if the array size is not correct. 
+	 * @see {@link #setUpperBounds(double[])}, {@link #setLowerBound(int, double)}, {@link #setLowerBound(int, double)}
+	 */
+	public void setLowerBounds(double[] arr) {
+		this.lower_bounds = arr;
+	}
+
+	/**
+	 * <string>Replace</string> the upper bound array by the one in argument. No error check are made
+	 * if the array size is not correct. 
+	 * @see {@link #setLowerBounds(double[])}, {@link #setLowerBound(int, double)}, {@link #setLowerBound(int, double)}
+	 */
+	public void setUpperBounds(double[] arr) {
+		this.upper_bounds = arr;
 	}
 	
 	/*
 	 * MULTIVARIATEFUNCTION METHODS
 	 */
 	
+	/**
+	 * Evalute the {@link GeomShape} of this instance over the parameters given in argument.
+	 * <p>
+	 * This is done first throught the {@link GeomShape#setParameters(double[])} method, then by
+	 * calling the {@link GeomShape#eval(ImageProcessor, GeomShape.EvalFunction, int)}
+	 * method, using the {@link ImageProcessor} and {@link GeomShape.EvalFunction} of this object.
+	 * @see {@link #setImageProcessor(ImageProcessor)}, {@link #setFunction(GeomShape.EvalFunction)}
+	 */
 	public double evaluate(double[] params) {
 		shape.setParameters(params);
 		return shape.eval(ip, function, n_points);
@@ -121,6 +160,11 @@ public class GeomShapeFitter implements MultivariateFunction {
 		return upper_bounds[n];
 	}
 
+	/**
+	 * Return a hint for Orthogonal optimizers. Since we are not using these, we simply return the 
+	 * null hint.
+	 * @return  An object that has no hints.
+	 */
 	public OrthogonalHints getOrthogonalHints() {
 		return OrthogonalHints.Utils.getNull();
 	}

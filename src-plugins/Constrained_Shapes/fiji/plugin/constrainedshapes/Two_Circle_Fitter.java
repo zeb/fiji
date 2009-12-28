@@ -124,24 +124,23 @@ public class Two_Circle_Fitter implements PlugIn, ActionListener, MinimiserMonit
 		final int stop  = slice_parameters[1];
 		final int step  = slice_parameters[2];
 		final Color orig_color = Roi.getColor();
-		
-		ImageProcessor ip = null;
-		GeomShapeFitter optimizer = new GeomShapeFitter(new TwoCircleShape()); // Just to initialize
+			
+		// Prepare optimizer
+		GeomShapeFitter optimizer = new GeomShapeFitter(tcs); // This shape will be modified by the optimizer all along
 		optimizer.setFunction(target_function);
 		optimizer.setMethod(method);
 		optimizer.setNPoints((int) tcs.getPerimeter());
-		TwoCircleRoi roi = new TwoCircleRoi(tcs);
-		TwoCircleRoi roi_to_store;
-		imp.setRoi(roi);
+		optimizer.setLowerBounds(lower_bounds);
+		optimizer.setUpperBounds(upper_bounds);		
 		if (do_monitor) {	
 			optimizer.setMonitor(this);
 			Roi.setColor(Color.BLUE);
 		}
-		for (int i = 0; i < lower_bounds.length; i++) {
-			optimizer.setLowerBound(i, lower_bounds[i]);
-			optimizer.setUpperBound(i, upper_bounds[i]);			
-		}
 		
+		ImageProcessor ip = null;
+		TwoCircleRoi roi = new TwoCircleRoi(tcs); 
+		TwoCircleRoi roi_to_store;
+		imp.setRoi(roi);
 		TwoCircleShape[] results = new TwoCircleShape[ 1 + (int) Math.floor( (stop-start)/step) ];
 		int index = 0;
 		for (int i = start; i <= stop; i += step) {
@@ -152,8 +151,6 @@ public class Two_Circle_Fitter implements PlugIn, ActionListener, MinimiserMonit
 			imp.setSlice(i);
 			ip = imp.getImageStack().getProcessor(i);
 			optimizer.setImageProcessor(ip);
-			optimizer.setShape(tcs);
-			optimizer.setNPoints((int) tcs.getPerimeter());
 			optimizer.optimize();
 			results[index] = tcs.clone();
 			if (imp.getStack().getSize() > 1) {
@@ -168,7 +165,11 @@ public class Two_Circle_Fitter implements PlugIn, ActionListener, MinimiserMonit
 		return results;
 	}
 
-	
+	/**
+	 * Display a {@link JTable} with the 6 parameters of the {@link TwoCircleShape} array 
+	 * given in argument. The value for the frame is derived from the {@link #slice_parameters}
+	 * of this plugin instance.
+	 */
 	public void displayResults(TwoCircleShape[] results) {	
 		
 		String[] tcs_params = TwoCircleShape.getParameterNames(); 
@@ -185,13 +186,14 @@ public class Two_Circle_Fitter implements PlugIn, ActionListener, MinimiserMonit
 		double[] params;
 		int index = start;
 		for (int i = 0; i < table_data.length; i++) {
-			tcs = results[i];
-			params = tcs.getParameters();
 			table_data[i][0]	= index;
+			index += step;
+			tcs = results[i];
+			if (tcs == null) continue;
+			params = tcs.getParameters();
 			for (int j = 0; j < params.length; j++) {
 				table_data[i][j+1] 	= params[j];
 			}
-			index += step;
 		}
 
 		JTable table = new JTable(table_data, column_names);
