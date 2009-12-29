@@ -8,23 +8,31 @@ import ij.gui.ImageWindow;
 import ij.gui.Roi;
 import ij.plugin.PlugIn;
 
+import java.awt.Color;
 import java.awt.event.MouseEvent;
 import java.awt.geom.Point2D;
 
 import fiji.plugin.constrainedshapes.CircleRoi.ClickLocation;
 import fiji.util.AbstractTool;
+import fiji.util.optimization.MinimiserMonitor;
+import fiji.util.optimization.MultivariateFunction;
 
-public class SnappingCircleTool extends AbstractTool implements PlugIn {
+public class SnappingCircleTool extends AbstractTool implements PlugIn, MinimiserMonitor {
 
 	/*
 	 * FIELDS
 	 */
 	
-	ImagePlus imp;
-	ImageCanvas canvas;
-	CircleRoi roi;
-	InteractionStatus status;
+	private ImagePlus imp;
+	private ImageCanvas canvas;
+	private CircleRoi roi;
+	private InteractionStatus status;
 	private Point2D start_drag;
+	private Snapper snapper;
+	private GeomShapeFitter fitter;
+	private double[] lower_bounds = new double[3];
+	private double[] upper_bounds = new double[3];
+	private Color saved_roi_color;
 
 	/*
 	 * ENUM
@@ -38,10 +46,68 @@ public class SnappingCircleTool extends AbstractTool implements PlugIn {
 	}
 	
 	/*
+	 * INNER CLASS
+	 */
+	
+	/**
+	 * This is a helper class for the Dynamic_Reslice plugin, that delegates the
+	 * repainting of the destination window to another thread.
+	 */
+	private class Snapper extends Thread {
+		long request = 0;
+
+		// Constructor autostarts thread
+		Snapper() {
+			super("Circle snapper");
+			setPriority(Thread.NORM_PRIORITY);
+			start();
+		}
+
+		void doUpdate() {
+			if (isInterrupted())
+				return;
+			synchronized (this) {
+				request++;
+				notify();
+			}
+		}
+
+		void quit() {
+			interrupt();
+			synchronized (this) {
+				notify();
+			}
+		}
+
+		public void run() {
+			while (!isInterrupted()) {
+				try {
+					final long r;
+					synchronized (this) {
+						r = request;
+					}
+					// Call update from this thread
+					if (r > 0)
+//						refresh();
+					synchronized (this) {
+						if (r == request) {
+							request = 0; // reset
+							wait();
+						}
+						// else loop through to update again
+					}
+				} catch (Exception e) {
+				}
+			}
+		}
+	}
+	
+	/*
 	 * RUN METHOD
 	 */
 	
 	public void run(String arg) {
+		saved_roi_color = Roi.getColor();
 		imp = WindowManager.getCurrentImage();
 		if (imp != null) { 
 			Roi current_roi = imp.getRoi(); 
@@ -52,8 +118,11 @@ public class SnappingCircleTool extends AbstractTool implements PlugIn {
 				roi = new CircleRoi();
 				status = InteractionStatus.CREATING;
 			}
+			canvas = imp.getCanvas();
+			fitter = new GeomShapeFitter(roi.shape);
+			fitter.setFunction(GeomShape.EvalFunction.MEAN);
+			fitter.setMonitor(this);			
 		}
-		canvas = imp.getCanvas();
 		super.run(arg);
 	}
 	
@@ -83,10 +152,15 @@ public class SnappingCircleTool extends AbstractTool implements PlugIn {
 			}
 		} 
 		
+
 		final double x = canvas.offScreenXD(e.getX());
 		final double y = canvas.offScreenYD(e.getY());
 		final Point2D p = new Point2D.Double(x, y);
 		ClickLocation cl = roi.getClickLocation(p);
+		
+		// Tune fitter
+		fitter.setShape(roi.shape);
+		fitter.setImageProcessor(imp.getProcessor());
 		
 		switch (cl) {
 		case OUTSIDE:
@@ -122,9 +196,21 @@ public class SnappingCircleTool extends AbstractTool implements PlugIn {
 			params[2] = roi.shape.getCenter().distance(p);			
 			break;
 		}
+		
+		// Tune fitter
+		lower_bounds[0] = p.getX() - roi.shape.getRadius(); 
+		lower_bounds[1] = p.getY() - roi.shape.getRadius();
+		lower_bounds[2] = 0.5 * roi.shape.getRadius();
+		upper_bounds[0] = p.getX() + roi.shape.getRadius(); 
+		upper_bounds[1] = p.getY() + roi.shape.getRadius();
+		upper_bounds[2] = 1.5 * roi.shape.getRadius();
+		fitter.setLowerBounds(lower_bounds);
+		fitter.setUpperBounds(upper_bounds);
+		fitter.setNPoints((int) roi.getLength());
+
 		start_drag = p;
 		imp.setRoi(roi); 
-		IJ.showStatus(roi.shape.toString()+" - "+status.name()); 
+		IJ.showStatus(roi.shape.toString()); 
 	}
 	
 	@Override
@@ -138,6 +224,12 @@ public class SnappingCircleTool extends AbstractTool implements PlugIn {
 		}
 	}
 	
+	@Override
+	protected void handleMouseRelease(MouseEvent e) {
+		Roi.setColor(Color.BLUE);
+		fitter.optimize();
+		Roi.setColor(saved_roi_color);
+	}
 	
 	/*
 	 * ABSTRACTTTOL METHODS
@@ -167,7 +259,7 @@ public class SnappingCircleTool extends AbstractTool implements PlugIn {
 
 	@Override
 	public String getToolName() {		
-		return "Circle_Shape";
+		return "Snapping_Circle_Shape";
 	}
 
 	@Override
@@ -177,5 +269,22 @@ public class SnappingCircleTool extends AbstractTool implements PlugIn {
 
 	@Override
 	public void showOptionDialog() {}
+
+
+	/*
+	 * MINIMIZERMONITOR METHODS
+	 */
+	
+
+	public void newMinimum(double value, double[] parameterValues,
+			MultivariateFunction beingOptimized) {
+		synchronized (this) {			
+			roi.draw(canvas.getGraphics());
+			imp.draw();
+		}
+	}
+
+	public void updateProgress(double progress) {
+	}
 
 }
