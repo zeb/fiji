@@ -17,7 +17,7 @@ import fiji.util.AbstractTool;
 import fiji.util.optimization.MinimiserMonitor;
 import fiji.util.optimization.MultivariateFunction;
 
-public class SnappingCircleTool extends AbstractTool implements PlugIn, MinimiserMonitor {
+public class SnappingCircleTool extends AbstractTool implements PlugIn {
 
 	/*
 	 * FIELDS
@@ -29,7 +29,6 @@ public class SnappingCircleTool extends AbstractTool implements PlugIn, Minimise
 	private InteractionStatus status;
 	private Point2D start_drag;
 	private Snapper snapper;
-	private GeomShapeFitter fitter;
 	private double[] lower_bounds = new double[3];
 	private double[] upper_bounds = new double[3];
 	private Color saved_roi_color;
@@ -50,11 +49,18 @@ public class SnappingCircleTool extends AbstractTool implements PlugIn, Minimise
 	 */
 	
 	/**
-	 * This is a helper class for the Dynamic_Reslice plugin, that delegates the
-	 * repainting of the destination window to another thread.
+	 * This is a helper class for the {@link SnappingCircleTool} plugin, that delegates the
+	 * snapping of the circle to another thread. This class holds the fitter object
+	 * that will optimize the shape over the image. It also implements {@link MinimiserMonitor}
+	 * so that it will display the shape as it is optimized (the interface requires that
+	 * the monitor is on the same thread that of the optimizer).
+	 * <p>
+	 * It is derived from a helper class Albert Cardona did for the Dynamic_Reslice plugin. 
+	 * 
 	 */
-	private class Snapper extends Thread {
+	private class Snapper extends Thread implements MinimiserMonitor {
 		long request = 0;
+		GeomShapeFitter fitter;
 
 		// Constructor autostarts thread
 		Snapper() {
@@ -63,18 +69,11 @@ public class SnappingCircleTool extends AbstractTool implements PlugIn, Minimise
 			start();
 		}
 
-		void doUpdate() {
+		void snap() {
 			if (isInterrupted())
 				return;
 			synchronized (this) {
 				request++;
-				notify();
-			}
-		}
-
-		void quit() {
-			interrupt();
-			synchronized (this) {
 				notify();
 			}
 		}
@@ -86,9 +85,12 @@ public class SnappingCircleTool extends AbstractTool implements PlugIn, Minimise
 					synchronized (this) {
 						r = request;
 					}
-					// Call update from this thread
+					// Call opmitize from this thread
 					if (r > 0)
-//						refresh();
+						Roi.setColor(Color.BLUE);
+						fitter.optimize();
+						Roi.setColor(saved_roi_color);
+						imp.draw();
 					synchronized (this) {
 						if (r == request) {
 							request = 0; // reset
@@ -96,9 +98,22 @@ public class SnappingCircleTool extends AbstractTool implements PlugIn, Minimise
 						}
 						// else loop through to update again
 					}
-				} catch (Exception e) {
-				}
+				} catch (Exception e) {			}
 			}
+		}
+		
+
+		/*
+		 * MINIMIZERMONITOR METHODS
+		 */
+		
+
+		public synchronized void newMinimum(double value, double[] parameterValues,
+				MultivariateFunction beingOptimized) {
+			imp.draw();
+		}
+
+		public void updateProgress(double progress) {
 		}
 	}
 	
@@ -108,6 +123,8 @@ public class SnappingCircleTool extends AbstractTool implements PlugIn, Minimise
 	
 	public void run(String arg) {
 		saved_roi_color = Roi.getColor();
+		// Initialize snapper
+		snapper = new Snapper();
 		imp = WindowManager.getCurrentImage();
 		if (imp != null) { 
 			Roi current_roi = imp.getRoi(); 
@@ -118,10 +135,10 @@ public class SnappingCircleTool extends AbstractTool implements PlugIn, Minimise
 				roi = new CircleRoi();
 				status = InteractionStatus.CREATING;
 			}
+			snapper.fitter = new GeomShapeFitter(roi.shape);
+			snapper.fitter.setFunction(GeomShape.EvalFunction.MEAN);
+			snapper.fitter.setMonitor(snapper);			
 			canvas = imp.getCanvas();
-			fitter = new GeomShapeFitter(roi.shape);
-			fitter.setFunction(GeomShape.EvalFunction.MEAN);
-			fitter.setMonitor(this);			
 		}
 		super.run(arg);
 	}
@@ -159,8 +176,8 @@ public class SnappingCircleTool extends AbstractTool implements PlugIn, Minimise
 		ClickLocation cl = roi.getClickLocation(p);
 		
 		// Tune fitter
-		fitter.setShape(roi.shape);
-		fitter.setImageProcessor(imp.getProcessor());
+		snapper.fitter.setShape(roi.shape);
+		snapper.fitter.setImageProcessor(imp.getProcessor());
 		
 		switch (cl) {
 		case OUTSIDE:
@@ -204,9 +221,9 @@ public class SnappingCircleTool extends AbstractTool implements PlugIn, Minimise
 		upper_bounds[0] = p.getX() + roi.shape.getRadius(); 
 		upper_bounds[1] = p.getY() + roi.shape.getRadius();
 		upper_bounds[2] = 1.5 * roi.shape.getRadius();
-		fitter.setLowerBounds(lower_bounds);
-		fitter.setUpperBounds(upper_bounds);
-		fitter.setNPoints((int) roi.getLength());
+		snapper.fitter.setLowerBounds(lower_bounds);
+		snapper.fitter.setUpperBounds(upper_bounds);
+		snapper.fitter.setNPoints((int) roi.getLength());
 
 		start_drag = p;
 		imp.setRoi(roi); 
@@ -226,9 +243,7 @@ public class SnappingCircleTool extends AbstractTool implements PlugIn, Minimise
 	
 	@Override
 	protected void handleMouseRelease(MouseEvent e) {
-		Roi.setColor(Color.BLUE);
-		fitter.optimize();
-		Roi.setColor(saved_roi_color);
+		snapper.snap();
 	}
 	
 	/*
@@ -271,20 +286,5 @@ public class SnappingCircleTool extends AbstractTool implements PlugIn, Minimise
 	public void showOptionDialog() {}
 
 
-	/*
-	 * MINIMIZERMONITOR METHODS
-	 */
-	
-
-	public void newMinimum(double value, double[] parameterValues,
-			MultivariateFunction beingOptimized) {
-		synchronized (this) {			
-			roi.draw(canvas.getGraphics());
-			imp.draw();
-		}
-	}
-
-	public void updateProgress(double progress) {
-	}
 
 }
