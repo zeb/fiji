@@ -8,6 +8,7 @@ import java.awt.Rectangle;
 import java.awt.Shape;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Ellipse2D;
+import java.awt.geom.GeneralPath;
 import java.awt.geom.PathIterator;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
@@ -75,6 +76,15 @@ public class EllipseShape extends GeomShape {
 	public String toString() {
 		return String.format("xc=%5.0f, yc=%5.0f, a=%5.0f, b=%5.0f, phi=%.2f", 
 				params[0], params[1], params[2], params[3], params[4]);
+	}
+
+	/**
+	 * Ramanujan's approximation of an ellipse circumference.
+	 */
+	public double getCircumference() {
+		final double a = params[2];
+		final double b = params[3];
+		return Math.PI * ( 3*(a+b) - Math.sqrt(10*a*b + 3*(a*a+b*b)) );
 	}
 
 	
@@ -178,14 +188,15 @@ public class EllipseShape extends GeomShape {
 		final double b   = params[3];
 		final double phi = params[4]; 
 		final Ellipse2D el = new Ellipse2D.Double(xc-a, yc-b, 2*a, 2*b);
-		return AffineTransform.getRotateInstance(phi).createTransformedShape(el);
+		return AffineTransform.getRotateInstance(phi, xc, yc).createTransformedShape(el);
 	}
 	
 	/*
 	 * MAIN METHOD
 	 */
 	
-public static void main(String[] args) {
+	
+	public static void main(String[] args) {
 		
 		class TestCanvas extends Canvas {
 			private EllipseShape[] shape;
@@ -194,6 +205,8 @@ public static void main(String[] args) {
 			}
 			private static final long serialVersionUID = 1L;
 			public void paint(Graphics g) {
+				double[][] xy;
+				GeneralPath path;
 				super.paint(g);
 				Graphics2D g2 = (Graphics2D) g;
 				for (EllipseShape s : shape) {					
@@ -201,15 +214,20 @@ public static void main(String[] args) {
 				}				
 				g2.setStroke(new CircleStroke(2));
 				for (EllipseShape s : shape) {					
-					g2.draw(s);
+					xy = s.sample(50);
+					path = new GeneralPath(GeneralPath.WIND_EVEN_ODD, xy[0].length);
+					path.moveTo( (float) xy[0][0], (float) xy[1][0]);						
+					for (int i = 1; i < xy[0].length; i++) {
+						path.lineTo( (float) xy[0][i], (float) xy[1][i]);						
+					}
+					g2.draw(path);
 				}				
 			}
 		}
-		
-		EllipseShape tcs1 = new EllipseShape(50, 100, 70, 10, 0); 
-		EllipseShape tcs2 = new EllipseShape(50, 200, 30, 15, 1); // separated
-		EllipseShape tcs3 = new EllipseShape(50, 400, 70, 10, -0.5); // inside
-		EllipseShape[] shapes = new EllipseShape[] { tcs1, tcs2, tcs3 };
+		EllipseShape e1 = new EllipseShape(100, 100, 70, 50, 0); 
+		EllipseShape e2 = new EllipseShape(100, 200, 30, 15, 1); 
+		EllipseShape e3 = new EllipseShape(100, 300, 70, 30, -0.5); 
+		EllipseShape[] shapes = new EllipseShape[] { e1, e2, e3 };
 		JFrame frame = new JFrame();
 		frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
 		BorderLayout thisLayout = new BorderLayout();
