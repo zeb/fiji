@@ -42,8 +42,8 @@ public class GeomShapeFitter implements MultivariateFunction {
 	 * These 2 numbers set the desired number of digits after 
 	 * dot of parameters and function.
 	 */
-	private static final int PARAMETER_PRECISION = 1;
-	private static final int FUNCTION_PRECISION = 1;
+	private static final int PARAMETER_PRECISION = 2;
+	private static final int FUNCTION_PRECISION = 2;
 	
 	private GeomShape shape; // Can't be null because of constructor.
 	private ImageProcessor ip; 

@@ -169,7 +169,6 @@ public class SnappingCircleTool extends AbstractTool implements PlugIn {
 			}
 		} 
 		
-
 		final double x = canvas.offScreenXD(e.getX());
 		final double y = canvas.offScreenYD(e.getY());
 		final Point2D p = new Point2D.Double(x, y);
@@ -179,25 +178,18 @@ public class SnappingCircleTool extends AbstractTool implements PlugIn {
 		snapper.fitter.setShape(roi.shape);
 		snapper.fitter.setImageProcessor(imp.getProcessor());
 		
-		switch (cl) {
-		case OUTSIDE:
-			switch (status) {
-			case CREATING:
+		if (cl ==ClickLocation.OUTSIDE ) {
+			if (status == InteractionStatus.CREATING) { 
 				roi.shape.setCenter(p);
-				break;
-			default:
-				// If drag is small, then we will kill this roi
 			}
-			break;
-		default:
+		} else {
 			status = cl.getInteractionStatus();
 		}
-		IJ.showStatus(cl.name() + " - " + status.name());
 		start_drag = p;
 	}
 	
 	@Override
-	public void handleMouseDrag(MouseEvent e) {
+	protected void handleMouseDrag(MouseEvent e) {
 		final double x = canvas.offScreenXD(e.getX());
 		final double y = canvas.offScreenYD(e.getY());
 		final Point2D p = new Point2D.Double(x, y);
@@ -215,12 +207,13 @@ public class SnappingCircleTool extends AbstractTool implements PlugIn {
 		}
 		
 		// Tune fitter
-		lower_bounds[0] = p.getX() - roi.shape.getRadius(); 
-		lower_bounds[1] = p.getY() - roi.shape.getRadius();
-		lower_bounds[2] = 0.5 * roi.shape.getRadius();
-		upper_bounds[0] = p.getX() + roi.shape.getRadius(); 
-		upper_bounds[1] = p.getY() + roi.shape.getRadius();
-		upper_bounds[2] = 1.5 * roi.shape.getRadius();
+		final double r = roi.shape.getRadius();
+		lower_bounds[0] = p.getX() - r; 
+		lower_bounds[1] = p.getY() - r;
+		lower_bounds[2] = 0.5 * r;
+		upper_bounds[0] = p.getX() + r; 
+		upper_bounds[1] = p.getY() + r;
+		upper_bounds[2] = 1.5 * r;
 		snapper.fitter.setLowerBounds(lower_bounds);
 		snapper.fitter.setUpperBounds(upper_bounds);
 		snapper.fitter.setNPoints((int) roi.getLength());
@@ -231,7 +224,7 @@ public class SnappingCircleTool extends AbstractTool implements PlugIn {
 	}
 	
 	@Override
-	public void handleMouseClick(MouseEvent e) {
+	protected void handleMouseClick(MouseEvent e) {
 		if (roi == null) return;
 		ClickLocation cl = roi.getClickLocation(e.getPoint());
 		if (cl == ClickLocation.OUTSIDE ) {
@@ -252,25 +245,13 @@ public class SnappingCircleTool extends AbstractTool implements PlugIn {
 	
 	@Override
 	public String getToolIcon() {
-		return "C000DccDd5DdaDdbDe6De7De8De9DeaC000Db3Dd4C000Dc4C000De5" +
-				"C000DbcC000C111D8dD9dC111Df8C111Dd6C111Df7C111DadDcb" +
-				"C111DebC111C222D5cDdcC222D4bC222D7dDc3C222Df9C222Da3C222" +
-				"C333Dd9C333DbdC333C444D39C444D45C444D38C444C555D37C555D6c" +
-				"C555Df6C555C666Dd7C666D4aC666D63C666D54C666C777Dd8C777Dfa" +
-				"C777C888D6dD73C888De4C888D36DcdC888D3aC888C999D93C999Dac" +
-				"C999D44CaaaDd3CaaaD4cD53CbbbD5bDc5CbbbDf5CbbbD83DecCbbbD35Db4" +
-				"CbbbDa2CbbbCcccD3bD5dD92CcccDfbCcccDb2CcccDddCcccD82CcccD72" +
-				"CcccD46CcccCdddD62Dc2CdddD43De3CdddD7cDf4CdddD34CdddD7eD8eD9e" +
-				"CdddDaeCdddD27D28D29CdddD3cD4dCdddD26CdddD6eDbeDcaDedDfc" +
-				"CdddD2aD52Dd2CeeeD49CeeeDceCeeeD9cCeeeD25CeeeDbbCeeeD5e" +
-				"CeeeD2bD33Df3CeeeD8cCeeeDdeCeeeCfffD64CfffD42D47De2CfffD3d" +
-				"CfffDfdCfffD24D48D55CfffD2cD4eD61D71D81D91Da1Db1Dc1Dc6Dee" +
-				"CfffD32D51Dd1Df2CfffD23D5aD6bD6fD7fD8fD9fDa4DafDc9CfffD15D16" +
-				"D17D18D19D1aD1bD2dD3eD41D5fD74DabDb5DbfDcfDe1DfeCfffD14D56D94" +
-				"DbaDc7Dc8DdfCfffD1cD22D4fD59D65D7bD84DefCfffD2eD31D6aD9bDb6Df1" +
-				"CfffD13D57D8bDa5Db9CfffD1dD3fD50D58D60D70D75D80D90Da0DaaDb0Dc0" +
-				"Dd0DffCfffD21D40D66De0";
+		return "C900DbdDcdDceDddDdeDdfDedDeeDfdC03fD26D27D28D29D2aD34D35D36D3aD3bD3cD44D4c" +
+				"D53D54D5cD5dD63D6dD73D7dD83D8dD93D94D9cD9dDa4DacDb4Db5Db6DbaDbbDbcDc6Dc7Dc8" +
+				"Dc9DcaC555D45D46D47D48D52D58D59D5aD62D6aD71D72D7aD7bD81D8bD91D9bDa1DabDb1Db2" +
+				"Dc2Dd2Dd3Dd4Dd8Dd9DdaDe4De5De6De7De8";
 	}
+
+
 
 	@Override
 	public String getToolName() {		
