@@ -13,6 +13,7 @@ import fiji.plugin.constrainedshapes.SnappingEllipseTool.InteractionStatus;
 
 import ij.gui.ImageCanvas;
 import ij.gui.ShapeRoi;
+import ij.process.ImageProcessor;
 
 public class EllipseRoi extends ShapeRoi {
 
@@ -128,6 +129,68 @@ public class EllipseRoi extends ShapeRoi {
 		prepareHandles();
 		drawHandles(g);
 	}
+	
+	@Override
+	public ShapeRoi and(ShapeRoi sr) {
+		ShapeRoi hidden_roi = new ShapeRoi(shape);
+		return hidden_roi.and(sr);
+	}
+	
+	@Override
+	public ShapeRoi xor(ShapeRoi sr) {
+		ShapeRoi hidden_roi = new ShapeRoi(shape);
+		return hidden_roi.xor(sr);
+	}
+	
+	@Override
+	public ShapeRoi or(ShapeRoi sr) {
+		ShapeRoi hidden_roi = new ShapeRoi(shape);
+		return hidden_roi.or(sr);
+	}
+	
+	@Override
+	public String toString() {
+		return "EllipseRoi: "+shape.toString();
+	}
+	
+	@Override
+	public boolean contains(int x, int y) {
+		return shape.contains(x, y);
+	}
+	
+	@Override
+	public synchronized Object clone() {
+		return new EllipseRoi(shape.clone());
+	}
+	
+	@Override
+	public void drawPixels(ImageProcessor ip) {
+		ShapeRoi hidden_roi = new ShapeRoi(shape);
+		hidden_roi.drawPixels(ip);
+	}
+	
+	@Override
+	public Rectangle getBoundingRect() {
+		return shape.getBounds();
+	}
+	
+	@Override
+	public Rectangle getBounds() {
+		return shape.getBounds();
+	}
+	
+	@Override
+	public ImageProcessor getMask() {
+		ShapeRoi hidden_roi = new ShapeRoi(shape);
+		return hidden_roi.getMask();
+	}
+	
+	@Override
+	public boolean isArea() {
+		return true;
+	}
+	
+	
 	
 	/*
 	 * PUBLIC METHODS

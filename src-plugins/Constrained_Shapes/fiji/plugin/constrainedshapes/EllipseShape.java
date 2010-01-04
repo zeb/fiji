@@ -93,7 +93,7 @@ public class EllipseShape extends GeomShape {
 	 */
 	
 	@Override
-	public GeomShape clone() {
+	public EllipseShape clone() {
 		EllipseShape new_el = new EllipseShape();
 		new_el.setParameters(params);
 		return new_el;
