@@ -93,13 +93,13 @@ public class TCSDialog extends javax.swing.JDialog implements ImageListener, Act
 		upper_bounds = new int[] { 1, 1, 1} ;
 		lower_bounds = new int[] { 1, 1, 1} ;
 		if (imp != null) {
-			slicing_values[0] = imp.getSlice();
-			slicing_values[1] = imp.getNSlices();
+			slicing_values[0] = source_imp.getSlice();
+			slicing_values[1] = source_imp.getStack().getSize();
 			previous_values[0] = slicing_values[0];
 			previous_values[1] = slicing_values[1];
-			upper_bounds[0] = imp.getNSlices(); // first
+			upper_bounds[0] = source_imp.getStack().getSize(); // first
 			upper_bounds[1] = upper_bounds[0]; // last
-			upper_bounds[2] = imp.getNSlices();
+			upper_bounds[2] = source_imp.getStack().getSize();
 		}
 		initGUI();
 		ImagePlus.addImageListener(this);
@@ -220,7 +220,7 @@ public class TCSDialog extends javax.swing.JDialog implements ImageListener, Act
 			}
 			String message;
 			Rectangle message_bounds;
-			if ( (source_imp != null) && (source_imp.getNSlices() > 1) ) {
+			if ( (source_imp != null) && (source_imp.getStack().getSize() > 1) ) {
 				message = "<html>Adjust the two-circle shape as starting point for the fit. " +
 						"Set the slice parameters, then press OK.</html>";
 				message_bounds = new Rectangle(178, 14, 184, 75);
