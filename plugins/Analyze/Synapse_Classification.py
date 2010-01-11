@@ -12,7 +12,7 @@ import random
 global foldername
 global syn_radius
 foldername=None
-syn_radius=2
+syn_radius=5
 small_radius=2
 subset_size = 300
 
@@ -98,7 +98,8 @@ def process_reference_channel(image):
     IJ.run("Maximum (3D) Point")
     i=IJ.getImage()
     pivots=scan_pivots(i)
-    print_pivots(pivots,foldername+image.getTitle()+".pivots.xls")
+    #quit()
+    print_pivots(pivots,foldername+image.getTitle()+".pivots.xls")   
     IJ.run("Close All Without Saving")
     return pivots
     

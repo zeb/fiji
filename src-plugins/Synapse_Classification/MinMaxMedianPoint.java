@@ -216,7 +216,7 @@ public class MinMaxMedianPoint {
 			return new ShortSlide(new short[w*h], cm);
 		}
 		static int size = diameter*diameter*diameter;
-		static short[] values = new short[size];
+		static int[] values = new int[size];
 		Short convolvePoint(int z, int y, int x, int method) {
 			int index = 0;
 			int r = diameter/2;
@@ -225,21 +225,23 @@ public class MinMaxMedianPoint {
 					for(int i=-r; i<=+r; i++) {
 						values[index++] =
 							(Short)slices_in[z+k].
-							getValue(x+i,y+j);
+							getValue(x+i,y+j)&0xffff;
 					}
 				}
 			}
 			Arrays.sort(values);
 			if(method == MAXIMUM)
-				return values[size-1];
-			if (method == MAXIMUM_POINT)
-				if (values[size-1]<=(Short)slices_in[z].getValue(x,y))
-					return values[size-1];
+				return (short)values[size-1];
+			if (method == MAXIMUM_POINT){
+				int tmp=(Short)slices_in[z].getValue(x,y)&0xffff;
+				if (values[size-1]<=tmp)
+					return (short)values[size-1];
 				else
 					return 0;
+			}
 			if(method == MINIMUM)
-				return values[0];
-			return values[size/2];
+				return (short)values[0];
+			return (short)values[size/2];
 		}
 	}
 

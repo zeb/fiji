@@ -197,6 +197,7 @@ for er,r in enumerate(ROIs):
     while ij.WindowManager.getCurrentImage():
         ij.WindowManager.getCurrentImage().close()
     
+    firstImg=None
     for img in roiCurr:
         i = Opener().openImage(foldername+"tmp/", img.name)
         i.show()
@@ -204,11 +205,19 @@ for er,r in enumerate(ROIs):
         if i.getBitDepth() == 32:
             i.getProcessor().setMinAndMax(0,255)
         IJ.run("8-bit");
+        if not firstImg: firstImg=ij.plugin.filter.Duplicater().duplicateStack(i, 'firstImg') 
+        if firstImg: 
+            ij.plugin.ImageCalculator().calculate('Max create stack',i,firstImg)
+            comb=IJ.getImage()
+            i.setStack(i.getTitle(),ij.plugin.RGBStackMerge().mergeStacks(i.getWidth(), i.getHeight(), i.getImageStackSize(), comb.getImageStack() , i.getImageStack() , i.getImageStack() , False))
         montage=ij.plugin.MontageMaker()
         montage.makeMontage(i, 1+2*syn_radius, 1, 4, 1, 1+2*syn_radius, 1, 2, False)
-        i.close()
+        
+        i.close()   
+        comb.close()    
         mont=ij.WindowManager.getImage("Montage")
         mont.setTitle(img.name.split(".tif")[0])      
+    if firstImg: firstImg.close()
     IJ.run("Images to Stack")
     montage=ij.plugin.MontageMaker()
     tmp=IJ.getImage()
