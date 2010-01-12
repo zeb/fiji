@@ -24,6 +24,7 @@ public class TwoCircleTool extends AbstractTool {
 	private InteractionStatus status;
 	private Point2D start_drag;
 	private TwoCircleRoi roi;
+	private TwoCircleShape shape;
 	private InteractionStatus previous_status;
 	
 	/*
@@ -51,17 +52,19 @@ public class TwoCircleTool extends AbstractTool {
 				final int y = h/2;
 				final int x1 = 3*w/8;
 				final int x2 = 5*w/8;
-				TwoCircleShape tcs = new TwoCircleShape(x1,y,r,x2,y,r);
-				roi = new TwoCircleRoi(tcs);
+				shape = new TwoCircleShape(x1,y,r,x2,y,r);
+				roi = new TwoCircleRoi(shape);
 				status = InteractionStatus.FREE;
 				imp.setRoi(roi);
 			} else {
 				Roi current_roi = imp.getRoi(); 
 				if ( (current_roi != null) && (current_roi instanceof TwoCircleRoi) ) {
 					roi = (TwoCircleRoi) current_roi;
+					shape = roi.getShape();
 					status = InteractionStatus.FREE;
 				} else {
-					roi = new TwoCircleRoi();
+					shape = new TwoCircleShape();
+					roi = new TwoCircleRoi(shape);
 					status = InteractionStatus.CREATING_C1;
 				}
 			}
@@ -133,7 +136,7 @@ public class TwoCircleTool extends AbstractTool {
 		final double y = canvas.offScreenYD(e.getY());
 		final Point2D p = new Point2D.Double(x, y);
 		ClickLocation cl = roi.getClickLocation(p);
-		TwoCircleShape shape = roi.getShape();
+		shape = roi.getShape();
 		
 		switch (cl) {
 		case OUTSIDE:
@@ -160,7 +163,6 @@ public class TwoCircleTool extends AbstractTool {
 		final double x = canvas.offScreenXD(e.getX());
 		final double y = canvas.offScreenYD(e.getY());
 		final Point2D p = new Point2D.Double(x, y);
-		final TwoCircleShape shape = roi.getShape();
 		final double[] params = shape.getParameters();
 		
 		switch (status) {
@@ -188,8 +190,9 @@ public class TwoCircleTool extends AbstractTool {
 			break;
 		}
 		start_drag = p;
+		roi = new TwoCircleRoi(shape);
 		imp.setRoi(roi); 
-		IJ.showStatus(roi.getShape().toString()); 
+		IJ.showStatus(shape.toString()); 
 	}
 
 	@Override

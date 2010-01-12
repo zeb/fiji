@@ -3,8 +3,6 @@ package fiji.plugin.constrainedshapes;
 import fiji.plugin.constrainedshapes.TwoCircleTool.InteractionStatus;
 import ij.gui.ImageCanvas;
 import ij.gui.ShapeRoi;
-import ij.process.ByteProcessor;
-import ij.process.ImageProcessor;
 
 import java.awt.Color;
 import java.awt.Graphics;
@@ -12,11 +10,7 @@ import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.geom.AffineTransform;
-import java.awt.geom.Ellipse2D;
 import java.awt.geom.Point2D;
-import java.awt.image.BufferedImage;
-import java.awt.image.DataBufferByte;
-import java.awt.image.Raster;
 import java.util.ArrayList;
 
 public class TwoCircleRoi extends ShapeRoi  {
@@ -150,10 +144,8 @@ public class TwoCircleRoi extends ShapeRoi  {
 	}
 	
 	public TwoCircleRoi(TwoCircleShape _tcs) {
-		super(1, 1, new Ellipse2D.Float(0, 0, 1, 1)); // we don't care for superclass content
+		super(_tcs);
 		this.tcs = _tcs;
-		type = COMPOSITE;
-		cachedMask = null;
 	}
 	
 	/*
@@ -190,7 +182,12 @@ public class TwoCircleRoi extends ShapeRoi  {
 	 * SHAPEROI METHODS
 	 */
 	
-	@Override
+	/**
+	 * Returns the {@link TwoCircleShape} encapsulated by this object. This method
+	 * is problematic, because we want this ROI to be immutable. But modifying the shape 
+	 * which reference is given by this method will modify the ROI internally. However,
+	 * the ROI mechanics in ImageJ will ignore these changes.
+	 */
 	public TwoCircleShape getShape() {
 		return tcs;
 	}
@@ -210,45 +207,7 @@ public class TwoCircleRoi extends ShapeRoi  {
 		prepareHandles();
 		drawHandles(g2);
 	}
-	
-	/**Draws the shape of this object onto the specified ImageProcessor.
-	 * <br> This method will always draw a flattened version of the actual shape
-	 * (i.e., all curve segments will be approximated by line segments).
-	 */
-	@Override
-	public void drawPixels(ImageProcessor ip) {
-		new ShapeRoi(tcs).drawPixels(ip);
-	}
 
-	/** Returns this ROI's mask pixels as a ByteProcessor with pixels "in" the mask
-	set to white (255) and pixels "outside" the mask set to black (0). 
-	*/
-	@Override
-	public ImageProcessor getMask() {
-		if(tcs==null) return null;
-		final int width = imp.getWidth();
-		final int height = imp.getHeight();
-		BufferedImage bi = new BufferedImage(width, height, BufferedImage.TYPE_BYTE_GRAY);
-		Graphics2D g2d = bi.createGraphics();
-		g2d.setColor(Color.white);
-		g2d.fill(tcs);
-		Raster raster = bi.getRaster();
-		DataBufferByte buffer = (DataBufferByte)raster.getDataBuffer();		
-		byte[] mask = buffer.getData();
-		cachedMask = new ByteProcessor(width, height, mask, null);
-        return cachedMask;
-	}
-	
-	/*
-	 * ROI METHODS
-	 */
-	
-	/** Return this selection's bounding rectangle. */
-	@Override
-	public Rectangle getBounds() {
-		return tcs.getBounds();
-	}
-	
 	/*
 	 * PRIVATE METHODS
 	 */
