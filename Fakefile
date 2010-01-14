@@ -69,6 +69,8 @@ ignoreMissingFakefiles=true
 # When a submodule could not be made, fall back to copying from this directory
 precompiledDirectory=precompiled/
 
+buildDir=build/
+
 FIJI_JAVA_HOME(linux)=java/linux/jdk1.6.0_16/jre
 FIJI_JAVA_HOME(linux64)=java/linux-amd64/jdk1.6.0_16/jre
 FIJI_JAVA_HOME(win32)=java/win32/jdk1.6.0_16/jre
@@ -83,6 +85,7 @@ SUBMODULE_TARGETS=\
 	ij.jar \
 	plugins/loci_tools.jar \
 	plugins/VIB_.jar \
+	jars/VectorString.jar \
 	plugins/TrakEM2_.jar \
 	plugins/mpicbg_.jar \
 	jars/clojure.jar \
@@ -93,6 +96,8 @@ SUBMODULE_TARGETS=\
 	jars/junit-4.5.jar \
 	jars/rsyntaxtextarea.jar \
 	jars/autocomplete.jar \
+	jars/weka.jar \
+	jars/jython.jar \
 
 PLUGIN_TARGETS=plugins/Jython_Interpreter.jar \
 	plugins/Clojure_Interpreter.jar \
@@ -100,6 +105,7 @@ PLUGIN_TARGETS=plugins/Jython_Interpreter.jar \
 	plugins/BeanShell_Interpreter.jar \
 	plugins/bUnwarpJ_.jar \
 	plugins/register_virtual_stack_slices.jar \
+	plugins/Siox_Segmentation.jar \
 	plugins/registration_3d.jar \
 	plugins/IO_.jar \
 	plugins/CLI_.jar \
@@ -147,6 +153,8 @@ PLUGIN_TARGETS=plugins/Jython_Interpreter.jar \
 	plugins/Calculator_Plus.jar \
 	plugins/3D_Objects_Counter.jar \
 	plugins/RandomForest_Segmentation.jar \
+	plugins/IsoData_Classifier.jar \
+	plugins/RATS_.jar \
 	\
 	misc/Fiji.jar
 
@@ -178,14 +186,17 @@ plugins/mpicbg_.jar <- mpicbg/
 jars/clojure.jar <- clojure/
 jars/clojure-contrib.jar <- jars/clojure.jar clojure-contrib/
 plugins/loci_tools.jar <- bio-formats/
+jars/VectorString.jar <- TrakEM2/
 CLASSPATH(plugins/TrakEM2_.jar)=plugins/VIB_.jar:plugins/mpicbg_.jar:plugins/loci_tools.jar:plugins/bUnwarpJ_.jar:plugins/level_sets.jar:plugins/Fiji_Plugins.jar
-plugins/TrakEM2_.jar <- ij.jar plugins/VIB_.jar plugins/mpicbg_.jar plugins/bUnwarpJ_.jar plugins/level_sets.jar plugins/Fiji_Plugins.jar TrakEM2/
+plugins/TrakEM2_.jar <- ij.jar plugins/VIB_.jar plugins/mpicbg_.jar plugins/bUnwarpJ_.jar plugins/level_sets.jar plugins/Fiji_Plugins.jar jars/VectorString.jar TrakEM2/
 plugins/ij-ImageIO_.jar <- ij-plugins/
 jars/jacl.jar <- tcljava/
 jars/batik.jar <- batik/
 jars/junit-4.5.jar <- junit/
 jars/rsyntaxtextarea.jar <- RSyntaxTextArea/
 jars/autocomplete.jar <- AutoComplete/
+jars/weka.jar <- weka/
+jars/jython.jar <- jython/
 
 # From source
 javaVersion(misc/Fiji.jar)=1.5
@@ -196,11 +207,13 @@ misc/Fiji.jar <- src-plugins/Fiji/fiji/*.java icon.png[images/icon.png]
 CLASSPATH(jars/zs.jar)=jars/Jama-1.0.2.jar
 jars/zs.jar <- src-plugins/zs/**/*.java
 
+jars/fiji-lib.jar <- src-plugins/fiji-lib/**/*.java
+
 # These classes are common to the scripting plugins
 jars/fiji-scripting.jar <- src-plugins/fiji-scripting/**/*.java
 
 CLASSPATH(plugins/Refresh_Javas.jar)=jars/fiji-scripting.jar
-CLASSPATH(plugins/Jython_Interpreter.jar)=jars/fiji-scripting.jar:jars/jython2.2.1/jython.jar
+CLASSPATH(plugins/Jython_Interpreter.jar)=jars/fiji-scripting.jar:jars/jython.jar
 plugins/Jython_Interpreter.jar <- src-plugins/Jython/*.java
 CLASSPATH(plugins/Clojure_Interpreter.jar)=jars/fiji-scripting.jar:jars/clojure.jar:jars/clojure-contrib.jar
 plugins/Clojure_Interpreter.jar <- src-plugins/Clojure/*.java
@@ -213,7 +226,9 @@ plugins/Javascript_.jar <- src-plugins/Javascript/*.java
 
 plugins/Bug_Submitter.jar <- src-plugins/Bug_Submitter/*.java
 
-CLASSPATH(plugins/register_virtual_stack_slices.jar)=plugins/TrakEM2_.jar:plugins/mpicbg_.jar:plugins/bUnwarpJ_.jar
+CLASSPATH(plugins/register_virtual_stack_slices.jar)=plugins/TrakEM2_.jar:plugins/mpicbg_.jar:plugins/bUnwarpJ_.jar:plugins/Fiji_Plugins.jar
+
+CLASSPATH(plugins/Siox_Segmentation.jar)=jars/fiji-lib.jar
 
 CLASSPATH(plugins/LSM_Toolbox.jar)=plugins/LSM_Reader.jar
 MAINCLASS(plugins/LSM_Toolbox.jar)=org.imagearchive.lsm.toolbox.gui.AboutDialog
@@ -356,6 +371,8 @@ precompile-submodules[] <- \
 	precompiled/junit-4.5.jar \
 	precompiled/rsyntaxtextarea.jar \
 	precompiled/autocomplete.jar \
+	precompiled/weka.jar \
+	precompiled/jython.jar \
 
 precompiled/ij.jar <- ij.jar
 precompiled/clojure.jar <- jars/clojure.jar
@@ -365,6 +382,8 @@ precompiled/batik.jar <- jars/batik.jar
 precompiled/junit-4.5.jar <- jars/junit-4.5.jar
 precompiled/rsyntaxtextarea.jar <- jars/rsyntaxtextarea.jar
 precompiled/autocomplete.jar <- jars/autocomplete.jar
+precompiled/weka.jar <- jars/weka.jar
+precompiled/jython.jar <- jars/jython.jar
 precompiled/* <- plugins/*
 
 precompile[] <- precompile-fiji precompile-fake precompile-submodules
@@ -379,8 +398,12 @@ app-all[bin/make-app.py all $PLATFORM] <- all
 app-nojre[bin/make-app.py nojre $PLATFORM] <- all
 
 all-dmgs[] <- fiji-macosx.dmg
-fiji-*.dmg[bin/make-dmg.py] <- app-* Fiji.app
+fiji-*.dmg[bin/make-dmg.py] <- app-* Fiji.app \
+	resources/install-fiji.jpg
 dmg[] <- fiji-macosx.dmg
+
+resources/install-fiji.jpg[./fiji bin/generate-finder-background.py] <- \
+	bin/generate-finder-background.py
 
 all-tars[] <- fiji-linux.tar.bz2 fiji-linux64.tar.bz2 \
 	fiji-all.tar.bz2 fiji-nojre.tar.bz2

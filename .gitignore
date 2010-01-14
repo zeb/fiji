@@ -1,6 +1,9 @@
+/Mac-Finder-DSStore-0.94
+/db.xml.gz
 .DS_Store
 .project
 .metadata
+/build/
 /make-targets
 /fiji.o
 /fiji
@@ -29,9 +32,8 @@
 /livecd
 /root-x86_64-pc-linux
 /jars/javac.jar
-/jars/jython2.2.1/cachedir
+/jars/cachedir
 /tmp.ijm
-/fake/Fake*.class
 /fake.jar
 /ij.jar
 /misc/Fiji.jar
@@ -105,3 +107,7 @@
 /plugins/3D_Objects_Counter.jar
 /plugins/RandomForest_Segmentation.jar
 /jars/clojure-contrib.jar
+/jars/weka.jar
+/plugins/IsoData_Classifier.jar
+/plugins/RATS_.jar
+/jars/jython.jar
