@@ -6,6 +6,11 @@ package randomForestSegmentation;
  * - Hessian
  * - Difference of Gaussian
  * 
+ * filters to come:
+ * - membraneFilters
+ * - histogram patch
+ * - BEL type edge detector
+ * 
  * License: GPL
  *
  * This program is free software; you can redistribute it and/or

@@ -8,13 +8,10 @@ package randomForestSegmentation;
  * all filters.
  * 
  * ToDos:
- * - work on whole Stack and distinguish between train and test images
- *     - Another option is to divide the image into train and test area
- * - give option to specify annotations as test data and give confusion matrix
- * - give option to delete annotations
+ * - work on whole Stack 
+ * - delete annotations with a shortkey
  * - save classifier and load classifier
  * - apply classifier to other images
- * - make button to show color overlay
  * - put thread solution to wiki http://pacific.mpi-cbg.de/wiki/index.php/Developing_Fiji#Writing_plugins
  * 
  * License: GPL
