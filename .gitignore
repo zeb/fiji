@@ -99,7 +99,7 @@
 /plugins/Gray_Morphology.jar
 /plugins/Colocalisation_Analysis.jar
 /plugins/LocalThickness_.jar
-/plugins/Tutorial_Maker.jar
+/plugins/Fiji_Developer.jar
 /jars/test-fiji.jar
 /plugins/Manual_Tracking.jar
 /plugins/Calculator_Plus.jar
@@ -110,3 +110,5 @@
 /plugins/IsoData_Classifier.jar
 /plugins/RATS_.jar
 /jars/jython.jar
+/jars/VectorString.jar
+/jars/fiji-lib.jar

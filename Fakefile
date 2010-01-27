@@ -149,7 +149,7 @@ PLUGIN_TARGETS=plugins/Jython_Interpreter.jar \
 	plugins/Gray_Morphology.jar \
 	plugins/Colocalisation_Analysis.jar \
 	plugins/LocalThickness_.jar \
-	plugins/Tutorial_Maker.jar \
+	plugins/Fiji_Developer.jar \
 	plugins/Script_Editor.jar \
 	plugins/Manual_Tracking.jar \
 	plugins/Calculator_Plus.jar \
@@ -268,7 +268,8 @@ misc/Fiji.jar:$JAVA_HOME/../lib/tools.jar
 plugins/Script_Editor.jar <- src-plugins/Script_Editor/**/*.java  \
 							icon.png[images/icon.png] \
 							var.png[images/var.png]    \
-							funtion.png[images/function.png]
+							funtion.png[images/function.png] \
+							src-plugins/Script_Editor/templates/**/*
 
 plugins/*_*.jar <- src-plugins/*_*/**/*.java
 
