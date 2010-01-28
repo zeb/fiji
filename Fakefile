@@ -105,6 +105,7 @@ PLUGIN_TARGETS=plugins/Jython_Interpreter.jar \
 	plugins/BeanShell_Interpreter.jar \
 	plugins/bUnwarpJ_.jar \
 	plugins/register_virtual_stack_slices.jar \
+	plugins/TissueVision_.jar \
 	plugins/Siox_Segmentation.jar \
 	plugins/registration_3d.jar \
 	plugins/IO_.jar \
@@ -226,6 +227,8 @@ plugins/Javascript_.jar <- src-plugins/Javascript/*.java
 plugins/Bug_Submitter.jar <- src-plugins/Bug_Submitter/*.java
 
 CLASSPATH(plugins/register_virtual_stack_slices.jar)=plugins/TrakEM2_.jar:plugins/mpicbg_.jar:plugins/bUnwarpJ_.jar:plugins/Fiji_Plugins.jar
+
+CLASSPATH(plugins/TissueVision_.jar)=plugins/Fiji_Plugins.jar
 
 CLASSPATH(plugins/Siox_Segmentation.jar)=jars/fiji-lib.jar
 
