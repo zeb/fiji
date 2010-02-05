@@ -7,6 +7,8 @@ import common.RefreshScripts;
 import fiji.scripting.completion.ClassCompletionProvider;
 import fiji.scripting.completion.DefaultProvider;
 
+import fiji.scripting.java.Refresh_Javas;
+
 import ij.IJ;
 import ij.Prefs;
 import ij.WindowManager;
@@ -34,6 +36,8 @@ import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -46,6 +50,8 @@ import java.io.OutputStream;
 import java.io.InputStream;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
 import java.util.Vector;
@@ -54,9 +60,14 @@ import java.util.Set;
 import java.util.HashSet;
 import java.util.Dictionary;
 import java.util.Hashtable;
+
 import java.util.concurrent.ThreadPoolExecutor;
+
 import java.util.jar.JarFile;
 import java.util.jar.JarEntry;
+import java.util.jar.JarOutputStream;
+
+import java.util.zip.ZipException;
 
 import java.net.URLDecoder;
 
@@ -107,9 +118,12 @@ public class TextEditor extends JFrame implements ActionListener,
 	File file;
 	RSyntaxTextArea textArea;
 	JTextArea screen;
-	JMenuItem new_file, open, save, saveas, compileAndRun, debug, quit,
+	JMenuItem newFile, open, save, saveas, compileAndRun, debug, quit,
 		  undo, redo, cut, copy, paste, find, replace, selectAll,
-		  autocomplete, resume, terminate, kill, gotoLine;
+		  autocomplete, resume, terminate, kill, gotoLine,
+		  makeJar, makeJarWithSource, removeUnusedImports,
+		  sortImports, removeTrailingWhitespace, findNext,
+		  openHelp, addImport;
 	AutoCompletion autocomp;
 	Languages.Language currentLanguage;
 	ClassCompletionProvider provider;
@@ -125,7 +139,7 @@ public class TextEditor extends JFrame implements ActionListener,
 	int modifyCount;
 	boolean undoInProgress, redoInProgress;
 
-	public TextEditor(String path1) {
+	public TextEditor(String path) {
 		super("Script Editor");
 		WindowManager.addWindow(this);
 		JPanel cp = new JPanel(new BorderLayout());
@@ -188,10 +202,13 @@ public class TextEditor extends JFrame implements ActionListener,
 
 		JMenu file = new JMenu("File");
 		file.setMnemonic(KeyEvent.VK_F);
-		new_file = addToMenu(file, "New",  KeyEvent.VK_N, ctrl);
+		newFile = addToMenu(file, "New",  KeyEvent.VK_N, ctrl);
 		open = addToMenu(file, "Open...",  KeyEvent.VK_O, ctrl);
 		save = addToMenu(file, "Save", KeyEvent.VK_S, ctrl);
 		saveas = addToMenu(file, "Save as...", 0, 0);
+		file.addSeparator();
+		makeJar = addToMenu(file, "Export as .jar", 0, 0);
+		makeJarWithSource = addToMenu(file, "Export as .jar (with source)", 0, 0);
 		file.addSeparator();
 		quit = addToMenu(file, "Close Editor", KeyEvent.VK_W, ctrl);
 
@@ -208,16 +225,16 @@ public class TextEditor extends JFrame implements ActionListener,
 		paste = addToMenu(edit, "Paste", KeyEvent.VK_V, ctrl);
 		edit.addSeparator();
 		find = addToMenu(edit, "Find...", KeyEvent.VK_F, ctrl);
+		findNext = addToMenu(edit, "Find Next", KeyEvent.VK_F3, 0);
 		replace = addToMenu(edit, "Find and Replace...", KeyEvent.VK_H, ctrl);
 		gotoLine = addToMenu(edit, "Goto line...", KeyEvent.VK_G, ctrl);
+		edit.addSeparator();
+		addImport = addToMenu(edit, "Add import...", 0, 0);
+		removeUnusedImports = addToMenu(edit, "Remove unused imports", 0, 0);
+		sortImports = addToMenu(edit, "Sort imports", 0, 0);
+		removeTrailingWhitespace = addToMenu(edit, "Remove trailing whitespace", 0, 0);
+		autocomplete = addToMenu(edit, "Autocomplete", KeyEvent.VK_SPACE, ctrl);
 		mbar.add(edit);
-
-		JMenu options = new JMenu("Options");
-		options.setMnemonic(KeyEvent.VK_O);
-		autocomplete = addToMenu(options, "Autocomplete", KeyEvent.VK_SPACE, ctrl);
-		options.addSeparator();
-
-		mbar.add(options);
 
 		JMenu languages = new JMenu("Language");
 		languages.setMnemonic(KeyEvent.VK_L);
@@ -263,18 +280,21 @@ public class TextEditor extends JFrame implements ActionListener,
 		addAccelerator(debug, KeyEvent.VK_F5,
 				ActionEvent.SHIFT_MASK);
 
-		mbar.add(run);
-
 		run.addSeparator();
 
 		kill = addToMenu(run, "Kill running script...", 0, 0);
 		kill.setEnabled(false);
 
-		JMenu breakpoints = new JMenu("Breakpoints");
-		breakpoints.setMnemonic(KeyEvent.VK_B);
-		resume = addToMenu(breakpoints, "Resume", 0, 0);
-		terminate = addToMenu(breakpoints, "Terminate", 0, 0);
-		mbar.add(breakpoints);
+		run.addSeparator();
+
+		resume = addToMenu(run, "Resume", 0, 0);
+		terminate = addToMenu(run, "Terminate", 0, 0);
+		mbar.add(run);
+
+		JMenu tools = new JMenu("Tools");
+		tools.setMnemonic(KeyEvent.VK_O);
+		openHelp = addToMenu(tools, "Open Help for Class...", 0, 0);
+		mbar.add(tools);
 
 		pack();
 		getToolkit().setDynamicLayout(true);            //added to accomodate the autocomplete part
@@ -284,18 +304,25 @@ public class TextEditor extends JFrame implements ActionListener,
 		setTitle();
 
 		setLocationRelativeTo(null); // center on screen
-		if (path1 != null && !path1.equals(""))
-			open(path1);
+		if (path != null && !path.equals(""))
+			open(path);
 
 		addWindowListener(new WindowAdapter() {
 			public void windowClosing(WindowEvent e) {
 				if (!handleUnsavedChanges())
 					return;
-				WindowManager.removeWindow(TextEditor.this);
 				dispose();
+			}
+
+			public void windowClosed(WindowEvent e) {
+				WindowManager.removeWindow(TextEditor.this);
 			}
 		});
 		setDefaultCloseOperation(DO_NOTHING_ON_CLOSE);
+	}
+
+	public RSyntaxTextArea getTextArea() {
+		return textArea;
 	}
 
 	public JMenuItem addToMenu(JMenu menu, String menuEntry,
@@ -380,7 +407,20 @@ public class TextEditor extends JFrame implements ActionListener,
 		// use a dictionary for keeping track of created menu items
 		Dictionary<String, JMenu> menuEntries = new Hashtable<String, JMenu>();
 
-		for (String t : templatePaths) {
+		String[] paths =
+			templatePaths.toArray(new String[templatePaths.size()]);
+		Arrays.sort(paths, new Comparator<String>() {
+			public int compare(String s1, String s2) {
+				int slash1 = s1.lastIndexOf('/');
+				int slash2 = s2.lastIndexOf('/');
+				return s1.substring(slash1 + 1)
+					.compareTo(s2.substring(slash2 + 1));
+			}
+			public boolean equals(Object o) {
+				return false;
+			}
+		});
+		for (String t : paths) {
 			reflectDirStructInMenu(menuEntries, menu, t, "");
 		}
 
@@ -406,7 +446,7 @@ public class TextEditor extends JFrame implements ActionListener,
 		final boolean appendLang = true;
 		// Indicates that the language should be switched on template selection
 		final boolean switchLang = true;
-		// Show file name instead of striped version
+		// Show file name instead of stripped version
 		final boolean showFileName = false;
 
 		int checkSubdir = res.indexOf("/");
@@ -546,7 +586,7 @@ public class TextEditor extends JFrame implements ActionListener,
 
 	public void actionPerformed(ActionEvent ae) {
 		final Object source = ae.getSource();
-		if (source == new_file) {
+		if (source == newFile) {
 			if (!handleUnsavedChanges())
 				return;
 			createNewDocument();
@@ -565,6 +605,10 @@ public class TextEditor extends JFrame implements ActionListener,
 			save();
 		else if (source == saveas)
 			saveAs();
+		else if (source == makeJar)
+			makeJar(false);
+		else if (source == makeJarWithSource)
+			makeJar(true);
 		else if (source == compileAndRun)
 			runText();
 		else if (source == debug) {
@@ -598,6 +642,8 @@ public class TextEditor extends JFrame implements ActionListener,
 			textArea.redoLastAction();
 		else if (source == find)
 			findOrReplace(false);
+		else if (source == findNext)
+			findDialog.searchOrReplace(false);
 		else if (source == replace)
 			findOrReplace(true);
 		else if (source == gotoLine)
@@ -606,6 +652,14 @@ public class TextEditor extends JFrame implements ActionListener,
 			textArea.setCaretPosition(0);
 			textArea.moveCaretPosition(textArea.getDocument().getLength());
 		}
+		else if (source == addImport)
+			addImport(null);
+		else if (source == removeUnusedImports)
+			new TokenFunctions(textArea).removeUnusedImports();
+		else if (source == sortImports)
+			new TokenFunctions(textArea).sortImports();
+		else if (source == removeTrailingWhitespace)
+			new TokenFunctions(textArea).removeTrailingWhitespace();
 		else if (source == autocomplete) {
 			try {
 				autocomp.doCompletion();
@@ -616,7 +670,8 @@ public class TextEditor extends JFrame implements ActionListener,
 		else if (source == terminate) {
 			// TODO not implemented
 		}
-
+		else if (source == openHelp)
+			openHelp(null);
 	}
 
 	protected RSyntaxDocument getDocument() {
@@ -692,7 +747,7 @@ public class TextEditor extends JFrame implements ActionListener,
 
 	public boolean saveAs(String path, boolean askBeforeReplacing) {
 		file = new File(path);
-		if (file.exists() && !askBeforeReplacing &&
+		if (file.exists() && askBeforeReplacing &&
 				JOptionPane.showConfirmDialog(this,
 					"Do you want to replace " + path + "?",
 					"Replace " + path + "?",
@@ -727,6 +782,137 @@ public class TextEditor extends JFrame implements ActionListener,
 			e.printStackTrace();
 			return false;
 		}
+	}
+
+	public boolean makeJar(boolean includeSources) {
+		if ((file == null || currentLanguage.isCompileable())
+				&& !handleUnsavedChanges())
+			return false;
+
+		String name = getFileName();
+		if (name.endsWith(currentLanguage.extension))
+			name = name.substring(0, name.length()
+				- currentLanguage.extension.length());
+		name += ".jar";
+		SaveDialog sd = new SaveDialog("Export ", name, ".jar");
+		name = sd.getFileName();
+		if (name == null)
+			return false;
+
+		String path = sd.getDirectory() + name;
+		if (new File(path).exists() &&
+				JOptionPane.showConfirmDialog(this,
+					"Do you want to replace " + path + "?",
+					"Replace " + path + "?",
+					JOptionPane.YES_NO_OPTION)
+				!= JOptionPane.YES_OPTION)
+			return false;
+		try {
+			makeJar(path, includeSources);
+			return true;
+		} catch (IOException e) {
+			e.printStackTrace();
+			error("Could not write " + path
+					+ ": " + e.getMessage());
+			return false;
+		}
+	}
+
+	public void makeJar(String path, boolean includeSources)
+			throws IOException {
+		List<String> paths = new ArrayList<String>();
+		List<String> names = new ArrayList<String>();
+		File tmpDir = null;
+		String sourceName = null;
+		if (currentLanguage.interpreter instanceof Refresh_Javas) try {
+			String sourcePath = file.getAbsolutePath();
+			Refresh_Javas java =
+				(Refresh_Javas)currentLanguage.interpreter;
+			tmpDir = File.createTempFile("tmp", "");
+			tmpDir.delete();
+			tmpDir.mkdir();
+			java.compile(sourcePath, tmpDir.getAbsolutePath());
+			getClasses(tmpDir, paths, names);
+			if (includeSources) {
+				String name = java.getPackageName(sourcePath);
+				name = (name == null ? "" :
+						name.replace('.', '/') + "/")
+					+ file.getName();
+				sourceName = name;
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+			if (e instanceof IOException)
+				throw (IOException)e;
+			throw new IOException(e.getMessage());
+		}
+		else
+			sourceName = file.getName();
+
+		OutputStream out = new FileOutputStream(path);
+		JarOutputStream jar = new JarOutputStream(out);
+
+		if (sourceName != null)
+			writeJarEntry(jar, sourceName,
+					textArea.getText().getBytes());
+		for (int i = 0; i < paths.size(); i++)
+			writeJarEntry(jar, names.get(i),
+					readFile(paths.get(i)));
+
+		jar.close();
+
+		if (tmpDir != null)
+			deleteRecursively(tmpDir);
+	}
+
+	static void getClasses(File directory,
+			List<String> paths, List<String> names) {
+		getClasses(directory, paths, names, "");
+	}
+
+	static void getClasses(File directory,
+			List<String> paths, List<String> names, String prefix) {
+		if (!prefix.equals(""))
+			prefix += "/";
+		for (File file : directory.listFiles())
+			if (file.isDirectory())
+				getClasses(file, paths, names,
+						prefix + file.getName());
+			else {
+				paths.add(file.getAbsolutePath());
+				names.add(prefix + file.getName());
+			}
+	}
+
+	static void writeJarEntry(JarOutputStream out, String name,
+			byte[] buf) throws IOException {
+		try {
+			JarEntry entry = new JarEntry(name);
+			out.putNextEntry(entry);
+			out.write(buf, 0, buf.length);
+			out.closeEntry();
+		} catch (ZipException e) {
+			e.printStackTrace();
+			throw new IOException(e.getMessage());
+		}
+	}
+
+	static byte[] readFile(String fileName) throws IOException {
+		File file = new File(fileName);
+		InputStream in = new FileInputStream(file);
+		byte[] buffer = new byte[(int)file.length()];
+		in.read(buffer);
+		in.close();
+		return buffer;
+	}
+
+	static void deleteRecursively(File directory) {
+		for (File file : directory.listFiles())
+			if (file.isDirectory())
+				deleteRecursively(file);
+			else
+				file.delete();
+		directory.delete();
 	}
 
 	public static String getExtension(String fileName) {
@@ -765,6 +951,12 @@ public class TextEditor extends JFrame implements ActionListener,
 			"Compile and Run" : "Run");
 		compileAndRun.setEnabled(language.isRunnable());
 		debug.setEnabled(language.isDebuggable());
+		makeJarWithSource.setEnabled(language.isCompileable());
+
+		boolean isJava = language.menuLabel.equals("Java");
+		addImport.setEnabled(isJava);
+		removeUnusedImports.setEnabled(isJava);
+		sortImports.setEnabled(isJava);
 
 		provider.setProviderLanguage(language.menuLabel);
 
@@ -784,8 +976,15 @@ public class TextEditor extends JFrame implements ActionListener,
 	}
 
 	protected String getFileName() {
-		return file == null ?
-			"New_" + currentLanguage.extension : file.getName();
+		if (file != null)
+			return file.getName();
+		if (currentLanguage.menuLabel.equals("Java")) {
+			String name =
+				new TokenFunctions(textArea).getClassName();
+			if (name != null)
+				return name + currentLanguage.extension;
+		}
+		return "New_" + currentLanguage.extension;
 	}
 
 	private synchronized void setTitle() {
@@ -1054,6 +1253,38 @@ public class TextEditor extends JFrame implements ActionListener,
 			modifyCount = Integer.MIN_VALUE;
 		if (update || modifyCount == 0)
 			setTitle();
+	}
+
+	public String getSelectedTextOrAsk(String label) {
+		String selection = textArea.getSelectedText();
+		if (selection == null) {
+			selection = JOptionPane.showInputDialog(this,
+				label + ":", label + "...",
+				JOptionPane.QUESTION_MESSAGE);
+			if (selection == null)
+				return null;
+		}
+		return selection;
+	}
+
+	public void addImport(String className) {
+		if (className == null)
+			className = getSelectedTextOrAsk("Class name");
+		if (className == null)
+			return;
+		if (className.indexOf('.') < 0)
+			className = new ClassNameFunctions(provider)
+				.getFullName(className);
+		if (className != null)
+			new TokenFunctions(textArea).addImport(className);
+	}
+
+	public void openHelp(String className) {
+		if (className == null)
+			className = getSelectedTextOrAsk("Class name");
+		if (className == null)
+			return;
+		new ClassNameFunctions(provider).openHelpForClass(className);
 	}
 
 	protected void error(String message) {
