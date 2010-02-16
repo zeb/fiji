@@ -8,6 +8,7 @@ import sys
 import copy
 from math import sqrt
 import random
+import time
  
 global foldername
 global syn_radius
@@ -95,10 +96,16 @@ def print_pivots(pivots, filename):
         i1.write(str(p.index)+'\t'+str(p.size)+'\t'+str(p.brightness)+'\t'+str(p.position[0])+'\t'+str(p.position[1])+'\t'+str(p.position[2])+'\n')
 
 def process_reference_channel(image):
+    #normalize the given image, then find its local maxima
+    #calling the methods directly doesn't work with stack, apparently
+    #ij.plugin.filter.BackgroundSubtracter().rollingBallBackground(image.getProcessor(),10,False,False,False,True,True)
+    #ij.plugin.ContrastEnhancer().stretchHistogram(image.getProcessor(),0.0)
+    IJ.run("Subtract Background...", "rolling=10 stack")
+    IJ.run("Enhance Contrast", "saturated=0 normalize normalize_all")
     IJ.run("Maximum (3D) Point")
+
     i=IJ.getImage()
     pivots=scan_pivots(i)
-    #quit()
     print_pivots(pivots,foldername+image.getTitle()+".pivots.xls")   
     IJ.run("Close All Without Saving")
     return pivots
@@ -106,6 +113,7 @@ def process_reference_channel(image):
 
 def extract_features(pivot, image):
     brightness=0
+    prox=0
 
     im_type=image.getType()
     pixels = None
@@ -161,11 +169,14 @@ def extract_features(pivot, image):
                 #moment of inertia
                 momi += p*(dx+dy+dz)
 
+                #proximity brightness: brightness/dist^2
+                prox += p/(1+dx+dy+dz)
+
                 #max brightness?
                 if p > maxpix:
                     maxpix=p
                     maxloc = [x,y,z]
-               
+          
     #now do a small search around the origin of the maximum intensity
     brightness2=0
     dist=sqrt( (maxloc[2]-cz)*(maxloc[2]-cz) + (maxloc[1]-cy)*(maxloc[1]-cy) + (maxloc[0]-cx)*(maxloc[0]-cx))
@@ -199,7 +210,6 @@ def extract_features(pivot, image):
                 #integrated brightness
                 brightness2 +=  p                    
 
-
     if brightness:
         cenmass=1.0*sqrt(cenx*cenx+ceny*ceny+cenz*cenz)/brightness
         momi /= 1.0*brightness
@@ -207,6 +217,7 @@ def extract_features(pivot, image):
         cenmass=sqrt(cenx*cenx+ceny*ceny+cenz*cenz)
     
     return [brightness,cenmass,momi,brightness2,dist]
+    #return [prox]
 
 def extract_feature_loop(pivots, images):
     featurelist=[]
@@ -215,6 +226,11 @@ def extract_feature_loop(pivots, images):
     for ei,i in enumerate(images):
         print "Extracting features from",i.name,",",ei,"of",len(images)
         im=Opener().openImage(foldername, i.name)
+        #normalize the image
+        im.show()
+        #time.sleep(10)
+        IJ.run("Subtract Background...", "rolling=10 stack")
+        IJ.run("Enhance Contrast", "saturated=0 normalize normalize_all")
         for ep,p in enumerate(pivots):            
             if ep % 10000 == 0:
                 print "     Punctum",ep,"of",len(pivots)
@@ -263,6 +279,9 @@ fd.show() #have the user pick a folder and something to gen pivots from
 file_name = fd.getFile()
 foldername=fd.getDirectory()
 pivots=[]
+Interp = ij.macro.Interpreter()
+Interp.batchMode = True
+
 if None != file_name:
     im=Opener().openImage(fd.getDirectory(), file_name)
     if im != None:
@@ -271,22 +290,19 @@ if None != file_name:
     else:        
         pivots=load_pivots(fd.getDirectory()+file_name)       
 print len(pivots)
-tifs= [f for f in File(fd.getDirectory()).listFiles(Filter())]
 
-#tifimgs = [Opener().openImage(fd.getDirectory(), file.name) for file in File(fd.getDirectory()).listFiles(Filter())]
-#tifimgs.sort(lambda a,b:cmp(a.getTitle(),b.getTitle()))
+tifs= [f for f in File(fd.getDirectory()).listFiles(Filter())]
 tifs.sort(lambda a,b:cmp(a.name,b.name))
 print "Images to process: ",tifs
 
-subset=make_subset(pivots)
+#subset=make_subset(pivots)
 features = extract_feature_loop(pivots,tifs)
-subset_features = extract_feature_loop(subset,tifs)
-#print_features(pivots,features,foldername+file_name+'Features.txt')
+#subset_features = extract_feature_loop(subset,tifs)
 printSimpleFeatures(foldername+file_name+'Features.txt',features)
-print_pivots(subset,foldername+file_name+'SubsetObjects.xls')
-#print_features(subset,subset_features,foldername+file_name+'SubsetFeatures.txt')
-printSimpleFeatures(foldername+file_name+'SubsetFeatures.txt',subset_features)
-make_ImageJ_ROI(subset, tifs)
+#print_pivots(subset,foldername+file_name+'SubsetObjects.xls')
+#printSimpleFeatures(foldername+file_name+'SubsetFeatures.txt',subset_features)
+make_ImageJ_ROI(pivots, tifs)
+Interp.batchMode = False
 print "Done"
 
 

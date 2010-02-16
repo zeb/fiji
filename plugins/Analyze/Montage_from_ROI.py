@@ -151,10 +151,13 @@ for et,t in enumerate(tifs):
     IJ.showProgress(0.5*et/len(tifs));
     i = Opener().openImage(foldername, t.name)
     print t.name
+    #normalize the image
+    i.show()
+    IJ.run("Subtract Background...", "rolling=10 stack")
+    IJ.run("Enhance Contrast", "saturated=0 normalize normalize_all")
     #we have to pad the image around the edges to avoid errors
     #first, top and bottom
     padi = IJ.createImage("Padding", str_from_type(i.getType())+" black", i.width, i.height, syn_radius)
-    i.show()
     padi.show()
     concat=ij.plugin.Concatenator()
     i=concat.concatenate(padi,i,True)
@@ -190,25 +193,36 @@ for et,t in enumerate(tifs):
 #all tifs have made subvolumes, so let's make some montage
 
 roiFiles=[f for f in File(foldername+"tmp/").listFiles(Filter())]
-for er,r in enumerate(ROIs):
-    roiname=r.getName()
+import re    
+for er,r in enumerate(ROIs): #for each pivot
+    roiname=r.getName() #the "name" (location) of the ROI
+    #if the ROI manager added a -1 at the end of the ROI, remove the -1
+    roiname=re.split("-.$",roiname)[0]
+    #roiCurr - all the channels from /tmp for this roi
     roiCurr = [roi for roi in roiFiles if string.find(roi.name,roiname) != -1]
+    #sometimes, the previous section generates multiple files, which IJ denotes by 
+    #appending -1.tif, -2.tif, etc.  Filter them out as well.    
+    roiCurr = [roi for roi in roiCurr if re.search("-.\.tif$",roi.name)==None]
+    #sort them in alphabetical order (instead of whichever is first on the disk)
     roiCurr.sort(lambda a,b:cmp(a.name,b.name))
-    while ij.WindowManager.getCurrentImage():
+    #whew
+
+    while ij.WindowManager.getCurrentImage(): #close everything
         ij.WindowManager.getCurrentImage().close()
     
-    firstImg=None
+    firstImg=None#firstImg = the one in red on all the other channels
     for img in roiCurr:
         i = Opener().openImage(foldername+"tmp/", img.name)
         i.show()
         i=IJ.getImage()
         if i.getBitDepth() == 32:
-            i.getProcessor().setMinAndMax(0,255)
-        IJ.run("8-bit");
-        if not firstImg: firstImg=ij.plugin.filter.Duplicater().duplicateStack(i, 'firstImg') 
+            i.getProcessor().setMinAndMax(0,255) #un-normalize the levels IJ sets automatically
+        IJ.run("8-bit");#convert to 8bit
+        if not firstImg: firstImg=ij.plugin.filter.Duplicater().duplicateStack(i, 'firstImg') #just make it gray
         if firstImg: 
-            ij.plugin.ImageCalculator().calculate('Max create stack',i,firstImg)
+            ij.plugin.ImageCalculator().calculate('Max create stack',i,firstImg) #make a red channel where red = first+current images
             comb=IJ.getImage()
+            #merge them together again
             i.setStack(i.getTitle(),ij.plugin.RGBStackMerge().mergeStacks(i.getWidth(), i.getHeight(), i.getImageStackSize(), comb.getImageStack() , i.getImageStack() , i.getImageStack() , False))
         montage=ij.plugin.MontageMaker()
         montage.makeMontage(i, 1+2*syn_radius, 1, 4, 1, 1+2*syn_radius, 1, 2, False)
