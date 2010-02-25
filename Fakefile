@@ -155,6 +155,7 @@ PLUGIN_TARGETS=plugins/Jython_Interpreter.jar \
 	plugins/3D_Objects_Counter.jar \
 	plugins/IsoData_Classifier.jar \
 	plugins/RATS_.jar \
+	plugins/Nucleus_Counter.jar \
 	\
 	misc/Fiji.jar
 
