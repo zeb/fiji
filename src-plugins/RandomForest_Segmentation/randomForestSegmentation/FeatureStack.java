@@ -45,9 +45,15 @@ import ij.ImagePlus;
 import ij.process.ByteProcessor;
 import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
+import ij.process.FHT;
+import ij.plugin.FFT;
 import ij.plugin.ZProjector;
 import ij.plugin.filter.GaussianBlur;
 import ij.plugin.filter.Convolver;
+
+import edu.mines.jtk.dsp.*;
+import stitching.*;
+
 
 public class FeatureStack {
 	private ImagePlus originalImage;
@@ -237,6 +243,7 @@ public class FeatureStack {
 		}
 		
 		ImagePlus projectStack = new ImagePlus("membraneStack",is);
+		projectStack.show();
 		ZProjector zp = new ZProjector(projectStack);
 		zp.setStopSlice(is.getSize());
 		for (int i=0;i<6; i++){
@@ -245,6 +252,33 @@ public class FeatureStack {
 			wholeStack.addSlice("Membrane_Projection_"+i+"_"+patchSize+"_"+membraneSize, zp.getProjection().getChannelProcessor().convertToByte(true));
 		}
 	}
+	
+	
+	public void addTest(){
+		FloatArray2D fftImage = new FloatArray2D((float[]) originalImage.getProcessor().convertToFloat().getPixels(),originalImage.getWidth(), originalImage.getHeight());
+		int fftSize = FftReal.nfftFast(Math.max(width, height));
+		FloatArray2D fftImagePadded = CommonFunctions.zeroPad(fftImage, fftSize, fftSize);
+		
+		//fftImage = CommonFunctions.computeFFT(fftImage);
+		//float[] xcorr = CommonFunctions.multiply(fftImage.data, fftImage.data, false);
+		
+		//FloatArray2D xcorrImage = new FloatArray2D(xcorr, fftImage.width, fftImage.height);
+		//xcorrImage = CommonFunctions.com
+		
+		//float[] pcm = CommonFunctions.computePhaseCorrelationMatrix(fftImagePadded.data, fftImagePadded.data, false);
+
+		FloatProcessor blah = new FloatProcessor(width, height);
+		blah.setPixels(fftImage.data);
+		
+		ImagePlus foo = new ImagePlus("test", blah);
+		foo.show();
+		IJ.log("min Value " + blah.getMin() + " max: " + blah.getMax());
+		foo.setProcessor("test", blah.convertToByte(true));
+		foo.show();
+		IJ.log("min Value " + blah.convertToByte(true).getMin() + " max: " + blah.convertToByte(true).getMax());
+		
+	}
+
 	
 	public ImageProcessor getProcessor(int index) {
 		return wholeStack.getProcessor(index);

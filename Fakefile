@@ -265,7 +265,9 @@ plugins/Script_Editor.jar <- src-plugins/Script_Editor/**/*.java  \
 							var.png[images/var.png]    \
 							funtion.png[images/function.png]
 
-CLASSPATH(plugins/RandomForest_Segmentation.jar)=jars/weka.jar
+#VSK FIXME: something like plugins/RandomForest_Segmentation.jar <- plugins/Stitching_.jar needed?
+CLASSPATH(plugins/RandomForest_Segmentation.jar)=jars/weka.jar:plugins/Stitching_.jar \
+
 plugins/*_*.jar <- src-plugins/*_*/**/*.java
 
 MAINCLASS(jars/javac.jar)=com.sun.tools.javac.Main
