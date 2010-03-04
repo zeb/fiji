@@ -490,6 +490,8 @@ CLASSPATH(jars/test-fiji.jar)=jars/junit-4.5.jar
 
 MAINCLASS(jars/Updater_Fix.jar)=fiji.updater.Fix
 
+jars/dummy-servlet.jar <- src-plugins/dummy-servlet/**/*.java
+
 # This also compiles lib/<platform>/<ffmpeg-library>
 CLASSPATH(plugins/FFMPEG_IO.jar)=jars/ij.jar
 plugins/FFMPEG_IO.jar[src-plugins/FFMPEG_IO/generate.bsh] <- src-plugins/FFMPEG_IO/**/*
