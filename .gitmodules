@@ -73,3 +73,6 @@
 [submodule "modules/imagej2"]
 	path = modules/imagej2
 	url = contrib@pacific.mpi-cbg.de:/srv/git/imagej2
+[submodule "modules/jcifs"]
+	path = modules/jcifs
+	url = contrib@pacific.mpi-cbg.de:/srv/git/jcifs.git

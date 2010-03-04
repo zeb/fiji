@@ -139,6 +139,7 @@ SUBMODULE_TARGETS=\
 	jars/ij-platform-macosx.jar \
 	jars/ij-plugin-swing.jar \
 	jars/ij-ui-swing.jar \
+	jars/jcifs.jar \
 
 PLUGIN_TARGETS=plugins/Jython_Interpreter.jar \
 	plugins/Clojure_Interpreter.jar \
@@ -338,6 +339,8 @@ jars/ij-imagej.jar <- modules/imagej2/
 jars/ij-platform-macosx.jar <- modules/imagej2/
 jars/ij-plugin-swing.jar <- modules/imagej2/
 jars/ij-ui-swing.jar <- modules/imagej2/
+CLASSPATH(jars/jcifs.jar)=jars/dummy-servlet.jar
+jars/jcifs.jar <- modules/jcifs/
 
 # From source
 libs[] <- jars/test-fiji.jar jars/zs.jar jars/VIB-lib.jar jars/Jama-1.0.2.jar \
@@ -612,6 +615,7 @@ precompile-submodules[] <- \
 	precompiled/imglib-algorithms.jar \
 	precompiled/javassist.jar \
 	precompiled/jsch-0.1.44.jar \
+	precompiled/jcifs.jar \
 
 precompiled/ij.jar <- jars/ij.jar
 precompiled/clojure.jar <- jars/clojure.jar
@@ -630,6 +634,7 @@ precompiled/imglib-scripting.jar <- jars/imglib-scripting.jar
 precompiled/commons-math.jar <- jars/commons-math.jar
 precompiled/javassist.jar <- jars/javassist.jar
 precompiled/jsch-0.1.44.jar <- jars/jsch-0.1.44.jar
+precompiled/jcifs.jar <- jars/jcifs.jar
 precompiled/* <- plugins/*
 
 precompile[] <- precompile-fiji precompile-fake precompile-submodules
