@@ -39,66 +39,6 @@ def str_from_type(image_type):
         return "RGB"
     return ""
 
-def copy_data(image,newimage,position):
-    brightness=0
-
-    im_type=image.getType()
-    pixels = None
-    w = image.getWidth();
-    h = image.getHeight();
-    d = image.getStackSize();
-    cx,cy,cz = pivot.position
-    #cx,cy,cz = cx-1,cy-1,cz
-    dx,dy,dz=0,0,0
-    cenx,ceny,cenz=0.0,0.0,0.0
-    momi=0.0
-
-    bitdepth = image.getBitDepth() 
-
-    for z in xrange(int(position[2]),int(position[2]+newimage.getImageStackSize())+1):
-        if z <= 0 or z > d: continue
-        dz = (z-cz)*(z-cz)
-        pixels = image.getStack().getPixels(z)
-        for y in xrange(int(cy-syn_radius),int(cy+syn_radius)+1):
-            if y < 0 or y >= h: continue
-            dy = (y-cy)*(y-cy)
-            for x in xrange(int(cx-syn_radius),int(cx+syn_radius)+1):
-                if x < 0 or x >= w: continue
-                #Innermost loop, perform computation
-                dx = (x-cx)*(x-cx)
-
-                #get pixel value
-                p=pixels[y*w + x]
-                if bitdepth==8:
-                    p = (p & 0xff)
-                elif bitdepth==16:
-                    p = (p & 0xffff)
-                elif bitdepth==24:
-                    p = (p & 0xffffff)
-                elif bitdepth==32:
-                    p = (p & 0xffffffff)
-                
-                if dx+dy+dz > syn_radius*syn_radius: continue        
-
-                #integrated brightness
-                brightness +=  p
-
-                #center of mass
-                cenx += p*sqrt(dx)                
-                ceny += p*sqrt(dy)    
-                cenz += p*sqrt(dz)    
-
-                #moment of inertia
-                momi += p*(dx+dy+dz)
-
-    if brightness:
-        cenmass=1.0*sqrt(cenx*cenx+ceny*ceny+cenz*cenz)/brightness
-        momi /= 1.0*brightness
-    else:
-        cenmass=sqrt(cenx*cenx+ceny*ceny+cenz*cenz)
-    return [brightness,cenmass,momi]
-
-
 ##############################
 ''' Start of actual script '''
 ##############################
@@ -106,9 +46,8 @@ def copy_data(image,newimage,position):
 Interp = ij.macro.Interpreter()
 Interp.batchMode = True
 
-fd = FileDialog(IJ.getInstance(), "Choose Image Folder or ROI Gen Macro", FileDialog.LOAD)
-fd.show() #have the user pick a folder and something to gen pivots from
-file_name = fd.getFile()
+fd = OpenDialog("Choose Image Folder or ROI Gen Macro",None)
+file_name = fd.getFileName()
 foldername=fd.getDirectory()
 pivots=[]
 if None != file_name:
@@ -142,10 +81,14 @@ except:
 manager = ij.plugin.frame.RoiManager.getInstance() 
 if not manager:
     #The ROI manager isn't open, but it should be, so quit
+    IJ.error("ROI manager must be open w/ ROIs!")
     quit()
 ROIs=manager.getRoisAsArray() 
 ROInum=manager.getCount()
 IJ.showProgress(0.0);
+
+#This next section iterates through everything and makes a small subvolume
+#for each combination of image and pivot
 
 for et,t in enumerate(tifs):
     IJ.showProgress(0.5*et/len(tifs));
@@ -176,6 +119,10 @@ for et,t in enumerate(tifs):
         manager.select(er)
         i.setSlice(slicenum+syn_radius)
 
+        if isinstance(r,ij.gui.PointRoi): #if the ROIs are points, convert to centered rects
+            rb=r.getBounds()
+            r=ij.gui.Roi(int(rb.getX()-syn_radius),int(rb.getY()-syn_radius),1+2*syn_radius,1+2*syn_radius)
+
         #move the ROI over to account for the padding we added earlier
         newr=r.clone()
         newr.setLocation(int(newr.getBounds().getX())+syn_radius,int(newr.getBounds().getY())+syn_radius)
@@ -183,7 +130,7 @@ for et,t in enumerate(tifs):
         #Make a substack with the shifted ROI
         dupe=ij.plugin.filter.Duplicater()
         i.setRoi(newr)
-        smalli = dupe.duplicateSubstack(i,i.getTitle()+" "+r.getName(),slicenum,slicenum+2*syn_radius)
+        smalli = dupe.duplicateSubstack(i,i.getTitle()+" "+roiname,slicenum,slicenum+2*syn_radius)
         IJ.saveAs(smalli,"Tiff",foldername+"tmp/"+smalli.getTitle())
         smalli.close()
     i.close()
@@ -206,6 +153,9 @@ for er,r in enumerate(ROIs): #for each pivot
     #sort them in alphabetical order (instead of whichever is first on the disk)
     roiCurr.sort(lambda a,b:cmp(a.name,b.name))
     #whew
+
+    #we want the montage text in white
+    IJ.setForegroundColor(255,255,255)
 
     while ij.WindowManager.getCurrentImage(): #close everything
         ij.WindowManager.getCurrentImage().close()
@@ -233,9 +183,7 @@ for er,r in enumerate(ROIs): #for each pivot
         mont.setTitle(img.name.split(".tif")[0])      
     if firstImg: firstImg.close()
     IJ.run("Images to Stack")
-    montage=ij.plugin.MontageMaker()
-    tmp=IJ.getImage()
-    montage.makeMontage(tmp, 1, len(roiCurr), 1, 1, len(roiCurr), 1, 0, True)    
+    IJ.run("Make Montage...", "columns=1 rows="+str(len(roiCurr))+" scale=1 first=1 last="+str(len(roiCurr))+" increment=1 border=0 font=12 label use"); 
     IJ.selectWindow("Montage")
     mont=IJ.getImage()
     IJ.saveAs(mont,"Tiff",foldername+"montage/"+str(er)+".tif")

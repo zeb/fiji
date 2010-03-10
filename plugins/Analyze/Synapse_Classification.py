@@ -18,6 +18,7 @@ small_radius=2
 subset_size = 300
 
 class Filter(FilenameFilter):
+    'Pull out list entries ending in .tif'
     def accept(self, dir, name):
         reg = re.compile("\.tif$")
         m = reg.search(name)
@@ -27,6 +28,8 @@ class Filter(FilenameFilter):
             return 0
 
 class Pivot(Object):
+    '''A Pivot is a putative synapse, a location from which a short-range 
+    analysis can be based'''
     def __init__(self, index=0,size=0,brightness=0,position=(0,0,0)):
         self.index=index
         self.size=size
@@ -62,6 +65,8 @@ def load_pivots(filename):
     return new_pivots
 
 def scan_pivots(image):
+    '''Takes as input a mostly black image with solitary local maxima, returns
+    a list of pivots representing those maxima'''
     new_pivots=[]
     w = image.getWidth();
     h = image.getHeight();
@@ -73,6 +78,7 @@ def scan_pivots(image):
             for x in xrange(0,w):
                 #get pixel value
                 p=pixels[y*w + x]
+                #check if the pixel is above a low threshold
                 if (bitdepth == 8 or bitdepth == 32) and p > 30:
                     scan=True
                 elif bitdepth == 16 and p > 7000:
@@ -96,10 +102,7 @@ def print_pivots(pivots, filename):
         i1.write(str(p.index)+'\t'+str(p.size)+'\t'+str(p.brightness)+'\t'+str(p.position[0])+'\t'+str(p.position[1])+'\t'+str(p.position[2])+'\n')
 
 def process_reference_channel(image):
-    #normalize the given image, then find its local maxima
-    #calling the methods directly doesn't work with stack, apparently
-    #ij.plugin.filter.BackgroundSubtracter().rollingBallBackground(image.getProcessor(),10,False,False,False,True,True)
-    #ij.plugin.ContrastEnhancer().stretchHistogram(image.getProcessor(),0.0)
+    'normalize the given image, then find its local maxima and return a list of Pivots'
     IJ.run("Subtract Background...", "rolling=10 stack")
     IJ.run("Enhance Contrast", "saturated=0 normalize normalize_all")
     IJ.run("Maximum (3D) Point")
@@ -121,7 +124,6 @@ def extract_features(pivot, image):
     h = image.getHeight();
     d = image.getStackSize();
     cx,cy,cz = pivot.position
-    #cx,cy,cz = cx-1,cy-1,cz
     dx,dy,dz=0,0,0
     cenx,ceny,cenz=0.0,0.0,0.0
     momi=0.0
@@ -177,7 +179,7 @@ def extract_features(pivot, image):
                     maxpix=p
                     maxloc = [x,y,z]
           
-    #now do a small search around the origin of the maximum intensity
+    #now do a small search around the location of the maximum intensity
     brightness2=0
     dist=sqrt( (maxloc[2]-cz)*(maxloc[2]-cz) + (maxloc[1]-cy)*(maxloc[1]-cy) + (maxloc[0]-cx)*(maxloc[0]-cx))
     for z in xrange(int(maxloc[2]-small_radius),int(maxloc[2]+small_radius)+1):
@@ -228,7 +230,6 @@ def extract_feature_loop(pivots, images):
         im=Opener().openImage(foldername, i.name)
         #normalize the image
         im.show()
-        #time.sleep(10)
         IJ.run("Subtract Background...", "rolling=10 stack")
         IJ.run("Enhance Contrast", "saturated=0 normalize normalize_all")
         for ep,p in enumerate(pivots):            
@@ -239,6 +240,7 @@ def extract_feature_loop(pivots, images):
     return featurelist
 
 def print_features(pivots, features, filename):
+    'prints a training set in libSVM format, complete with default class identity'
     fp=open(filename, "w")
     for ep,p in enumerate(pivots):
         fp.write('0')
@@ -263,10 +265,12 @@ def make_subset(pivots):
     return subset
     
 def printSimpleFeatures(filename, features):
+    'Prints a simple comma-separated list of features'
     f=open(filename,'w')
     for r in features:
-        for c in r:
-            f.write(str(c)+', ')
+        for ec,c in enumerate(r):
+            if ec > 0: f.write(', ')
+            f.write(str(c))
         f.write('\n')
     f.close()     
 
@@ -274,9 +278,8 @@ def printSimpleFeatures(filename, features):
 ''' Start of actual script '''
 ##############################
 
-fd = FileDialog(IJ.getInstance(), "Choose Reference Channel or Pivot List", FileDialog.LOAD)
-fd.show() #have the user pick a folder and something to gen pivots from
-file_name = fd.getFile()
+fd = OpenDialog("Choose Reference Image or Pivot List",None)
+file_name = fd.getFileName()
 foldername=fd.getDirectory()
 pivots=[]
 Interp = ij.macro.Interpreter()
@@ -289,19 +292,22 @@ if None != file_name:
         pivots=process_reference_channel(im)
     else:        
         pivots=load_pivots(fd.getDirectory()+file_name)       
-print len(pivots)
+print str(len(pivots))+" total pivots"
 
 tifs= [f for f in File(fd.getDirectory()).listFiles(Filter())]
 tifs.sort(lambda a,b:cmp(a.name,b.name))
 print "Images to process: ",tifs
 
-#subset=make_subset(pivots)
 features = extract_feature_loop(pivots,tifs)
-#subset_features = extract_feature_loop(subset,tifs)
 printSimpleFeatures(foldername+file_name+'Features.txt',features)
+
+#Uncomment the following to extract and print out a subset_size list of random pivots
+#subset=make_subset(pivots)
+#subset_features = extract_feature_loop(subset,tifs)
 #print_pivots(subset,foldername+file_name+'SubsetObjects.xls')
 #printSimpleFeatures(foldername+file_name+'SubsetFeatures.txt',subset_features)
-make_ImageJ_ROI(pivots, tifs)
+#make_ImageJ_ROI(subset, tifs)
+
 Interp.batchMode = False
 print "Done"
 
