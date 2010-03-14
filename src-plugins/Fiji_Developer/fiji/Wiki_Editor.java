@@ -1,6 +1,6 @@
 /* -*- mode: java; c-basic-offset: 8; indent-tabs-mode: t; tab-width: 8 -*- */
 
-/* Copyright 2009 Mark Longair, Johannes Schindelin */
+/* Copyright 2009, 2010 Mark Longair, Johannes Schindelin */
 
 /*
   This file is part of the ImageJ plugin "Tutorial Maker".
@@ -23,25 +23,36 @@
 
 package fiji;
 
+import fiji.scripting.TextEditor;
+
+import ij.IJ;
+import ij.ImagePlus;
+import ij.Menus;
+import ij.WindowManager;
+
+import ij.gui.GenericDialog;
+
+import ij.io.FileInfo;
+
+import ij.plugin.BrowserLauncher;
+import ij.plugin.JpegWriter;
+import ij.plugin.PlugIn;
+
 import java.awt.AWTException;
 import java.awt.Button;
 import java.awt.Choice;
 import java.awt.FlowLayout;
 import java.awt.Frame;
 import java.awt.Image;
-import java.awt.Menu;
-import java.awt.MenuBar;
-import java.awt.MenuItem;
 import java.awt.Rectangle;
 import java.awt.Robot;
-import java.awt.TextArea;
 import java.awt.TextField;
+import java.awt.Toolkit;
 
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
-import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -55,43 +66,61 @@ import java.io.InputStream;
 
 import java.net.URL;
 
+import java.text.SimpleDateFormat;
+
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.List;
 
 import java.util.regex.Pattern;
 
-import ij.IJ;
-import ij.ImagePlus;
-import ij.Menus;
-import ij.Prefs;
-import ij.WindowManager;
+import javax.swing.JMenu;
+import javax.swing.JMenuBar;
+import javax.swing.JMenuItem;
+import javax.swing.JTextArea;
 
-import ij.gui.GenericDialog;
-
-import ij.io.FileInfo;
-
-import ij.plugin.BrowserLauncher;
-import ij.plugin.JpegWriter;
-import ij.plugin.PlugIn;
-
-import ij.plugin.frame.Editor;
-
-public class Tutorial_Maker implements PlugIn {
+public class Wiki_Editor implements PlugIn, ActionListener {
 	protected String name;
 
-	protected final static String URL = "http://pacific.mpi-cbg.de/wiki/";
-	protected String login, password;
+	protected static String URL = "http://pacific.mpi-cbg.de/wiki/";
+
+	protected enum Mode { TUTORIAL_MAKER, NEWS, SCREENSHOT };
+	protected Mode mode;
+	protected ImagePlus screenshot;
 
 	public void run(String arg) {
+		String dialogTitle = "Tutorial Maker";
+		String defaultTitle = "";
+		mode = Mode.TUTORIAL_MAKER;
+
 		if (arg.equals("rename")) {
 			rename();
 			return;
 		}
+		else if (arg.equals("news")) {
+			mode = Mode.NEWS;
+			dialogTitle = "Fiji News";
+			defaultTitle = new SimpleDateFormat("yyyy-MM-dd - ")
+				.format(Calendar.getInstance().getTime());
+		}
+		else if (arg.equals("screenshot")) {
+			screenshot = IJ.getImage();
+			if (screenshot == null) {
+				IJ.error("Which screenshot do you want to upload?");
+				return;
+			}
+			mode = Mode.SCREENSHOT;
+			dialogTitle = "Fiji Wiki Screenshot";
+			defaultTitle = screenshot.getTitle().replace('_', ' ');
+			int dot = defaultTitle.lastIndexOf('.');
+			if (dot > 0)
+				defaultTitle = defaultTitle.substring(0, dot);
+		}
 		else
 			interceptRenames();
 
-		GenericDialog gd = new GenericDialog("Tutorial Maker");
-		gd.addStringField("Tutorial_title", "", 20);
+		GenericDialog gd = new GenericDialog(dialogTitle);
+		gd.addStringField("Tutorial_title", defaultTitle, 20);
 		gd.showDialog();
 		if (gd.wasCanceled())
 			return;
@@ -99,9 +128,17 @@ public class Tutorial_Maker implements PlugIn {
 		name = gd.getNextString();
 		if (name.length() == 0)
 			return;
-		name = capitalize(name).replace(' ', '_');
+		if (mode != Mode.SCREENSHOT)
+			name = capitalize(name).replace(' ', '_');
+		else {
+			new Prettify_Wiki_Screenshot().run(screenshot.getProcessor());
+			screenshot = IJ.getImage();
+			String imageTitle = name + "-snapshot.jpg";
+			for (int i = 2; wikiHasImage(imageTitle); i++)
+				imageTitle = name + "-snapshot-" + i + ".jpg";
+			screenshot.setTitle(imageTitle);
+		}
 
-		showSnapshotFrame();
 		addEditor();
 	}
 
@@ -110,60 +147,34 @@ public class Tutorial_Maker implements PlugIn {
 			+ string.substring(1);
 	}
 
-	protected Editor editor;
+	protected TextEditor editor;
+	protected JMenuItem upload, preview, toBackToggle, renameImage,
+		changeURL, insertPluginInfobox;
 
 	protected void addEditor() {
-		editor = new Editor(25, 120, 14, Editor.MENU_BAR);
+		editor = new TextEditor(null);
+		editor.getTextArea().setLineWrap(true);
 
-		editor.getTextArea().addKeyListener(new KeyAdapter() {
-			public void keyPressed(KeyEvent e) {
-				if ((e.getModifiers() & e.CTRL_MASK) == 0)
-					return;
-				switch (e.getKeyCode()) {
-				case KeyEvent.VK_U: upload(); break;
-				case KeyEvent.VK_R: preview(); break;
-				case KeyEvent.VK_I: renameImage(); break;
-				}
-			}
-		});
+		int ctrl = Toolkit.getDefaultToolkit().getMenuShortcutKeyMask();
 
-		String ctrl = IJ.isMacintosh()?"  Cmd ":"  Ctrl+";
-		Menu menu = new Menu("Wiki");
-		MenuItem upload = new MenuItem("Upload" + ctrl + "U");
-		upload.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent e) {
-				upload();
-			}
-		});
-		menu.add(upload);
-		MenuItem preview = new MenuItem("Preview" + ctrl + "R");
-		preview.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent e) {
-				preview();
-			}
-		});
-		menu.add(preview);
+		JMenu menu = new JMenu("Wiki");
+		menu.setMnemonic(KeyEvent.VK_W);
+		upload = editor.addToMenu(menu, "Upload", KeyEvent.VK_U, ctrl);
+		preview = editor.addToMenu(menu, "Preview", KeyEvent.VK_R, ctrl);
+		if (mode == Mode.TUTORIAL_MAKER) {
+			toBackToggle = editor.addToMenu(menu, "", 0, 0);
+			renameImage = editor.addToMenu(menu, "Rename Image", KeyEvent.VK_I, ctrl);
+			toBackToggleSetLabel();
+			insertPluginInfobox = editor.addToMenu(menu,
+					"Insert Plugin Infobox", 0, 0);
+		}
 
-		final MenuItem toBackToggle = new MenuItem();
-		toBackToggleSetLabel(toBackToggle);
-		toBackToggle.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent e) {
-				putSnapshotsToBack = !putSnapshotsToBack;
-				toBackToggleSetLabel(toBackToggle);
-			}
-		});
-		menu.add(toBackToggle);
+		changeURL = editor.addToMenu(menu, "Change Wiki URL", 0, 0);
 
-		MenuItem renameImage =
-			new MenuItem("Rename Image" + ctrl + "I");
-		renameImage.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent e) {
-				renameImage();
-			}
-		});
-		menu.add(renameImage);
+		for (int i = 0; i < menu.getItemCount(); i++)
+			menu.getItem(i).addActionListener(this);
 
-		editor.getMenuBar().add(menu);
+		editor.getJMenuBar().add(menu);
 
 		editors.add(editor);
 
@@ -175,25 +186,107 @@ public class Tutorial_Maker implements PlugIn {
 			}
 		});
 
-		String text = "== " + name.replace('_', ' ') + " ==\n\n";
-		String category = "\n[[Category:Tutorials]]";
-		editor.create("Edit Wiki - " + name, text + category);
+		String text = "", category = "";
+		switch (mode) {
+			case TUTORIAL_MAKER:
+				text = "== " + name.replace('_', ' ') + " ==\n\n";
+				category = "\n[[Category:Tutorials]]";
+				break;
+			case NEWS:
+				category = "\n[[Category:News]]";
+				break;
+			case SCREENSHOT:
+				try {
+					text = getPageSource("Fiji:Featured_Projects");
+				} catch (IOException e) {
+					IJ.error("Could not get page source for '" + name + "'");
+					return;
+				}
+				text += "\n* " + name + "|"
+					+ screenshot.getTitle() + "\n"
+					+ "The [[" + name + "]] plugin <describe the project here>\n";
+				break;
+		}
+		editor.getTextArea().setText(text + category);
 		editor.getTextArea().setCaretPosition(text.length());
 
-		MenuBar menuBar = editor.getMenuBar();
+		JMenuBar menuBar = editor.getJMenuBar();
 		for (int i = menuBar.getMenuCount() - 1; i >= 0; i--) {
 			String label = menuBar.getMenu(i).getLabel();
-			if (label.equals("Macros") || label.equals("Debug"))
+			if (!label.equals("File") && !label.equals("Edit") &&
+					!label.equals("Wiki"))
 				menuBar.remove(i);
+		}
+
+		if (mode == Mode.TUTORIAL_MAKER)
+			showSnapshotFrame();
+
+		editor.setVisible(true);
+		editor.setTitle("Edit Wiki - " + name);
+	}
+
+	public String getText() {
+		return editor.getTextArea().getText();
+	}
+
+	public void actionPerformed(ActionEvent e) {
+		Object source = e.getSource();
+		if (source == upload)
+			upload();
+		else if (source == preview)
+			preview();
+		else if (source == renameImage)
+			renameImage();
+		else if (source == toBackToggle) {
+			putSnapshotsToBack = !putSnapshotsToBack;
+			toBackToggleSetLabel();
+		}
+		else if (source == changeURL) {
+			GenericDialog gd = new GenericDialog("Change URL");
+			gd.addStringField("URL", URL, 40);
+			gd.showDialog();
+			if (!gd.wasCanceled()) {
+				URL = gd.getNextString();
+				int off = URL.indexOf("/index.php");
+				if (off > 0)
+					URL = URL.substring(0, off + 1);
+				client = null;
+			}
+		}
+		else if (source == insertPluginInfobox) {
+			JTextArea textArea = editor.getTextArea();
+			textArea.insert("{{Infobox Plugin\n"
+				+ "| software               = ImageJ\n"
+				+ "| name                   = \n"
+				+ "| maintainer             = [mailto:author_at_example_dot_com A U Thor]\n"
+				+ "| author                 = A U Thor\n"
+				+ "| source                 = \n"
+				+ "| released               = 15/06/2005\n"
+				+ "| latest version         = 12/08/2009\n"
+				+ "| status                 = \n"
+				+ "| category               = [[:Category:Plugins]]\n"
+				+ "| website                = \n"
+				+ "}}\n", 0);
+			textArea.insert("\n[[Category:Plugins]]",
+				textArea.getDocument().getLength());
 		}
 	}
 
 	protected boolean putSnapshotsToBack = true;
 
-	protected void toBackToggleSetLabel(MenuItem item) {
-		item.setLabel(putSnapshotsToBack ?
+	protected void toBackToggleSetLabel() {
+		toBackToggle.setLabel(putSnapshotsToBack ?
 			"Leave snapshots in the foreground" :
 			"Put snapshots into the background");
+	}
+
+	GraphicalMediaWikiClient client;
+
+
+	protected void getClient() {
+		if (client != null)
+			return;
+		client = new GraphicalMediaWikiClient(URL + "index.php");
 	}
 
 	protected void upload() {
@@ -203,47 +296,31 @@ public class Tutorial_Maker implements PlugIn {
 		if (!saveOrUploadImages(null, images))
 			return;
 
-		MediaWikiClient client = new MediaWikiClient(URL + "index.php");
+		getClient();
 
-		if (!login(client, "Wiki Login"))
+		if (!client.login("Wiki Login"))
 			return;
 
 		if (!saveOrUploadImages(client, images))
 			return;
 
-		client.uploadPage(name, editor.getText(), "Add " + name);
+		String name = mode == Mode.SCREENSHOT ?
+			"Fiji:Featured_Projects" : this.name;
+		boolean result =
+			client.uploadPage(name, getText(), "Add " + this.name);
 
 		client.logOut();
 
 		IJ.showStatus("Uploading " + name + " finished.");
 		IJ.showProgress(1, 1);
 
+		if (!result) {
+			IJ.error("Could not upload!");
+			return;
+		}
+
 		new BrowserLauncher().run(URL + "index.php?title= " + name);
 		editor.dispose();
-
-	}
-
-	protected boolean login(MediaWikiClient client, String title) {
-		if (login != null && password != null)
-			client.logIn(login, password);
-		while (!client.isLoggedIn()) {
-			GenericDialog gd = new GenericDialog(title);
-			if (login == null)
-				login = Prefs.get("fiji.wiki.user", "");
-			gd.addStringField("Login", login, 20);
-			gd.addStringField("Password", "", 20);
-			((TextField)gd.getStringFields().lastElement())
-				.setEchoChar('*');
-			gd.showDialog();
-			if (gd.wasCanceled())
-				return false;
-
-			login = gd.getNextString();
-			Prefs.set("fiji.wiki.user", login);
-			password = gd.getNextString();
-			client.logIn(login, password);
-		}
-		return true;
 	}
 
 	protected void preview() {
@@ -254,13 +331,20 @@ public class Tutorial_Maker implements PlugIn {
 		if (!saveOrUploadImages(null, images))
 			return;
 
-		MediaWikiClient client = new MediaWikiClient(URL + "index.php");
+		getClient();
 
-		if (!login(client, "Wiki Login (Preview)"))
+		if (!client.login("Wiki Login (Preview)"))
 			return;
-		String html = client.uploadOrPreviewPage(name, editor.getText(),
-				"Add " + name, true);
+		String name = mode == Mode.SCREENSHOT ?
+			"Fiji:Featured_Projects" : this.name;
+		String html = client.uploadOrPreviewPage(name, getText(),
+				"Add " + this.name, true);
 		client.logOut();
+
+		if (html == null) {
+			IJ.error("Could not parse response");
+			return;
+		}
 
 		IJ.showStatus("Preparing " + name + " for preview...");
 		IJ.showProgress(1, 2);
@@ -323,9 +407,55 @@ public class Tutorial_Maker implements PlugIn {
 		}
 	}
 
+	public String getPageSource(String title) throws IOException {
+		String result = getPage(title, "edit");
+		client.logOut();
+		int offset = result.indexOf("id=\"wpTextbox1\"");
+		if (offset < 0)
+			return "";
+		offset = result.indexOf('>', offset);
+		if (offset < 0)
+			return "";
+		int endOffset = result.indexOf("</textarea>", offset);
+		if (endOffset < 0)
+			return "";
+		return result.substring(offset + 1, endOffset);
+	}
+
+	/* This method must not log out */
+	public String getPage(String title) throws IOException {
+		return getPage(title, null);
+	}
+
+	public String getPage(String title, String action) throws IOException {
+		getClient();
+		String[] getVars = {
+			"title", title
+		};
+		if (action != null)
+			getVars = new String[] {
+				"title", title,
+				"action", action
+			};
+		String result = client.sendRequest(getVars, null);
+		if (result == null || result.indexOf("Login Required") > 0 ||
+				result.indexOf("Login required") > 0) {
+			// Try after login
+			getClient();
+			if (!client.login("Login to view " + title))
+				return null;
+			result = client.sendRequest(getVars, null);
+		}
+		return result;
+	}
+
 	protected List<String> getImages() {
 		List<String> result = new ArrayList<String>();
-		String text = editor.getText();
+		if (mode == Mode.SCREENSHOT) {
+			result.add(screenshot.getTitle());
+			return result;
+		}
+		String text = getText();
 		int image = 0;
 		for (;;) {
 			image = text.indexOf("[[Image:", image);
@@ -349,7 +479,7 @@ public class Tutorial_Maker implements PlugIn {
 		return false;
 	}
 
-	protected boolean saveOrUploadImages(MediaWikiClient client,
+	protected boolean saveOrUploadImages(GraphicalMediaWikiClient client,
 			List<String> images) {
 		int i = 0, total = images.size() * 2 + 1;
 		for (String image : images) {
@@ -396,10 +526,13 @@ public class Tutorial_Maker implements PlugIn {
 					case 1: return error("Aborted");
 					case 2: continue;
 					}
+				if (!client.login("Login to upload " + image))
+					return false;
 				if (!client.uploadFile(image, "Upload " + image
 							+ " for " + name,
 							new File(info.directory,
-								info.fileName)))
+								info.fileName))
+						&& !wikiHasImage(image))
 					return error("Uploading "
 							+ image + " failed");
 				IJ.showStatus("Uploading " + image + "...");
@@ -414,27 +547,15 @@ public class Tutorial_Maker implements PlugIn {
 
 	protected boolean wikiHasImage(String image) {
 		try {
-			URL url = new URL(URL
-					+ "index.php?title=Image:" + image);
-			InputStream input = url.openStream();
-			byte[] buffer = new byte[65536];
-			int offset = 0;
-			while (offset < buffer.length) {
-				int count = input.read(buffer, offset,
-					buffer.length - offset);
-				if (count < 0)
-					break;
-				offset += count;
-			}
-			input.close();
-			boolean hasFile = new String(buffer).indexOf("No file "
-					+ "by this name exists") < 0;
+			String html = getPage("Image:" + image);
+			boolean hasFile =
+				html.indexOf("No file by this name exists") < 0;
 			if (hasFile)
-				System.err.println("has image: "
-						+ new String(buffer));
+				System.err.println("has image: " + html);
 			return hasFile;
-		} catch (Exception e) {
-			e.printStackTrace();
+		} catch (IOException e) {
+			IJ.error("Could not retrieve image " + image + ": "
+					+ e.getMessage());
 			return false;
 		}
 	}
@@ -455,7 +576,7 @@ public class Tutorial_Maker implements PlugIn {
 		return gd.getNextChoiceIndex();
 	}
 
-	protected static List<Editor> editors = new ArrayList<Editor>();
+	protected static List<TextEditor> editors = new ArrayList<TextEditor>();
 
 	protected static String originalRename, originalRenameArg;
 
@@ -487,14 +608,21 @@ public class Tutorial_Maker implements PlugIn {
 	protected void rename(String oldTitle, String newTitle) {
 		if (oldTitle.equals(newTitle))
 			return;
-		for (Editor editor : editors) {
-			String text = editor.getText();
+		for (TextEditor editor : editors) {
+			String text = editor.getTextArea().getText();
 			String transformed = text.replaceAll("\\[\\[Image:"
 					+ oldTitle.replaceAll("\\.", "\\\\.")
 					+ "(?=[]|])",
 				"[[Image:" + newTitle);
-			if (!text.equals(transformed))
+			if (!text.equals(transformed)) {
+				int pos = editor.getTextArea()
+					.getCaretPosition();
 				editor.getTextArea().setText(transformed);
+				try {
+					editor.getTextArea()
+						.setCaretPosition(pos);
+				} catch (Exception e) { /* ignore */ }
+			}
 		}
 	}
 
@@ -664,9 +792,11 @@ public class Tutorial_Maker implements PlugIn {
 					imp.getWindow().toBack();
 
 				/* insert into editor */
-				TextArea area = editor.getTextArea();
-				area.insert("[[Image:" + name + "]]\n",
-						area.getCaretPosition());
+				int p = editor.getTextArea().getCaretPosition();
+				String insert = "[[Image:" + name + "]]\n";
+				editor.getTextArea().insert(insert, p);
+				p += insert.length();
+				editor.getTextArea().setCaretPosition(p);
 			}
 		} catch (AWTException e) { /* ignore */ }
 	}

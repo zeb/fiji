@@ -15,6 +15,7 @@
 /jvm.cfg
 /samples/
 *.swp
+/.recent-changes.*
 /IJ_Prefs.txt
 /Fiji.app
 /fiji-*.dmg
@@ -34,8 +35,8 @@
 /jars/javac.jar
 /jars/cachedir
 /tmp.ijm
-/fake.jar
-/ij.jar
+/jars/fake.jar
+/jars/ij.jar
 /misc/Fiji.jar
 /plugins/Jython_Interpreter.jar
 /plugins/Clojure_Interpreter.jar
@@ -99,7 +100,7 @@
 /plugins/Gray_Morphology.jar
 /plugins/Colocalisation_Analysis.jar
 /plugins/LocalThickness_.jar
-/plugins/Tutorial_Maker.jar
+/plugins/Fiji_Developer.jar
 /jars/test-fiji.jar
 /plugins/Manual_Tracking.jar
 /plugins/Calculator_Plus.jar
@@ -111,3 +112,8 @@
 /plugins/IsoData_Classifier.jar
 /plugins/RATS_.jar
 /jars/jython.jar
+/jars/VectorString.jar
+/jars/fiji-lib.jar
+/jars/imglib.jar
+/plugins/Siox_Segmentation.jar
+/plugins/Directionality_.jar

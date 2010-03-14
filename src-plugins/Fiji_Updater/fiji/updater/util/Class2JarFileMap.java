@@ -15,7 +15,6 @@ import java.util.jar.JarFile;
 public class Class2JarFileMap extends HashMap<String, String> {
 	public Class2JarFileMap() {
 		try {
-			addJar("ij.jar");
 			addJar("misc/Fiji.jar");
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -63,6 +62,9 @@ public class Class2JarFileMap extends HashMap<String, String> {
 			return name.startsWith("org.xml.") ||
 				name.startsWith("org.w3c.") ||
 				name.startsWith("javax.xml.");
+		if (jar.endsWith("/jython.jar") || jar.endsWith("/jruby.jar"))
+			return name.startsWith("com.sun.jna.") ||
+				name.startsWith("jline.");
 		return false;
 	}
 

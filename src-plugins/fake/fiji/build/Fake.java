@@ -1,4 +1,5 @@
 /* -*- mode: java; c-basic-offset: 8; indent-tabs-mode: t; tab-width: 8 -*- */
+package fiji.build;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -11,6 +12,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.io.PrintWriter;
 import java.io.ByteArrayInputStream;
 
 import java.lang.reflect.Constructor;
@@ -23,6 +25,7 @@ import java.net.URLDecoder;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.Enumeration;
@@ -49,6 +52,7 @@ public class Fake {
 	protected static String toolsPath;
 	protected static String fijiBuildJar;
 	protected static long mtimeFijiBuild;
+	public PrintStream out = System.out, err = System.err;
 
 	public static void main(String[] args) {
 		if (runPrecompiledFakeIfNewer(args))
@@ -59,7 +63,7 @@ public class Fake {
 	public static boolean runPrecompiledFakeIfNewer(String[] args) {
 		String url = Fake.class.getResource("Fake.class").toString();
 		String prefix = "jar:file:";
-		String suffix = "/fake.jar!/Fake.class";
+		String suffix = "/fake.jar!/fiji/build/Fake.class";
 		if (!url.startsWith(prefix) || !url.endsWith(suffix))
 			return false;
 		url = url.substring(9, url.length() - suffix.length());
@@ -99,9 +103,9 @@ public class Fake {
 		String fijiHome = URLDecoder.decode(url.toString());
 		if (getPlatform().startsWith("win"))
 			fijiHome = fijiHome.replace('\\', '/');
-		if (!fijiHome.endsWith("/Fake.class"))
+		if (!fijiHome.endsWith("/fiji/build/Fake.class"))
 			throw new RuntimeException("unexpected URL: " + url);
-		fijiHome = fijiHome.substring(0, fijiHome.length() - 10);
+		fijiHome = fijiHome.substring(0, fijiHome.length() - 21);
 		int slash = fijiHome.lastIndexOf('/', fijiHome.length() - 2);
 		if (fijiHome.startsWith("jar:file:") &&
 				fijiHome.endsWith(".jar!/")) {
@@ -117,6 +121,9 @@ public class Fake {
 		if (fijiHome.endsWith("precompiled/"))
 			fijiHome = fijiHome.substring(0,
 					fijiHome.length() - 12);
+		else if (fijiHome.endsWith("jars/"))
+			fijiHome = fijiHome.substring(0,
+					fijiHome.length() - 5);
 
 		return fijiHome;
 	}
@@ -138,11 +145,8 @@ public class Fake {
 		getClassLoader(path);
 	}
 
-	protected static List discoverJars() throws FakeException {
+	protected List discoverJars() throws FakeException {
 		List jars = new ArrayList();
-		if (new File(fijiHome + "ij.jar").exists())
-			jars.add(fijiHome + "ij.jar");
-
 		File cwd = new File(".");
 		/*
 		 * Since View5D contains an ImageCanvas (d'oh!) which would
@@ -150,7 +154,8 @@ public class Fake {
 		 * include all plugin's jars...
 		 */
 		// expandGlob(fijiHome + "plugins/**/*.jar", jars, cwd);
-		expandGlob(fijiHome + "misc/**/*.jar", jars, cwd);
+		if (new File(fijiHome + "misc/Fiji.jar").exists())
+			jars.add(fijiHome + "misc/Fiji.jar");
 		expandGlob(fijiHome + "jars/**/*.jar", jars, cwd);
 		if (getPlatform().startsWith("win")) {
 			String[] paths =
@@ -167,7 +172,7 @@ public class Fake {
 		return jars;
 	}
 
-	protected static String discoverClassPath() throws FakeException {
+	protected String discoverClassPath() throws FakeException {
 		Iterator iter = discoverJars().iterator();
 		String classPath = "";
 		while (iter.hasNext())
@@ -178,9 +183,14 @@ public class Fake {
 	}
 
 	/* input defaults to reading the Fakefile, cwd to "." */
+	public Parser parse(InputStream input, File cwd) throws FakeException {
+		return new Parser(input, cwd);
+	}
+
+	/* input defaults to reading the Fakefile, cwd to "." */
 	public void make(InputStream input, File cwd, String[] args) {
 		try {
-			Parser parser = new Parser(input, cwd);
+			Parser parser = parse(input, cwd);
 
 			// filter out variable definitions
 			int firstArg = 0;
@@ -226,7 +236,7 @@ public class Fake {
 
 	// the parser
 
-	class Parser {
+	public class Parser {
 		public final static String path = "Fakefile";
 		protected long mtimeFakefile;
 		BufferedReader reader;
@@ -317,7 +327,7 @@ public class Fake {
 			Iterator iter = list.iterator();
 			while (iter.hasNext()) {
 				Object key = iter.next();
-				System.out.println((showKeys ?
+				out.println((showKeys ?
 						key.toString() + " = " : "")
 					+ map.get(key));
 			}
@@ -342,7 +352,7 @@ public class Fake {
 				if (rule instanceof Special)
 					continue;
 				if (rule instanceof SubFake) {
-					System.out.println("Subfake '"
+					out.println("Subfake '"
 						+ rule.getLastPrerequisite()
 						+ "' would make '"
 						+ rule.target + "'");
@@ -355,12 +365,12 @@ public class Fake {
 						((ExecuteProgram)rule).program;
 					if (program.equals(""))
 						continue;
-					System.out.println("Program '" + program
+					out.println("Program '" + program
 						+ "' would maybe make '"
 						+ rule.target + "'");
 					continue;
 				}
-				System.out.println("'" + rule.target
+				out.println("'" + rule.target
 						+ "' is not up-to-date");
 			}
 		}
@@ -628,7 +638,7 @@ public class Fake {
 			}
 
 			if (name.equals("CLASSPATH"))
-				value = prefixPaths(cwd.getName(), value, true);
+				value = prefixPaths(cwd, value, true);
 
 			value = expandVariables(value, paren < 0 ? null :
 				key.substring(paren + 1, key.length() - 1));
@@ -644,7 +654,7 @@ public class Fake {
 				while (tokenizer.hasMoreTokens()) {
 					String token = tokenizer.nextToken();
 					if (expandGlob(token, files, cwd) < 1)
-						System.err.println("Warning: "
+						err.println("Warning: "
 							+ "no match for "
 							+ token);
 				}
@@ -769,11 +779,11 @@ public class Fake {
 		}
 
 		public void dumpVariables() {
-			System.err.println("Variable dump:");
+			err.println("Variable dump:");
 			Iterator iter = variables.keySet().iterator();
 			while (iter.hasNext()) {
 				String key = (String)iter.next();
-				System.err.println(key + " = "
+				err.println(key + " = "
 						+ variables.get(key));
 			}
 		}
@@ -784,9 +794,13 @@ public class Fake {
 				 string.equals("1") || string.equals("2"));
 		}
 
+		public Rule getRule(String rule) {
+			return (Rule)allRules.get(rule);
+		}
+
 		// the different rule types
 
-		abstract class Rule {
+		public abstract class Rule {
 			protected String target;
 			protected List prerequisites, nonUpToDates;
 			protected boolean wasAlreadyInvoked;
@@ -908,7 +922,7 @@ public class Fake {
 				return true;
 			}
 
-			void make() throws FakeException {
+			public void make() throws FakeException {
 				if (wasAlreadyChecked)
 					return;
 				wasAlreadyChecked = true;
@@ -922,7 +936,7 @@ public class Fake {
 
 					if (upToDate())
 						return;
-					System.err.println("Building " + this);
+					err.println("Building " + this);
 					action();
 					if (new File(target).exists())
 						upToDateStage = 2;
@@ -963,7 +977,7 @@ public class Fake {
 				File file = new File(path);
 				if (file.exists() && !file.isDirectory()) {
 					if (dry_run)
-						System.out.println("rm "
+						out.println("rm "
 							+ path);
 					else
 						file.delete();
@@ -979,13 +993,13 @@ public class Fake {
 			protected void debugLog(String message) {
 				if (!getVarBool("DEBUG"))
 					return;
-				System.err.println(message);
+				err.println(message);
 			}
 
 			protected void verbose(String message) {
 				if (!getVarBool("VERBOSE"))
 					return;
-				System.err.println(message);
+				err.println(message);
 			}
 
 			public Rule getRule(String prereq) {
@@ -1074,15 +1088,16 @@ public class Fake {
 						".class"), ".jar"));
 			}
 
-			List compileJavas(List javas, File buildDir)
+			List compileJavas(List javas, File buildDir,
+					Set excludeJavas)
 					throws FakeException {
 				toolsPath = getVar("TOOLSPATH");
-				return Fake.compileJavas(javas, cwd, buildDir,
+				return Fake.this.compileJavas(javas, cwd, buildDir,
 					getVar("JAVAVERSION"),
 					getVarBool("DEBUG"),
 					getVarBool("VERBOSE"),
 					getVarBool("SHOWDEPRECATION"),
-					getVar("CLASSPATH"));
+					getVar("CLASSPATH"), excludeJavas);
 			}
 
 			String getPluginsConfig() {
@@ -1350,9 +1365,11 @@ public class Fake {
 					maybeMake((Rule)allRules.get(paths[i]));
 
 				File buildDir = getBuildDir();
-				compileJavas(prerequisites, buildDir);
+				Set exclude = expandToSet(getVar("NO_COMPILE"),
+					cwd);
+				compileJavas(prerequisites, buildDir, exclude);
 				List files = java2classFiles(prerequisites,
-						cwd, buildDir);
+						cwd, buildDir, exclude);
 				if (getVarBool("includeSource"))
 					addSources(files);
 				makeJar(target, getMainClass(), files, cwd,
@@ -1434,10 +1451,13 @@ public class Fake {
 				}
 
 				try {
+					Set exclude = expandToSet(
+						getVar("NO_COMPILE"), cwd);
 					iter = java2classFiles(javas,
-						cwd, getBuildDir()).iterator();
+						cwd, getBuildDir(),
+							exclude).iterator();
 				} catch (FakeException e) {
-					System.err.println("Warning: could not "
+					err.println("Warning: could not "
 						+ "find required .class files: "
 						+ this);
 					return;
@@ -1453,7 +1473,8 @@ public class Fake {
 			}
 
 			void action() throws FakeException {
-				compileJavas(prerequisites, getBuildDir());
+				compileJavas(prerequisites, getBuildDir(),
+					new HashSet());
 
 				// copy class files, if necessary
 				int slash = target.lastIndexOf('/') + 1;
@@ -1463,8 +1484,11 @@ public class Fake {
 				slash = prefix.lastIndexOf('/') + 1;
 				prefix = prefix.substring(0, slash);
 
+				Set exclude = expandToSet(getVar("NO_COMPILE"),
+					cwd);
 				Iterator iter = java2classFiles(prerequisites,
-					cwd, getBuildDir()).iterator();
+					cwd, getBuildDir(),
+					exclude).iterator();
 				while (iter.hasNext()) {
 					String source = (String)iter.next();
 					if (!source.startsWith(prefix))
@@ -1577,7 +1601,7 @@ public class Fake {
 					getVar("PRECOMPILEDDIRECTORY");
 				if (precompiled == null)
 					error(reason);
-				System.err.println("Falling back to copying "
+				err.println("Falling back to copying "
 					+ target + " from " + precompiled);
 				File file = new File(makePath(cwd, target));
 				if (!precompiled.endsWith("/"))
@@ -1773,13 +1797,15 @@ public class Fake {
 		}
 	}
 
-	protected static int expandGlob(String glob, List list, File cwd)
+	protected int expandGlob(String glob, Collection list, File cwd)
 			throws FakeException {
 		return expandGlob(glob, list, cwd, 0);
 	}
 
-	protected static int expandGlob(String glob, List list, File cwd,
+	protected int expandGlob(String glob, Collection list, File cwd,
 			long newerThan) throws FakeException {
+		if (glob == null)
+			return 0;
 		// find first wildcard
 		int star = glob.indexOf('*'), qmark = glob.indexOf('?');
 
@@ -1842,13 +1868,21 @@ public class Fake {
 		return count;
 	}
 
+	Set expandToSet(String glob, File cwd) throws FakeException {
+		Set result = new HashSet();
+		String[] globs = split(glob, " ");
+		for (int i = 0; i < globs.length; i++)
+			expandGlob(globs[i], result, cwd);
+		return result;
+	}
+
 	/*
 	 * This function inspects a .class file for a given .java file,
 	 * infers the package name and all used classes, and adds to "all"
 	 * the class file names of those classes used that have been found
 	 * in the same class path.
 	 */
-	protected static void java2classFiles(String java, File cwd,
+	protected void java2classFiles(String java, File cwd,
 			File buildDir, List result, Set all) {
 		if (java.endsWith(".java"))
 			java = java.substring(0, java.length() - 5) + ".class";
@@ -1862,7 +1896,7 @@ public class Fake {
 		byte[] buffer = readFile(makePath(cwd, java));
 		if (buffer == null) {
 			if (!java.endsWith("/package-info.class"))
-				System.err.println("Warning: " + java
+				err.println("Warning: " + java
 					+ " does not exist.  Skipping...");
 			return;
 		}
@@ -1908,9 +1942,11 @@ public class Fake {
 				new InputStreamReader(input);
 			BufferedReader reader = new BufferedReader(inputReader);
 			for (;;) {
-				String line = reader.readLine().trim();
+				String line = reader.readLine();
 				if (line == null)
 					break;
+				else
+					line = line.trim();
 				if (!line.startsWith("package "))
 					continue;
 				line = line.substring(8);
@@ -1931,8 +1967,8 @@ public class Fake {
 	}
 
 	/* discovers all the .class files for a given set of .java files */
-	protected static List java2classFiles(List javas, File cwd,
-			File buildDir) throws FakeException {
+	protected List java2classFiles(List javas, File cwd,
+			File buildDir, Set excludeJavas) throws FakeException {
 		List result = new ArrayList();
 		Set all = new HashSet();
 		if (buildDir != null) {
@@ -1943,8 +1979,9 @@ public class Fake {
 		Iterator iter = javas.iterator();
 		while (iter.hasNext()) {
 			String file = (String)iter.next();
+			boolean exclude = excludeJavas.contains(file);
 			if (buildDir != null) {
-				if (file.endsWith(".java")) {
+				if (!exclude && file.endsWith(".java")) {
 					lastJava = file;
 					continue;
 				}
@@ -1953,10 +1990,17 @@ public class Fake {
 					if (prefix != null)
 						result.add(prefix);
 					else
-						System.err.println("Error: "
+						err.println("Error: "
 							+ lastJava);
 					lastJava = null;
 				}
+			}
+			if (exclude) {
+				if (!all.contains(file)) {
+					result.add(file);
+					all.add(file);
+				}
+				continue;
 			}
 			java2classFiles(file, cwd, buildDir, result, all);
 		}
@@ -1964,7 +2008,7 @@ public class Fake {
 	}
 
 	// this function handles the javac singleton
-	protected static synchronized void callJavac(String[] arguments,
+	protected synchronized void callJavac(String[] arguments,
 			boolean verbose) throws FakeException {
 		try {
 			if (javac == null) {
@@ -1974,13 +2018,14 @@ public class Fake {
 				String className = "com.sun.tools.javac.Main";
 				Class main = loader.forceLoadClass(className);
 				Class[] argsType = new Class[] {
-					arguments.getClass()
+					arguments.getClass(),
+					PrintWriter.class
 				};
 				javac = main.getMethod("compile", argsType);
 			}
 
 			Object result = javac.invoke(null,
-					new Object[] { arguments });
+					new Object[] { arguments, new PrintWriter(err) });
 			if (!result.equals(new Integer(0)))
 				throw new FakeException("Compile error");
 			return;
@@ -1988,7 +2033,7 @@ public class Fake {
 			/* was compile error */
 			throw e;
 		} catch (Exception e) {
-			System.err.println("Could not find javac " + e
+			err.println("Could not find javac " + e
 				+ " (tools path = " + toolsPath + "), "
 				+ "falling back to system javac");
 		}
@@ -2008,9 +2053,10 @@ public class Fake {
 
 	// returns all .java files in the list, and returns a list where
 	// all the .java files have been replaced by their .class files.
-	protected static List compileJavas(List javas, File cwd, File buildDir,
+	protected List compileJavas(List javas, File cwd, File buildDir,
 			String javaVersion, boolean debug, boolean verbose,
-			boolean showDeprecation, String extraClassPath)
+			boolean showDeprecation, String extraClassPath,
+			Set exclude)
 			throws FakeException {
 		List arguments = new ArrayList();
 		arguments.add("-encoding");
@@ -2050,7 +2096,7 @@ public class Fake {
 		while (iter.hasNext()) {
 			String path = (String)iter.next();
 
-			if (path.endsWith(".java"))
+			if (path.endsWith(".java") && !exclude.contains(path))
 				arguments.add(makePath(cwd, path));
 		}
 
@@ -2065,7 +2111,7 @@ public class Fake {
 			String output = "Compiling .java files: javac";
 			for (int i = 0; i < args.length; i++)
 				output += " " + args[i];
-			System.err.println(output);
+			err.println(output);
 		}
 
 		try {
@@ -2077,7 +2123,7 @@ public class Fake {
 			throw new FakeException("Compile error: " + e);
 		}
 
-		List result = java2classFiles(javas, cwd, buildDir);
+		List result = java2classFiles(javas, cwd, buildDir, exclude);
 		return result;
 	}
 
@@ -2094,7 +2140,7 @@ public class Fake {
 	}
 
 	// TODO: we really need string pairs; real path and desired path.
-	protected static void makeJar(String path, String mainClass, List files,
+	protected void makeJar(String path, String mainClass, List files,
 			File cwd, File buildDir, String configPath,
 			boolean verbose) throws FakeException {
 		path = makePath(cwd, path);
@@ -2106,7 +2152,7 @@ public class Fake {
 			Iterator iter = files.iterator();
 			while (iter.hasNext())
 				output += " " + iter.next();
-			System.err.println(output);
+			err.println(output);
 		}
 		Manifest manifest = null;
 		if (mainClass != null) {
@@ -2209,7 +2255,7 @@ public class Fake {
 		new File(target).setLastModified(now);
 	}
 
-	static void copyJar(String inJar, JarOutputStream out, boolean verbose)
+	void copyJar(String inJar, JarOutputStream out, boolean verbose)
 			throws Exception {
 		File file = new File(inJar);
 		InputStream input = new FileInputStream(file);
@@ -2230,7 +2276,7 @@ public class Fake {
 		in.close();
 	}
 
-	static void writeJarEntry(JarEntry entry, JarOutputStream out,
+	void writeJarEntry(JarEntry entry, JarOutputStream out,
 			byte[] buf) throws ZipException, IOException {
 		try {
 			out.putNextEntry(entry);
@@ -2239,11 +2285,11 @@ public class Fake {
 		} catch (ZipException e) {
 			String msg = e.getMessage();
 			if (!msg.startsWith("duplicate entry: ")) {
-				System.err.println("Error writing "
+				err.println("Error writing "
 						+ entry.getName());
 				throw e;
 			}
-			System.err.println("ignoring " + msg);
+			err.println("ignoring " + msg);
 		}
 	}
 
@@ -2356,30 +2402,30 @@ public class Fake {
 	}
 
 	// the parameter "file" is only used to set the cwd
-	protected static void execute(List arguments, String file,
+	protected void execute(List arguments, String file,
 			boolean verbose) throws IOException, FakeException {
 		execute(arguments, new File(file).getParentFile(), verbose);
 	}
 
-	protected static void execute(String[] args, String file,
+	protected void execute(String[] args, String file,
 			boolean verbose) throws IOException, FakeException {
 		execute(args, new File(file).getParentFile(), verbose);
 	}
 
-	protected static void execute(List arguments, File dir, boolean verbose)
+	protected void execute(List arguments, File dir, boolean verbose)
 			throws IOException, FakeException {
 		String[] args = new String[arguments.size()];
 		arguments.toArray(args);
 		execute(args, dir, verbose);
 	}
 
-	protected static void execute(String[] args, File dir, boolean verbose)
+	protected void execute(String[] args, File dir, boolean verbose)
 			throws IOException, FakeException {
 		if (verbose) {
 			String output = "Executing:";
 			for (int i = 0; i < args.length; i++)
 				output += " '" + args[i] + "'";
-			System.err.println(output);
+			err.println(output);
 		}
 
 		if (args[0].endsWith(".py")) {
@@ -2388,7 +2434,7 @@ public class Fake {
 			if (executePython(args))
 				return;
 			if (verbose)
-				System.err.println("Falling back to Python ("
+				err.println("Falling back to Python ("
 					+ "Jython was not found in classpath)");
 			args[0] = args0orig;
 		}
@@ -2404,8 +2450,8 @@ public class Fake {
 		}
 
 		Process proc = Runtime.getRuntime().exec(args, null, dir);
-		new StreamDumper(proc.getErrorStream(), System.err).start();
-		new StreamDumper(proc.getInputStream(), System.out).start();
+		new StreamDumper(proc.getErrorStream(), err).start();
+		new StreamDumper(proc.getInputStream(), out).start();
 		try {
 			proc.waitFor();
 		} catch (InterruptedException e) {
@@ -2508,10 +2554,10 @@ public class Fake {
 		if (ignoreMissingFakefiles && !tryFake &&
 				!(new File(directory + "/Makefile").exists())) {
 			if (verbose)
-				System.err.println("Ignore " + directory);
+				err.println("Ignore " + directory);
 			return;
 		}
-		System.err.println((tryFake ? "Build" : "Mak") + "ing in "
+		err.println((tryFake ? "Build" : "Mak") + "ing in "
 			+ directory + (directory.endsWith("/") ? "" : "/"));
 
 		try {
@@ -2545,10 +2591,10 @@ public class Fake {
 			throw new FakeException((tryFake ?  "Fake" : "make")
 				+ " failed: " + e);
 		}
-		System.err.println("Leaving " + directory);
+		err.println("Leaving " + directory);
 	}
 
-	protected static boolean jarUpToDate(String source, String target,
+	protected boolean jarUpToDate(String source, String target,
 			boolean verbose) {
 		JarFile targetJar, sourceJar;
 
@@ -2556,7 +2602,7 @@ public class Fake {
 			targetJar = new JarFile(target);
 		} catch(IOException e) {
 			if (verbose)
-				System.err.println(target
+				err.println(target
 						+ " does not exist yet");
 			return false;
 		}
@@ -2573,14 +2619,14 @@ public class Fake {
 				(JarEntry)targetJar.getEntry(entry.getName());
 			if (other == null) {
 				if (verbose)
-					System.err.println(target
+					err.println(target
 						+ " lacks the file "
 						+ entry.getName());
 				return false;
 			}
 			if (entry.getTime() > other.getTime()) {
 				if (verbose)
-					System.err.println(target + " is not "
+					err.println(target + " is not "
 						+ "up-to-date because of "
 						+ entry.getName());
 				return false;
@@ -2644,7 +2690,7 @@ public class Fake {
 		return c == '"' || c == '\'';
 	}
 
-	public static String getPlatform() {
+	public String getPlatform() {
 		boolean is64bit =
 			System.getProperty("os.arch", "").indexOf("64") >= 0;
 		String osName = System.getProperty("os.name", "<unknown>");
@@ -2654,17 +2700,17 @@ public class Fake {
 			return "macosx";
 		if (osName.startsWith("Windows"))
 			return "win" + (is64bit ? "64" : "32");
-		System.err.println("Unknown platform: " + osName);
+		err.println("Unknown platform: " + osName);
 		return osName;
 	}
 
-	public static boolean isAbsolutePath(String path) {
+	public boolean isAbsolutePath(String path) {
 		boolean isWindows = getPlatform().startsWith("win");
 		return (isWindows && path.length() > 1 && path.charAt(1) == ':')
 			|| (!isWindows && path.startsWith("/"));
 	}
 
-	public static String makePath(File cwd, String path) {
+	public String makePath(File cwd, String path) {
 		String prefix = "", suffix = "";
 		if (path.startsWith("jar:file:")) {
 			prefix = "jar:file:";
@@ -3058,18 +3104,14 @@ public class Fake {
 		return result;
 	}
 
-	public String prefixPaths(String prefix, String pathList,
+	public String prefixPaths(File cwd, String pathList,
 			boolean skipVariables) {
-		if (pathList == null || pathList.equals("")
-				|| prefix.equals("."))
+		if (pathList == null || pathList.equals(""))
 			return pathList;
-		if (!prefix.endsWith("/"))
-			prefix += "/";
-
 		String[] paths = split(pathList, ":");
 		for (int i = 0; i < paths.length; i++)
 			if (!skipVariables || !paths[i].startsWith("$"))
-				paths[i] = prefix + paths[i];
+				paths[i] = makePath(cwd, paths[i]);
 		return join(paths, ":");
 	}
 
@@ -3107,7 +3149,7 @@ public class Fake {
 
 	// our very own exception
 
-	static class FakeException extends Exception {
+	static public class FakeException extends Exception {
 		public static final long serialVersionUID = 1;
 		public FakeException(String message) {
 			super(message);
