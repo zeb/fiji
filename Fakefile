@@ -153,7 +153,7 @@ PLUGIN_TARGETS=plugins/Jython_Interpreter.jar \
 	plugins/Manual_Tracking.jar \
 	plugins/Calculator_Plus.jar \
 	plugins/3D_Objects_Counter.jar \
-	plugins/RandomForest_Segmentation.jar \
+	plugins/Trainable_Segmentation.jar \
 	plugins/IsoData_Classifier.jar \
 	plugins/RATS_.jar \
 	plugins/Directionality_.jar \
@@ -273,8 +273,8 @@ plugins/Script_Editor.jar <- src-plugins/Script_Editor/**/*.java  \
 							funtion.png[images/function.png] \
 							src-plugins/Script_Editor/templates/**/*
 
-#VSK FIXME: something like plugins/RandomForest_Segmentation.jar <- plugins/Stitching_.jar needed?
-CLASSPATH(plugins/RandomForest_Segmentation.jar)=jars/weka.jar:plugins/Stitching_.jar \
+#VSK FIXME: something like plugins/Trainable_Segmentation.jar <- plugins/Stitching_.jar needed?
+CLASSPATH(plugins/Trainable_Segmentation.jar)=jars/weka.jar:plugins/Stitching_.jar \
 
 plugins/*_*.jar <- src-plugins/*_*/**/*.java
 
