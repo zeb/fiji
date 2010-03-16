@@ -243,7 +243,6 @@ public class FeatureStack {
 		}
 		
 		ImagePlus projectStack = new ImagePlus("membraneStack",is);
-		projectStack.show();
 		ZProjector zp = new ZProjector(projectStack);
 		zp.setStopSlice(is.getSize());
 		for (int i=0;i<6; i++){

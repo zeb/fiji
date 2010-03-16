@@ -305,6 +305,7 @@ public class RandomForest_Segmentation implements PlugIn {
 				featureStack.addDoG(i, j); counter++;
 			}
 		}
+		featureStack.addMembraneFeatures(19, 1);
 	}
 	
 	
@@ -397,8 +398,8 @@ public class RandomForest_Segmentation implements PlugIn {
 		 //FIXME: should depend on image size?? Or labels??
 		 rf.setNumTrees(200);
 		 //this is the default that Breiman suggests
-		 //rf.setNumFeatures((int) Math.round(Math.sqrt(featureStack.getSize())));
-		 rf.setNumFeatures(2);
+		 rf.setNumFeatures((int) Math.round(Math.sqrt(featureStack.getSize())));
+		 //rf.setNumFeatures(2);
 		 writeDataToARFF(data, "trainingDataFromInstances.arff");
 		 
 		 rf.setSeed(123);
