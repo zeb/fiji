@@ -223,10 +223,12 @@ public class RandomForest_Segmentation implements PlugIn {
 	public void run(String arg) {
 //		trainingImage = IJ.openImage("testImages/i00000-1.tif");
 		//get current image
-		trainingImage = WindowManager.getCurrentImage();
-		if (null == trainingImage) {
+		if (null == WindowManager.getCurrentImage()) {
 			trainingImage = IJ.openImage();
 			if (null == trainingImage) return; // user canceled open dialog
+		}
+		else {
+			trainingImage = new ImagePlus("training Image",WindowManager.getCurrentImage().getProcessor().duplicate());
 		}
 		
 		if (Math.max(trainingImage.getWidth(), trainingImage.getHeight()) > 1024)
@@ -238,15 +240,16 @@ public class RandomForest_Segmentation implements PlugIn {
 				return;
 
 		
-		trainingImage.setProcessor("training image", trainingImage.getProcessor().convertToByte(true));
+		trainingImage.setProcessor("training image", trainingImage.getProcessor().duplicate().convertToByte(true));
 		createFeatureStack(trainingImage);
 		displayImage = new ImagePlus();
-		displayImage.setProcessor("training image", trainingImage.getProcessor().convertToRGB());
+		displayImage.setProcessor("training image", trainingImage.getProcessor().duplicate().convertToRGB());
 		
 		
 		//Build GUI
 		win = new CustomWindow(displayImage);
-		trainingImage.getWindow().setVisible(false);
+		
+		//trainingImage.getWindow().setVisible(false);
 		}
 	
 	private void addPositiveExamples(){
@@ -290,7 +293,7 @@ public class RandomForest_Segmentation implements PlugIn {
 		IJ.log("creating feature stack");
 		featureStack = new FeatureStack(img);
 		int counter = 1;
-/*		for (float i=2.0f; i<featureStack.getWidth()/5.0f; i*=2){
+		for (float i=2.0f; i<featureStack.getWidth()/5.0f; i*=2){
 			IJ.showStatus("creating feature stack   " + counter);
 			featureStack.addGaussianBlur(i); counter++;
 			IJ.showStatus("creating feature stack   " + counter);			
@@ -302,11 +305,6 @@ public class RandomForest_Segmentation implements PlugIn {
 				featureStack.addDoG(i, j); counter++;
 			}
 		}
-*/		
-//		featureStack.addMembraneFeatures(31, 3);
-		featureStack.addTest();
-		featureStack.writeConfigurationToFile("featureStackConfiguration.txt");
-		featureStack.show();
 	}
 	
 	
@@ -373,6 +371,20 @@ public class RandomForest_Segmentation implements PlugIn {
 	}
 	
 	public void trainClassifier(){
+		if (positiveExamples.size()==0){
+			IJ.showMessage("Cannot train without positive examples!");
+			return;
+		}
+		if (negativeExamples.size()==0){
+			IJ.showMessage("Cannot train without negative examples!");
+			return;
+		}
+		/*Dialog testDialog = new Dialog(this.win, true);
+		testDialog.setSize(150, 50);
+		testDialog.setName("Processing Image...");
+		testDialog.setEnabled(true);
+		testDialog.setVisible(true);*/
+		
 		 IJ.showStatus("training classifier");
 		 long start = System.currentTimeMillis();
 		 Instances data = createTrainingInstances();
@@ -420,6 +432,8 @@ public class RandomForest_Segmentation implements PlugIn {
 		 resultButton.setEnabled(true);
 		 showColorOverlay = false;
 		 toggleOverlay();
+		 //testDialog.setVisible(false);
+		 //testDialog.setEnabled(false);
 	}
 
 	void toggleOverlay(){
@@ -492,6 +506,7 @@ public class RandomForest_Segmentation implements PlugIn {
 	}
 	
 	void showClassificationImage(){
-		classifiedImage.show();
+		ImagePlus resultImage = new ImagePlus("classification result", classifiedImage.getProcessor().duplicate());
+		resultImage.show();
 	}
 }
