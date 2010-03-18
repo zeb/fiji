@@ -255,6 +255,9 @@ public class Trainable_Segmentation implements PlugIn {
 	private void addPositiveExamples(){
 		//get selected pixels
 		Roi r = displayImage.getRoi();
+		if (null==r){
+			return;
+		}
 		displayImage.killRoi();
 		positiveExamples.add(r);
 		posExampleList.add("trace " + posTraceCounter); posTraceCounter++;
@@ -264,6 +267,9 @@ public class Trainable_Segmentation implements PlugIn {
 	private void addNegativeExamples(){
 		//get selected pixels
 		Roi r = displayImage.getRoi();
+		if (null==r){
+			return;
+		}
 		displayImage.killRoi();
 		negativeExamples.add(r);
 		negExampleList.add("trace " + negTraceCounter); negTraceCounter++;
