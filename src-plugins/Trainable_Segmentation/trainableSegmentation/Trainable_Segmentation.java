@@ -406,7 +406,7 @@ public class Trainable_Segmentation implements PlugIn {
 		 //this is the default that Breiman suggests
 		 rf.setNumFeatures((int) Math.round(Math.sqrt(featureStack.getSize())));
 		 //rf.setNumFeatures(2);
-		 writeDataToARFF(data, "trainingDataFromInstances.arff");
+		 //writeDataToARFF(data, "trainingDataFromInstances.arff");
 		 
 		 rf.setSeed(123);
 		 
