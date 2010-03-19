@@ -251,6 +251,8 @@ public class Trainable_Segmentation implements PlugIn {
 		long end = System.currentTimeMillis();
 		IJ.log("creating whole image data took: " + (end-start));
 		 
+		ij.gui.Toolbar.getInstance().setTool(ij.gui.Toolbar.FREELINE);
+		
 		displayImage = new ImagePlus();
 		displayImage.setProcessor("training image", trainingImage.getProcessor().duplicate().convertToRGB());
 		
