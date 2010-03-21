@@ -72,17 +72,17 @@ public abstract class SparseFieldLevelSet implements StagedAlgorithm
    // Progress image
    private ImageProgressContainer progress = null;
       
-   private static final int NUM_LAYERS = 2;
+   protected static final int NUM_LAYERS = 2;
    /* as zero layer is used to address the array it is assigned numlayers here!
     * not num_layers + 1 which would be more logical
     */
-   private static final int ZERO_LAYER = NUM_LAYERS;
+   protected static final int ZERO_LAYER = NUM_LAYERS;
    
    // Initial size of the layer lists
    private static final int INITIAL_LISTSIZE = 500;
    
    // List that holds the layer lists
-   private final ArrayList[] layers = new ArrayList[2 * NUM_LAYERS + 1];
+   protected final ArrayList[] layers = new ArrayList[2 * NUM_LAYERS + 1];
    
    // Lists for iterative layer change procedure
    private ArrayList<BandElement> outside_list = new ArrayList<BandElement>(INITIAL_LISTSIZE);

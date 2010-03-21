@@ -42,6 +42,8 @@ public class GeodesicActiveContour extends LevelSetImplementation {
 	protected final double GAMMA_CURVATURE;
 	// Greyscale values
 	protected final double GAMMA_GREYSCALE;
+	//
+	protected final double WEIGHT_MODIFIER;
 
 	// Greyscale intensity range (from GREY_T - GREY_EPSILON to GREY_T + GREY_EPSILON)
 	protected final double GREY_EPSILON = 1;
@@ -55,12 +57,13 @@ public class GeodesicActiveContour extends LevelSetImplementation {
 		ALPHA_ADVECTION = advection;
 		BETA_PROPAGATION = prop;
 		GAMMA_CURVATURE = curve;
-		GAMMA_GREYSCALE = grey;		
+		GAMMA_GREYSCALE = grey;
+		WEIGHT_MODIFIER = 0;
 	}
 
 	
 	@Override
-	protected final void init() {
+	protected void init() {
 	    super.init();
 
 	    // pre-calculate the gradients and the gradient of the gradient in init()
@@ -82,6 +85,7 @@ public class GeodesicActiveContour extends LevelSetImplementation {
         double curvature = getCurvatureTerm(x, y, z);
         double advection = getAdvectionTerm(x, y, z);
         double propagation = getPropagationTerm(x, y, z);
+        double modifier = getModifierTerm(x, y, z);
         
         // calculate net change
         double delta_phi = - DELTA_T *
@@ -89,6 +93,7 @@ public class GeodesicActiveContour extends LevelSetImplementation {
                 		advection * ALPHA_ADVECTION
                 		+ propagation * BETA_PROPAGATION
                    		+ curvature * GAMMA_CURVATURE 
+                   		+ modifier * WEIGHT_MODIFIER
 //                  	+ advection * GAMMA_GREYSCALE * (GREY_EPSILON - Math.abs(img.getPixel(x, y, z) - GREY_T))
                 		);
         
@@ -242,6 +247,11 @@ public class GeodesicActiveContour extends LevelSetImplementation {
 	}
 	
 
+	protected double getModifierTerm(int x, int y, int z)
+	{
+		return 0;
+	}
+	
 	
 	   /**
 	    * Calculates grey value gradients of an input double array
