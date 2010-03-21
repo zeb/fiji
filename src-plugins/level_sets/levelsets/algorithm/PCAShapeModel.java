@@ -50,8 +50,13 @@ public class PCAShapeModel {
 	
 	
 	// returns equivalent of u*
-	public double getCurveValue(int x, int y, int z, double [] p, float [] pose) {
+	public double getCurveValue(int x, int y, int z, double [] p) {
 		double u = 0;
+		float [] pose = new float[p.length - model.no];
+		
+		for (int i=model.no; i < p.length; i++ ) {
+			pose[i-model.no] = (float) p[i];
+		}
 		
 		int point = model.getPointInModel(x, y, z, pose);
 		

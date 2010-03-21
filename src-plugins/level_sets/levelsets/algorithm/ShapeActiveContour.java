@@ -13,8 +13,7 @@ public class ShapeActiveContour extends GeodesicActiveContour {
 
 	protected Swarm optimizer_swarm;
 	protected PCAShapeModel shape;
-	double [] p, p_mean, p_sigma;
-	float [] pose, pose_mean, pose_sigma;
+	double [] params, params_mean, params_sigma;
 	final double gauss_factor;
 	
 	public ShapeActiveContour(ImageContainer image, ImageProgressContainer img_progress, StateContainer init_state,
@@ -38,16 +37,15 @@ public class ShapeActiveContour extends GeodesicActiveContour {
 	protected void loadShape(String fn) {
 		// load the current shape model and init parameters that need to be optimized
 		shape = new PCAShapeModel(fn);
-		p = new double[shape.getNoCurveParams()];
-		pose = new float[shape.getNoPoseParams()];
-		p_mean = null;
-		pose_mean = null;
+		params = new double[shape.getNoCurveParams() + shape.getNoPoseParams()];
+		params_mean = null;
+		params_sigma = null;
 	}
 	
 	
 	protected void initOptimizer(int no_vars) 
 	{
-		FitnessFunction optimizer_fit = new FitnessMAPsurface();
+		FitnessFunction optimizer_fit = new FitnessMAPsurface(this);
 		
 		// Create a swarm (using 'MyParticle' as sample particle 
 		// and 'MyFitnessFunction' as finess function)
@@ -58,12 +56,13 @@ public class ShapeActiveContour extends GeodesicActiveContour {
 		// i.e.: where to look for solutions
 		optimizer_swarm.setMaxPosition(1);
 		optimizer_swarm.setMinPosition(0);
-		optimizer_fit.setMaximize(true); // need minimum of MAP cost function
+		optimizer_fit.setMaximize(false); // need minimum of MAP cost function
 	}
 	
 	
 	protected final double getModifierTerm(int x, int y, int z) {
-		return 0;
+		
+		return shape.getCurveValue(x, y, z, params) - phi.get(x, y, z);
 	}
 	
 	
@@ -74,16 +73,33 @@ public class ShapeActiveContour extends GeodesicActiveContour {
 	}
 	
 	
-	protected double ShapePriorMAP() {
+	protected double shapePriorMAP() {
+		// run only once per updateActiveLayer()
+		
 		// Optimize a few times
 		for( int i = 0; i < 20; i++ ) optimizer_swarm.evolve();
 
+		Particle [] opt_part = optimizer_swarm.getParticles();
+		for ( int i= 0; i<opt_part.length; i++ ) {
+			params[i] = opt_part[i].getBestFitness();
+		}
 		
 		return 0;
 	}
 	
 	
-	protected double getLogInsideTerm()
+	protected double getShapeCost(double []vars)
+	{
+		double cost = 0;
+		
+		cost += getLogInsideTerm(vars);
+		cost += getLogGradientTerm(vars);
+		cost += getLogShapePrior(vars);
+		
+		return cost;
+	}
+	
+	protected double getLogInsideTerm(double [] vars)
 	{
 		
 		double counter = 0;
@@ -98,7 +114,7 @@ public class ShapeActiveContour extends GeodesicActiveContour {
 				final int y = elem.getY();
 				final int z = elem.getZ();
 
-				double value = shape.getDistanceValue(x, y, z, p, pose);
+				double value = shape.getCurveValue(x, y, z, vars);
 				if ( value > 0.0 ) { 
 					counter += 1.0;
 				}
@@ -114,7 +130,7 @@ public class ShapeActiveContour extends GeodesicActiveContour {
 	}
 	
 	
-	protected double getLogGradientTerm()
+	protected double getLogGradientTerm(double [] vars)
 	{
 		double sum = 0;
 		
@@ -128,7 +144,7 @@ public class ShapeActiveContour extends GeodesicActiveContour {
 				final int y = elem.getY();
 				final int z = elem.getZ();
 				
-				sum += Math.sqrt(getGaussianFx(shape.getCurveValue(x, y, z, p, pose)) - 1.0  + gradients[x][y][z]);
+				sum += Math.sqrt(getGaussianFx(shape.getCurveValue(x, y, z, vars)) - 1.0  + gradients[x][y][z]);
 			}
 		}
 		
@@ -140,15 +156,15 @@ public class ShapeActiveContour extends GeodesicActiveContour {
 	}
 	
 	
-	protected double getLogShapePrior()
+	protected double getLogShapePrior(double [] vars)
 	{
 		double value = 0;
 		
-		if ( p_mean == null) {
+		if ( params_mean == null) {
 			return 0; // just the sum of all p's which is const?
 		}
-		for ( int p_no=0; p_no<p.length; p_no++) {
-			value += Math.sqrt(p[p_no] - p_mean[p_no] / p_sigma[p_no]);
+		for ( int p_no=0; p_no<vars.length; p_no++) {
+			value += Math.sqrt(vars[p_no] - params_mean[p_no] / params_sigma[p_no]);
 		}
 		
 		return value;
@@ -160,8 +176,15 @@ public class ShapeActiveContour extends GeodesicActiveContour {
 	
 	
 	public class FitnessMAPsurface extends FitnessFunction {
-		public double evaluate(double position[]) { 
-			return position[0] + position[1]; 
+		ShapeActiveContour shape;
+		
+		public FitnessMAPsurface(ShapeActiveContour shape) {
+			this.shape = shape;
+		}
+		
+		public double evaluate(double vars[]) { 
+			return shape.getShapeCost(vars);
+			//return position[0] + position[1]; 
 		}
 	} 
 	
