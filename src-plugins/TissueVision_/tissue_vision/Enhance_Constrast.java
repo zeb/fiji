@@ -39,7 +39,7 @@ public class Enhance_Constrast implements PlugIn
 
 					if(null != imp1)
 					{
-						IJ.run(imp1, "Enhance Contrast", "saturated=0.1");
+						IJ.run(imp1, "Enhance Contrast", "saturated=0.4");
 						
 						FileSaver fs = new FileSaver(imp1);
 						fs.saveAsTiff(inputDirectory+sName);
