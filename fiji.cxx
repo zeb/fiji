@@ -580,7 +580,7 @@ static char *dos_path(const char *path)
 }
 #endif
 
-static string get_parent_directory(string path)
+static __attribute__((unused)) string get_parent_directory(string path)
 {
 	size_t slash = path.find_last_of("/\\");
 	if (slash == 0 || slash == path.npos)
@@ -631,7 +631,7 @@ static void maybe_reexec_with_correct_lib_path(void)
 		lib_path = string(original) + PATH_SEP + lib_path;
 	setenv_or_exit("LD_LIBRARY_PATH", lib_path.c_str(), 1);
 	cerr << "Re-executing with correct library lookup path" << endl;
-	execv(main_argv[0], main_argv);
+	execv(main_argv_backup[0], main_argv_backup);
 #endif
 }
 
@@ -1326,6 +1326,9 @@ static void /* no-return */ usage(void)
 		<< "\tappend .jar files in <path> to the class path" << endl
 		<< "--ext <path>" << endl
 		<< "\tset Java's extension directory to <path>" << endl
+		<< "--default-gc" << endl
+		<< "\tdo not use advanced garbage collector settings by default"
+			<< endl << "\t(-Xincgc -XX:PermSize=128m)" << endl
 		<< endl
 		<< "Options for ImageJ:" << endl
 		<< "--allow-multiple" << endl
@@ -1469,7 +1472,7 @@ static int start_ij(void)
 	stringstream plugin_path;
 	int dashdash = 0;
 	bool allow_multiple = false, skip_build_classpath = false;
-	bool jdb = false, add_class_path_option = false;
+	bool jdb = false, add_class_path_option = false, advanced_gc = true;
 
 #ifdef WIN32
 #define EXE_EXTENSION ".exe"
@@ -1595,9 +1598,7 @@ static int start_ij(void)
 			main_class = strdup(arg.c_str());
 		}
 		else if (handle_one_option(i, "--jar", arg)) {
-			class_path += string(fiji_dir)
-				+ "/misc/Fiji.jar" PATH_SEP
-				+ arg + PATH_SEP;
+			class_path += arg + PATH_SEP;
 			main_class = "fiji.JarLauncher";
 			main_argv[count++] = strdup(arg.c_str());
 		}
@@ -1627,19 +1628,20 @@ static int start_ij(void)
 #endif
 			skip_build_classpath = true;
 			headless = 1;
-			string fake_jar = string(fiji_dir) + "/fake.jar";
+			string fake_jar = string(fiji_dir) + "/jars/fake.jar";
 			string precompiled_fake_jar = string(fiji_dir)
 				+ "/precompiled/fake.jar";
 			if (run_precompiled || !file_exists(fake_jar) ||
 					file_is_newer(precompiled_fake_jar,
 						fake_jar))
 				fake_jar = precompiled_fake_jar;
-			if (file_is_newer(string(fiji_dir) + "/fake/Fake.java",
-					fake_jar) && !is_building("fake.jar"))
-				cerr << "Warning: fake.jar is not up-to-date"
+			if (file_is_newer(string(fiji_dir) + "/src-plugins/"
+					"fake/fiji/build/Fake.java", fake_jar)
+					&& !is_building("jars/fake.jar"))
+				cerr << "Warning: jars/fake.jar is not up-to-date"
 					<< endl;
 			class_path += fake_jar + PATH_SEP;
-			main_class = "Fake";
+			main_class = "fiji.build.Fake";
 		}
 		else if (!strcmp(main_argv[i], "--javac") ||
 				!strcmp(main_argv[i], "--javap")) {
@@ -1679,6 +1681,8 @@ static int start_ij(void)
 			cout << get_java_home() << endl;
 			exit(0);
 		}
+		else if (!strcmp("--default-gc", main_argv[i]))
+			advanced_gc = false;
 		else if (!strcmp("--help", main_argv[i]) ||
 				!strcmp("-h", main_argv[i]))
 			usage();
@@ -1731,6 +1735,11 @@ static int start_ij(void)
 	if (is_ipv6_broken())
 		add_option(options, "-Djava.net.preferIPv4Stack=true", 0);
 
+	if (advanced_gc) {
+		add_option(options, "-Xincgc", 0);
+		add_option(options, "-XX:PermSize=128m", 0);
+	}
+
 	if (!main_class) {
 		const char *first = main_argv[1];
 		int len = main_argc > 1 ? strlen(first) : 0;
@@ -1775,13 +1784,7 @@ static int start_ij(void)
 	}
 	else {
 		if (headless)
-			class_path += string(fiji_dir) + "/misc/headless.jar"
-				+ PATH_SEP;
-		class_path += fiji_dir;
-		class_path += "/misc/Fiji.jar";
-		class_path += PATH_SEP;
-		class_path += fiji_dir;
-		class_path += "/ij.jar";
+			class_path += string(fiji_dir) + "/misc/headless.jar";
 
 		if (is_default_main_class(main_class))
 			update_files();

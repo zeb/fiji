@@ -1,5 +1,7 @@
 package fiji.scripting.java;
 
+import fiji.FijiClassLoader;
+
 import ij.IJ;
 import ij.ImageJ;
 import ij.ImagePlus;
@@ -11,13 +13,9 @@ import ij.plugin.PlugIn;
 import ij.plugin.filter.PlugInFilter;
 import ij.plugin.filter.PlugInFilterRunner;
 
-import ij.text.TextWindow;
-
 import ij.util.Tools;
 
-import java.io.CharArrayWriter;
 import java.io.File;
-import java.io.PrintWriter;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -69,17 +67,29 @@ public class PlugInExecutor {
 	}
 
 	public void run(String plugin, String arg) {
+		run(plugin, arg, false);
+	}
+
+	public void run(String plugin, String arg, boolean newClassLoader) {
 		try {
 			IJ.resetEscape();
-			ClassLoader classLoader = getClassLoader();
+			ClassLoader classLoader = newClassLoader ?
+				new FijiClassLoader(IJ.getDirectory("plugins"))
+				: getClassLoader();
 			Class clazz = classLoader.loadClass(plugin);
-			Object object = clazz.newInstance();
-			if (object instanceof PlugIn)
-                                ((PlugIn)object).run(arg);
-                        else if (object instanceof PlugInFilter)
-                                new PlugInFilterRunner(object, plugin, arg);
-			else
-				runMain(object, arg);
+			try {
+				Object object = clazz.newInstance();
+				if (object instanceof PlugIn) {
+					((PlugIn)object).run(arg);
+					return;
+				}
+				if (object instanceof PlugInFilter) {
+					new PlugInFilterRunner(object,
+							plugin, arg);
+					return;
+				}
+			} catch (InstantiationException e) { /* ignore */ }
+			runMain(clazz, arg);
 		} catch(Throwable e) {
 			IJ.showStatus("");
 			IJ.showProgress(1.0);
@@ -89,13 +99,7 @@ public class PlugInExecutor {
 			if (e instanceof RuntimeException && msg!=null &&
 					msg.equals(Macro.MACRO_CANCELED))
 				return;
-			CharArrayWriter caw = new CharArrayWriter();
-			PrintWriter pw = new PrintWriter(caw);
-			e.printStackTrace(pw);
-			String s = caw.toString();
-			if (IJ.isMacintosh())
-				s = Tools.fixNewLines(s);
-			new TextWindow("Exception", s, 350, 250);
+			IJ.handleException(e);
 		}
 	}
 
@@ -105,11 +109,11 @@ public class PlugInExecutor {
 		return classLoader;
 	}
 
-	void runMain(Object object, String arg) throws IllegalAccessException,
+	void runMain(Class clazz, String arg) throws IllegalAccessException,
 			InvocationTargetException, NoSuchMethodException {
 		String[] args = new String[] { arg };
-		Method main = object.getClass().getMethod("main",
+		Method main = clazz.getMethod("main",
 				new Class[] { args.getClass() });
-		main.invoke(object, (Object)args);
+		main.invoke(null, (Object)args);
 	}
 }
