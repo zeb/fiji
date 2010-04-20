@@ -15,7 +15,7 @@ import java.util.Set;
 
 import mpicbg.imglib.container.imageplus.ImagePlusContainerFactory;
 import mpicbg.imglib.cursor.Cursor;
-import mpicbg.imglib.cursor.LocalizableByDimCursor;
+import mpicbg.imglib.cursor.PositionableCursor;
 import mpicbg.imglib.cursor.LocalizableCursor;
 import mpicbg.imglib.image.Image;
 import mpicbg.imglib.image.ImageFactory;
@@ -257,18 +257,18 @@ public class Image_Expression_Parser<T extends RealType<T>> implements PlugIn, A
 			LocalizableCursor<FloatType> result_cursor = result_im.createLocalizableCursor();
 			
 			// Create cursors for input images
-			HashMap<String, LocalizableByDimCursor<T>> cursors = new HashMap<String, LocalizableByDimCursor<T>>(image_map.size());
+			HashMap<String, PositionableCursor<T>> cursors = new HashMap<String, PositionableCursor<T>>(image_map.size());
 			it = variables.iterator();
 			String var;
 			while (it.hasNext()) {
 				var = it.next();
-				cursors.put(var, image_map.get(var).createLocalizableByDimCursor());
+				cursors.put(var, image_map.get(var).createPositionableCursor());
 			}
 
 			// Iterate over cursors.
 			// We iterate using the output cursor. The other ones are moved according to this one
 			float local_value, result_value;
-			LocalizableByDimCursor<T> cursor;
+			PositionableCursor<T> cursor;
 			while (result_cursor.hasNext()) {
 				// output cursor
 				result_cursor.fwd();

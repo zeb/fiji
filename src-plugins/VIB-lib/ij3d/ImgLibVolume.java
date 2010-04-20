@@ -1,6 +1,6 @@
 package ij3d;
 
-import mpicbg.imglib.cursor.LocalizableByDimCursor;
+import mpicbg.imglib.cursor.PositionableCursor;
 import mpicbg.imglib.image.Image;
 import mpicbg.imglib.type.numeric.RealType;
 import mpicbg.imglib.outofbounds.OutOfBoundsStrategyValueFactory;
@@ -13,7 +13,7 @@ import mpicbg.imglib.outofbounds.OutOfBoundsStrategyValueFactory;
 public class ImgLibVolume<T extends RealType<T>> extends Volume {
 
 	final Image<T> img;
-	LocalizableByDimCursor<T> cursor = null;
+	PositionableCursor<T> cursor = null;
 
 	public ImgLibVolume(final Image<T> img, final float[] origin) throws Exception {
 		super();
@@ -51,7 +51,7 @@ public class ImgLibVolume<T extends RealType<T>> extends Volume {
 	protected void initLoader() {
 		final T val = img.createType();
 		val.setReal(0);
-		this.cursor = img.createLocalizableByDimCursor(new OutOfBoundsStrategyValueFactory<T>(val));
+		this.cursor = img.createPositionableCursor(new OutOfBoundsStrategyValueFactory<T>(val));
 	}
 
 	/** Does nothing. */
@@ -65,7 +65,7 @@ public class ImgLibVolume<T extends RealType<T>> extends Volume {
 		cursor.setPosition(x, 0);
 		cursor.setPosition(y, 1);
 		cursor.setPosition(z, 2);
-		cursor.getType().setReal(v);
+		cursor.type().setReal(v);
 	}
 
 	@Override
@@ -84,7 +84,7 @@ public class ImgLibVolume<T extends RealType<T>> extends Volume {
 		cursor.setPosition(x, 0);
 		cursor.setPosition(y, 1);
 		cursor.setPosition(z, 2);
-		return (int) cursor.getType().getRealFloat();
+		return (int) cursor.type().getRealFloat();
 	}
 
 	protected int dataType = BYTE_DATA;
