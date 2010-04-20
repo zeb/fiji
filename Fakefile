@@ -236,7 +236,7 @@ src-plugins/Script_Editor/var.png[cp $PRE $TARGET] <- images/var.png
 src-plugins/Script_Editor/function.png[cp $PRE $TARGET] <- images/function.png
 
 
-CLASSPATH(plugins/TissueVision_.jar)=plugins/Fiji_Plugins.jar
+CLASSPATH(plugins/TissueVision_.jar)=plugins/Fiji_Plugins.jar:jars/fiji-lib.jar
 CLASSPATH(jars/zs.jar)=jars/Jama-1.0.2.jar
 CLASSPATH(plugins/register_virtual_stack_slices.jar)=plugins/TrakEM2_.jar:jars/mpicbg.jar:plugins/bUnwarpJ_.jar:jars/fiji-lib.jar
 

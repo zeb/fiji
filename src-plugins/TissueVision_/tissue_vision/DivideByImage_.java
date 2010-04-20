@@ -17,7 +17,7 @@ import java.io.FilenameFilter;
 
 import java.io.File;
 
-import fiji.util.GenericDialogPlus;
+import fiji.util.gui.GenericDialogPlus;
 
 
 public class DivideByImage_ implements PlugIn

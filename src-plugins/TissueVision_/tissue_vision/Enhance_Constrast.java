@@ -15,7 +15,7 @@ import java.io.FilenameFilter;
 
 import java.io.File;
 
-import fiji.util.GenericDialogPlus;
+import fiji.util.gui.GenericDialogPlus;
 
 
 public class Enhance_Constrast implements PlugIn
