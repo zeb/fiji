@@ -104,6 +104,8 @@ SUBMODULE_TARGETS=\
 	jars/mpicbg.jar \
 	jars/bluecove.jar \
 	jars/bluecove-gpl.jar \
+	jars/wiigee-lib.jar \
+	jars/wiigee-plugin-wiimote.jar \
 
 
 PLUGIN_TARGETS=plugins/Jython_Interpreter.jar \
@@ -215,6 +217,8 @@ jars/weka.jar <- weka/
 jars/jython.jar <- jython/
 jars/bluecove.jar <- bluecove/
 jars/bluecove-gpl.jar <- jars/bluecove.jar bluecove/
+jars/wiigee-lib.jar <- wiigee/
+jars/wiigee-plugin-wiimote.jar <- jars/wiigee-lib.jar wiigee/
 
 # From source
 libs[] <- jars/test-fiji.jar jars/zs.jar jars/VIB-lib.jar jars/Jama-1.0.2.jar \
@@ -391,6 +395,8 @@ precompile-submodules[] <- \
 	precompiled/imglib.jar \
 	precompiled/bluecove.jar \
 	precompiled/bluecove-gpl.jar \
+	precompiled/wiigee-lib.jar \
+	precompiled/wiigee-plugin-wiimote.jar \
 
 precompiled/ij.jar <- jars/ij.jar
 precompiled/clojure.jar <- jars/clojure.jar
@@ -405,6 +411,8 @@ precompiled/jython.jar <- jars/jython.jar
 precompiled/imglib.jar <- jars/imglib.jar
 precompiled/bluecove.jar <- jars/bluecove.jar
 precompiled/bluecove-gpl.jar <- jars/bluecove-gpl.jar
+precompiled/wiigee-lib.jar <- jars/wiigee-lib.jar
+precompiled/wiigee-plugin-wiimote.jar <- jars/wiigee-plugin-wiimote.jar
 precompiled/* <- plugins/*
 
 precompile[] <- precompile-fiji precompile-fake precompile-submodules
