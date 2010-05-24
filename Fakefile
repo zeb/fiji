@@ -143,6 +143,7 @@ PLUGIN_TARGETS=plugins/Jython_Interpreter.jar \
 	plugins/Refresh_Javas.jar \
 	plugins/Auto_Threshold.jar \
 	plugins/Arrow_.jar \
+	plugins/Constrained_Shapes.jar \
 	plugins/Stack_Manipulation.jar \
 	plugins/FlowJ_.jar \
 	plugins/PIV_analyser.jar \
@@ -250,6 +251,8 @@ plugins/Algorithm_Launcher.jar <- \
 	src-plugins/Algorithm_Launcher/**/*.config
 
 CLASSPATH(plugins/Directionality_.jar)=jars/jfreechart-1.0.9.jar
+CLASSPATH(plugins/Constrained_Shapes.jar)=plugins/Arrow_.jar
+
 CLASSPATH(plugins/LSM_Toolbox.jar)=plugins/LSM_Reader.jar
 MAINCLASS(plugins/LSM_Toolbox.jar)=org.imagearchive.lsm.toolbox.gui.AboutDialog
 MAINCLASS(plugins/Interactive_3D_Surface_Plot.jar)=Interactive_3D_Surface_Plot
