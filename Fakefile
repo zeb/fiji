@@ -102,6 +102,7 @@ SUBMODULE_TARGETS=\
 	jars/jython.jar \
 	jars/imglib.jar \
 	jars/mpicbg.jar \
+	jars/bluecove.jar \
 
 
 PLUGIN_TARGETS=plugins/Jython_Interpreter.jar \
@@ -211,6 +212,7 @@ jars/rsyntaxtextarea.jar <- RSyntaxTextArea/
 jars/autocomplete.jar <- AutoComplete/
 jars/weka.jar <- weka/
 jars/jython.jar <- jython/
+jars/bluecove.jar <- bluecove/
 
 # From source
 libs[] <- jars/test-fiji.jar jars/zs.jar jars/VIB-lib.jar jars/Jama-1.0.2.jar \
@@ -385,6 +387,7 @@ precompile-submodules[] <- \
 	precompiled/weka.jar \
 	precompiled/jython.jar \
 	precompiled/imglib.jar \
+	precompiled/bluecove.jar \
 
 precompiled/ij.jar <- jars/ij.jar
 precompiled/clojure.jar <- jars/clojure.jar
@@ -397,6 +400,7 @@ precompiled/autocomplete.jar <- jars/autocomplete.jar
 precompiled/weka.jar <- jars/weka.jar
 precompiled/jython.jar <- jars/jython.jar
 precompiled/imglib.jar <- jars/imglib.jar
+precompiled/bluecove.jar <- jars/bluecove.jar
 precompiled/* <- plugins/*
 
 precompile[] <- precompile-fiji precompile-fake precompile-submodules
