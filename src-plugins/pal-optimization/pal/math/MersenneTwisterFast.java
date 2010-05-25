@@ -15,7 +15,6 @@
 package pal.math;
 
 import java.io.*;
-import java.util.*;
 
 
 /**
@@ -62,6 +61,7 @@ import java.util.*;
  */
 public class MersenneTwisterFast implements Serializable
 		{
+		private static final long serialVersionUID = 1L;
 		// Period parameters
 		private static final int N = 624;
 		private static final int M = 397;
@@ -126,6 +126,7 @@ public class MersenneTwisterFast implements Serializable
 
 	/**
 	 * Shuffles an array.
+	 * @param array The array of ints to shuffle
 	 */
 	public final void shuffle(int[] array) {
 		int l = array.length;
@@ -137,7 +138,34 @@ public class MersenneTwisterFast implements Serializable
 		}
 	}
 	/**
-	 * Shuffles an array. Shuffles numberOfShuffles times
+	 * Shuffles an array of objects.
+	 * @param array The array of objects to shuffle
+	 * @param startIndex the starting index of the portion of the array to shuffle
+	 * @param length the length of the portion of the array to shuffle
+	 */
+	public final void shuffleSubset(int startIndex, int length, Object[] array) {
+		for (int i = 0; i < length; i++) {
+			final int index = nextInt(length-i) + i;
+			final int first = startIndex+index;
+			final int second = startIndex+i;
+			final Object temp = array[first];
+			array[first] = array[second];
+			array[second] = temp;
+		}
+	}
+
+	/**
+	 * Shuffles an array of objects.
+	 * @param array The array of objects to shuffle
+	 */
+	public final void shuffle( Object[] array) {
+		shuffleSubset(0,array.length, array);
+	}
+
+	/**
+	 * Shuffles an array by repeatedly choosing two random members and swapping them.
+	 * @param numberOfShuffles The number of times to do the random swap operation
+	 * @param array The array of ints to shuffle
 	 */
 	public final void shuffle(int[] array, int numberOfShuffles) {
 		int i, j, temp, l = array.length;
@@ -152,8 +180,9 @@ public class MersenneTwisterFast implements Serializable
 		}
 	}
 	/**
-	 * Returns an array of shuffled indices of length l.
+	 * Generates an array of ints that are shuffled
 	 * @param l length of the array required.
+	 * @return  an array of shuffled indices of the specified length.
 	 */
 	 public int[] shuffled(int l) {
 

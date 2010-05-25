@@ -14,8 +14,9 @@ import java.awt.geom.Point2D;
 
 import fiji.plugin.constrainedshapes.CircleRoi.ClickLocation;
 import fiji.util.AbstractTool;
-import fiji.util.optimization.MinimiserMonitor;
-import fiji.util.optimization.MultivariateFunction;
+
+import pal.math.MinimiserMonitor;
+import pal.math.MultivariateFunction;
 
 public class SnappingCircleTool extends AbstractTool implements PlugIn {
 

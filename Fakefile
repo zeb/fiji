@@ -251,7 +251,7 @@ plugins/Algorithm_Launcher.jar <- \
 	src-plugins/Algorithm_Launcher/**/*.config
 
 CLASSPATH(plugins/Directionality_.jar)=jars/jfreechart-1.0.9.jar
-CLASSPATH(plugins/Constrained_Shapes.jar)=plugins/Arrow_.jar
+CLASSPATH(plugins/Constrained_Shapes.jar)=plugins/Arrow_.jar:jars/pal-optimization.jar
 
 CLASSPATH(plugins/LSM_Toolbox.jar)=plugins/LSM_Reader.jar
 MAINCLASS(plugins/LSM_Toolbox.jar)=org.imagearchive.lsm.toolbox.gui.AboutDialog

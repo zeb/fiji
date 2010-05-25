@@ -26,8 +26,11 @@ import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.regex.Pattern;
+
 import pal.math.ConjugateDirectionSearch;
 import pal.math.MultivariateFunction;
+import pal.math.OrthogonalHints;
+
 import util.BatchOpener;
 import util.Quantile_Based_Normalization;
 import vib.app.FileGroup;
@@ -694,6 +697,10 @@ public class Fit_Sphere implements PlugIn {
 
 			// FIXME: ditto above
 			return 10000;
+		}
+
+		public OrthogonalHints getOrthogonalHints() {
+			return null;
 		}
 
 		public void addPointInShell(int shell, double x, double y, double z) {

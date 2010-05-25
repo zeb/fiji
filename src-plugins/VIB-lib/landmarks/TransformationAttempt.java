@@ -5,6 +5,7 @@ package landmarks;
 import ij.ImagePlus;
 import ij.measure.Calibration;
 import pal.math.MultivariateFunction;
+import pal.math.OrthogonalHints;
 
 public class TransformationAttempt implements MultivariateFunction {
 
@@ -87,5 +88,9 @@ public class TransformationAttempt implements MultivariateFunction {
 			// i.e. it's a translation...
 			return maxTranslation;
 		}
+	}
+
+	public OrthogonalHints getOrthogonalHints() {
+		return null;
 	}
 }

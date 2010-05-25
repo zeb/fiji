@@ -2,8 +2,6 @@ package fiji.plugin.constrainedshapes;
 
 import fiji.plugin.constrainedshapes.GeomShape.EvalFunction;
 import fiji.plugin.constrainedshapes.GeomShapeFitter.Method;
-import fiji.util.optimization.MinimiserMonitor;
-import fiji.util.optimization.MultivariateFunction;
 
 import static fiji.plugin.constrainedshapes.GeomShapeFitter.Method;
 import ij.IJ;
@@ -26,6 +24,9 @@ import javax.swing.JFrame;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
+
+import pal.math.MinimiserMonitor;
+import pal.math.MultivariateFunction;
 
 public class Two_Circle_Fitter implements PlugIn, ActionListener, MinimiserMonitor {
 

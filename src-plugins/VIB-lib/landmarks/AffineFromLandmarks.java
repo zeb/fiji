@@ -31,6 +31,7 @@ import vib.TransformedImage;
 
 import pal.math.ConjugateDirectionSearch;
 import pal.math.MultivariateFunction;
+import pal.math.OrthogonalHints;
 
 /* This method doesn't work terribly well, and is here largely for
    comparison purposes. */
@@ -209,6 +210,10 @@ public class AffineFromLandmarks extends RegistrationAlgorithm {
 		public double getUpperBound(int n) {
 			// return Double.MAX_VALUE;
 			return 1;
+		}
+
+		public OrthogonalHints getOrthogonalHints() {
+			return null;
 		}
 	}
 

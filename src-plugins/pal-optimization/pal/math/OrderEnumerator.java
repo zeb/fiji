@@ -6,7 +6,7 @@
 // terms of the Lesser GNU General Public License (LGPL)
 
 
-package fiji.util.optimization;
+package pal.math;
 
 
 /**

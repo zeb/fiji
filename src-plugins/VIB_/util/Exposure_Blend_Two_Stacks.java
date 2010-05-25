@@ -19,6 +19,8 @@ import ij.measure.Calibration;
 
 import pal.math.ConjugateDirectionSearch;
 import pal.math.MultivariateFunction;
+import pal.math.OrthogonalHints;
+
 import vib.TransformedImage;
 
 /* This class just maps a "fluorescence" value to an integer in the
@@ -113,6 +115,9 @@ class FluorescenceOptimizer implements MultivariateFunction {
 		upperFluorescenceBound = max;
 	}
 
+	public OrthogonalHints getOrthogonalHints() {
+		return null;
+	}
 }
 public class Exposure_Blend_Two_Stacks implements PlugIn {
 

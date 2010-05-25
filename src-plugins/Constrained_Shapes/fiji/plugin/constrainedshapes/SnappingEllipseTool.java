@@ -2,8 +2,7 @@ package fiji.plugin.constrainedshapes;
 
 import fiji.plugin.constrainedshapes.EllipseRoi.ClickLocation;
 import fiji.util.AbstractTool;
-import fiji.util.optimization.MinimiserMonitor;
-import fiji.util.optimization.MultivariateFunction;
+
 import ij.IJ;
 import ij.ImagePlus;
 import ij.WindowManager;
@@ -15,6 +14,9 @@ import ij.plugin.PlugIn;
 import java.awt.Color;
 import java.awt.event.MouseEvent;
 import java.awt.geom.Point2D;
+
+import pal.math.MinimiserMonitor;
+import pal.math.MultivariateFunction;
 
 public class SnappingEllipseTool extends AbstractTool implements PlugIn {
 

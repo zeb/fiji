@@ -35,7 +35,9 @@ import ij.*;
 import ij.process.*;
 import ij.measure.Calibration;
 
-import pal.math.*;
+import pal.math.ConjugateDirectionSearch;
+import pal.math.MultivariateFunction;
+import pal.math.OrthogonalHints;
 
 import stacks.ThreePanes;
 
@@ -878,6 +880,10 @@ public class Path implements Comparable {
 
 		public double getUpperBound( int n ) {
 			return side;
+		}
+
+		public OrthogonalHints getOrthogonalHints() {
+			return null;
 		}
 
 		public double evaluate(double [] x) {

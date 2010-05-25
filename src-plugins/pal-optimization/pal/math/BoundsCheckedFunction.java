@@ -85,6 +85,10 @@ public class BoundsCheckedFunction implements MultivariateFunction
 		return f.getUpperBound(n);
 	}
 
+	public OrthogonalHints getOrthogonalHints() {
+		return null;
+	}
+
 
 	//
 	// Private stuff

@@ -5,7 +5,7 @@
 // This package may be distributed under the
 // terms of the Lesser GNU General Public License (LGPL)
 
-package fiji.util.optimization;
+package pal.math;
 import java.io.*;
 /**
  * interface for a classes that wish to monitor the progress of a Minimiser

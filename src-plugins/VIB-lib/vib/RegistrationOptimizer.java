@@ -277,6 +277,10 @@ public abstract class RegistrationOptimizer {
 			return n < 3 ? +angleMax / angleFactor : +translateMax;
 		}
 
+		public OrthogonalHints getOrthogonalHints() {
+			return null;
+		}
+
 		public double evaluate(double[] x, double[] gradient) {
 			double result = evaluate(x);
 			computeGradient(x, gradient);

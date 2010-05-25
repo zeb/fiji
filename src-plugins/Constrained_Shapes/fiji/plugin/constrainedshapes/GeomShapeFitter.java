@@ -1,11 +1,12 @@
 package fiji.plugin.constrainedshapes;
 
 import ij.process.ImageProcessor;
-import fiji.util.optimization.ConjugateDirectionSearch;
-import fiji.util.optimization.MinimiserMonitor;
-import fiji.util.optimization.MultivariateFunction;
-import fiji.util.optimization.MultivariateMinimum;
-import fiji.util.optimization.OrthogonalHints;
+
+import pal.math.ConjugateDirectionSearch;
+import pal.math.MinimiserMonitor;
+import pal.math.MultivariateFunction;
+import pal.math.MultivariateMinimum;
+import pal.math.OrthogonalHints;
 
 public class GeomShapeFitter implements MultivariateFunction {
 
