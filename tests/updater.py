@@ -49,9 +49,9 @@ def die(message):
 	exit(1)
 
 # check that there are exactly the right number of files
-extra = ['db.xml.gz', 'db.xml.gz.old', 'current.txt', 'misc', 'jars', 'plugins']
+extra = ['db.xml.gz', 'db.xml.gz.old', 'current.txt', 'jars', 'plugins']
 if len(uploadables) + len(extra) != sum([len(listdir(tmpWebRoot + dir)) for
-		dir in ['.', 'misc', 'plugins', 'jars']]):
+		dir in ['.', 'plugins', 'jars']]):
 	die('Wrong number of files')
 
 # populate with minimal Fiji; reuse Java
@@ -71,7 +71,7 @@ if launchProgram(['chmod', 'a+x', tmpRoot + 'fiji']) != 0:
 	die('Could not make ' + tmpRoot + 'fiji executable')
 
 # update some "packages"
-f = open(tmpRoot + 'fiji.cxx', 'w')
+f = open(tmpRoot + 'fiji.c', 'w')
 f.write('pretend to be a developer')
 f.close()
 
@@ -148,7 +148,7 @@ f.close()
 rename(macros + 'obsoleted.ijm', macros + 'obsolete.ijm')
 
 # pretend to be a user again
-remove(tmpRoot + 'fiji.cxx')
+remove(tmpRoot + 'fiji.c')
 
 # install a test script
 action = tmpRoot + 'plugins/Test_Fiji_Updater.py'
@@ -283,6 +283,6 @@ print 'Everything fine!'
 script.close()
 
 # launch
-if launchProgram(['./fiji', '-Dpython.cachedir.skip=true',
+if launchProgram(['./fiji', '-Dpython.cachedir.skip=true', '--',
 	'--run', 'Test_Fiji_Updater'], tmpRoot) != 0:
 	die('The Fiji Updater test failed')
