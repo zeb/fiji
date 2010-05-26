@@ -10,6 +10,8 @@ import ij.gui.Toolbar;
 
 import ij.plugin.PlugIn;
 
+import java.awt.EventQueue;
+
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
@@ -75,12 +77,8 @@ public abstract class AbstractTool implements ImageListener, MouseListener,
 	}
 
 	public void mousePressed(MouseEvent e) {
-		if (Toolbar.getInstance() != toolbar) {
-			unregisterTool();
-			IJ.showStatus("unregistered "
-					+ getToolName() + " Tool");
+		if (unregisterIfNecessary())
 			return;
-		}
 		if (Toolbar.getToolId() != toolID)
 			return;
 		handleMousePress(e);
@@ -111,7 +109,10 @@ public abstract class AbstractTool implements ImageListener, MouseListener,
 			handleMouseWheelMove(e);
 	}
 
-	public void mouseEntered(MouseEvent e) {}
+	public void mouseEntered(MouseEvent e) {
+		unregisterIfNecessary();
+	}
+
 	public void mouseExited(MouseEvent e) {}
 
 	public void imageOpened(ImagePlus image) {
@@ -122,11 +123,32 @@ public abstract class AbstractTool implements ImageListener, MouseListener,
 		unregisterTool(image);
 	}
 
-	public void imageUpdated(ImagePlus image) {}
+	public void imageUpdated(ImagePlus image) {
+		unregisterIfNecessary();
+	}
 
 	/*
 	 * PROTECTED METHODS
 	 */
+
+	protected boolean unregisterIfNecessary() {
+		if (!shouldUnregister())
+			return false;
+
+		EventQueue.invokeLater(new Runnable() {
+			public void run() {
+				unregisterTool();
+				IJ.showStatus("unregistered "
+					+ getToolName() + " Tool");
+			}
+		});
+		return true;
+	}
+
+	protected boolean shouldUnregister() {
+		return Toolbar.getInstance() != toolbar ||
+			toolID != toolbar.getToolId(getToolName());
+	}
 
 	protected void registerTool() {
 		int[] ids = WindowManager.getIDList();
