@@ -94,7 +94,7 @@ public class TwoCircleTool extends AbstractTool {
 	
 	@Override
 	public String getToolName() {
-		return "Two_circle_shape";
+		return "Two circle shape";
 	}
 
 

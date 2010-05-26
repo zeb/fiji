@@ -256,7 +256,7 @@ public class SnappingCircleTool extends AbstractTool implements PlugIn {
 
 	@Override
 	public String getToolName() {		
-		return "Snapping_Circle_Shape";
+		return "Snapping Circle Shape";
 	}
 
 	@Override

@@ -291,7 +291,7 @@ public class SnappingEllipseTool extends AbstractTool implements PlugIn {
 	
 	@Override
 	public String getToolName() {
-		return "Snapping_Ellipse_Shape";
+		return "Snapping Ellipse Shape";
 	}
 
 	@Override
