@@ -50,13 +50,13 @@ public class TwoCircleShape extends GeomShape   {
 //		this(0, 0, 0, 0, 0, 0);
 	}
 	
-	public TwoCircleShape(double _xc1, double _yc1, double _r1, double _xc2, double _yc2, double _r2) {
-		params[0] 	= _xc1;
-		params[1]	= _yc1;
-		params[2]	= _r1;
-		params[3]	= _xc2;
-		params[4]	= _yc2;
-		params[5]	= _r2;
+	public TwoCircleShape(double xc1, double yc1, double r1, double xc2, double yc2, double r2) {
+		params[0] 	= xc1;
+		params[1]	= yc1;
+		params[2]	= r1;
+		params[3]	= xc2;
+		params[4]	= yc2;
+		params[5]	= r2;
 	}
 	
 	/*
@@ -128,14 +128,14 @@ public class TwoCircleShape extends GeomShape   {
 		final double r2  = params[5];
 		double l = Double.NaN;
 		final double a = Math.sqrt((xc2-xc1)*(xc2-xc1) + (yc2-yc1)*(yc2-yc1)); // distance C1 to C2
-		final boolean separated_circles = a > r1+r2; // true if the two circles do not intersect, resulting in having 2 separated circles 
-		final boolean circle_1_swallowed = r2 > r1 + a; // true if circle 1 is totally within circle 2, resulting in having only 1 circle
-		final boolean circle_2_swallowed = r1 > r2 + a;
-		if (circle_1_swallowed) { 
+		final boolean separatedCircles = a > r1+r2; // true if the two circles do not intersect, resulting in having 2 separated circles 
+		final boolean circle1Swallowed = r2 > r1 + a; // true if circle 1 is totally within circle 2, resulting in having only 1 circle
+		final boolean circle2Swallowed = r1 > r2 + a;
+		if (circle1Swallowed) { 
 			l = 2 * Math.PI * r2;
-		} else if (circle_2_swallowed) {
+		} else if (circle2Swallowed) {
 			l = 2 * Math.PI * r1;
-		} else if (separated_circles) {
+		} else if (separatedCircles) {
 			l = 2 * Math.PI * (r1+r2);
 		} else { 
 			final double lx1 = ( a*a - r2*r2 + r1*r1 ) / (2*a); // distance C1 to cap
@@ -147,7 +147,7 @@ public class TwoCircleShape extends GeomShape   {
 		return l;
 	}
 	
-	public double[][] sample(final int n_points) {
+	public double[][] sample(final int nPoints) {
 		final double xc1 = params[0];
 		final double yc1 = params[1];
 		final double r1  = params[2];
@@ -155,42 +155,42 @@ public class TwoCircleShape extends GeomShape   {
 		final double yc2 = params[4];
 		final double r2  = params[5];
 		
-		final double[] x = new double[n_points];
-		final double[] y = new double[n_points];
+		final double[] x = new double[nPoints];
+		final double[] y = new double[nPoints];
 		
 		final double phi = Math.atan2(yc2-yc1, xc2-xc1); // angle of C1C2 with x axis
 		final double a = Math.sqrt((xc2-xc1)*(xc2-xc1) + (yc2-yc1)*(yc2-yc1)); // distance C1 to C2
 		
-		final boolean separated_circles = a > r1+r2; // true if the two circles do not intersect, resulting in having 2 separated circles 
-		final boolean circle_1_swallowed = r2 > r1 + a; // true if circle 1 is totally within circle 2, resulting in having only 1 circle
-		final boolean circle_2_swallowed = r1 > r2 + a; 
+		final boolean separatedCircles = a > r1+r2; // true if the two circles do not intersect, resulting in having 2 separated circles 
+		final boolean circle1Swallowed = r2 > r1 + a; // true if circle 1 is totally within circle 2, resulting in having only 1 circle
+		final boolean circle2Swallowed = r1 > r2 + a; 
 
-		if (circle_1_swallowed) {
+		if (circle1Swallowed) {
 			double theta;
-			for (int i=0; i<n_points; i++) {
-				theta = i * 2 * Math.PI / n_points;
+			for (int i=0; i<nPoints; i++) {
+				theta = i * 2 * Math.PI / nPoints;
 				x[i] = xc2 + r2 * Math.cos(theta);
 				y[i] = yc2 + r2 * Math.sin(theta);
 			}
 
-		} else if (circle_2_swallowed) {
+		} else if (circle2Swallowed) {
 			double theta;
-			for (int i=0; i<n_points; i++) {
-				theta = i * 2 * Math.PI / n_points;
+			for (int i=0; i<nPoints; i++) {
+				theta = i * 2 * Math.PI / nPoints;
 				x[i] = xc1 + r1 * Math.cos(theta);
 				y[i] = yc1 + r1 * Math.sin(theta);
 			} 
 
-		}else 	if (separated_circles) {
-			final int N1 = (int) Math.round(n_points / (1+r2/r1));
-			final int N2 = n_points - N1;
+		}else 	if (separatedCircles) {
+			final int N1 = (int) Math.round(nPoints / (1+r2/r1));
+			final int N2 = nPoints - N1;
 			double theta;
 			for (int i=0; i<N1; i++) {
 				theta = i * 2 * Math.PI / N1;
 				x[i] = xc1 + r1 * Math.cos(theta);
 				y[i] = yc1 + r1 * Math.sin(theta);
 			}
-			for (int i = N1; i<n_points; i++) {
+			for (int i = N1; i<nPoints; i++) {
 				theta = (i-N1) * 2 * Math.PI / N2;
 				x[i] = xc2 + r2 * Math.cos(theta);
 				y[i] = yc2 + r2 * Math.sin(theta);
@@ -203,15 +203,15 @@ public class TwoCircleShape extends GeomShape   {
 			final double alpha2 = Math.acos(lx2/r2); // cap angle seen from C1
 
 			final double corr = (Math.PI-alpha1)/(Math.PI-alpha2) * r1/r2;
-			final int N1 = (int) Math.round( n_points/(1+1/corr)) - 1;
-			final int N2 = n_points - N1;
+			final int N1 = (int) Math.round( nPoints/(1+1/corr)) - 1;
+			final int N2 = nPoints - N1;
 			double alpha;
 			for (int i=0; i<N1; i++) {
 				alpha = phi + alpha1 + i * 2 * (Math.PI-alpha1) / N1 ;
 				x[i] = xc1 + r1*Math.cos(alpha);
 				y[i] = yc1 + r1*Math.sin(alpha);
 			}
-			for (int i=N1; i<n_points; i++) {
+			for (int i=N1; i<nPoints; i++) {
 				alpha = Math.PI + phi + alpha2 + (i-N1) * 2 * (Math.PI-alpha2) / N2;
 				x[i] = xc2 + r2*Math.cos(alpha);
 				y[i] = yc2 + r2*Math.sin(alpha);
@@ -229,15 +229,15 @@ public class TwoCircleShape extends GeomShape   {
 		final double r2  = params[5];
 		
 		final double a = Math.sqrt((xc2-xc1)*(xc2-xc1) + (yc2-yc1)*(yc2-yc1)); // distance C1 to C2
-		final boolean separated_circles = a > r1+r2; // true if the two circles do not intersect, resulting in having 2 separated circles 
-		final boolean circle_1_swallowed = r2 > r1 + a; // true if circle 1 is totally within circle 2, resulting in having only 1 circle
-		final boolean circle_2_swallowed = r1 > r2 + a;
+		final boolean separatedCircles = a > r1+r2; // true if the two circles do not intersect, resulting in having 2 separated circles 
+		final boolean circle1Swallowed = r2 > r1 + a; // true if circle 1 is totally within circle 2, resulting in having only 1 circle
+		final boolean circle2Swallowed = r1 > r2 + a;
 
-		if (circle_1_swallowed) {
+		if (circle1Swallowed) {
 			return Arrangement.CIRCLE_1_SWALLOWED;
-		} else if (circle_2_swallowed) {
+		} else if (circle2Swallowed) {
 			return Arrangement.CIRCLE_2_SWALLOWED;
-		} else if (separated_circles) {
+		} else if (separatedCircles) {
 			return Arrangement.ISOLATED;
 		} else {
 			return Arrangement.INTERSECTING;
@@ -263,9 +263,9 @@ public class TwoCircleShape extends GeomShape   {
 	}
 	
 	public TwoCircleShape clone() {
-		TwoCircleShape new_shape = new TwoCircleShape();
-		new_shape.setParameters(this.getParameters().clone());
-		return new_shape;
+		TwoCircleShape newShape = new TwoCircleShape();
+		newShape.setParameters(this.getParameters().clone());
+		return newShape;
 	}
 	
 	public String toString() {
@@ -317,8 +317,8 @@ public class TwoCircleShape extends GeomShape   {
 		
 		class TestCanvas extends Canvas {
 			private TwoCircleShape[] shape;
-			public TestCanvas(TwoCircleShape[] _shape) {
-				this.shape = _shape;
+			public TestCanvas(TwoCircleShape[] shape) {
+				this.shape = shape;
 			}
 			private static final long serialVersionUID = 1L;
 			public void paint(Graphics g) {

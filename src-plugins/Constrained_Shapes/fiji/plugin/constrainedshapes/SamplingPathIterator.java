@@ -10,19 +10,19 @@ public class SamplingPathIterator implements PathIterator {
 	GeomShape shape;
 	double[] x;
 	double[] y;
-	int current_index, n_points;
+	int currentIndex, nPoints;
 	
 	/*
 	 * CONSTRUCTORS
 	 */
 	
-	public SamplingPathIterator(GeomShape _shape, int n) {
-		this.shape = _shape;
-		this.n_points = n;
+	public SamplingPathIterator(GeomShape shape, int n) {
+		this.shape = shape;
+		this.nPoints = n;
 		double[][] xy = shape.sample(n);
 		this.x = xy[0];
 		this.y = xy[1];
-		this.current_index = 0;
+		this.currentIndex = 0;
 	}
 
 	
@@ -31,35 +31,35 @@ public class SamplingPathIterator implements PathIterator {
 	 */
 	
 	public int currentSegment(float[] coords) {
-		coords[0] = (float) x[current_index];
-		coords[1] = (float) y[current_index];
+		coords[0] = (float) x[currentIndex];
+		coords[1] = (float) y[currentIndex];
 		coords[2] = 0.0f;
 		coords[3] = 0.0f;
 		coords[4] = 0.0f;
 		coords[5] = 0.0f;
-		int segment_type;
-		if (current_index == 0)			{ 
-			segment_type = PathIterator.SEG_MOVETO; 
+		int segmentType;
+		if (currentIndex == 0)			{ 
+			segmentType = PathIterator.SEG_MOVETO; 
 		} else {
-			segment_type = PathIterator.SEG_LINETO; 
+			segmentType = PathIterator.SEG_LINETO; 
 		}
-		return segment_type;
+		return segmentType;
 	}
 
 	public int currentSegment(double[] coords) {
-		coords[0] = x[current_index];
-		coords[1] = y[current_index];
+		coords[0] = x[currentIndex];
+		coords[1] = y[currentIndex];
 		coords[2] = 0.0;
 		coords[3] = 0.0;
 		coords[4] = 0.0;
 		coords[5] = 0.0;
-		int segment_type;
-		if (current_index == 0)			{ 
-			segment_type = PathIterator.SEG_MOVETO; 
+		int segmentType;
+		if (currentIndex == 0)			{ 
+			segmentType = PathIterator.SEG_MOVETO; 
 		} else {
-			segment_type = PathIterator.SEG_LINETO; 
+			segmentType = PathIterator.SEG_LINETO; 
 		}
-		return segment_type;
+		return segmentType;
 	}
 
 	public int getWindingRule() {
@@ -67,11 +67,11 @@ public class SamplingPathIterator implements PathIterator {
 	}
 
 	public boolean isDone() {
-		return current_index >= n_points;
+		return currentIndex >= nPoints;
 	}
 
 	public void next() {
-		current_index++;
+		currentIndex++;
 	}
 
 }

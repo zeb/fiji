@@ -29,22 +29,22 @@ public abstract class GeomShape implements Shape, Cloneable {
 		MEAN,
 		/** Will return the opposite of the pixel value mean, effectively maximizing it. */
 		MINUS_MEAN;
-		public float compute(final float[] pixel_list)  {			
+		public float compute(final float[] pixelList)  {			
 			float result = 0.0f;
 			switch (this) {
 			case MEAN:
-				result = pixel_list[0];
-				for (int i = 1; i < pixel_list.length; i++) {
-					result += pixel_list[i];
+				result = pixelList[0];
+				for (int i = 1; i < pixelList.length; i++) {
+					result += pixelList[i];
 				}
-				result /= pixel_list.length;
+				result /= pixelList.length;
 				break;
 			case MINUS_MEAN:
-				result = - pixel_list[0];
-				for (int i = 1; i < pixel_list.length; i++) {
-					result -= pixel_list[i];
+				result = - pixelList[0];
+				for (int i = 1; i < pixelList.length; i++) {
+					result -= pixelList[i];
 				}
-				result /= pixel_list.length;
+				result /= pixelList.length;
 				break;
 			}
 			return result;
@@ -53,13 +53,13 @@ public abstract class GeomShape implements Shape, Cloneable {
 	
 	
 	/**
-	 * Returns a <code>2 x n_points</code> array of double containing the X & Y 
+	 * Returns a <code>2 x nPoints</code> array of double containing the X & Y 
 	 * coordinates of an interpolation of this shape.
 	 * 
-	 * @param n_points  The number of point to sample this shape on
+	 * @param nPoints  The number of point to sample this shape on
 	 * @return  The X & Y coordinates
 	 */
-	public abstract double[][] sample(int n_points);
+	public abstract double[][] sample(int nPoints);
 
 	/**
 	 * Return the number of parameters needed to entirely specify this shape. This 
@@ -104,22 +104,22 @@ public abstract class GeomShape implements Shape, Cloneable {
 	 * Compute an evaluation of this shape on the given {@link ImageProcessor}, using 
 	 * the evaluating function {@link EvalFunction}.
 	 * <p>
-	 * This shape is first sampled over <code>n_points</code> using the concrete method 
+	 * This shape is first sampled over <code>nPoints</code> using the concrete method 
 	 * {@link #sample(int)}. This method returns a list of pixel coordinates that define a sampling 
-	 * of this geometrical shape over <code>n_points</code>.
+	 * of this geometrical shape over <code>nPoints</code>.
 	 * Pixel values for these coordinates are then retrieved, and a value is computed through the 
 	 * {@link EvalFunction} <code>function</code>, and returned by this method.
 	 * 
 	 *  @param ip  The {@link ImageProcessor} to evaluate this shape on
 	 *  @param function  The {@link EvalFunction} that will give a value from a pixel list
-	 *  @param n_points  The number of points to sample this shape on
+	 *  @param nPoints  The number of points to sample this shape on
 	 *  @return  The calculated value
 	 */
-	public float eval(final ImageProcessor ip, final EvalFunction function, final int n_points) {
-		final float[][] pixels_as_float = ip.getFloatArray();
-		final int width = pixels_as_float.length;
-		final int height = pixels_as_float[0].length;
-		final double[][] xy = sample(n_points);
+	public float eval(final ImageProcessor ip, final EvalFunction function, final int nPoints) {
+		final float[][] floatPixels = ip.getFloatArray();
+		final int width = floatPixels.length;
+		final int height = floatPixels[0].length;
+		final double[][] xy = sample(nPoints);
 		final double[] x = xy[0];
 		final double[] y = xy[1];
 		final ArrayList<Float> pixels = new ArrayList<Float>(x.length);
@@ -128,13 +128,13 @@ public abstract class GeomShape implements Shape, Cloneable {
 			ix = (int) Math.round(x[i]);
 			iy = (int) Math.round(y[i]);
 			if (ix<0 || ix>width || iy<0 || iy>height) {continue;}
-			pixels.add( pixels_as_float[ix][iy] );
+			pixels.add( floatPixels[ix][iy] );
 		}
-		final float[] pixel_list = new float[pixels.size()];
-		for (int i = 0; i < pixel_list.length; i++) {
-			pixel_list[i] = pixels.get(i);
+		final float[] pixelList = new float[pixels.size()];
+		for (int i = 0; i < pixelList.length; i++) {
+			pixelList[i] = pixels.get(i);
 		}
-		return function.compute(pixel_list);
+		return function.compute(pixelList);
 	}	
 
 

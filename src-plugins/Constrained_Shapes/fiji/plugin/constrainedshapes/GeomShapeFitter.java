@@ -37,7 +37,7 @@ public class GeomShapeFitter implements MultivariateFunction {
 	 * FIELDS
 	 */
 	
-	private int n_points = 500;
+	private int nPoints = 500;
 	/** 
 	 * Sets the desired precision of the optimization process. 
 	 * These 2 numbers set the desired number of digits after 
@@ -51,8 +51,8 @@ public class GeomShapeFitter implements MultivariateFunction {
 	private GeomShape.EvalFunction function = GeomShape.EvalFunction.MEAN; 
 	private MinimiserMonitor monitor = null;
 	
-	private double[] lower_bounds;
-	private double[] upper_bounds;
+	private double[] lowerBounds;
+	private double[] upperBounds;
 	
 	private Method method = Method.CONJUGATE_DIRECTION_SEARCH;
 	private MultivariateMinimum optimizer;
@@ -65,8 +65,8 @@ public class GeomShapeFitter implements MultivariateFunction {
 	 * No empty constructor, for we need to initialize the fitter in a way 
 	 * that depends on the {@link GeomShape} it will work on. 
 	 */
-	public GeomShapeFitter(GeomShape _shape) {
-		setShape(_shape);
+	public GeomShapeFitter(GeomShape shape) {
+		setShape(shape);
 	}
 		
 	/*
@@ -103,7 +103,7 @@ public class GeomShapeFitter implements MultivariateFunction {
 	 * @see {@link #setLowerBounds(double[])}, {@link #setUpperBounds(double[])}, {@link #setUpperBound(int, double)}
 	 */
 	public void setLowerBound(int n, double value) {
-		this.lower_bounds[n] = value;
+		this.lowerBounds[n] = value;
 	}
 	
 	/**
@@ -111,7 +111,7 @@ public class GeomShapeFitter implements MultivariateFunction {
 	 * @see {@link #setLowerBounds(double[])}, {@link #setUpperBounds(double[])}, {@link #setLowerBound(int, double)}
 	 */
 	public void setUpperBound(int n, double value) {
-		this.upper_bounds[n] = value;
+		this.upperBounds[n] = value;
 	}
 	
 	/**
@@ -120,7 +120,7 @@ public class GeomShapeFitter implements MultivariateFunction {
 	 * @see {@link #setUpperBounds(double[])}, {@link #setLowerBound(int, double)}, {@link #setLowerBound(int, double)}
 	 */
 	public void setLowerBounds(double[] arr) {
-		this.lower_bounds = arr;
+		this.lowerBounds = arr;
 	}
 
 	/**
@@ -129,7 +129,7 @@ public class GeomShapeFitter implements MultivariateFunction {
 	 * @see {@link #setLowerBounds(double[])}, {@link #setLowerBound(int, double)}, {@link #setLowerBound(int, double)}
 	 */
 	public void setUpperBounds(double[] arr) {
-		this.upper_bounds = arr;
+		this.upperBounds = arr;
 	}
 	
 	/*
@@ -146,11 +146,11 @@ public class GeomShapeFitter implements MultivariateFunction {
 	 */
 	public double evaluate(double[] params) {
 		shape.setParameters(params);
-		return shape.eval(ip, function, n_points);
+		return shape.eval(ip, function, nPoints);
 	}
 
 	public double getLowerBound(int n) {		
-		return lower_bounds[n];
+		return lowerBounds[n];
 	}
 
 	public int getNumArguments() {
@@ -158,7 +158,7 @@ public class GeomShapeFitter implements MultivariateFunction {
 	}
 
 	public double getUpperBound(int n) {
-		return upper_bounds[n];
+		return upperBounds[n];
 	}
 
 	/**
@@ -177,8 +177,8 @@ public class GeomShapeFitter implements MultivariateFunction {
 	public GeomShape getShape() {	return shape;	}
 	public GeomShape.EvalFunction getFunction() {		return function;	}
 	public void setFunction(GeomShape.EvalFunction function) {		this.function = function;	}
-	public int getNPoints() {		return n_points; 	}
-	public void setNPoints(int nPoints) {		n_points = nPoints; 	}
+	public int getNPoints() {		return nPoints; 	}
+	public void setNPoints(int nPoints) {		nPoints = nPoints; 	}
 	public ImageProcessor getImageProcessor() { 		return ip; 	}
 	public void setImageProcessor(ImageProcessor ip) { 		this.ip = ip; 	}
 	public Method getMethod() {		return method;	}
@@ -189,30 +189,30 @@ public class GeomShapeFitter implements MultivariateFunction {
 	 * Set the {@link Method} used to optimize the {@link GeomShape} by this fitter. 
 	 * Using this method will reset the internal {@link MultivariateMinimum} optimizer
 	 * of this instance.
-	 * @param _method  The method to use for optimization
+	 * @param method  The method to use for optimization
 	 */
-	public void setMethod(Method _method) {		
-		this.optimizer = _method.instantiate(shape);
-		this.method = _method;	
+	public void setMethod(Method method) {		
+		this.optimizer = method.instantiate(shape);
+		this.method = method;	
 	}
 
 	/**
 	 * Set the {@link GeomShape} to optimize by this instance. Using this method will
 	 * reset the upper and lower bounds for this fitter, as well as the internal
 	 * {@link MultivariateMinimum} optimizer function.
-	 * @param _shape  The shape to optimize
+	 * @param shape  The shape to optimize
 	 */
-	public void setShape(GeomShape _shape) {	
-		final double[] arr1 = new double[_shape.getNumParameters()];
-		final double[] arr2 = new double[_shape.getNumParameters()];
-		for (int i = 0; i < _shape.getNumParameters(); i++) {
+	public void setShape(GeomShape shape) {	
+		final double[] arr1 = new double[shape.getNumParameters()];
+		final double[] arr2 = new double[shape.getNumParameters()];
+		for (int i = 0; i < shape.getNumParameters(); i++) {
 			arr1[i] = Double.NEGATIVE_INFINITY;
 			arr2[i] = Double.POSITIVE_INFINITY;
 		}
-		this.optimizer = method.instantiate(_shape);
-		this.lower_bounds = arr1;
-		this.upper_bounds = arr2;
-		this.shape = _shape;		
+		this.optimizer = method.instantiate(shape);
+		this.lowerBounds = arr1;
+		this.upperBounds = arr2;
+		this.shape = shape;		
 	}
 
 }

@@ -22,10 +22,10 @@ public class TwoCircleTool extends AbstractTool {
 	private ImageCanvas canvas;
 	private ImagePlus imp;
 	private InteractionStatus status;
-	private Point2D start_drag;
+	private Point2D startDrag;
 	private TwoCircleRoi roi;
 	private TwoCircleShape shape;
-	private InteractionStatus previous_status;
+	private InteractionStatus previousStatus;
 	
 	/*
 	 * ENUMS
@@ -57,9 +57,9 @@ public class TwoCircleTool extends AbstractTool {
 				status = InteractionStatus.FREE;
 				imp.setRoi(roi);
 			} else {
-				Roi current_roi = imp.getRoi(); 
-				if ( (current_roi != null) && (current_roi instanceof TwoCircleRoi) ) {
-					roi = (TwoCircleRoi) current_roi;
+				Roi currentRoi = imp.getRoi(); 
+				if ( (currentRoi != null) && (currentRoi instanceof TwoCircleRoi) ) {
+					roi = (TwoCircleRoi) currentRoi;
 					shape = roi.getShape();
 					status = InteractionStatus.FREE;
 				} else {
@@ -122,12 +122,12 @@ public class TwoCircleTool extends AbstractTool {
 			ImageWindow window = (ImageWindow) source.getParent();
 			imp = window.getImagePlus();
 			canvas = source;
-			Roi current_roi = imp.getRoi();
-			if ( (current_roi == null) || !(current_roi instanceof TwoCircleRoi)) {
+			Roi currentRoi = imp.getRoi();
+			if ( (currentRoi == null) || !(currentRoi instanceof TwoCircleRoi)) {
 				roi = new TwoCircleRoi();
 				status = InteractionStatus.CREATING_C1;
 			} else {
-				roi = (TwoCircleRoi) current_roi;
+				roi = (TwoCircleRoi) currentRoi;
 				status = InteractionStatus.FREE;
 			}
 		} 
@@ -152,10 +152,10 @@ public class TwoCircleTool extends AbstractTool {
 			}
 			break;
 		default:
-			previous_status = status;
+			previousStatus = status;
 			status = cl.getInteractionStatus();
 		}
-		start_drag = p;
+		startDrag = p;
 	}
 
 	@Override
@@ -167,18 +167,18 @@ public class TwoCircleTool extends AbstractTool {
 		
 		switch (status) {
 		case MOVING_ROI:
-			params[0] += x-start_drag.getX();
-			params[3] += x-start_drag.getX();
-			params[1] += y-start_drag.getY();
-			params[4] += y-start_drag.getY();
+			params[0] += x-startDrag.getX();
+			params[3] += x-startDrag.getX();
+			params[1] += y-startDrag.getY();
+			params[4] += y-startDrag.getY();
 			break;
 		case MOVING_C1:
-			params[0] += x-start_drag.getX();
-			params[1] += y-start_drag.getY();
+			params[0] += x-startDrag.getX();
+			params[1] += y-startDrag.getY();
 			break;
 		case MOVING_C2:
-			params[3] += x-start_drag.getX();
-			params[4] += y-start_drag.getY();
+			params[3] += x-startDrag.getX();
+			params[4] += y-startDrag.getY();
 			break;
 		case RESIZING_C1:
 		case CREATING_C1:
@@ -189,7 +189,7 @@ public class TwoCircleTool extends AbstractTool {
 			params[5] = shape.getC2().distance(p);			
 			break;
 		}
-		start_drag = p;
+		startDrag = p;
 		roi = new TwoCircleRoi(shape);
 		imp.setRoi(roi); 
 		IJ.showStatus(shape.toString()); 
@@ -200,14 +200,14 @@ public class TwoCircleTool extends AbstractTool {
 		switch (status) {
 		case CREATING_C1:
 			status = InteractionStatus.CREATING_C2;
-			previous_status = InteractionStatus.CREATING_C1;
+			previousStatus = InteractionStatus.CREATING_C1;
 			break;
 		case CREATING_C2:
-			previous_status = InteractionStatus.CREATING_C2;
+			previousStatus = InteractionStatus.CREATING_C2;
 			status = InteractionStatus.FREE;
 			break;
 		default:
-			status = previous_status;
+			status = previousStatus;
 			break;
 		}
 	}
@@ -219,7 +219,7 @@ public class TwoCircleTool extends AbstractTool {
 		if (cl == ClickLocation.OUTSIDE ) {
 			imp.killRoi();
 			roi = new TwoCircleRoi();
-			previous_status = InteractionStatus.FREE;
+			previousStatus = InteractionStatus.FREE;
 			status = InteractionStatus.CREATING_C1;
 		}
 	}

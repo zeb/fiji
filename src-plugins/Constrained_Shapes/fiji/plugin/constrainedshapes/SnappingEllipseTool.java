@@ -28,11 +28,11 @@ public class SnappingEllipseTool extends AbstractTool implements PlugIn {
 	private ImageCanvas canvas;
 	private EllipseRoi roi;
 	private InteractionStatus status;
-	private Point2D start_drag;
+	private Point2D startDrag;
 	private Snapper snapper;
-	private double[] lower_bounds = new double[5];
-	private double[] upper_bounds = new double[5];
-	private Color saved_roi_color;
+	private double[] lowerBounds = new double[5];
+	private double[] upperBounds = new double[5];
+	private Color savedRoiColor;
 
 	/*
 	 * ENUM
@@ -91,7 +91,7 @@ public class SnappingEllipseTool extends AbstractTool implements PlugIn {
 					if (r > 0)
 						Roi.setColor(Color.BLUE);
 						fitter.optimize();
-						Roi.setColor(saved_roi_color);
+						Roi.setColor(savedRoiColor);
 						imp.draw();
 					synchronized (this) {
 						if (r == request) {
@@ -125,12 +125,12 @@ public class SnappingEllipseTool extends AbstractTool implements PlugIn {
 	 */
 	
 	public void run(String arg) {
-		saved_roi_color = Roi.getColor();
+		savedRoiColor = Roi.getColor();
 		// Initialize snapper
 		snapper = new Snapper();
 		imp = WindowManager.getCurrentImage();
 		if (imp != null) { 
-			Roi current_roi = imp.getRoi();
+			Roi currentRoi = imp.getRoi();
 			
 			if (arg.equalsIgnoreCase("test")) {
 				final int w = imp.getWidth();
@@ -146,8 +146,8 @@ public class SnappingEllipseTool extends AbstractTool implements PlugIn {
 				
 			} else {
 
-				if ( (current_roi != null) && (current_roi instanceof EllipseRoi) ) {
-					roi = (EllipseRoi) current_roi;
+				if ( (currentRoi != null) && (currentRoi instanceof EllipseRoi) ) {
+					roi = (EllipseRoi) currentRoi;
 					status = InteractionStatus.FREE;
 				} else {
 					roi = new EllipseRoi();
@@ -175,12 +175,12 @@ public class SnappingEllipseTool extends AbstractTool implements PlugIn {
 			ImageWindow window = (ImageWindow) source.getParent();
 			imp = window.getImagePlus();
 			canvas = source;
-			Roi current_roi = imp.getRoi();
-			if ( (current_roi == null) || !(current_roi instanceof EllipseRoi)) {
+			Roi currentRoi = imp.getRoi();
+			if ( (currentRoi == null) || !(currentRoi instanceof EllipseRoi)) {
 				roi = new EllipseRoi();
 				status = InteractionStatus.CREATING;				
 			} else {
-				roi = (EllipseRoi) current_roi;
+				roi = (EllipseRoi) currentRoi;
 				status = InteractionStatus.FREE;
 			}
 			imp.setRoi(roi);
@@ -207,7 +207,7 @@ public class SnappingEllipseTool extends AbstractTool implements PlugIn {
 		} else {
 			status = cl.getInteractionStatus();
 		}
-		start_drag = p;
+		startDrag = p;
 	}
 	
 	@Override
@@ -224,8 +224,8 @@ public class SnappingEllipseTool extends AbstractTool implements PlugIn {
 		
 		switch (status) {
 		case MOVING:
-			params[0] += x-start_drag.getX();
-			params[1] += y-start_drag.getY();
+			params[0] += x-startDrag.getX();
+			params[1] += y-startDrag.getY();
 			break;
 		case RESIZING_MAJOR:
 			params[4] = Math.atan2(y-yc, x-xc);
@@ -243,21 +243,21 @@ public class SnappingEllipseTool extends AbstractTool implements PlugIn {
 		
 		// Tune fitter
 		final double range = Math.max(a, b);
-		lower_bounds[0] = xc - range;
-		lower_bounds[1] = yc - range;
-		lower_bounds[2] = a/2;
-		lower_bounds[3] = b/2;
-		lower_bounds[4] = phi - Math.PI/8;
-		upper_bounds[0] = xc + range; 
-		upper_bounds[1] = yc + range;
-		upper_bounds[2] = a + range;
-		upper_bounds[3] = b + range;
-		upper_bounds[4] = phi + Math.PI/8;
-		snapper.fitter.setLowerBounds(lower_bounds);
-		snapper.fitter.setUpperBounds(upper_bounds);
+		lowerBounds[0] = xc - range;
+		lowerBounds[1] = yc - range;
+		lowerBounds[2] = a/2;
+		lowerBounds[3] = b/2;
+		lowerBounds[4] = phi - Math.PI/8;
+		upperBounds[0] = xc + range; 
+		upperBounds[1] = yc + range;
+		upperBounds[2] = a + range;
+		upperBounds[3] = b + range;
+		upperBounds[4] = phi + Math.PI/8;
+		snapper.fitter.setLowerBounds(lowerBounds);
+		snapper.fitter.setUpperBounds(upperBounds);
 		snapper.fitter.setNPoints((int) roi.shape.getCircumference());
 
-		start_drag = p;
+		startDrag = p;
 		imp.setRoi(roi); 
 		IJ.showStatus(roi.shape.toString()); 
 	}

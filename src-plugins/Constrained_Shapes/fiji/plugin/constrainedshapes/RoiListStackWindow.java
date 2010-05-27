@@ -24,17 +24,17 @@ public class RoiListStackWindow extends StackWindow {
 
 	private static final long serialVersionUID = 1L;
 	
-	private Roi[] roi_list;
-	private int old_slice;
+	private Roi[] roiList;
+	private int oldSlice;
 
 	public RoiListStackWindow(ImagePlus imp) {
 		super(imp);
-		roi_list = new Roi[imp.getStack().getSize() + 1];
+		roiList = new Roi[imp.getStack().getSize() + 1];
 	}
 
 	public RoiListStackWindow(ImagePlus imp, ImageCanvas ic) {
 		super(imp, ic);
-		roi_list = new Roi[imp.getStack().getSize() + 1];
+		roiList = new Roi[imp.getStack().getSize() + 1];
 	}
 	
 	/*
@@ -49,13 +49,13 @@ public class RoiListStackWindow extends StackWindow {
 		updateRois(sliceSelector.getValue());
 	}
 
-	public synchronized void updateRois(int new_slice) {
-		roi_list[old_slice] = imp.getRoi();
-		old_slice = new_slice;
-		if (roi_list[old_slice] == null)
+	public synchronized void updateRois(int newSlice) {
+		roiList[oldSlice] = imp.getRoi();
+		oldSlice = newSlice;
+		if (roiList[oldSlice] == null)
 			imp.killRoi();
 		else
-			imp.setRoi(roi_list[old_slice]);
+			imp.setRoi(roiList[oldSlice]);
 		repaint();
 	}
 
@@ -73,7 +73,7 @@ public class RoiListStackWindow extends StackWindow {
 	 * Return the roi list stored by this window.
 	 */
 	public Roi[] getRoiList() {
-		return roi_list;
+		return roiList;
 	}
 	
 	/**
@@ -84,8 +84,8 @@ public class RoiListStackWindow extends StackWindow {
 	 * @param slice  The slice to store it in
 	 */
 	public void setRoi(Roi roi, int slice) {
-		if ( (slice >= roi_list.length) || (slice<0) ) return;
-		roi_list[slice] = roi;
+		if ( (slice >= roiList.length) || (slice<0) ) return;
+		roiList[slice] = roi;
 	}
 
 }

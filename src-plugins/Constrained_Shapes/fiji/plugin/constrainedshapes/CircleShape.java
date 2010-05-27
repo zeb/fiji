@@ -71,17 +71,17 @@ public class CircleShape extends GeomShape {
 	
 
 	@Override
-	public double[][] sample(int n_points) {
+	public double[][] sample(int nPoints) {
 		final double xc = params[0];
 		final double yc = params[1];
 		final double r  = params[2];
 		
-		final double[] x = new double[n_points];
-		final double[] y = new double[n_points];
+		final double[] x = new double[nPoints];
+		final double[] y = new double[nPoints];
 		
 		double angle;
-		for (int i = 0; i < n_points; i++) {
-			angle = 2*Math.PI * i / n_points;
+		for (int i = 0; i < nPoints; i++) {
+			angle = 2*Math.PI * i / nPoints;
 			x[i] = xc + r * Math.cos(angle);
 			y[i] = yc + r * Math.sin(angle);
 		}
@@ -106,8 +106,8 @@ public class CircleShape extends GeomShape {
 	}
 
 	@Override
-	public void setParameters(double[] _params) {
-		this.params = _params;
+	public void setParameters(double[] params) {
+		this.params = params;
 	}
 
 	public boolean contains(Point2D p) {

@@ -94,9 +94,9 @@ public class EllipseShape extends GeomShape {
 	
 	@Override
 	public EllipseShape clone() {
-		EllipseShape new_el = new EllipseShape();
-		new_el.setParameters(params);
-		return new_el;
+		EllipseShape newEl = new EllipseShape();
+		newEl.setParameters(params);
+		return newEl;
 	}
 
 	@Override
@@ -110,7 +110,7 @@ public class EllipseShape extends GeomShape {
 	}
 
 	@Override
-	public double[][] sample(int n_points) {
+	public double[][] sample(int nPoints) {
 		final double xc  = params[0];
 		final double yc  = params[1];
 		final double a   = params[2];
@@ -118,12 +118,12 @@ public class EllipseShape extends GeomShape {
 		final double phi = params[4]; 
 		final double sinphi = Math.sin(phi);
 		final double cosphi = Math.cos(phi);
-		final double[] x = new double[n_points];
-		final double[] y = new double[n_points];		
+		final double[] x = new double[nPoints];
+		final double[] y = new double[nPoints];		
 		double alpha, sinalpha, cosalpha;
 		
-		for (int i = 0; i < n_points; i++ ) 		  {
-			alpha = i * 2 * Math.PI / n_points ;
+		for (int i = 0; i < nPoints; i++ ) 		  {
+			alpha = i * 2 * Math.PI / nPoints ;
 			sinalpha = Math.sin(alpha);
 			cosalpha = Math.cos(alpha);
 			x[i] = xc + a * cosalpha * cosphi - b * sinalpha * sinphi;
@@ -133,8 +133,8 @@ public class EllipseShape extends GeomShape {
 	}
 
 	@Override
-	public void setParameters(double[] _params) {
-		this.params = _params;
+	public void setParameters(double[] params) {
+		this.params = params;
 	}
 
 	public boolean contains(Point2D p) {
@@ -200,8 +200,8 @@ public class EllipseShape extends GeomShape {
 		
 		class TestCanvas extends Canvas {
 			private EllipseShape[] shape;
-			public TestCanvas(EllipseShape[] _shape) {
-				this.shape = _shape;
+			public TestCanvas(EllipseShape[] shape) {
+				this.shape = shape;
 			}
 			private static final long serialVersionUID = 1L;
 			public void paint(Graphics g) {

@@ -27,7 +27,7 @@ public class CircleRoi extends OvalRoi {
 	private static final double DRAG_TOLERANCE = 10;
 	public CircleShape shape;
 	private Handle[] handles = new Handle[4];
-	AffineTransform canvas_affine_transform = new AffineTransform();
+	AffineTransform canvasAffineTransform = new AffineTransform();
 	
 	/*
 	 * ENUM
@@ -71,8 +71,8 @@ public class CircleRoi extends OvalRoi {
 		public Point2D center = new Point2D.Double();
 		public int size = 7;
 		
-		public Handle(double _x, double _y) {
-			this.center = new Point2D.Double(_x, _y);
+		public Handle(double x, double y) {
+			this.center = new Point2D.Double(x, y);
 		}
 		
 		public void draw(Graphics g, AffineTransform at) {
@@ -99,9 +99,9 @@ public class CircleRoi extends OvalRoi {
 		this(new CircleShape());
 	}
 	
-	public CircleRoi(CircleShape _shape) {
+	public CircleRoi(CircleShape shape) {
 		super(1,1,1,1); // but we don't care
-		shape = _shape;
+		this.shape = shape;
 		constrain = true;
 	}
 	
@@ -115,7 +115,7 @@ public class CircleRoi extends OvalRoi {
 		Graphics2D g2 = (Graphics2D) g;
 		g.setColor(strokeColor!=null? strokeColor:ROIColor);
 		g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-		g2.draw(canvas_affine_transform.createTransformedShape(shape));
+		g2.draw(canvasAffineTransform.createTransformedShape(shape));
 		prepareHandles();
 		drawHandles(g);
 	}
@@ -170,13 +170,13 @@ public class CircleRoi extends OvalRoi {
 		for (Handle h : handles) {
 			if (h == null) continue;
 			coords = h.center;
-			canvas_affine_transform.transform(h.center, coords);
+			canvasAffineTransform.transform(h.center, coords);
 			dist = coords.distance(p);
 			if (dist < DRAG_TOLERANCE) {
 				return ClickLocation.HANDLE;
 			}
 		}
-		if (canvas_affine_transform.createTransformedShape(shape).contains(p)) {
+		if (canvasAffineTransform.createTransformedShape(shape).contains(p)) {
 			return ClickLocation.INSIDE;
 		} 
 		return ClickLocation.OUTSIDE;
@@ -208,7 +208,7 @@ public class CircleRoi extends OvalRoi {
 	
 	/**
 	 * Non destructively draw the handles of this ROI, using the {@link Graphics}
-	 * object given. The {@link #canvas_affine_transform} is used to position
+	 * object given. The {@link #canvasAffineTransform} is used to position
 	 * the handles correctly with respect to the canvas zoom level.
 	 */
 	private void drawHandles(Graphics g) {
@@ -217,17 +217,17 @@ public class CircleRoi extends OvalRoi {
 		if (!Double.isNaN(r)) {
 			size = r * ic.getMagnification();
 		}
-		int handle_size;
+		int handleSize;
 		if (size>10) {
-			handle_size = 8;
+			handleSize = 8;
 		} else if (size>5) {
-			handle_size = 6;
+			handleSize = 6;
 		} else {			
-			handle_size = 4;
+			handleSize = 4;
 		}
 		for (Handle h : handles) {
-			h.size = handle_size;
-			h.draw(g, canvas_affine_transform);
+			h.size = handleSize;
+			h.draw(g, canvasAffineTransform);
 		}
 	}
 	
@@ -238,11 +238,11 @@ public class CircleRoi extends OvalRoi {
 	 * to be updated.
 	 */
 	private void refreshAffineTransform() {
-		canvas_affine_transform = new AffineTransform();
+		canvasAffineTransform = new AffineTransform();
 		if (ic == null) { return; }
 		final double mag = ic.getMagnification();
 		final Rectangle r = ic.getSrcRect();
-		canvas_affine_transform.setTransform(mag, 0.0, 0.0, mag, -r.x*mag, -r.y*mag);
+		canvasAffineTransform.setTransform(mag, 0.0, 0.0, mag, -r.x*mag, -r.y*mag);
 	}
 
 	/*

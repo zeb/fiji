@@ -18,20 +18,20 @@ public class CircleStroke implements Stroke {
 	 * CONSTRUCTOR
 	 */
 	
-	public CircleStroke(float _size) {
-		this.size = _size;
+	public CircleStroke(float size) {
+		this.size = size;
 	}
 	
 	public Shape createStrokedShape(final Shape p) {
 		GeneralPath path = new GeneralPath();
 		final PathIterator pi = p.getPathIterator(null);
-		int segment_type;
+		int segmentType;
 		float[] coords = new float[6];
 		float x = 0;
 		float y = 0;
 		while (!pi.isDone()) {
-			segment_type = pi.currentSegment(coords);
-			switch (segment_type) {
+			segmentType = pi.currentSegment(coords);
+			switch (segmentType) {
 			case PathIterator.SEG_LINETO:
 			case PathIterator.SEG_MOVETO:
 				x = coords[0];

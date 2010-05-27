@@ -28,7 +28,7 @@ public class TwoCircleRoi extends ShapeRoi  {
 	private static final double DRAG_TOLERANCE = 10;
 	private TwoCircleShape tcs;
 	private ArrayList<Handle> handles = new ArrayList<Handle>(4);
-	private AffineTransform canvas_affine_transform = new AffineTransform();
+	private AffineTransform canvasAffineTransform = new AffineTransform();
 	
 	/*
 	 * INNER CLASS * ENUMS
@@ -101,9 +101,9 @@ public class TwoCircleRoi extends ShapeRoi  {
 		public Type type;
 		public Point2D center = new Point2D.Double();
 		public int size = 7;
-		public Handle(double _x, double _y, Type _type) {
-			this.center = new Point2D.Double(_x, _y);
-			this.type = _type;
+		public Handle(double x, double y, Type type) {
+			this.center = new Point2D.Double(x, y);
+			this.type = type;
 		}
 		
 		public void draw(Graphics g, AffineTransform at) {
@@ -143,9 +143,9 @@ public class TwoCircleRoi extends ShapeRoi  {
 		this(new TwoCircleShape());
 	}
 	
-	public TwoCircleRoi(TwoCircleShape _tcs) {
-		super(_tcs);
-		this.tcs = _tcs;
+	public TwoCircleRoi(TwoCircleShape tcs) {
+		super(tcs);
+		this.tcs = tcs;
 	}
 	
 	/*
@@ -166,13 +166,13 @@ public class TwoCircleRoi extends ShapeRoi  {
 		Point2D coords = new Point2D.Double();
 		for (Handle h : handles) {
 			coords = h.center;
-			canvas_affine_transform.transform(h.center, coords);
+			canvasAffineTransform.transform(h.center, coords);
 			dist = coords.distance(p);
 			if (dist < DRAG_TOLERANCE) {
 				return h.type.getClickLocation();
 			}
 		}
-		if (canvas_affine_transform.createTransformedShape(tcs).contains(p)) {
+		if (canvasAffineTransform.createTransformedShape(tcs).contains(p)) {
 			return ClickLocation.INSIDE;
 		} 
 		return ClickLocation.OUTSIDE;
@@ -203,7 +203,7 @@ public class TwoCircleRoi extends ShapeRoi  {
 		Graphics2D g2 = (Graphics2D) g;
 		g.setColor(strokeColor!=null? strokeColor:ROIColor);
 		g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-		g2.draw(canvas_affine_transform.createTransformedShape(tcs));
+		g2.draw(canvasAffineTransform.createTransformedShape(tcs));
 		prepareHandles();
 		drawHandles(g2);
 	}
@@ -318,7 +318,7 @@ public class TwoCircleRoi extends ShapeRoi  {
 	
 	/**
 	 * Non destructively draw the handles of this ROI, using the {@link Graphics}
-	 * object given. The {@link #canvas_affine_transform} is used to position
+	 * object given. The {@link #canvasAffineTransform} is used to position
 	 * the handles correctly with respect to the canvas zoom level.
 	 */
 	private void drawHandles(Graphics g) {
@@ -333,17 +333,17 @@ public class TwoCircleRoi extends ShapeRoi  {
 		} else {
 			size = Math.min(r1,r2) * ic.getMagnification();
 		}
-		int handle_size;
+		int handleSize;
 		if (size>10) {
-			handle_size = 8;
+			handleSize = 8;
 		} else if (size>5) {
-			handle_size = 6;
+			handleSize = 6;
 		} else {			
-			handle_size = 4;
+			handleSize = 4;
 		}
 		for (Handle h : handles) {
-			h.size = handle_size;
-			h.draw(g, canvas_affine_transform);
+			h.size = handleSize;
+			h.draw(g, canvasAffineTransform);
 		}
 	}
 	
@@ -356,11 +356,11 @@ public class TwoCircleRoi extends ShapeRoi  {
 	 * to be updated.
 	 */
 	private void refreshAffineTransform() {
-		canvas_affine_transform = new AffineTransform();
+		canvasAffineTransform = new AffineTransform();
 		if (ic == null) { return; }
 		final double mag = ic.getMagnification();
 		final Rectangle r = ic.getSrcRect();
-		canvas_affine_transform.setTransform(mag, 0.0, 0.0, mag, -r.x*mag, -r.y*mag);
+		canvasAffineTransform.setTransform(mag, 0.0, 0.0, mag, -r.x*mag, -r.y*mag);
 	}
 	
 	/*

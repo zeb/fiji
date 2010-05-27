@@ -17,20 +17,20 @@ public class SquareStroke implements Stroke {
 	 * CONSTRUCTOR
 	 */
 	
-	public SquareStroke(int _size) {
-		this.size = _size;
+	public SquareStroke(int size) {
+		this.size = size;
 	}
 	
 	public Shape createStrokedShape(final Shape p) {
 		GeneralPath path = new GeneralPath();
 		final PathIterator pi = p.getPathIterator(null);
-		int segment_type;
+		int segmentType;
 		float[] coords = new float[6];
 		int x = 0;
 		int y = 0;
 		while (!pi.isDone()) {
-			segment_type = pi.currentSegment(coords);
-			switch (segment_type) {
+			segmentType = pi.currentSegment(coords);
+			switch (segmentType) {
 			case PathIterator.SEG_LINETO:
 			case PathIterator.SEG_MOVETO:
 				x = (int) coords[0];

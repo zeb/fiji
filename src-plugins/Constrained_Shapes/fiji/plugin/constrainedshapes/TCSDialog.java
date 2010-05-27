@@ -51,14 +51,14 @@ public class TCSDialog extends javax.swing.JDialog implements ImageListener, Act
 	private JComboBox jComboBoxTargetFunction;
 	private JLabel jLabelTargetFunction;
 	
-	private ImagePlus source_imp;
-	private int[] slicing_values;
-	private int[] previous_values;
-	private int[] upper_bounds; // inclusive
-	private int[] lower_bounds;
-	private boolean do_monitor;
+	private ImagePlus sourceImp;
+	private int[] slicingValues;
+	private int[] previousValues;
+	private int[] upperBounds; // inclusive
+	private int[] lowerBounds;
+	private boolean doMonitor;
 	
-	private ArrayList<ActionListener> action_listeners = new ArrayList<ActionListener>();
+	private ArrayList<ActionListener> actionListeners = new ArrayList<ActionListener>();
 
 	/**
 	* Auto-generated main method to display this JDialog
@@ -87,19 +87,19 @@ public class TCSDialog extends javax.swing.JDialog implements ImageListener, Act
 	
 	public TCSDialog(ImagePlus imp) {
 		super();
-		source_imp = imp;
-		slicing_values = new int[] { 1, 1, 1} ;
-		previous_values = new int[] { 1, 1, 1} ;
-		upper_bounds = new int[] { 1, 1, 1} ;
-		lower_bounds = new int[] { 1, 1, 1} ;
+		sourceImp = imp;
+		slicingValues = new int[] { 1, 1, 1} ;
+		previousValues = new int[] { 1, 1, 1} ;
+		upperBounds = new int[] { 1, 1, 1} ;
+		lowerBounds = new int[] { 1, 1, 1} ;
 		if (imp != null) {
-			slicing_values[0] = source_imp.getSlice();
-			slicing_values[1] = source_imp.getStack().getSize();
-			previous_values[0] = slicing_values[0];
-			previous_values[1] = slicing_values[1];
-			upper_bounds[0] = source_imp.getStack().getSize(); // first
-			upper_bounds[1] = upper_bounds[0]; // last
-			upper_bounds[2] = source_imp.getStack().getSize();
+			slicingValues[0] = sourceImp.getSlice();
+			slicingValues[1] = sourceImp.getStack().getSize();
+			previousValues[0] = slicingValues[0];
+			previousValues[1] = slicingValues[1];
+			upperBounds[0] = sourceImp.getStack().getSize(); // first
+			upperBounds[1] = upperBounds[0]; // last
+			upperBounds[2] = sourceImp.getStack().getSize();
 		}
 		initGUI();
 		ImagePlus.addImageListener(this);
@@ -110,15 +110,15 @@ public class TCSDialog extends javax.swing.JDialog implements ImageListener, Act
 	 */
 	
 	public void addActionListener(ActionListener l) {
-		action_listeners.add(l);
+		actionListeners.add(l);
 	}
 	
 	public void removeActionListener(ActionListener l) {
-		action_listeners.remove(l);
+		actionListeners.remove(l);
 	}
 	
 	public ActionListener[] getActionListeners() {
-		return (ActionListener[]) action_listeners.toArray();
+		return (ActionListener[]) actionListeners.toArray();
 	}
 	
 	public GeomShape.EvalFunction getSelectedTargetFunction() {
@@ -126,12 +126,12 @@ public class TCSDialog extends javax.swing.JDialog implements ImageListener, Act
 	}
 	
 	public int[] getSliceParameters() {
-		return slicing_values;
+		return slicingValues;
 	}
 	
 	public boolean doMonitor() {
-		do_monitor = jCheckBoxMonitor.isSelected();
-		return do_monitor;
+		doMonitor = jCheckBoxMonitor.isSelected();
+		return doMonitor;
 	}
 	
 	
@@ -143,7 +143,7 @@ public class TCSDialog extends javax.swing.JDialog implements ImageListener, Act
 	 * Terminate dialog if source ImagePlus is closed.
 	 */
 	public void imageClosed(ImagePlus imp) {
-		if (source_imp == imp) { dispose(); }
+		if (sourceImp == imp) { dispose(); }
 	}
 
 	public void imageOpened(ImagePlus imp) {	}
@@ -185,23 +185,23 @@ public class TCSDialog extends javax.swing.JDialog implements ImageListener, Act
 		else if (source == jTextFieldLast) { index = 1; }
 		else { index = 2; }
 		try {
-			int new_val = (int) Double.parseDouble(source.getText());
-			if ( (new_val >= lower_bounds[index]) && (new_val <= upper_bounds[index])  ) {
-				slicing_values[index] = new_val;
-				previous_values[index] = new_val;
-				upper_bounds[0] = slicing_values[1];
-				lower_bounds[1] = slicing_values[0];
+			int newVal = (int) Double.parseDouble(source.getText());
+			if ( (newVal >= lowerBounds[index]) && (newVal <= upperBounds[index])  ) {
+				slicingValues[index] = newVal;
+				previousValues[index] = newVal;
+				upperBounds[0] = slicingValues[1];
+				lowerBounds[1] = slicingValues[0];
 			} else {
-				source.setText(String.format("%d", previous_values[index]));
+				source.setText(String.format("%d", previousValues[index]));
 			}
 		} catch (NumberFormatException nfe) {
-			source.setText(String.format("%d", previous_values[index]));
+			source.setText(String.format("%d", previousValues[index]));
 		}
 	}
 	
-	private void fireActionProperty(int event_id, String command) {
-		ActionEvent action = new ActionEvent(this, event_id, command);
-		for (ActionListener l : action_listeners) {
+	private void fireActionProperty(int eventId, String command) {
+		ActionEvent action = new ActionEvent(this, eventId, command);
+		for (ActionListener l : actionListeners) {
 			synchronized (l) {
 				l.notifyAll();
 				l.actionPerformed(action);				
@@ -219,11 +219,11 @@ public class TCSDialog extends javax.swing.JDialog implements ImageListener, Act
 				this.setTitle("TCS fitter");
 			}
 			String message;
-			Rectangle message_bounds;
-			if ( (source_imp != null) && (source_imp.getStack().getSize() > 1) ) {
+			Rectangle messageBounds;
+			if ( (sourceImp != null) && (sourceImp.getStack().getSize() > 1) ) {
 				message = "<html>Adjust the two-circle shape as starting point for the fit. " +
 						"Set the slice parameters, then press OK.</html>";
-				message_bounds = new Rectangle(178, 14, 184, 75);
+				messageBounds = new Rectangle(178, 14, 184, 75);
 				{
 					jLabelStart = new JLabel();
 					getContentPane().add(jLabelStart, "Center");
@@ -251,7 +251,7 @@ public class TCSDialog extends javax.swing.JDialog implements ImageListener, Act
 				{
 					jTextFieldFirst = new JTextField();
 					getContentPane().add(jTextFieldFirst);
-					jTextFieldFirst.setText(String.format("%d", slicing_values[0]));
+					jTextFieldFirst.setText(String.format("%d", slicingValues[0]));
 					jTextFieldFirst.setBounds(106, 14, 37, 16);
 					jTextFieldFirst.setBorder(new LineBorder(new java.awt.Color(0,0,0), 1, false));
 					jTextFieldFirst.addActionListener(this);
@@ -260,7 +260,7 @@ public class TCSDialog extends javax.swing.JDialog implements ImageListener, Act
 				{
 					jTextFieldLast = new JTextField();
 					getContentPane().add(jTextFieldLast);
-					jTextFieldLast.setText(String.format("%d", slicing_values[1]));
+					jTextFieldLast.setText(String.format("%d", slicingValues[1]));
 					jTextFieldLast.setBorder(new LineBorder(new java.awt.Color(0,0,0), 1, false));
 					jTextFieldLast.setBounds(106, 38, 37, 16);
 					jTextFieldLast.addActionListener(this);
@@ -269,7 +269,7 @@ public class TCSDialog extends javax.swing.JDialog implements ImageListener, Act
 				{
 					jTextFieldStep = new JTextField();
 					getContentPane().add(jTextFieldStep);
-					jTextFieldStep.setText(String.format("%d", slicing_values[2]));
+					jTextFieldStep.setText(String.format("%d", slicingValues[2]));
 					jTextFieldStep.setBorder(new LineBorder(new java.awt.Color(0,0,0),1,false));
 					jTextFieldStep.setBounds(106, 60, 37, 16);
 					jTextFieldStep.addActionListener(this);
@@ -278,7 +278,7 @@ public class TCSDialog extends javax.swing.JDialog implements ImageListener, Act
 			} else {
 				message = "<html>Adjust the two-circle shape as starting point for the fit, " +
 				"then press OK.</html>";
-				message_bounds = new Rectangle(20, 14, 334, 75);
+				messageBounds = new Rectangle(20, 14, 334, 75);
 			}
 			{
 				jButtonOK = new JButton();
@@ -297,7 +297,7 @@ public class TCSDialog extends javax.swing.JDialog implements ImageListener, Act
 			{
 				jLabelHelp = new JLabel();
 				getContentPane().add(jLabelHelp);
-				jLabelHelp.setBounds(message_bounds);
+				jLabelHelp.setBounds(messageBounds);
 				jLabelHelp.setText(message);
 			}
 			{
@@ -314,7 +314,7 @@ public class TCSDialog extends javax.swing.JDialog implements ImageListener, Act
 			}
 			{
 				jCheckBoxMonitor = new JCheckBox();
-				jCheckBoxMonitor.setSelected(do_monitor);
+				jCheckBoxMonitor.setSelected(doMonitor);
 				getContentPane().add(jCheckBoxMonitor);
 				jCheckBoxMonitor.setText("Monitor fitting process");
 				jCheckBoxMonitor.setBounds(124, 156, 221, 23);

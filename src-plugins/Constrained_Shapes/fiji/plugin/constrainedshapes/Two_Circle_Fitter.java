@@ -36,30 +36,30 @@ public class Two_Circle_Fitter implements PlugIn, ActionListener, MinimiserMonit
 	
 	private static final Method DEFAULT_METHOD = GeomShapeFitter.Method.CONJUGATE_DIRECTION_SEARCH;
 	private TCSDialog dialog;
-	private GeomShape.EvalFunction target_function = EvalFunction.MEAN;
+	private GeomShape.EvalFunction targetFunction = EvalFunction.MEAN;
 	private GeomShapeFitter.Method method = DEFAULT_METHOD;
-	private int[] slice_parameters = new int[] {1, 1, 1};
-	private double[] upper_bounds = new double[6];
-	private double[] lower_bounds = new double[6];
+	private int[] sliceParameters = new int[] {1, 1, 1};
+	private double[] upperBounds = new double[6];
+	private double[] lowerBounds = new double[6];
 	private ImagePlus imp;
 	private ImageCanvas canvas;
-	private RoiListStackWindow stack_window;
-	boolean user_has_canceled = false;
-	boolean launched_from_run_method = false;
+	private RoiListStackWindow stackWindow;
+	boolean userHasCanceled = false;
+	boolean launchedFromRunMethod = false;
 	
 	/*
 	 * PUBLIC METHODS
 	 */
 
 	public synchronized void run(String arg) {
-		launched_from_run_method = true;
+		launchedFromRunMethod = true;
 		ImagePlus current = WindowManager.getCurrentImage();
 		if (current == null) { return; }
 
 		setImagePlus(current);
 		if (current.getStack().getSize() > 1) {
-			stack_window = new RoiListStackWindow(imp, canvas);
-			stack_window.show();
+			stackWindow = new RoiListStackWindow(imp, canvas);
+			stackWindow.show();
 			new TwoCircleTool().run("");
 		}
 		
@@ -77,7 +77,7 @@ public class Two_Circle_Fitter implements PlugIn, ActionListener, MinimiserMonit
 			while (true) {
 				this.wait();
 				// User has canceled?
-				if (user_has_canceled) {
+				if (userHasCanceled) {
 					dialog.dispose();
 					IJ.showStatus("Two-circle fitter canceled.");
 					return;
@@ -99,9 +99,9 @@ public class Two_Circle_Fitter implements PlugIn, ActionListener, MinimiserMonit
 		
 		// Retrieve dialog parameters
 		method = DEFAULT_METHOD;
-		target_function = dialog.getSelectedTargetFunction();
-		slice_parameters = dialog.getSliceParameters();
-		boolean do_monitor = dialog.doMonitor();
+		targetFunction = dialog.getSelectedTargetFunction();
+		sliceParameters = dialog.getSliceParameters();
+		boolean doMonitor = dialog.doMonitor();
 		
 		// Close dialog
 		dialog.dispose();
@@ -109,22 +109,22 @@ public class Two_Circle_Fitter implements PlugIn, ActionListener, MinimiserMonit
 		// Infer bounds for minimization
 		final int width = imp.getWidth();
 		final int height = imp.getHeight();
-		lower_bounds[0] = 0;
-		lower_bounds[1] = 0;
-		lower_bounds[2] = 0;
-		lower_bounds[3] = 0;
-		lower_bounds[4] = 0;
-		lower_bounds[5] = 0;
-		upper_bounds[0] = width;
-		upper_bounds[1] = height;
-		upper_bounds[2] = Math.min(width, height);
-		upper_bounds[3] = width;
-		upper_bounds[4] = height;
-		upper_bounds[5] = Math.min(width, height);		
+		lowerBounds[0] = 0;
+		lowerBounds[1] = 0;
+		lowerBounds[2] = 0;
+		lowerBounds[3] = 0;
+		lowerBounds[4] = 0;
+		lowerBounds[5] = 0;
+		upperBounds[0] = width;
+		upperBounds[1] = height;
+		upperBounds[2] = Math.min(width, height);
+		upperBounds[3] = width;
+		upperBounds[4] = height;
+		upperBounds[5] = Math.min(width, height);		
 		
 		// Start calculation
 		IJ.showStatus("Executing fit...");
-		TwoCircleShape[] results = exec(tcs, do_monitor);
+		TwoCircleShape[] results = exec(tcs, doMonitor);
 		IJ.showStatus("Fitting done.");
 		
 		//Display result table
@@ -132,27 +132,27 @@ public class Two_Circle_Fitter implements PlugIn, ActionListener, MinimiserMonit
 	}
 
 	
-	public TwoCircleShape[] exec(TwoCircleShape tcs, boolean do_monitor) {
-		final int start = slice_parameters[0];
-		final int stop  = slice_parameters[1];
-		final int step  = slice_parameters[2];
-		final Color orig_color = Roi.getColor();
+	public TwoCircleShape[] exec(TwoCircleShape tcs, boolean doMonitor) {
+		final int start = sliceParameters[0];
+		final int stop  = sliceParameters[1];
+		final int step  = sliceParameters[2];
+		final Color origColor = Roi.getColor();
 			
 		// Prepare optimizer
 		GeomShapeFitter optimizer = new GeomShapeFitter(tcs); // This shape will be modified by the optimizer all along
-		optimizer.setFunction(target_function);
+		optimizer.setFunction(targetFunction);
 		optimizer.setMethod(method);
 		optimizer.setNPoints((int) tcs.getPerimeter());
-		optimizer.setLowerBounds(lower_bounds);
-		optimizer.setUpperBounds(upper_bounds);		
-		if (do_monitor) {	
+		optimizer.setLowerBounds(lowerBounds);
+		optimizer.setUpperBounds(upperBounds);		
+		if (doMonitor) {	
 			optimizer.setMonitor(this);
 			Roi.setColor(Color.BLUE);
 		}
 		
 		ImageProcessor ip = null;
 		TwoCircleRoi roi = new TwoCircleRoi(tcs); 
-		TwoCircleRoi roi_to_store;
+		TwoCircleRoi roiToStore;
 		imp.setRoi(roi);
 		TwoCircleShape[] results = new TwoCircleShape[ 1 + (int) Math.floor( (stop-start)/step) ];
 		int index = 0;
@@ -161,7 +161,7 @@ public class Two_Circle_Fitter implements PlugIn, ActionListener, MinimiserMonit
 				IJ.resetEscape();
 				break;
 			}
-			if (launched_from_run_method) {
+			if (launchedFromRunMethod) {
 				IJ.showProgress(index*step/(double)(stop-start));
 			}
 			imp.setSlice(i);
@@ -170,63 +170,63 @@ public class Two_Circle_Fitter implements PlugIn, ActionListener, MinimiserMonit
 			optimizer.optimize();
 			results[index] = tcs.clone();
 			if (imp.getStack().getSize() > 1) {
-				roi_to_store = new TwoCircleRoi(results[index]);
-				stack_window.setRoi(roi_to_store, i);
+				roiToStore = new TwoCircleRoi(results[index]);
+				stackWindow.setRoi(roiToStore, i);
 			}
 			imp.draw();
 			index++;
 		}
-		if (launched_from_run_method) {
+		if (launchedFromRunMethod) {
 			IJ.showProgress(2.0); // to erase it
 		}
-		Roi.setColor(orig_color);
+		Roi.setColor(origColor);
 		imp.draw();
 		return results;
 	}
 
 	/**
 	 * Display a {@link JTable} with the 6 parameters of the {@link TwoCircleShape} array 
-	 * given in argument. The value for the frame is derived from the {@link #slice_parameters}
+	 * given in argument. The value for the frame is derived from the {@link #sliceParameters}
 	 * of this plugin instance.
 	 */
 	public void displayResults(TwoCircleShape[] results) {	
 		
-		String[] tcs_params = TwoCircleShape.getParameterNames(); 
-		String[] column_names = new String[tcs_params.length + 1];
-		column_names[0] = "Frame";
-		for (int i = 1; i < column_names.length; i++) {
-			column_names[i] = tcs_params[i-1];
+		String[] tcsParams = TwoCircleShape.getParameterNames(); 
+		String[] columnNames = new String[tcsParams.length + 1];
+		columnNames[0] = "Frame";
+		for (int i = 1; i < columnNames.length; i++) {
+			columnNames[i] = tcsParams[i-1];
 		}
-		final int start = slice_parameters[0];
-		final int step  = slice_parameters[2];
+		final int start = sliceParameters[0];
+		final int step  = sliceParameters[2];
 			
-		Object[][]table_data = new Object[results.length][column_names.length];
+		Object[][] tableData = new Object[results.length][columnNames.length];
 		TwoCircleShape tcs;
 		double[] params;
 		int index = start;
-		for (int i = 0; i < table_data.length; i++) {
-			table_data[i][0]	= index;
+		for (int i = 0; i < tableData.length; i++) {
+			tableData[i][0]	= index;
 			index += step;
 			tcs = results[i];
 			if (tcs == null) continue;
 			params = tcs.getParameters();
 			for (int j = 0; j < params.length; j++) {
-				table_data[i][j+1] 	= params[j];
+				tableData[i][j+1] 	= params[j];
 			}
 		}
 
-		JTable table = new JTable(table_data, column_names);
+		JTable table = new JTable(tableData, columnNames);
 		table.setPreferredScrollableViewportSize(new Dimension(500, 70));
 
 		JScrollPane scrollPane = new JScrollPane(table);
 		table.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
 		
-		JPanel		table_panel = new JPanel(new GridLayout());
-		table_panel.add(scrollPane);	
+		JPanel tablePanel = new JPanel(new GridLayout());
+		tablePanel.add(scrollPane);	
 	    JFrame frame = new JFrame("Two-circle fit for "+imp.getShortTitle());
 
 	    frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-	    frame.setContentPane(table_panel);
+	    frame.setContentPane(tablePanel);
 	    frame.pack();
 	    frame.setVisible(true);
 	}
@@ -236,18 +236,18 @@ public class Two_Circle_Fitter implements PlugIn, ActionListener, MinimiserMonit
 	 */
 	
 	public static void main(String[] args) {
-		String demo_file = "/Users/tinevez/Development/fiji/testTCS.tif";
+		String demoFile = "/Users/tinevez/Development/fiji/testTCS.tif";
 		ij.io.Opener o = new ij.io.Opener();
-		ImagePlus imp = o.openTiff("", demo_file);
+		ImagePlus imp = o.openTiff("", demoFile);
 		imp.show();
 		
 		Two_Circle_Fitter instance = new Two_Circle_Fitter();
 		instance.setImagePlus(imp);
 		instance.setTargetFunction(GeomShape.EvalFunction.MEAN);
 				
-		TwoCircleShape start_point = new TwoCircleShape(207.6, 210.0, 90.0, 328.4, 320.0, 60.0);
-		System.out.println("Fitting from "+start_point);
-		TwoCircleShape[] results = instance.exec(start_point, true);
+		TwoCircleShape startPoint = new TwoCircleShape(207.6, 210.0, 90.0, 328.4, 320.0, 60.0);
+		System.out.println("Fitting from "+startPoint);
+		TwoCircleShape[] results = instance.exec(startPoint, true);
 		System.out.println("Fitting done:");
 		for (int i = 0; i < results.length; i++) {
 			System.out.println(results[i]);
@@ -286,7 +286,7 @@ public class Two_Circle_Fitter implements PlugIn, ActionListener, MinimiserMonit
 
 	public synchronized void actionPerformed(ActionEvent e) {
 		if (e.getID() == TCSDialog.CANCELED) {
-			user_has_canceled = true;
+			userHasCanceled = true;
 		}
 	}
 	
@@ -296,10 +296,10 @@ public class Two_Circle_Fitter implements PlugIn, ActionListener, MinimiserMonit
 	 * SETTERS AND GETTERS
 	 */
 
-	public void setTargetFunction(GeomShape.EvalFunction target_function) {	this.target_function = target_function; }
-	public GeomShape.EvalFunction getTargetFunction() { return target_function;	}
-	public void setSliceParameters(int[] slice_parameters) { this.slice_parameters = slice_parameters; }
-	public int[] getSliceParameters() { return slice_parameters; }
+	public void setTargetFunction(GeomShape.EvalFunction targetFunction) {	this.targetFunction = targetFunction; }
+	public GeomShape.EvalFunction getTargetFunction() { return targetFunction;	}
+	public void setSliceParameters(int[] sliceParameters) { this.sliceParameters = sliceParameters; }
+	public int[] getSliceParameters() { return sliceParameters; }
 	public ImagePlus getImagePlus() { return imp; }
 	
 	public void setImagePlus(ImagePlus imp) {		

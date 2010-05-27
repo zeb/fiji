@@ -26,7 +26,7 @@ public class EllipseRoi extends ShapeRoi {
 	private static final double DRAG_TOLERANCE = 10;
 	public EllipseShape shape;
 	private Handle[] handles = new Handle[4];
-	AffineTransform canvas_affine_transform = new AffineTransform();
+	AffineTransform canvasAffineTransform = new AffineTransform();
 	
 	/*
 	 * ENUM
@@ -81,9 +81,9 @@ public class EllipseRoi extends ShapeRoi {
 			}
 		}
 		
-		public Handle(double _x, double _y, Type _type) {
-			this.center = new Point2D.Double(_x, _y);
-			this.type = _type;
+		public Handle(double x, double y, Type type) {
+			this.center = new Point2D.Double(x, y);
+			this.type = type;
 		}
 		
 		public void draw(Graphics g, AffineTransform at) {
@@ -110,9 +110,9 @@ public class EllipseRoi extends ShapeRoi {
 		this(new EllipseShape());
 	}
 	
-	public EllipseRoi(EllipseShape _shape) {
+	public EllipseRoi(EllipseShape shape) {
 		super(1, 1, new Ellipse2D.Float(0, 0, 1, 1)); // but we don't care
-		shape = _shape;
+		this.shape = shape;
 	}
 	
 	/*
@@ -125,27 +125,27 @@ public class EllipseRoi extends ShapeRoi {
 		Graphics2D g2 = (Graphics2D) g;
 		g.setColor(strokeColor!=null? strokeColor:ROIColor);
 		g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-		g2.draw(canvas_affine_transform.createTransformedShape(shape));
+		g2.draw(canvasAffineTransform.createTransformedShape(shape));
 		prepareHandles();
 		drawHandles(g);
 	}
 	
 	@Override
 	public ShapeRoi and(ShapeRoi sr) {
-		ShapeRoi hidden_roi = new ShapeRoi(shape);
-		return hidden_roi.and(sr);
+		ShapeRoi hiddenRoi = new ShapeRoi(shape);
+		return hiddenRoi.and(sr);
 	}
 	
 	@Override
 	public ShapeRoi xor(ShapeRoi sr) {
-		ShapeRoi hidden_roi = new ShapeRoi(shape);
-		return hidden_roi.xor(sr);
+		ShapeRoi hiddenRoi = new ShapeRoi(shape);
+		return hiddenRoi.xor(sr);
 	}
 	
 	@Override
 	public ShapeRoi or(ShapeRoi sr) {
-		ShapeRoi hidden_roi = new ShapeRoi(shape);
-		return hidden_roi.or(sr);
+		ShapeRoi hiddenRoi = new ShapeRoi(shape);
+		return hiddenRoi.or(sr);
 	}
 	
 	@Override
@@ -165,8 +165,8 @@ public class EllipseRoi extends ShapeRoi {
 	
 	@Override
 	public void drawPixels(ImageProcessor ip) {
-		ShapeRoi hidden_roi = new ShapeRoi(shape);
-		hidden_roi.drawPixels(ip);
+		ShapeRoi hiddenRoi = new ShapeRoi(shape);
+		hiddenRoi.drawPixels(ip);
 	}
 	
 	@Override
@@ -181,8 +181,8 @@ public class EllipseRoi extends ShapeRoi {
 	
 	@Override
 	public ImageProcessor getMask() {
-		ShapeRoi hidden_roi = new ShapeRoi(shape);
-		return hidden_roi.getMask();
+		ShapeRoi hiddenRoi = new ShapeRoi(shape);
+		return hiddenRoi.getMask();
 	}
 	
 	@Override
@@ -210,13 +210,13 @@ public class EllipseRoi extends ShapeRoi {
 		for (Handle h : handles) {
 			if (h == null) continue;
 			coords = h.center;
-			canvas_affine_transform.transform(h.center, coords);
+			canvasAffineTransform.transform(h.center, coords);
 			dist = coords.distance(p);
 			if (dist < DRAG_TOLERANCE) {
 				return h.type.getClickLocation();
 			}
 		}
-		if (canvas_affine_transform.createTransformedShape(shape).contains(p)) {
+		if (canvasAffineTransform.createTransformedShape(shape).contains(p)) {
 			return ClickLocation.INSIDE;
 		} 
 		return ClickLocation.OUTSIDE;
@@ -247,7 +247,7 @@ public class EllipseRoi extends ShapeRoi {
 	
 	/**
 	 * Non destructively draw the handles of this ROI, using the {@link Graphics}
-	 * object given. The {@link #canvas_affine_transform} is used to position
+	 * object given. The {@link #canvasAffineTransform} is used to position
 	 * the handles correctly with respect to the canvas zoom level.
 	 */
 	private void drawHandles(Graphics g) {
@@ -262,17 +262,17 @@ public class EllipseRoi extends ShapeRoi {
 		} else {
 			size = Math.min(a,b) * ic.getMagnification();
 		}
-		int handle_size;
+		int handleSize;
 		if (size>10) {
-			handle_size = 8;
+			handleSize = 8;
 		} else if (size>5) {
-			handle_size = 6;
+			handleSize = 6;
 		} else {			
-			handle_size = 4;
+			handleSize = 4;
 		}
 		for (Handle h : handles) {
-			h.size = handle_size;
-			h.draw(g, canvas_affine_transform);
+			h.size = handleSize;
+			h.draw(g, canvasAffineTransform);
 		}
 	}
 	
@@ -284,11 +284,11 @@ public class EllipseRoi extends ShapeRoi {
 	 * to be updated.
 	 */
 	private void refreshAffineTransform() {
-		canvas_affine_transform = new AffineTransform();
+		canvasAffineTransform = new AffineTransform();
 		if (ic == null) { return; }
 		final double mag = ic.getMagnification();
 		final Rectangle r = ic.getSrcRect();
-		canvas_affine_transform.setTransform(mag, 0.0, 0.0, mag, -r.x*mag, -r.y*mag);
+		canvasAffineTransform.setTransform(mag, 0.0, 0.0, mag, -r.x*mag, -r.y*mag);
 	}
 	
 	/*
