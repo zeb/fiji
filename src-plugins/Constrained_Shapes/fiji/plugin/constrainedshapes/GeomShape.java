@@ -73,7 +73,7 @@ public abstract class GeomShape implements Shape, Cloneable {
 
 	/**
 	 * Return the number of parameters needed to entirely specify this shape. This 
-	 * will be used e.g. by {@link GeomShapeFitter} to adapt prepare the 
+	 * will be used e.g. by {@link ShapeFitter} to adapt prepare the
 	 * optimizer for the fit.
 	 * @see {@link #getParameters()}, {@link #setParameters(double[])}
 	 */

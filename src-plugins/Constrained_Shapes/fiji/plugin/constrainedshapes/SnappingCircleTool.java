@@ -59,7 +59,7 @@ public class SnappingCircleTool extends AbstractTool implements PlugIn {
 	 */
 	private class Snapper extends Thread implements MinimiserMonitor {
 		long request = 0;
-		GeomShapeFitter fitter;
+		protected ShapeFitter fitter;
 
 		// Constructor autostarts thread
 		Snapper() {
@@ -134,8 +134,7 @@ public class SnappingCircleTool extends AbstractTool implements PlugIn {
 				roi = new CircleRoi();
 				status = InteractionStatus.CREATING;
 			}
-			snapper.fitter = new GeomShapeFitter(roi.shape);
-			snapper.fitter.setFunction(GeomShape.EvalFunction.MEAN);
+			snapper.fitter = new ShapeFitter(roi.shape);
 			snapper.fitter.setMonitor(snapper);			
 			canvas = imp.getCanvas();
 		}

@@ -62,7 +62,7 @@ public class SnappingEllipseTool extends AbstractTool implements PlugIn {
 	 */
 	private class Snapper extends Thread implements MinimiserMonitor {
 		long request = 0;
-		GeomShapeFitter fitter;
+		ShapeFitter fitter;
 
 		// Constructor autostarts thread
 		Snapper() {
@@ -155,7 +155,7 @@ public class SnappingEllipseTool extends AbstractTool implements PlugIn {
 				}
 				canvas = imp.getCanvas();
 			}
-			snapper.fitter = new GeomShapeFitter(roi.shape);
+			snapper.fitter = new ShapeFitter(roi.shape);
 			snapper.fitter.setFunction(GeomShape.EvalFunction.MEAN);
 			snapper.fitter.setMonitor(snapper);
 		}

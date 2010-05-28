@@ -1,9 +1,9 @@
 package fiji.plugin.constrainedshapes;
 
 import fiji.plugin.constrainedshapes.GeomShape.EvalFunction;
-import fiji.plugin.constrainedshapes.GeomShapeFitter.Method;
+import fiji.plugin.constrainedshapes.ShapeFitter.Method;
 
-import static fiji.plugin.constrainedshapes.GeomShapeFitter.Method;
+import static fiji.plugin.constrainedshapes.ShapeFitter.Method;
 import ij.IJ;
 import ij.ImagePlus;
 import ij.WindowManager;
@@ -34,10 +34,10 @@ public class Two_Circle_Fitter implements PlugIn, ActionListener, MinimiserMonit
 	 * FIELDS
 	 */
 	
-	private static final Method DEFAULT_METHOD = GeomShapeFitter.Method.CONJUGATE_DIRECTION_SEARCH;
+	private static final Method DEFAULT_METHOD = ShapeFitter.Method.CONJUGATE_DIRECTION_SEARCH;
 	private TCSDialog dialog;
 	private GeomShape.EvalFunction targetFunction = EvalFunction.MEAN;
-	private GeomShapeFitter.Method method = DEFAULT_METHOD;
+	private ShapeFitter.Method method = DEFAULT_METHOD;
 	private int[] sliceParameters = new int[] {1, 1, 1};
 	private ImagePlus imp;
 	private ImageCanvas canvas;
@@ -137,7 +137,7 @@ public class Two_Circle_Fitter implements PlugIn, ActionListener, MinimiserMonit
 		final Color origColor = Roi.getColor();
 			
 		// Prepare optimizer
-		GeomShapeFitter optimizer = new GeomShapeFitter(tcs); // This shape will be modified by the optimizer all along
+		ShapeFitter optimizer = new ShapeFitter(tcs); // This shape will be modified by the optimizer all along
 		optimizer.setFunction(targetFunction);
 		optimizer.setMethod(method);
 		optimizer.setNPoints((int) tcs.getPerimeter());

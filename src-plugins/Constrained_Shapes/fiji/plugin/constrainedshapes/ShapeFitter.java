@@ -8,20 +8,20 @@ import pal.math.MultivariateFunction;
 import pal.math.MultivariateMinimum;
 import pal.math.OrthogonalHints;
 
-public class GeomShapeFitter implements MultivariateFunction {
+public class ShapeFitter implements MultivariateFunction {
 
 	/*
-	 * ENUM 
+	 * ENUM
 	 */
-	
+
 	/**
 	 * This is used as a factory to return an optimization method. As now,
-	 * since there is only one working optimizer in the PAL package, there 
-	 * is only one method in this enum. 
+	 * since there is only one working optimizer in the PAL package, there
+	 * is only one method in this enum.
 	 */
 	public static enum Method {
-		CONJUGATE_DIRECTION_SEARCH; // Unfortunately so far, the only one that works here 
-		
+		CONJUGATE_DIRECTION_SEARCH; // Unfortunately so far, the only one that works here
+
 		public MultivariateMinimum instantiate(GeomShape shape) {
 			MultivariateMinimum optimizer = null;
 			switch (this) {
@@ -32,73 +32,73 @@ public class GeomShapeFitter implements MultivariateFunction {
 			return optimizer;
 		}
 	}
-	
+
 	/*
 	 * FIELDS
 	 */
-	
+
 	private int nPoints = 500;
-	/** 
-	 * Sets the desired precision of the optimization process. 
-	 * These 2 numbers set the desired number of digits after 
+	/**
+	 * Sets the desired precision of the optimization process.
+	 * These 2 numbers set the desired number of digits after
 	 * dot of parameters and function.
 	 */
 	private static final int PARAMETER_PRECISION = 2;
 	private static final int FUNCTION_PRECISION = 2;
-	
+
 	private GeomShape shape; // Can't be null because of constructor.
-	private ImageProcessor ip; 
-	private GeomShape.EvalFunction function = GeomShape.EvalFunction.MEAN; 
+	private ImageProcessor ip;
+	private GeomShape.EvalFunction function = GeomShape.EvalFunction.MEAN;
 	private MinimiserMonitor monitor = null;
-	
+
 	private Method method = Method.CONJUGATE_DIRECTION_SEARCH;
 	private MultivariateMinimum optimizer;
-	
+
 	/*
 	 * CONSTRUCTOR
 	 */
-	
+
 	/**
-	 * No empty constructor, for we need to initialize the fitter in a way 
-	 * that depends on the {@link GeomShape} it will work on. 
+	 * No empty constructor, for we need to initialize the fitter in a way
+	 * that depends on the {@link GeomShape} it will work on.
 	 */
-	public GeomShapeFitter(GeomShape shape) {
+	public ShapeFitter(GeomShape shape) {
 		setShape(shape);
 	}
-		
+
 	/*
 	 * PUBLIC METHOD
 	 */
-	
+
 	/**
-	 * Optimize the current {@link GeomShape} of this instance, on the current 
+	 * Optimize the current {@link GeomShape} of this instance, on the current
 	 * {@link ImageProcessor}, using the current {@link Method}.
 	 * <p>
-	 * This method operate on the {@link GeomShape} object which reference was 
+	 * This method operate on the {@link GeomShape} object which reference was
 	 * set by {@link #setShape(GeomShape)},
-	 * and will <strong>modify</strong> it. To retrieve the found minimum, use the 
-	 * {@link #getShape()} method. Internally, the optimizer accesses the parameter 
+	 * and will <strong>modify</strong> it. To retrieve the found minimum, use the
+	 * {@link #getShape()} method. Internally, the optimizer accesses the parameter
 	 * array of the shape to optimize it, through the {@link GeomShape#getParameters()}.
 	 * Since this is a reference to the double array of the shape, optimizing it
 	 * will modify the shape.
 	 * <p>
 	 * If the starting point {@link GeomShape} or the {@link ImageProcessor} objects are
-	 * not set, this method does nothing and return. 
+	 * not set, this method does nothing and return.
 	 */
 	public void optimize() {
 		if ( (shape==null) || (ip==null)) { return; }
 		optimizer.findMinimum(
-				this, 
-				shape.getParameters(), 
-				FUNCTION_PRECISION, 
-				PARAMETER_PRECISION, 
+				this,
+				shape.getParameters(),
+				FUNCTION_PRECISION,
+				PARAMETER_PRECISION,
 				monitor);
 	}
-	
+
 	/*
 	 * MULTIVARIATEFUNCTION METHODS
 	 */
-	
+
 	/**
 	 * Evalute the {@link GeomShape} of this instance over the parameters given in argument.
 	 * <p>
@@ -112,7 +112,7 @@ public class GeomShapeFitter implements MultivariateFunction {
 		return shape.eval(ip, function, nPoints);
 	}
 
-	public double getLowerBound(int n) {		
+	public double getLowerBound(int n) {
 		return shape.getLowerBound(n);
 	}
 
@@ -125,14 +125,14 @@ public class GeomShapeFitter implements MultivariateFunction {
 	}
 
 	/**
-	 * Return a hint for Orthogonal optimizers. Since we are not using these, we simply return the 
+	 * Return a hint for Orthogonal optimizers. Since we are not using these, we simply return the
 	 * null hint.
 	 * @return  An object that has no hints.
 	 */
 	public OrthogonalHints getOrthogonalHints() {
 		return OrthogonalHints.Utils.getNull();
 	}
-	
+
 	/*
 	 * GETTERS AND SETTERS
 	 */
@@ -149,14 +149,14 @@ public class GeomShapeFitter implements MultivariateFunction {
 	public MinimiserMonitor getMonitor() {		return monitor;	}
 
 	/**
-	 * Set the {@link Method} used to optimize the {@link GeomShape} by this fitter. 
+	 * Set the {@link Method} used to optimize the {@link GeomShape} by this fitter.
 	 * Using this method will reset the internal {@link MultivariateMinimum} optimizer
 	 * of this instance.
 	 * @param method  The method to use for optimization
 	 */
-	public void setMethod(Method method) {		
+	public void setMethod(Method method) {
 		this.optimizer = method.instantiate(shape);
-		this.method = method;	
+		this.method = method;
 	}
 
 	/**
@@ -165,9 +165,9 @@ public class GeomShapeFitter implements MultivariateFunction {
 	 * {@link MultivariateMinimum} optimizer function.
 	 * @param shape  The shape to optimize
 	 */
-	public void setShape(GeomShape shape) {	
+	public void setShape(GeomShape shape) {
 		this.optimizer = method.instantiate(shape);
-		this.shape = shape;		
+		this.shape = shape;
 	}
 
 }
