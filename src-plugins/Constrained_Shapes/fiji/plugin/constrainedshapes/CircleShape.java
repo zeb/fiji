@@ -7,14 +7,14 @@ import java.awt.geom.PathIterator;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 
-public class CircleShape extends GeomShape {
+public class CircleShape extends ParameterizedShape {
 
 	/*
 	 * FIELDS
 	 */
 	
 	/**
-	 * Parameter array for this shape. As specified in the mother abstract class {@link GeomShape},
+	 * Parameter array for this shape. As specified in the mother abstract class {@link ParameterizedShape},
 	 * we store them as a double array of 3 elements. Array content is the following:
 	 * <ul>
 	 * 	<li> [0]: <code>xc</code>, the x coordinate of circle center
@@ -89,7 +89,7 @@ public class CircleShape extends GeomShape {
 	}
 	
 	@Override
-	public GeomShape clone() {
+	public ParameterizedShape clone() {
 		CircleShape circle = new CircleShape();
 		circle.setParameters(params.clone());
 		return circle;

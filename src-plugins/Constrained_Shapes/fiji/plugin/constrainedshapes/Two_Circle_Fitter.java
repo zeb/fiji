@@ -1,6 +1,6 @@
 package fiji.plugin.constrainedshapes;
 
-import fiji.plugin.constrainedshapes.GeomShape.EvalFunction;
+import fiji.plugin.constrainedshapes.ParameterizedShape.EvalFunction;
 import fiji.plugin.constrainedshapes.ShapeFitter.Method;
 
 import static fiji.plugin.constrainedshapes.ShapeFitter.Method;
@@ -36,7 +36,7 @@ public class Two_Circle_Fitter implements PlugIn, ActionListener, MinimiserMonit
 	
 	private static final Method DEFAULT_METHOD = ShapeFitter.Method.CONJUGATE_DIRECTION_SEARCH;
 	private TCSDialog dialog;
-	private GeomShape.EvalFunction targetFunction = EvalFunction.MEAN;
+	private ParameterizedShape.EvalFunction targetFunction = EvalFunction.MEAN;
 	private ShapeFitter.Method method = DEFAULT_METHOD;
 	private int[] sliceParameters = new int[] {1, 1, 1};
 	private ImagePlus imp;
@@ -239,7 +239,7 @@ public class Two_Circle_Fitter implements PlugIn, ActionListener, MinimiserMonit
 		
 		Two_Circle_Fitter instance = new Two_Circle_Fitter();
 		instance.setImagePlus(imp);
-		instance.setTargetFunction(GeomShape.EvalFunction.MEAN);
+		instance.setTargetFunction(ParameterizedShape.EvalFunction.MEAN);
 				
 		TwoCircleShape startPoint = new TwoCircleShape(207.6, 210.0, 90.0, 328.4, 320.0, 60.0);
 		System.out.println("Fitting from "+startPoint);
@@ -292,8 +292,8 @@ public class Two_Circle_Fitter implements PlugIn, ActionListener, MinimiserMonit
 	 * SETTERS AND GETTERS
 	 */
 
-	public void setTargetFunction(GeomShape.EvalFunction targetFunction) {	this.targetFunction = targetFunction; }
-	public GeomShape.EvalFunction getTargetFunction() { return targetFunction;	}
+	public void setTargetFunction(ParameterizedShape.EvalFunction targetFunction) {	this.targetFunction = targetFunction; }
+	public ParameterizedShape.EvalFunction getTargetFunction() { return targetFunction;	}
 	public void setSliceParameters(int[] sliceParameters) { this.sliceParameters = sliceParameters; }
 	public int[] getSliceParameters() { return sliceParameters; }
 	public ImagePlus getImagePlus() { return imp; }

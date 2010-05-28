@@ -62,7 +62,7 @@ public class SnappingCircleTool extends AbstractTool implements PlugIn {
 		protected ShapeFitter fitter;
 
 		// Constructor autostarts thread
-		Snapper() {
+		protected Snapper() {
 			super("Circle snapper");
 			setPriority(Thread.NORM_PRIORITY);
 			start();
@@ -135,6 +135,7 @@ public class SnappingCircleTool extends AbstractTool implements PlugIn {
 				status = InteractionStatus.CREATING;
 			}
 			snapper.fitter = new ShapeFitter(roi.shape);
+			snapper.fitter.setFunction(ParameterizedShape.EvalFunction.MEAN);
 			snapper.fitter.setMonitor(snapper);			
 			canvas = imp.getCanvas();
 		}

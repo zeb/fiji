@@ -22,7 +22,7 @@ public class ShapeFitter implements MultivariateFunction {
 	public static enum Method {
 		CONJUGATE_DIRECTION_SEARCH; // Unfortunately so far, the only one that works here
 
-		public MultivariateMinimum instantiate(GeomShape shape) {
+		public MultivariateMinimum instantiate(ParameterizedShape shape) {
 			MultivariateMinimum optimizer = null;
 			switch (this) {
 			case CONJUGATE_DIRECTION_SEARCH:
@@ -46,9 +46,9 @@ public class ShapeFitter implements MultivariateFunction {
 	private static final int PARAMETER_PRECISION = 2;
 	private static final int FUNCTION_PRECISION = 2;
 
-	private GeomShape shape; // Can't be null because of constructor.
+	private ParameterizedShape shape; // Can't be null because of constructor.
 	private ImageProcessor ip;
-	private GeomShape.EvalFunction function = GeomShape.EvalFunction.MEAN;
+	private ParameterizedShape.EvalFunction function = ParameterizedShape.EvalFunction.MEAN;
 	private MinimiserMonitor monitor = null;
 
 	private Method method = Method.CONJUGATE_DIRECTION_SEARCH;
@@ -60,9 +60,9 @@ public class ShapeFitter implements MultivariateFunction {
 
 	/**
 	 * No empty constructor, for we need to initialize the fitter in a way
-	 * that depends on the {@link GeomShape} it will work on.
+	 * that depends on the {@link ParameterizedShape} it will work on.
 	 */
-	public ShapeFitter(GeomShape shape) {
+	public ShapeFitter(ParameterizedShape shape) {
 		setShape(shape);
 	}
 
@@ -71,18 +71,18 @@ public class ShapeFitter implements MultivariateFunction {
 	 */
 
 	/**
-	 * Optimize the current {@link GeomShape} of this instance, on the current
+	 * Optimize the current {@link ParameterizedShape} of this instance, on the current
 	 * {@link ImageProcessor}, using the current {@link Method}.
 	 * <p>
-	 * This method operate on the {@link GeomShape} object which reference was
-	 * set by {@link #setShape(GeomShape)},
+	 * This method operate on the {@link ParameterizedShape} object which reference was
+	 * set by {@link #setShape(ParameterizedShape)},
 	 * and will <strong>modify</strong> it. To retrieve the found minimum, use the
 	 * {@link #getShape()} method. Internally, the optimizer accesses the parameter
-	 * array of the shape to optimize it, through the {@link GeomShape#getParameters()}.
+	 * array of the shape to optimize it, through the {@link ParameterizedShape#getParameters()}.
 	 * Since this is a reference to the double array of the shape, optimizing it
 	 * will modify the shape.
 	 * <p>
-	 * If the starting point {@link GeomShape} or the {@link ImageProcessor} objects are
+	 * If the starting point {@link ParameterizedShape} or the {@link ImageProcessor} objects are
 	 * not set, this method does nothing and return.
 	 */
 	public void optimize() {
@@ -100,12 +100,12 @@ public class ShapeFitter implements MultivariateFunction {
 	 */
 
 	/**
-	 * Evalute the {@link GeomShape} of this instance over the parameters given in argument.
+	 * Evalute the {@link ParameterizedShape} of this instance over the parameters given in argument.
 	 * <p>
-	 * This is done first throught the {@link GeomShape#setParameters(double[])} method, then by
-	 * calling the {@link GeomShape#eval(ImageProcessor, GeomShape.EvalFunction, int)}
-	 * method, using the {@link ImageProcessor} and {@link GeomShape.EvalFunction} of this object.
-	 * @see {@link #setImageProcessor(ImageProcessor)}, {@link #setFunction(GeomShape.EvalFunction)}
+	 * This is done first throught the {@link ParameterizedShape#setParameters(double[])} method, then by
+	 * calling the {@link ParameterizedShape#eval(ImageProcessor, ParameterizedShape.EvalFunction, int)}
+	 * method, using the {@link ImageProcessor} and {@link ParameterizedShape.EvalFunction} of this object.
+	 * @see {@link #setImageProcessor(ImageProcessor)}, {@link #setFunction(ParameterizedShape.EvalFunction)}
 	 */
 	public double evaluate(double[] params) {
 		shape.setParameters(params);
@@ -137,9 +137,9 @@ public class ShapeFitter implements MultivariateFunction {
 	 * GETTERS AND SETTERS
 	 */
 
-	public GeomShape getShape() {	return shape;	}
-	public GeomShape.EvalFunction getFunction() {		return function;	}
-	public void setFunction(GeomShape.EvalFunction function) {		this.function = function;	}
+	public ParameterizedShape getShape() {	return shape;	}
+	public ParameterizedShape.EvalFunction getFunction() {		return function;	}
+	public void setFunction(ParameterizedShape.EvalFunction function) {		this.function = function;	}
 	public int getNPoints() {		return nPoints; 	}
 	public void setNPoints(int nPoints) {		nPoints = nPoints; 	}
 	public ImageProcessor getImageProcessor() { 		return ip; 	}
@@ -149,7 +149,7 @@ public class ShapeFitter implements MultivariateFunction {
 	public MinimiserMonitor getMonitor() {		return monitor;	}
 
 	/**
-	 * Set the {@link Method} used to optimize the {@link GeomShape} by this fitter.
+	 * Set the {@link Method} used to optimize the {@link ParameterizedShape} by this fitter.
 	 * Using this method will reset the internal {@link MultivariateMinimum} optimizer
 	 * of this instance.
 	 * @param method  The method to use for optimization
@@ -160,12 +160,12 @@ public class ShapeFitter implements MultivariateFunction {
 	}
 
 	/**
-	 * Set the {@link GeomShape} to optimize by this instance. Using this method will
+	 * Set the {@link ParameterizedShape} to optimize by this instance. Using this method will
 	 * reset the upper and lower bounds for this fitter, as well as the internal
 	 * {@link MultivariateMinimum} optimizer function.
 	 * @param shape  The shape to optimize
 	 */
-	public void setShape(GeomShape shape) {
+	public void setShape(ParameterizedShape shape) {
 		this.optimizer = method.instantiate(shape);
 		this.shape = shape;
 	}

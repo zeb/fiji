@@ -156,7 +156,7 @@ public class SnappingEllipseTool extends AbstractTool implements PlugIn {
 				canvas = imp.getCanvas();
 			}
 			snapper.fitter = new ShapeFitter(roi.shape);
-			snapper.fitter.setFunction(GeomShape.EvalFunction.MEAN);
+			snapper.fitter.setFunction(ParameterizedShape.EvalFunction.MEAN);
 			snapper.fitter.setMonitor(snapper);
 		}
 		super.run(arg);

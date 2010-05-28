@@ -16,14 +16,14 @@ import java.awt.geom.Rectangle2D;
 import javax.swing.JFrame;
 import javax.swing.WindowConstants;
 
-public class EllipseShape extends GeomShape {
+public class EllipseShape extends ParameterizedShape {
 
 	/*
 	 * FIELDS
 	 */
 	
 	/**
-	 * Parameter array for this shape. As specified in the mother abstract class {@link GeomShape},
+	 * Parameter array for this shape. As specified in the mother abstract class {@link ParameterizedShape},
 	 * we store them as a double array of 5 elements. In this class, the ellipse is implemented
 	 * using the parametric formula.
 	 * <ul>

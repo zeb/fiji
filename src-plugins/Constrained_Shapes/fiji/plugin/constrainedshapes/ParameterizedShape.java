@@ -10,15 +10,15 @@ import ij.process.ImageProcessor;
 /**
  * This interface aims at describing a 2D geometric shape that can be defined using
  * primitive shapes, such as circles, ellipses, ... and can be sampled over XY
- * coordinates. The 
- * 
+ * coordinates. The
+ *
  * @author Jean-Yves Tinevez - Dec 2009
  *
  */
-public abstract class GeomShape implements Shape, Cloneable {
+public abstract class ParameterizedShape implements Shape, Cloneable {
 	protected double[] lowerBounds, upperBounds;
 
-	public GeomShape() {
+	public ParameterizedShape() {
 		lowerBounds = new double[getNumParameters()];
 		upperBounds = new double[getNumParameters()];
 		Arrays.fill(lowerBounds, Double.NEGATIVE_INFINITY);
@@ -28,10 +28,10 @@ public abstract class GeomShape implements Shape, Cloneable {
 	/*
 	 * INNER CLASSES & ENUMS
 	 */
-	
+
 	/**
 	 * Enum to specify how we compute an energy value from a list of pixel values.
-	 * If the usage requires it, we can make this a proper interface with taylored 
+	 * If the usage requires it, we can make this a proper interface with taylored
 	 * implementing classes.
 	 */
 	public static enum EvalFunction  {
@@ -39,7 +39,7 @@ public abstract class GeomShape implements Shape, Cloneable {
 		MEAN,
 		/** Will return the opposite of the pixel value mean, effectively maximizing it. */
 		MINUS_MEAN;
-		public float compute(final float[] pixelList)  {			
+		public float compute(final float[] pixelList)  {
 			float result = 0.0f;
 			switch (this) {
 			case MEAN:
@@ -60,31 +60,31 @@ public abstract class GeomShape implements Shape, Cloneable {
 			return result;
 		}
 	}
-	
-	
+
+
 	/**
 	 * Returns a <code>2 x nPoints</code> array of double containing the X &amp; Y
 	 * coordinates of an interpolation of this shape.
-	 * 
+	 *
 	 * @param nPoints  The number of point to sample this shape on
 	 * @return  The X &amp; Y coordinates
 	 */
 	public abstract double[][] sample(int nPoints);
 
 	/**
-	 * Return the number of parameters needed to entirely specify this shape. This 
+	 * Return the number of parameters needed to entirely specify this shape. This
 	 * will be used e.g. by {@link ShapeFitter} to adapt prepare the
 	 * optimizer for the fit.
 	 * @see {@link #getParameters()}, {@link #setParameters(double[])}
 	 */
 	public abstract int getNumParameters();
-	
+
 	/**
 	 * Return a reference to the parameters that specify entirely this shape as a double array.
 	 * <p>
 	 * By contract, this array is sufficient to determine entirely the shape, and modifying
 	 * it, even through a reference, must modify the shape.
-	 * 
+	 *
 	 * @see {@link #getNumParameters()}, {@link #setParameters(double[])}
 	 */
 	public abstract double[] getParameters();
@@ -93,13 +93,13 @@ public abstract class GeomShape implements Shape, Cloneable {
 	 * Specify the parameters needed to describe entirely this shape.
 	 * <p>
 	 * By contract, this method must internally <strong>replace</strong>
-	 * the array describing the shape by the new one given in argument. 
+	 * the array describing the shape by the new one given in argument.
 	 * Previous references to the parameter
 	 * array would then be invalidated by calling this method.
 	 * @see {@link #getParameters()}, {@link #getNumParameters()}
 	 */
 	public abstract void setParameters(double[] params);
-	
+
 	/**
 	 * Set the <code>n</code>th parameter lower bound to be <code>value</code>.
 	 * @see {@link #setLowerBounds(double[])}, {@link #setUpperBounds(double[])}, {@link #setUpperBound(int, double)}
@@ -144,24 +144,24 @@ public abstract class GeomShape implements Shape, Cloneable {
 
 	/**
 	 * Return a copy of this shape. The copy will be made by instantiating a new object, and
-	 * setting its parameter array to be a copy that of this object. 
+	 * setting its parameter array to be a copy that of this object.
 	 */
-	public abstract GeomShape clone();
-	
+	public abstract ParameterizedShape clone();
+
 	/*
 	 * PUBLIC METHODS
 	 */
-	
+
 	/**
-	 * Compute an evaluation of this shape on the given {@link ImageProcessor}, using 
+	 * Compute an evaluation of this shape on the given {@link ImageProcessor}, using
 	 * the evaluating function {@link EvalFunction}.
 	 * <p>
-	 * This shape is first sampled over <code>nPoints</code> using the concrete method 
-	 * {@link #sample(int)}. This method returns a list of pixel coordinates that define a sampling 
+	 * This shape is first sampled over <code>nPoints</code> using the concrete method
+	 * {@link #sample(int)}. This method returns a list of pixel coordinates that define a sampling
 	 * of this geometrical shape over <code>nPoints</code>.
-	 * Pixel values for these coordinates are then retrieved, and a value is computed through the 
+	 * Pixel values for these coordinates are then retrieved, and a value is computed through the
 	 * {@link EvalFunction} <code>function</code>, and returned by this method.
-	 * 
+	 *
 	 *  @param ip  The {@link ImageProcessor} to evaluate this shape on
 	 *  @param function  The {@link EvalFunction} that will give a value from a pixel list
 	 *  @param nPoints  The number of points to sample this shape on
@@ -187,8 +187,8 @@ public abstract class GeomShape implements Shape, Cloneable {
 			pixelList[i] = pixels.get(i);
 		}
 		return function.compute(pixelList);
-	}	
+	}
 
 
-	
+
 }

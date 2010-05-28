@@ -8,7 +8,7 @@ import java.awt.event.FocusListener;
 import java.util.ArrayList;
 import java.util.EventObject;
 
-import static fiji.plugin.constrainedshapes.GeomShape.EvalFunction;
+import static fiji.plugin.constrainedshapes.ParameterizedShape.EvalFunction;
 import ij.ImageListener;
 import ij.ImagePlus;
 
@@ -121,7 +121,7 @@ public class TCSDialog extends javax.swing.JDialog implements ImageListener, Act
 		return (ActionListener[]) actionListeners.toArray();
 	}
 	
-	public GeomShape.EvalFunction getSelectedTargetFunction() {
+	public ParameterizedShape.EvalFunction getSelectedTargetFunction() {
 		return (EvalFunction) jComboBoxTargetFunction.getSelectedItem();
 	}
 	
@@ -307,7 +307,7 @@ public class TCSDialog extends javax.swing.JDialog implements ImageListener, Act
 				jLabelTargetFunction.setBounds(46, 96, 97, 16);
 			}
 			{
-				jComboBoxTargetFunction = new JComboBox(GeomShape.EvalFunction.values());
+				jComboBoxTargetFunction = new JComboBox(ParameterizedShape.EvalFunction.values());
 				getContentPane().add(jComboBoxTargetFunction);
 				jComboBoxTargetFunction.setBounds(173, 92, 189, 27);
 				jComboBoxTargetFunction.setFont(new java.awt.Font("Lucida Grande",0,9));

@@ -17,7 +17,7 @@ import java.awt.geom.Rectangle2D;
 import javax.swing.JFrame;
 import javax.swing.WindowConstants;
 
-public class TwoCircleShape extends GeomShape   {
+public class TwoCircleShape extends ParameterizedShape   {
 
 
 	/** Enum that describes the instance two circles arrangement. Useful for drawing.	 */
@@ -28,7 +28,7 @@ public class TwoCircleShape extends GeomShape   {
 	 */
 	
 	/**
-	 * Parameter array for this shape. As specified in the mother abstract class {@link GeomShape},
+	 * Parameter array for this shape. As specified in the mother abstract class {@link ParameterizedShape},
 	 * we store them as a double array of 6 elements. Array content is the following:
 	 * <ul>
 	 * 	<li> [0]: <code>xc1</code>, the x coordinate of circle 1 center
@@ -70,7 +70,7 @@ public class TwoCircleShape extends GeomShape   {
 	
 	/**
 	 * Return the parameter array for this shape. 
-	 * As specified in the mother abstract class {@link GeomShape},
+	 * As specified in the mother abstract class {@link ParameterizedShape},
 	 * we store them as a double array of 6 elements. Array content is the following:
 	 * <ul>
 	 * 	<li> [0]: <code>xc1</code>, the x coordinate of circle 1 center
