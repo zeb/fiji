@@ -51,9 +51,6 @@ public class GeomShapeFitter implements MultivariateFunction {
 	private GeomShape.EvalFunction function = GeomShape.EvalFunction.MEAN; 
 	private MinimiserMonitor monitor = null;
 	
-	private double[] lowerBounds;
-	private double[] upperBounds;
-	
 	private Method method = Method.CONJUGATE_DIRECTION_SEARCH;
 	private MultivariateMinimum optimizer;
 	
@@ -98,40 +95,6 @@ public class GeomShapeFitter implements MultivariateFunction {
 				monitor);
 	}
 	
-	/**
-	 * Set the <code>n</code>th parameter lower bound to be <code>value</code>.
-	 * @see {@link #setLowerBounds(double[])}, {@link #setUpperBounds(double[])}, {@link #setUpperBound(int, double)}
-	 */
-	public void setLowerBound(int n, double value) {
-		this.lowerBounds[n] = value;
-	}
-	
-	/**
-	 * Set the <code>n</code>th parameter upper bound to be <code>value</code>.
-	 * @see {@link #setLowerBounds(double[])}, {@link #setUpperBounds(double[])}, {@link #setLowerBound(int, double)}
-	 */
-	public void setUpperBound(int n, double value) {
-		this.upperBounds[n] = value;
-	}
-	
-	/**
-	 * <string>Replace</string> the lower bound array by the one in argument. No error check are made
-	 * if the array size is not correct. 
-	 * @see {@link #setUpperBounds(double[])}, {@link #setLowerBound(int, double)}, {@link #setLowerBound(int, double)}
-	 */
-	public void setLowerBounds(double[] arr) {
-		this.lowerBounds = arr;
-	}
-
-	/**
-	 * <string>Replace</string> the upper bound array by the one in argument. No error check are made
-	 * if the array size is not correct. 
-	 * @see {@link #setLowerBounds(double[])}, {@link #setLowerBound(int, double)}, {@link #setLowerBound(int, double)}
-	 */
-	public void setUpperBounds(double[] arr) {
-		this.upperBounds = arr;
-	}
-	
 	/*
 	 * MULTIVARIATEFUNCTION METHODS
 	 */
@@ -150,7 +113,7 @@ public class GeomShapeFitter implements MultivariateFunction {
 	}
 
 	public double getLowerBound(int n) {		
-		return lowerBounds[n];
+		return shape.getLowerBound(n);
 	}
 
 	public int getNumArguments() {
@@ -158,7 +121,7 @@ public class GeomShapeFitter implements MultivariateFunction {
 	}
 
 	public double getUpperBound(int n) {
-		return upperBounds[n];
+		return shape.getUpperBound(n);
 	}
 
 	/**
@@ -203,15 +166,7 @@ public class GeomShapeFitter implements MultivariateFunction {
 	 * @param shape  The shape to optimize
 	 */
 	public void setShape(GeomShape shape) {	
-		final double[] arr1 = new double[shape.getNumParameters()];
-		final double[] arr2 = new double[shape.getNumParameters()];
-		for (int i = 0; i < shape.getNumParameters(); i++) {
-			arr1[i] = Double.NEGATIVE_INFINITY;
-			arr2[i] = Double.POSITIVE_INFINITY;
-		}
 		this.optimizer = method.instantiate(shape);
-		this.lowerBounds = arr1;
-		this.upperBounds = arr2;
 		this.shape = shape;		
 	}
 

@@ -30,8 +30,6 @@ public class SnappingCircleTool extends AbstractTool implements PlugIn {
 	private InteractionStatus status;
 	private Point2D startDrag;
 	private Snapper snapper;
-	private double[] lowerBounds = new double[3];
-	private double[] upperBounds = new double[3];
 	private Color savedRoiColor;
 
 	/*
@@ -209,14 +207,12 @@ public class SnappingCircleTool extends AbstractTool implements PlugIn {
 		
 		// Tune fitter
 		final double r = roi.shape.getRadius();
-		lowerBounds[0] = p.getX() - r; 
-		lowerBounds[1] = p.getY() - r;
-		lowerBounds[2] = 0.5 * r;
-		upperBounds[0] = p.getX() + r; 
-		upperBounds[1] = p.getY() + r;
-		upperBounds[2] = 1.5 * r;
-		snapper.fitter.setLowerBounds(lowerBounds);
-		snapper.fitter.setUpperBounds(upperBounds);
+		roi.shape.lowerBounds[0] = p.getX() - r;
+		roi.shape.lowerBounds[1] = p.getY() - r;
+		roi.shape.lowerBounds[2] = 0.5 * r;
+		roi.shape.upperBounds[0] = p.getX() + r;
+		roi.shape.upperBounds[1] = p.getY() + r;
+		roi.shape.upperBounds[2] = 1.5 * r;
 		snapper.fitter.setNPoints((int) roi.getLength());
 
 		startDrag = p;

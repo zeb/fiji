@@ -1,7 +1,9 @@
 package fiji.plugin.constrainedshapes;
 
 import java.awt.Shape;
+
 import java.util.ArrayList;
+import java.util.Arrays;
 
 import ij.process.ImageProcessor;
 
@@ -14,6 +16,14 @@ import ij.process.ImageProcessor;
  *
  */
 public abstract class GeomShape implements Shape, Cloneable {
+	protected double[] lowerBounds, upperBounds;
+
+	public GeomShape() {
+		lowerBounds = new double[getNumParameters()];
+		upperBounds = new double[getNumParameters()];
+		Arrays.fill(lowerBounds, Double.NEGATIVE_INFINITY);
+		Arrays.fill(upperBounds, Double.POSITIVE_INFINITY);
+	}
 
 	/*
 	 * INNER CLASSES & ENUMS
@@ -53,11 +63,11 @@ public abstract class GeomShape implements Shape, Cloneable {
 	
 	
 	/**
-	 * Returns a <code>2 x nPoints</code> array of double containing the X & Y 
+	 * Returns a <code>2 x nPoints</code> array of double containing the X &amp; Y
 	 * coordinates of an interpolation of this shape.
 	 * 
 	 * @param nPoints  The number of point to sample this shape on
-	 * @return  The X & Y coordinates
+	 * @return  The X &amp; Y coordinates
 	 */
 	public abstract double[][] sample(int nPoints);
 
@@ -90,6 +100,48 @@ public abstract class GeomShape implements Shape, Cloneable {
 	 */
 	public abstract void setParameters(double[] params);
 	
+	/**
+	 * Set the <code>n</code>th parameter lower bound to be <code>value</code>.
+	 * @see {@link #setLowerBounds(double[])}, {@link #setUpperBounds(double[])}, {@link #setUpperBound(int, double)}
+	 */
+	public void setLowerBound(int n, double value) {
+		this.lowerBounds[n] = value;
+	}
+
+	/**
+	 * Set the <code>n</code>th parameter upper bound to be <code>value</code>.
+	 * @see {@link #setLowerBounds(double[])}, {@link #setUpperBounds(double[])}, {@link #setLowerBound(int, double)}
+	 */
+	public void setUpperBound(int n, double value) {
+		this.upperBounds[n] = value;
+	}
+
+	/**
+	 * <string>Replace</string> the lower bound array by the one in argument. No error check are made
+	 * if the array size is not correct.
+	 * @see {@link #setUpperBounds(double[])}, {@link #setLowerBound(int, double)}, {@link #setLowerBound(int, double)}
+	 */
+	public void setLowerBounds(double[] arr) {
+		this.lowerBounds = arr;
+	}
+
+	/**
+	 * <string>Replace</string> the upper bound array by the one in argument. No error check are made
+	 * if the array size is not correct.
+	 * @see {@link #setLowerBounds(double[])}, {@link #setLowerBound(int, double)}, {@link #setLowerBound(int, double)}
+	 */
+	public void setUpperBounds(double[] arr) {
+		this.upperBounds = arr;
+	}
+
+	public double getLowerBound(int n) {
+		return lowerBounds[n];
+	}
+
+	public double getUpperBound(int n) {
+		return upperBounds[n];
+	}
+
 	/**
 	 * Return a copy of this shape. The copy will be made by instantiating a new object, and
 	 * setting its parameter array to be a copy that of this object. 

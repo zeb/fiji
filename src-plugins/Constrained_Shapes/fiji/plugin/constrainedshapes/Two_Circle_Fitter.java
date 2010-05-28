@@ -39,8 +39,6 @@ public class Two_Circle_Fitter implements PlugIn, ActionListener, MinimiserMonit
 	private GeomShape.EvalFunction targetFunction = EvalFunction.MEAN;
 	private GeomShapeFitter.Method method = DEFAULT_METHOD;
 	private int[] sliceParameters = new int[] {1, 1, 1};
-	private double[] upperBounds = new double[6];
-	private double[] lowerBounds = new double[6];
 	private ImagePlus imp;
 	private ImageCanvas canvas;
 	private RoiListStackWindow stackWindow;
@@ -109,18 +107,18 @@ public class Two_Circle_Fitter implements PlugIn, ActionListener, MinimiserMonit
 		// Infer bounds for minimization
 		final int width = imp.getWidth();
 		final int height = imp.getHeight();
-		lowerBounds[0] = 0;
-		lowerBounds[1] = 0;
-		lowerBounds[2] = 0;
-		lowerBounds[3] = 0;
-		lowerBounds[4] = 0;
-		lowerBounds[5] = 0;
-		upperBounds[0] = width;
-		upperBounds[1] = height;
-		upperBounds[2] = Math.min(width, height);
-		upperBounds[3] = width;
-		upperBounds[4] = height;
-		upperBounds[5] = Math.min(width, height);		
+		tcs.lowerBounds[0] = 0;
+		tcs.lowerBounds[1] = 0;
+		tcs.lowerBounds[2] = 0;
+		tcs.lowerBounds[3] = 0;
+		tcs.lowerBounds[4] = 0;
+		tcs.lowerBounds[5] = 0;
+		tcs.upperBounds[0] = width;
+		tcs.upperBounds[1] = height;
+		tcs.upperBounds[2] = Math.min(width, height);
+		tcs.upperBounds[3] = width;
+		tcs.upperBounds[4] = height;
+		tcs.upperBounds[5] = Math.min(width, height);
 		
 		// Start calculation
 		IJ.showStatus("Executing fit...");
@@ -143,8 +141,6 @@ public class Two_Circle_Fitter implements PlugIn, ActionListener, MinimiserMonit
 		optimizer.setFunction(targetFunction);
 		optimizer.setMethod(method);
 		optimizer.setNPoints((int) tcs.getPerimeter());
-		optimizer.setLowerBounds(lowerBounds);
-		optimizer.setUpperBounds(upperBounds);		
 		if (doMonitor) {	
 			optimizer.setMonitor(this);
 			Roi.setColor(Color.BLUE);

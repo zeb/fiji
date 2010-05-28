@@ -243,18 +243,16 @@ public class SnappingEllipseTool extends AbstractTool implements PlugIn {
 		
 		// Tune fitter
 		final double range = Math.max(a, b);
-		lowerBounds[0] = xc - range;
-		lowerBounds[1] = yc - range;
-		lowerBounds[2] = a/2;
-		lowerBounds[3] = b/2;
-		lowerBounds[4] = phi - Math.PI/8;
-		upperBounds[0] = xc + range; 
-		upperBounds[1] = yc + range;
-		upperBounds[2] = a + range;
-		upperBounds[3] = b + range;
-		upperBounds[4] = phi + Math.PI/8;
-		snapper.fitter.setLowerBounds(lowerBounds);
-		snapper.fitter.setUpperBounds(upperBounds);
+		roi.shape.lowerBounds[0] = xc - range;
+		roi.shape.lowerBounds[1] = yc - range;
+		roi.shape.lowerBounds[2] = a/2;
+		roi.shape.lowerBounds[3] = b/2;
+		roi.shape.lowerBounds[4] = phi - Math.PI/8;
+		roi.shape.upperBounds[0] = xc + range;
+		roi.shape.upperBounds[1] = yc + range;
+		roi.shape.upperBounds[2] = a + range;
+		roi.shape.upperBounds[3] = b + range;
+		roi.shape.upperBounds[4] = phi + Math.PI/8;
 		snapper.fitter.setNPoints((int) roi.shape.getCircumference());
 
 		startDrag = p;
