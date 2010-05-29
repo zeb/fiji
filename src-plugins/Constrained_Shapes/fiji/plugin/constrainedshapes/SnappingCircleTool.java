@@ -46,7 +46,9 @@ public class SnappingCircleTool extends AbstractTool implements PlugIn {
 	/*
 	 * INNER CLASS
 	 */
-	
+
+	protected class StopOptimizer extends RuntimeException {}
+
 	/**
 	 * This is a helper class for the {@link SnappingCircleTool} plugin, that delegates the
 	 * snapping of the circle to another thread. This class holds the fitter object
@@ -58,46 +60,25 @@ public class SnappingCircleTool extends AbstractTool implements PlugIn {
 	 * 
 	 */
 	private class Snapper extends Thread implements MinimiserMonitor {
-		long request = 0;
 		protected ShapeFitter fitter;
 
 		// Constructor autostarts thread
-		protected Snapper() {
+		protected Snapper(ShapeFitter fitter) {
 			super("Circle snapper");
 			setPriority(Thread.NORM_PRIORITY);
-			start();
-		}
-
-		void snap() {
-			if (isInterrupted())
-				return;
-			synchronized (this) {
-				request++;
-				notify();
-			}
+			this.fitter = fitter;
+			fitter.setMonitor(this);
 		}
 
 		public void run() {
-			while (!isInterrupted()) {
-				try {
-					final long r;
-					synchronized (this) {
-						r = request;
-					}
-					// Call opmitize from this thread
-					if (r > 0)
-						Roi.setColor(Color.BLUE);
-						fitter.optimize();
-						Roi.setColor(savedRoiColor);
-						imp.draw();
-					synchronized (this) {
-						if (r == request) {
-							request = 0; // reset
-							wait();
-						}
-						// else loop through to update again
-					}
-				} catch (Exception e) {			}
+			try {
+				Roi.setColor(Color.BLUE);
+				fitter.optimize();
+				Roi.setColor(savedRoiColor);
+				imp.draw();
+			} catch (StopOptimizer e) {
+				Roi.setColor(savedRoiColor);
+				imp.draw();
 			}
 		}
 		
@@ -109,36 +90,19 @@ public class SnappingCircleTool extends AbstractTool implements PlugIn {
 
 		public synchronized void newMinimum(double value, double[] parameterValues,
 				MultivariateFunction beingOptimized) {
+			if (isInterrupted())
+				throw new StopOptimizer();
 			imp.draw();
 		}
 
-		public void updateProgress(double progress) {
-		}
+		public void updateProgress(double progress) { }
 	}
 	
 	/*
 	 * RUN METHOD
 	 */
-	
 	public void run(String arg) {
 		savedRoiColor = Roi.getColor();
-		// Initialize snapper
-		snapper = new Snapper();
-		imp = WindowManager.getCurrentImage();
-		if (imp != null) { 
-			Roi currentRoi = imp.getRoi(); 
-			if ( (currentRoi != null) && (currentRoi instanceof CircleRoi) ) {
-				roi = (CircleRoi) currentRoi;
-				status = InteractionStatus.FREE;
-			} else {
-				roi = new CircleRoi();
-				status = InteractionStatus.CREATING;
-			}
-			snapper.fitter = new ShapeFitter(roi.shape);
-			snapper.fitter.setFunction(ParameterizedShape.EvalFunction.MEAN);
-			snapper.fitter.setMonitor(snapper);			
-			canvas = imp.getCanvas();
-		}
 		super.run(arg);
 	}
 	
@@ -150,33 +114,13 @@ public class SnappingCircleTool extends AbstractTool implements PlugIn {
 	
 	@Override
 	protected void handleMousePress(MouseEvent e) {
-		// Deal with changing window
-		ImageCanvas source = (ImageCanvas) e.getSource();
-		if (source != canvas) {
-			// We changed image window. Update fields accordingly
-			ImageWindow window = (ImageWindow) source.getParent();
-			imp = window.getImagePlus();
-			canvas = source;
-			Roi currentRoi = imp.getRoi();
-			if ( (currentRoi == null) || !(currentRoi instanceof CircleRoi)) {
-				roi = new CircleRoi();
-				status = InteractionStatus.CREATING;
-				imp.setRoi(roi);
-			} else {
-				roi = (CircleRoi) currentRoi;
-				status = InteractionStatus.FREE;
-			}
-		} 
+		if (!getImageAndRoi())
+			return;
 		
 		final double x = canvas.offScreenXD(e.getX());
 		final double y = canvas.offScreenYD(e.getY());
 		final Point2D p = new Point2D.Double(x, y);
 		ClickLocation cl = roi.getClickLocation(p);
-		
-		// Tune fitter
-		snapper.fitter.setShape(roi.shape);
-		snapper.fitter.setImageProcessor(imp.getProcessor());
-		
 		if (cl ==ClickLocation.OUTSIDE ) {
 			if (status == InteractionStatus.CREATING) { 
 				roi.shape.setCenter(p);
@@ -189,6 +133,8 @@ public class SnappingCircleTool extends AbstractTool implements PlugIn {
 	
 	@Override
 	protected void handleMouseDrag(MouseEvent e) {
+		if (roi == null)
+			return;
 		final double x = canvas.offScreenXD(e.getX());
 		final double y = canvas.offScreenYD(e.getY());
 		final Point2D p = new Point2D.Double(x, y);
@@ -213,16 +159,34 @@ public class SnappingCircleTool extends AbstractTool implements PlugIn {
 		roi.shape.upperBounds[0] = p.getX() + r;
 		roi.shape.upperBounds[1] = p.getY() + r;
 		roi.shape.upperBounds[2] = 1.5 * r;
-		snapper.fitter.setNPoints((int) roi.getLength());
 
 		startDrag = p;
-		imp.setRoi(roi); 
-		IJ.showStatus(roi.shape.toString()); 
+		imp.setRoi(roi);
+		IJ.showStatus(roi.shape.toString());
 	}
-	
+
+	protected boolean getImageAndRoi() {
+		roi = null;
+		imp = WindowManager.getCurrentImage();
+		if (imp == null)
+			return false;
+		canvas = imp.getCanvas();
+
+		Roi currentRoi = imp.getRoi();
+		if ( (currentRoi != null) && (currentRoi instanceof CircleRoi) ) {
+			roi = (CircleRoi) currentRoi;
+			status = InteractionStatus.FREE;
+		} else {
+			roi = new CircleRoi();
+			status = InteractionStatus.CREATING;
+		}
+		return roi != null;
+	}
+
 	@Override
 	protected void handleMouseClick(MouseEvent e) {
-		if (roi == null) return;
+		if (!getImageAndRoi())
+			return;
 		ClickLocation cl = roi.getClickLocation(e.getPoint());
 		if (cl == ClickLocation.OUTSIDE ) {
 			imp.killRoi();
@@ -233,11 +197,28 @@ public class SnappingCircleTool extends AbstractTool implements PlugIn {
 	
 	@Override
 	protected void handleMouseRelease(MouseEvent e) {
-		snapper.snap();
+		if (roi == null)
+			return;
+
+		if (snapper != null) {
+			snapper.interrupt();
+			for (;;) try {
+				snapper.join();
+				break;
+			} catch (InterruptedException exception) { /* ignore */ }
+		}
+
+		snapper = new Snapper(new ShapeFitter(roi.shape));
+		snapper.fitter.setFunction(ParameterizedShape.EvalFunction.MEAN);
+		snapper.fitter.setImageProcessor(imp.getProcessor());
+		snapper.fitter.setNPoints((int) roi.getLength());
+		snapper.fitter.setMonitor(snapper);
+		canvas = imp.getCanvas();
+		snapper.start();
 	}
 	
 	/*
-	 * ABSTRACTTTOL METHODS
+	 * ABSTRACTTOOL METHODS
 	 */
 	
 	@Override
