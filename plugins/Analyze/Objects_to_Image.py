@@ -1,6 +1,6 @@
 from java.awt import Color
 from java.awt.event import TextListener
-from java.awt import FileDialog
+from java.awt import Dialog, FileDialog
 from java.io import File, FilenameFilter
 import re
 import ij
@@ -9,7 +9,7 @@ import copy
 from math import sqrt
 import random
 import time
-import fiji.util.gui
+import fiji.util
  
 '''
 class Filter(FilenameFilter):
@@ -303,8 +303,20 @@ def draw_pivots(pivots,image,radius):
     #imp = ImagePlus("Subset Image", ByteProcessor(image.getWidth(), image.getHeight()))
     #imp=ij.gui.NewImage().createByteImage("Subset Image",image.getWidth(),image.getHeight(),int slices,
     #                                    int options)
-    imp=ImagePlus("Subset Image",image.createEmptyStack() )
-
+    tmp=image.createEmptyStack()
+    #IJ.error( str(image.getBitDepth()))
+    imp=image.createImagePlus()#ImagePlus("Subset Image",image.createEmptyStack() )
+	
+    if image.getBitDepth() == 8:
+        imp=ij.gui.NewImage().createByteImage("Subset Image",image.getWidth(),image.getHeight(),image.getImageStackSize(),1)
+    if image.getBitDepth() == 16:
+        imp=ij.gui.NewImage.createShortImage("Subset Image",image.getWidth(),image.getHeight(),image.getImageStackSize(),1)
+    if image.getBitDepth() == 32:
+        imp=ij.gui.NewImage.createFloatImage("Subset Image",image.getWidth(),image.getHeight(),image.getImageStackSize(),1)	
+    if image.getBitDepth() == 24:
+        imp=ij.gui.NewImage.createRGBImage("Subset Image",image.getWidth(),image.getHeight(),image.getImageStackSize(),1)	
+    
+	
             
     for ep,p in enumerate(pivots):            
         if ep % 10000 == 0:
@@ -322,7 +334,7 @@ def draw_pivots(pivots,image,radius):
 refFile=""
 objectFile=""
 
-gd = fiji.util.gui.GenericDialogPlus("Plot a Synaptic Subset")
+gd = fiji.util.GenericDialogPlus("Plot a Synaptic Subset")
 gd.addFileField("Reference Channel:",refFile,20)
 gd.addFileField("Object File:",objectFile,20)
 gd.addNumericField("Keep Pixel Radius",5,4);
@@ -344,7 +356,7 @@ pivots=load_pivots(objectFile)
 Interp = ij.macro.Interpreter()
 Interp.batchMode = True
      
-print str(len(pivots))+" total pivots"
+#IJ.error( str(len(pivots))+" total pivots")
 
 image=Opener().openImage(refFile)
 image.show()

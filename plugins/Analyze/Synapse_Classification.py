@@ -68,7 +68,9 @@ def load_pivots(filename):
                 s.position=(float(line_args[3]),float(line_args[4]),float(line_args[5]))
             else:
                 #plain csv values - 'x,y,z'
+                #print line
                 line_args = (line.split(','))         
+                #print line_args
                 s.index=len(new_pivots)
                 s.size=1
                 s.brightness=0
@@ -92,9 +94,11 @@ def scan_pivots(image):
                 #get pixel value
                 p=pixels[y*w + x]
                 #check if the pixel is above a low threshold
-                if (bitdepth == 8 or bitdepth == 32) and p > 30:
+                '''if (bitdepth == 8 or bitdepth == 32) and p > 30:
                     scan=True
                 elif bitdepth == 16 and p > 7000:
+                    scan=True'''
+                if p > 0:
                     scan=True
                 else:
                     scan=False
@@ -117,13 +121,23 @@ def print_excel_pivots(pivots, filename):
 def print_pivots(pivots, filename):
     i1=open(filename, "w")
     for p in pivots:
+        #print str(p.position[0])+','+str(p.position[1])+','+str(p.position[2])
         i1.write(str(p.position[0])+','+str(p.position[1])+','+str(p.position[2])+'\n')
+    i1.close()
 
 def process_reference_channel(image,folder):
     'normalize the given image, then find its local maxima and return a list of Pivots'
     IJ.run("Subtract Background...", "rolling=10 stack")
     IJ.run("Enhance Contrast", "saturated=0 normalize normalize_all")
     IJ.run("Maximum (3D) Point")
+    
+    i=IJ.getImage()
+    bitdepth = i.getBitDepth()
+    d = i.getStackSize();
+    if bitdepth == 8 or bitdepth == 32:
+        IJ.run("Object Counter3D", "threshold=30 slice="+str(d//2)+" min=1 max=155623236 geometrical dot=1 font=12");
+    elif bitdepth==16:
+        IJ.run("Object Counter3D", "threshold=7000 slice="+str(d//2)+" min=1 max=155623236 geometrical dot=1 font=12");
 
     i=IJ.getImage()
     pivots=scan_pivots(i)
@@ -300,6 +314,7 @@ def printSimpleFeatures(filename, features):
 
 referenceImage=""
 featuresFolder=""
+subset=None
 
 #make ze gui
 gd = fiji.util.GenericDialogPlus("Array Tomography Pivot and Feature Extraction")
@@ -310,43 +325,47 @@ gd.addCheckbox("Extract local features?",True)
 gd.addDirectoryField("Feature Folder:",featuresFolder,20)
 gd.showDialog()
 if gd.wasCanceled():    print "nevermind"
+else:
+    #read in ze gui
+    referenceImage=gd.getNextString()
+    makesubset=gd.getNextBoolean()
+    subset_size=int(gd.getNextString())
+    get_features=gd.getNextBoolean()
+    featuresFolder=gd.getNextString()
 
-#read in ze gui
-referenceImage=gd.getNextString()
-makesubset=gd.getNextBoolean()
-subset_size=int(gd.getNextString())
-get_features=gd.getNextBoolean()
-featuresFolder=gd.getNextString()
+    ref_foldername=File(referenceImage).getParentFile().getPath()
+    foldername=File(featuresFolder)
 
-ref_foldername=File(referenceImage).getParentFile().getPath()
-foldername=File(featuresFolder)
+    pivots=[]
+    #turn off image showing - speeds things up a lot
+    Interp = ij.macro.Interpreter()
+    Interp.batchMode = True
 
-pivots=[]
-#turn off image showing - speeds things up a lot
-Interp = ij.macro.Interpreter()
-Interp.batchMode = True
+    if None != referenceImage:
+        im=Opener().openImage(referenceImage)
+        if im != None:
+            im.show() #it was an image - find pivots within it
+            pivots=process_reference_channel(im,ref_foldername)
+        else:        
+            pivots=load_pivots(referenceImage) #load the pivot file we were given
+    print str(len(pivots))+" total pivots"
 
-if None != referenceImage:
-    im=Opener().openImage(referenceImage)
-    if im != None:
-        im.show() #it was an image - find pivots within it
-        pivots=process_reference_channel(im,ref_foldername)
-    else:        
-        pivots=load_pivots(referenceImage) #load the pivot file we were given
-print str(len(pivots))+" total pivots"
+    if makesubset:
+        subset=make_subset(pivots)
+        #IJ.error("subset "+ref_foldername+File(referenceImage).getName()+'SubsetObjects.xls')
+        print_pivots(subset,ref_foldername+'/'+File(referenceImage).getName()+'SubsetObjects.txt')
+        
+    if get_features:
+        tifs= [f for f in File(featuresFolder).listFiles(Filter())]
+        tifs.sort(lambda a,b:cmp(a.name,b.name))
+        #IJ.error("Images to process: "+tifs[0].name)
 
-if makesubset:
-    subset=make_subset(pivots)
-    #IJ.error("subset "+ref_foldername+File(referenceImage).getName()+'SubsetObjects.xls')
-    print_pivots(subset,ref_foldername+'/'+File(referenceImage).getName()+'SubsetObjects.txt')
-    
-if get_features:
-    tifs= [f for f in File(featuresFolder).listFiles(Filter())]
-    tifs.sort(lambda a,b:cmp(a.name,b.name))
-    #IJ.error("Images to process: "+tifs[0].name)
+        features = extract_feature_loop(pivots,featuresFolder,tifs)
+        printSimpleFeatures(featuresFolder+'/'+File(referenceImage).getName()+'Features.txt',features)
 
-    features = extract_feature_loop(pivots,featuresFolder,tifs)
-    printSimpleFeatures(featuresFolder+'/'+File(referenceImage).getName()+'Features.txt',features)
+        if makesubset:
+            features = extract_feature_loop(subset,featuresFolder,tifs)
+            printSimpleFeatures(featuresFolder+'/'+File(referenceImage).getName()+'SubsetFeatures.txt',features)
 
 Interp.batchMode = False
 print "Done"

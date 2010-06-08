@@ -8,15 +8,14 @@ import ij
 import sys
 import copy
 from math import sqrt
+from math import log
 import random
 import os
 import string
 import fiji.util
- 
-global foldername
+
 global syn_radius
 syn_radius = 5
-foldername=None
 subset_size = 300
 
 class Filter(FilenameFilter):
@@ -134,6 +133,9 @@ def process_reference_channel(image):
 ''' Start of actual script '''
 ##############################
 
+referenceImage=""
+featuresFolder=""
+
 gd = fiji.util.GenericDialogPlus("Montage from Pivot List")
 gd.addFileField("Pivot List/Reference Channel:",referenceImage,20)
 gd.addDirectoryField("Stacks Folder:",featuresFolder,20)
@@ -165,13 +167,13 @@ print "Images to process: ",tifs
 
 #make a folder to put our temp files in
 try:
-    os.mkdir(foldername+"tmp/")
+    os.mkdir(featuresFolder+"/tmp/")
 except:
     pass #it probably already exists
 
 #make a folder to put our results in
 try:
-    os.mkdir(foldername+"montage/")
+    os.mkdir(featuresFolder+"/montage/")
 except:
     pass #it probably already exists
 
@@ -189,7 +191,7 @@ IJ.showProgress(0.0);
 
 for et,t in enumerate(tifs):
     IJ.showProgress(0.5*et/len(tifs));
-    i = Opener().openImage(foldername, t.name)
+    i = Opener().openImage(featuresFolder, t.name)
     print t.name
     #normalize the image
     i.show()
@@ -211,15 +213,14 @@ for et,t in enumerate(tifs):
     #Okay, start processing ROIs
     for ep,p in enumerate(pivots):#ROIs):
         #get the next ROI
-        roiname=ep#r.getName()
-        slicenum=p.position[2]#manager.getSliceNumber(roiname)       
+        roiname=str(p.position)#r.getName()
+        slicenum=int(p.position[2])#manager.getSliceNumber(roiname)       
         #manager.select(er)
         i.setSlice(slicenum+syn_radius)
 
         #if isinstance(r,ij.gui.PointRoi): #if the ROIs are points, convert to centered rects
         #rb=r.getBounds()
         r=ij.gui.Roi(int(p.position[0]-syn_radius),int(p.position[1]-syn_radius),1+2*syn_radius,1+2*syn_radius)
-
         #move the ROI over to account for the padding we added earlier
         newr=r.clone()
         newr.setLocation(int(newr.getBounds().getX())+syn_radius,int(newr.getBounds().getY())+syn_radius)
@@ -227,8 +228,10 @@ for et,t in enumerate(tifs):
         #Make a substack with the shifted ROI
         dupe=ij.plugin.filter.Duplicater()
         i.setRoi(newr)
-        smalli = dupe.duplicateSubstack(i,i.getTitle()+" "+roiname,slicenum,slicenum+2*syn_radius)
-        IJ.saveAs(smalli,"Tiff",foldername+"tmp/"+smalli.getTitle())
+        #print roiname, slicenum, newr.getBounds().getX(), newr.getBounds().getY(), i.width, i.height
+        smalli = ij.plugin.Duplicator().run(i,slicenum,slicenum+2*syn_radius);
+        #smalli = dupe.duplicateSubstack(i,i.getTitle()+" "+roiname,slicenum,slicenum+2*syn_radius)
+        IJ.saveAs(smalli,"Tiff",featuresFolder+"/tmp/"+str(ep).zfill(int(round(log(len(pivots))/log(10))))+i.getTitle()+" "+roiname)
         smalli.close()
     i.close()
     while ij.WindowManager.getCurrentImage():
@@ -236,10 +239,11 @@ for et,t in enumerate(tifs):
 
 #all tifs have made subvolumes, so let's make some montage
 
-roiFiles=[f for f in File(foldername+"tmp/").listFiles(Filter())]
+roiFiles=[f for f in File(featuresFolder+"/tmp/").listFiles(Filter())]
 import re    
+print len(pivots)
 for ep,p in enumerate(pivots):#for er,r in enumerate(ROIs): #for each pivot
-    roiname=ep#r.getName() #the "name" (location) of the ROI
+    roiname=str(p.position)#r.getName() #the "name" (location) of the ROI
     #if the ROI manager added a -1 at the end of the ROI, remove the -1
     #roiname=re.split("-.$",roiname)[0]
     #roiCurr - all the channels from /tmp for this roi
@@ -259,7 +263,7 @@ for ep,p in enumerate(pivots):#for er,r in enumerate(ROIs): #for each pivot
     
     firstImg=None#firstImg = the one in red on all the other channels
     for img in roiCurr:
-        i = Opener().openImage(foldername+"tmp/", img.name)
+        i = Opener().openImage(featuresFolder+"/tmp/", img.name)
         i.show()
         i=IJ.getImage()
         if i.getBitDepth() == 32:
@@ -283,7 +287,7 @@ for ep,p in enumerate(pivots):#for er,r in enumerate(ROIs): #for each pivot
     IJ.run("Make Montage...", "columns=1 rows="+str(len(roiCurr))+" scale=1 first=1 last="+str(len(roiCurr))+" increment=1 border=0 font=12 label use"); 
     IJ.selectWindow("Montage")
     mont=IJ.getImage()
-    IJ.saveAs(mont,"Tiff",foldername+"montage/"+str(er)+".tif")
+    IJ.saveAs(mont,"Tiff",featuresFolder+"/montage/"+str(ep).zfill(int(round(log(len(pivots))/log(10))))+".tif")
     mont.close()
     while ij.WindowManager.getCurrentImage():
         ij.WindowManager.getCurrentImage().close()
