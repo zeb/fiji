@@ -64,6 +64,7 @@ import javax.swing.JTabbedPane;
 import javax.swing.JTextArea;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
+import javax.swing.UIManager;
 
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
@@ -92,7 +93,7 @@ public class TextEditor extends JFrame implements ActionListener,
 		  runSelection, extractSourceJar, toggleBookmark,
 		  listBookmarks, openSourceForClass, newPlugin, installMacro,
 		  openSourceForMenuItem, showDiff, commit;
-	JMenu tabsMenu;
+	JMenu gitMenu, tabsMenu;
 	int tabsMenuTabsStart;
 	Set<JMenuItem> tabsMenuItems;
 	FindAndReplaceDialog findDialog;
@@ -261,13 +262,17 @@ public class TextEditor extends JFrame implements ActionListener,
 		openSourceForMenuItem = addToMenu(tools,
 			"Open .java file for menu item...", 0, 0);
 		openSourceForMenuItem.setMnemonic(KeyEvent.VK_M);
-		showDiff = addToMenu(tools,
+		mbar.add(tools);
+
+		gitMenu = new JMenu("Git");
+		gitMenu.setMnemonic(KeyEvent.VK_G);
+		showDiff = addToMenu(gitMenu,
 			"Show diff...", 0, 0);
 		showDiff.setMnemonic(KeyEvent.VK_D);
-		commit = addToMenu(tools,
+		commit = addToMenu(gitMenu,
 			"Commit...", 0, 0);
-		commit.setMnemonic(KeyEvent.VK_T);
-		mbar.add(tools);
+		commit.setMnemonic(KeyEvent.VK_C);
+		mbar.add(gitMenu);
 
 		tabsMenu = new JMenu("Tabs");
 		tabsMenu.setMnemonic(KeyEvent.VK_A);
@@ -771,7 +776,7 @@ public class TextEditor extends JFrame implements ActionListener,
 	}
 
 	public void open(String path) {
-		if (path.startsWith("class:")) try {
+		if (path != null && path.startsWith("class:")) try {
 			path = new FileFunctions(this).getSourcePath(path.substring(6));
 			if (path == null)
 				return;
@@ -780,16 +785,18 @@ public class TextEditor extends JFrame implements ActionListener,
 		}
 
 		/*
-		 * We need to remove RSyntaxTextArea's cached action map if
-		 * there is even the slightest chance that a new TextArea
-		 * is instantiated from a different class loader than the
-		 * map's actions.
+		 * We need to remove RSyntaxTextArea's cached key, input and
+		 * action map if there is even the slightest chance that a new
+		 * TextArea is instantiated from a different class loader than
+		 * the map's actions.
 		 *
 		 * Otherwise the instanceof check will pretend that the new text
 		 * area is not an instance of RTextArea, and as a consequence,
 		 * no keyboard input will be possible.
 		 */
 		JTextComponent.removeKeymap("RTextAreaKeymap");
+		UIManager.put("RSyntaxTextAreaUI.actionMap", null);
+		UIManager.put("RSyntaxTextAreaUI.inputMap", null);
 
 		try {
 			boolean wasNew =
@@ -1029,8 +1036,7 @@ public class TextEditor extends JFrame implements ActionListener,
 		installMacro.setEnabled(isMacro);
 
 		boolean isInGit = new FileFunctions(this).getGitDirectory(getEditorPane().file) != null;
-		showDiff.setEnabled(isInGit);
-		commit.setEnabled(isInGit);
+		gitMenu.setVisible(isInGit);
 	}
 
 	public void setFileName(String baseName) {
