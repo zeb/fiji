@@ -45,9 +45,17 @@ public class RoiOverlay implements Overlay {
 	Roi roi = null;
 	Color color = Roi.getColor();
 	Composite composite = AlphaComposite.getInstance(AlphaComposite.SRC_OVER);
-	
+	/**
+	 * Empty constructor
+	 */
 	public RoiOverlay(){}
 	
+	/**
+	 * Create a RoiOverlay based on a Roi and a specific color and composite mode.
+	 * @param roi original image region of interest
+	 * @param composite composite mode
+	 * @param color color to paint the RoiOverlay
+	 */
 	public RoiOverlay(Roi roi, Composite composite, Color color)
 	{
 		setRoi( roi );
@@ -55,7 +63,7 @@ public class RoiOverlay implements Overlay {
 		setColor( color );
 	}
 	
-	@Override
+	//@Override
 	public void paint(Graphics g, int x, int y, double magnification) {
 		if ( null == this.roi )
 			return;

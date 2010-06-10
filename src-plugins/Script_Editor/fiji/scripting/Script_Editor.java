@@ -17,9 +17,13 @@ import java.net.URL;
 import java.net.URLClassLoader;
 
 public class Script_Editor implements PlugIn {
+	protected static TextEditor instance;
+
+	public static TextEditor getInstance() {
+		return instance;
+	}
 
 	public void run(String path) {
-		addToolsJarToClassPath();
 		String options = Macro.getOptions();
 		if (options != null) {
 			if (path == null || path.equals(""))
@@ -33,7 +37,15 @@ public class Script_Editor implements PlugIn {
 							path.length() - 1);
 			}
 		}
-		new TextEditor(path).setVisible(true);
+		if (instance == null || !instance.isVisible()) {
+			addToolsJarToClassPath();
+			instance = new TextEditor(path);
+			instance.setVisible(true);
+		}
+		else {
+			instance.open(path);
+			instance.toFront();
+		}
 	}
 
 	final private static String gitwebURL =

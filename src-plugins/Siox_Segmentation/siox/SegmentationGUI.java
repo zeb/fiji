@@ -26,16 +26,23 @@ import java.awt.Panel;
 import java.awt.Shape;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.WindowEvent;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Area;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.ObjectOutputStream;
 
 import fiji.util.gui.OverlayedImageCanvas;
 import ij.IJ;
 import ij.ImagePlus;
+import ij.Prefs;
 import ij.gui.ImageWindow;
 import ij.gui.Roi;
 import ij.gui.ShapeRoi;
 import ij.gui.ShapeRoiHelper;
+import ij.io.OpenDialog;
+import ij.io.SaveDialog;
 import ij.process.Blitter;
 import ij.process.ByteProcessor;
 import ij.process.FloatProcessor;
@@ -50,7 +57,7 @@ import org.siox.SioxSegmentator;
 /**
  * SIOX segmentation Graphical User Interface
  * 
- * @author Ignacio Arganda-Carreras (ignacio.arganda at gmail.com)
+ * @author Ignacio Arganda-Carreras (iarganda at mit.edu)
  *
  */
 public class SegmentationGUI extends ImageWindow implements ActionListener
@@ -70,7 +77,6 @@ public class SegmentationGUI extends ImageWindow implements ActionListener
 	protected ImageOverlay resultOverlay;
 	protected ControlJPanel controlPanel;
 	ImageProcessor ip;
-	ImageProcessor originalImage;
 	
 	final Composite transparency050 = AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.50f );	
 	final Composite transparency075 = AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.75f );
@@ -84,8 +90,8 @@ public class SegmentationGUI extends ImageWindow implements ActionListener
 	 */
 	public SegmentationGUI(ImagePlus imp) 
 	{
-		super(imp, new OverlayedImageCanvas(imp) );
-				
+		super(imp, new OverlayedImageCanvas(imp) );					
+		
 		while(ic.getWidth() > 800 && ic.getHeight() > 600)
 			IJ.run(imp, "Out","");
 		
@@ -116,6 +122,7 @@ public class SegmentationGUI extends ImageWindow implements ActionListener
 		controlPanel.segmentJButton.addActionListener(this);
 		controlPanel.resetJButton.addActionListener(this);
 		controlPanel.createMaskJButton.addActionListener(this);
+		controlPanel.saveSegmentatorJButton.addActionListener(this);
 		controlPanel.addJRadioButton.addActionListener(this);
 		controlPanel.subJRadioButton.addActionListener(this);
 		controlPanel.refineJButton.addActionListener(this);		
@@ -126,16 +133,15 @@ public class SegmentationGUI extends ImageWindow implements ActionListener
   	    all.add(imagePanel);
   	    all.add(controlPanel);
   	    
-  	    add(all);  	      	    
+  	    add(all);  	      	      	   
 		
-	    this.pack();	    	    	    
-	    this.setVisible(true);
-	    	   
+	    this.pack();	 	    
+	    this.setVisible(true);    	   
 	}
     
 
 	
-	@Override
+	//@Override
 	public synchronized void actionPerformed(ActionEvent e) 
 	{
 		if (e.getSource() == controlPanel.bgJRadioButton && lastButton != controlPanel.bgJRadioButton) {
@@ -146,24 +152,20 @@ public class SegmentationGUI extends ImageWindow implements ActionListener
 		else if (e.getSource() == controlPanel.fgJRadioButton && lastButton != controlPanel.fgJRadioButton) {
 			roiOverlay.setColor(Color.RED);
 			backgroundRoi = setNewRoi(foregroundRoi, roiOverlay);		
-			lastButton = controlPanel.fgJRadioButton;
+			lastButton = controlPanel.fgJRadioButton;			
 		}
 		else if (e.getSource() == controlPanel.segmentJButton) {
 			segment();
 		}
-		else if (e.getSource() == controlPanel.addJRadioButton && lastButton != controlPanel.addJRadioButton) {
-			controlPanel.subJRadioButton.setSelected(false);
-			lastButton = controlPanel.addJRadioButton;
-			controlPanel.updateComponentEnabling();
+		else if (e.getSource() == controlPanel.addJRadioButton && lastButton != controlPanel.addJRadioButton) {			
 			roiOverlay.setColor(Color.RED);
-			subRoi = setNewRoi(addRoi, roiOverlay);						
+			subRoi = setNewRoi(addRoi, roiOverlay);
+			lastButton = controlPanel.addJRadioButton;
 		}
-		else if (e.getSource() == controlPanel.subJRadioButton && lastButton != controlPanel.subJRadioButton) {
-			controlPanel.addJRadioButton.setSelected(false);
-			lastButton = controlPanel.subJRadioButton;
-			controlPanel.updateComponentEnabling();
+		else if (e.getSource() == controlPanel.subJRadioButton && lastButton != controlPanel.subJRadioButton) {			
 			roiOverlay.setColor(Color.GREEN);
-			addRoi = setNewRoi(subRoi, roiOverlay);			
+			addRoi = setNewRoi(subRoi, roiOverlay);
+			lastButton = controlPanel.subJRadioButton;
 		}
 		else if (e.getSource() == controlPanel.refineJButton) {
 			refine();
@@ -173,9 +175,54 @@ public class SegmentationGUI extends ImageWindow implements ActionListener
 		}
 		else if (e.getSource() == controlPanel.createMaskJButton) {
 			createBinaryMask();
+		}	
+		else if (e.getSource() == controlPanel.saveSegmentatorJButton) {
+			saveSegmentator();
 		}
-
+			
 	}
+
+	/**
+	 * Save current segmentator into a file
+	 */
+	private void saveSegmentator() 
+	{
+		if ( controlPanel.status != ControlJPanel.SEGMENTED_STATUS )
+		{
+			IJ.error("No segmentator found!");
+			return;
+		}
+		
+		String currentDirectory = (OpenDialog.getLastDirectory() == null) ? 
+				 OpenDialog.getDefaultDirectory() : OpenDialog.getLastDirectory();
+				 
+		if(null == currentDirectory)
+			currentDirectory = ".";
+		
+		SaveDialog sd = new SaveDialog("Save segmentator", currentDirectory, 
+				"segmentator-"+this.imp.getTitle(), ".siox");
+		
+		String filename = sd.getFileName();
+		
+		FileOutputStream fos = null;
+		ObjectOutputStream out = null;
+		try
+		{
+			fos = new FileOutputStream(sd.getDirectory() + filename);
+			out = new ObjectOutputStream(fos);
+			out.writeObject(
+					new SegmentationInfo(siox.getBgSignature(), 
+							siox.getFgSignature(), controlPanel.smoothness.getValue(), 
+							controlPanel.multipart.isSelected()?4:0));
+			out.close();
+		}
+		catch(IOException ex)
+		{
+			ex.printStackTrace();
+		}
+	}
+
+
 
 	/**
 	 * Produce a binary image based on the current confidence matrix
@@ -186,6 +233,9 @@ public class SegmentationGUI extends ImageWindow implements ActionListener
 		{
 			final ByteProcessor result = (ByteProcessor) confMatrix.convertToByte(false);
 			result.multiply(255);
+			// Set background color based on the Process > Binary > Options 
+			if(!Prefs.blackBackground)
+				result.invert();
 			new ImagePlus("Mask", result).show();
 		}
 				
@@ -203,11 +253,12 @@ public class SegmentationGUI extends ImageWindow implements ActionListener
 		confMatrix = null;
 		
 		// Set initial status
-		controlPanel.status = foregroundRoi != null ? 
-				ControlJPanel.FG_ADDED_STATUS : ControlJPanel.ROI_DEFINED_STATUS;
-		controlPanel.updateComponentEnabling();		
-		lastButton = controlPanel.fgJRadioButton;
-		roiOverlay.setColor(Color.RED);
+		controlPanel.status = ControlJPanel.FG_ADDED_STATUS;			
+		lastButton = controlPanel.fgJRadioButton.isSelected() ? 
+				controlPanel.fgJRadioButton : controlPanel.bgJRadioButton;
+		 
+		roiOverlay.setColor( controlPanel.fgJRadioButton.isSelected() ? Color.RED : Color.GREEN);
+		 
 		roiOverlay.setComposite( transparency050 );
 		
 		if (controlPanel.bgJRadioButton.isSelected()) {
@@ -218,6 +269,8 @@ public class SegmentationGUI extends ImageWindow implements ActionListener
 			imp.setRoi(foregroundRoi);
 			roiOverlay.setRoi(backgroundRoi);
 		}
+		
+		controlPanel.updateComponentEnabling();
 		
 		imp.changes = true;		
 		imp.updateAndDraw();		
@@ -254,7 +307,7 @@ public class SegmentationGUI extends ImageWindow implements ActionListener
 	 */
 	private synchronized void refine()
 	{
-		if ( controlPanel.status != ControlJPanel.SEGMENTATED_STATUS )
+		if ( controlPanel.status != ControlJPanel.SEGMENTED_STATUS )
 			return;
 		
 		if(controlPanel.addJRadioButton.isSelected())
@@ -305,7 +358,7 @@ public class SegmentationGUI extends ImageWindow implements ActionListener
 	
 		// Create confidence matrix and initialize to unknown region of confidence
 		confMatrix = new FloatProcessor(imp.getWidth(), imp.getHeight());
-		final float[] imgData = (float[])confMatrix.getPixels();
+		final float[] confMatrixArray = (float[])confMatrix.getPixels();
 		confMatrix.add( SioxSegmentator.UNKNOWN_REGION_CONFIDENCE );
 		
 		// Set foreground ROI
@@ -325,16 +378,16 @@ public class SegmentationGUI extends ImageWindow implements ActionListener
 			// Workaround: select border pixels which are not foreground as background if no background was specified.
 			int w = imp.getWidth(), h = imp.getHeight();
 			for (int i = 0; i < w; i++) {
-				if (imgData[i] < 0.8f)
-					imgData[i] = 0;
-				if (imgData[i + w * (h - 1)] < 0.8f)
-					imgData[i + w * (h - 1)] = 0;
+				if (confMatrixArray[i] < 0.8f)
+					confMatrixArray[i] = 0;
+				if (confMatrixArray[i + w * (h - 1)] < 0.8f)
+					confMatrixArray[i + w * (h - 1)] = 0;
 			}
 			for (int i = 0; i < h; i++) {
-				if (imgData[w * i] < 0.8f)
-					imgData[w * i] = 0;
-				if (imgData[w - 1 + w * i] < 0.8f)
-					imgData[w - 1 + w * i] = 0;
+				if (confMatrixArray[w * i] < 0.8f)
+					confMatrixArray[w * i] = 0;
+				if (confMatrixArray[w - 1 + w * i] < 0.8f)
+					confMatrixArray[w - 1 + w * i] = 0;
 			}
 		}
 		
@@ -344,7 +397,31 @@ public class SegmentationGUI extends ImageWindow implements ActionListener
 		final int smoothes = controlPanel.smoothness.getValue();
 				
 		siox = new SioxSegmentator(imp.getWidth(), imp.getHeight(), null);
-		boolean success = siox.segmentate(pixels, imgData, smoothes, controlPanel.multipart.isSelected()?4:0);
+		
+		boolean multipleObjects = controlPanel.multipart.isSelected();
+		
+		if(!multipleObjects)
+		{
+			// Check if multiple foreground ROIs.
+			if(foregroundRoi instanceof ShapeRoi)
+			{
+				Roi[] rois = ((ShapeRoi) foregroundRoi).getRois();
+				if (rois.length > 1)
+				{
+					// Multiple foreground ROIs involve multiple objects
+					multipleObjects = true;
+					controlPanel.multipart.setSelected(true);
+				}
+			}
+		}
+		
+		boolean success = false;
+		
+		try{
+			success = siox.segmentate(pixels, confMatrixArray, smoothes, multipleObjects ? 4:0);
+		}catch(IllegalStateException ex){
+			IJ.error("Siox Segmentation", "ERROR: foreground signature does not exist.");
+		}
 		
 		if(!success)		
 			IJ.error("Siox Segmentation", "The segmentation failed!");										
@@ -352,10 +429,15 @@ public class SegmentationGUI extends ImageWindow implements ActionListener
 		updateResult();
 		
 		// Set status flag to segmented
-		controlPanel.status = ControlJPanel.SEGMENTATED_STATUS;
+		controlPanel.status = ControlJPanel.SEGMENTED_STATUS;
 		controlPanel.updateComponentEnabling();
 		
 		roiOverlay.setComposite( transparency100 );
+		
+		// Set up next panel components
+		controlPanel.subJRadioButton.setSelected(true);
+		controlPanel.addJRadioButton.setSelected(false);
+		lastButton = controlPanel.subJRadioButton; 
 	}
 
 
@@ -376,6 +458,17 @@ public class SegmentationGUI extends ImageWindow implements ActionListener
 		imp.updateAndDraw();		
 	}
 	
-
+	/**
+	 * Overwrite windowClosing to display the input image after closing GUI
+	 */
+	public void windowClosing(WindowEvent e) 
+	{		
+		final ImagePlus img = new ImagePlus(super.imp.getTitle(), super.imp.getProcessor().duplicate());
+		img.changes = super.imp.changes;
+		img.show();
+		super.imp.changes = false;
+		super.windowClosing(e);		
+		
+	}
 	
 }// end class SegmentationGUI
