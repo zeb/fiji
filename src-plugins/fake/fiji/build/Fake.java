@@ -438,6 +438,32 @@ public class Fake {
 				}
 			}
 
+			// add <name>-clean rules
+			List newSpecials = new ArrayList();
+			Iterator iter = allRules.keySet().iterator();
+			while (iter.hasNext()) {
+				final String key = (String)iter.next();
+				final Rule rule = getRule(key);
+				if (key.endsWith("-clean") ||
+						key.endsWith("-clean-dry-run") ||
+						(rule instanceof Special))
+					continue;
+				final String cleanKey = key + "-clean";
+				// avoid concurrent modification
+				if (!allRules.containsKey(cleanKey))
+					newSpecials.add(new Special(cleanKey) {
+						void action() { rule.clean(false); }
+					});
+				final String dryRunCleanKey = cleanKey + "-dry-run";
+				if (!allRules.containsKey(dryRunCleanKey))
+					newSpecials.add(new Special(dryRunCleanKey) {
+						void action() { rule.clean(true); }
+					});
+			}
+			iter = newSpecials.iterator();
+			while (iter.hasNext())
+				addSpecialRule((Special)iter.next());
+
 			lineNumber = -1;
 
 			result = allRule;
@@ -543,9 +569,10 @@ public class Fake {
 		boolean isSubmodule(String directory) {
 			if (directory == null)
 				return false;
-			File dir = new File(directory);
+			File dir = new File(makePath(cwd, directory));
 			return dir.isDirectory() ||
-				(!dir.exists() && directory.endsWith("/"));
+				(!dir.exists() && directory.endsWith("/") &&
+				 allRules.get(stripSuffix(directory, "/")) == null);
 		}
 
 		int addMatchingTargets(String glob, List sortedPrereqs) {
@@ -556,6 +583,9 @@ public class Fake {
 			Iterator iter = allRules.keySet().iterator();
 			while (iter.hasNext()) {
 				String target = (String)iter.next();
+				Rule rule = (Rule)allRules.get(target);
+				if (rule instanceof Special || rule instanceof All)
+					continue;
 				if (!filter.accept(null, target))
 					continue;
 				int index = Collections
@@ -1241,6 +1271,22 @@ public class Fake {
 			public String getPrerequisiteString() {
 				return prerequisiteString;
 			}
+
+			public String getStripPath() {
+				String s = prerequisiteString.trim();
+				if (s.startsWith("**/"))
+					return "";
+				int stars = s.indexOf("/**/");
+				if (stars < 0)
+					return "";
+				int space = s.indexOf(' ');
+				if (space > 0 && space < stars) {
+					if (s.charAt(space - 1) == '/')
+						return s.substring(0, space);
+					return "";
+				}
+				return s.substring(0, stars + 1);
+			}
 		}
 
 		class All extends Rule {
@@ -1266,7 +1312,7 @@ public class Fake {
 			}
 		}
 
-		class SubFake extends Rule {
+		public class SubFake extends Rule {
 			String jarName;
 			String baseName;
 			String source;
@@ -1283,7 +1329,7 @@ public class Fake {
 				String[] paths =
 					split(getVar("CLASSPATH"), ":");
 				for (int i = 0; i < paths.length; i++)
-					prerequisites.add(paths[i]);
+					prerequisites.add(prerequisites.size() - 1, paths[i]);
 				if (!new File(makePath(cwd, directory)).exists())
 					err.println("Warning: " + directory
 						+ " does not exist!");
@@ -1349,6 +1395,10 @@ public class Fake {
 			}
 
 			void action(String directory) throws FakeException {
+				action(directory, jarName);
+			}
+
+			void action(String directory, String subTarget) throws FakeException {
 				fakeOrMake(cwd, directory,
 					getVarBool("VERBOSE", directory),
 					getVarBool("IGNOREMISSINGFAKEFILES",
@@ -1358,7 +1408,7 @@ public class Fake {
 					getVar("PLUGINSCONFIGDIRECTORY")
 						+ "/" + baseName + ".Fakefile",
 					getBuildDir(),
-					jarName);
+					subTarget);
 			}
 
 			String getVarPath(String variable, String subkey) {
@@ -1379,16 +1429,14 @@ public class Fake {
 			}
 
 			protected void clean(boolean dry_run) {
-				File buildDir = getBuildDir();
-				if (buildDir == null) {
-					super.clean(dry_run);
-					return;
+				super.clean(dry_run);
+				clean(getLastPrerequisite() + jarName, dry_run);
+				if (new File(makePath(cwd, getLastPrerequisite()), "Fakefile").exists()) try {
+					action(getLastPrerequisite(), jarName + "-clean"
+						+ (dry_run ? "-dry-run" : ""));
+				} catch (FakeException e) {
+					e.printStackTrace(err);
 				}
-				if (dry_run)
-					out.println("rm -rf "
-							+ buildDir.getPath());
-				else if (buildDir.exists())
-					deleteRecursively(buildDir);
 			}
 		}
 
@@ -1531,22 +1579,6 @@ public class Fake {
 				return getVariable("MAINCLASS", target);
 			}
 
-			String getStripPath() {
-				String s = prerequisiteString.trim();
-				if (s.startsWith("**/"))
-					return "";
-				int stars = s.indexOf("/**/");
-				if (stars < 0)
-					return "";
-				int space = s.indexOf(' ');
-				if (space > 0 && space < stars) {
-					if (s.charAt(space - 1) == '/')
-						return s.substring(0, space);
-					return "";
-				}
-				return s.substring(0, stars + 1);
-		}
-
 			protected void clean(boolean dry_run) {
 				super.clean(dry_run);
 				File buildDir = getBuildDir();
@@ -1663,12 +1695,12 @@ public class Fake {
 			String compileCXX(String path)
 					throws IOException, FakeException {
 				linkCPlusPlus = true;
-				return compile(path, "g++", "CXXFLAGS");
+				return compile(path, gxx(), "CXXFLAGS");
 			}
 
 			String compileC(String path)
 					throws IOException, FakeException {
-				return compile(path, "gcc", "CFLAGS");
+				return compile(path, gcc(), "CFLAGS");
 			}
 
 			String compile(String path, String compiler,
@@ -1685,7 +1717,7 @@ public class Fake {
 					execute(arguments, path,
 						getVarBool("VERBOSE", path));
 					return path.substring(0,
-						path.length() - 4) + ".o";
+						path.length() - (compiler.endsWith("++") ? 4 : 2)) + ".o";
 				} catch(FakeException e) {
 					return error("compile", path, e);
 				}
@@ -1700,7 +1732,7 @@ public class Fake {
 					file = moveToUpdateDirectory(file);
 				}
 				List arguments = new ArrayList();
-				arguments.add(linkCPlusPlus ? "g++" : "gcc");
+				arguments.add(linkCPlusPlus ? gxx() : gcc());
 				arguments.add("-o");
 				arguments.add(file.getAbsolutePath());
 				addFlags("LDFLAGS", target, arguments);
@@ -1712,6 +1744,19 @@ public class Fake {
 				} catch(Exception e) {
 					error("link", target, e);
 				}
+			}
+
+			String gcc() {
+				return getenv("CC", "gcc");
+			}
+
+			String gxx() {
+				return getenv("CXX", "g++");
+			}
+
+			String getenv(String key, String fallback) {
+				String value = System.getenv(key);
+				return value == null ? fallback : value;
 			}
 
 			void fallBackToPrecompiled(String reason)
@@ -1974,7 +2019,8 @@ public class Fake {
 			if (starstar && names[i].startsWith("."))
 				continue;
 			if (names[i].equals(".git") || names[i].endsWith(".swp")
-					|| names[i].endsWith(".swo"))
+					|| names[i].endsWith(".swo")
+					|| names[i].endsWith("~"))
 				continue;
 			File file = new File(makePath(cwd, path));
 			if (nextSlash < 0) {
@@ -2086,9 +2132,9 @@ public class Fake {
 		}
 	}
 
-	protected static String getPrefix(String path) {
+	protected String getPrefix(File cwd, String path) {
 		try {
-			InputStream input = new FileInputStream(path);
+			InputStream input = new FileInputStream(makePath(cwd, path));
 			InputStreamReader inputReader =
 				new InputStreamReader(input);
 			BufferedReader reader = new BufferedReader(inputReader);
@@ -2106,6 +2152,9 @@ public class Fake {
 							line.length() - 1);
 				line = line.replace(".", "/");
 				int slash = path.lastIndexOf("/");
+				int backslash = path.lastIndexOf("\\");
+				if (backslash > slash)
+					slash = backslash;
 				if (path.endsWith(line + path.substring(slash)))
 					return path.substring(0, path.length() -
 							line.length() -
@@ -2142,7 +2191,7 @@ public class Fake {
 					continue;
 				}
 				if (lastJava != null) {
-					String prefix = getPrefix(makePath(cwd, lastJava));
+					String prefix = getPrefix(cwd, lastJava);
 					if (prefix != null)
 						result.add(prefix);
 					else
@@ -2356,7 +2405,7 @@ public class Fake {
 						verbose);
 					continue;
 				}
-				if (realName.endsWith("/") ||
+				if (realName.endsWith("/") || realName.endsWith("\\") ||
 						realName.equals("")) {
 					lastBase = realName;
 					continue;
@@ -2609,6 +2658,13 @@ public class Fake {
 			if (args[0].startsWith("../"))
 				args[0] = new File(dir,
 						args[0]).getAbsolutePath();
+			else if (args[0].equals("bash") && getPlatform().equals("win64")) {
+				String[] newArgs = new String[args.length + 2];
+				newArgs[0] = System.getenv("WINDIR") + "\\SYSWOW64\\cmd.exe";
+				newArgs[1] = "/C";
+				System.arraycopy(args, 0, newArgs, 2, args.length);
+				args = newArgs;
+			}
 		}
 
 		Process proc = Runtime.getRuntime().exec(args, null, dir);

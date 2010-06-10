@@ -6,6 +6,7 @@ import fiji.build.Fake;
 
 import ij.IJ;
 import ij.ImagePlus;
+import ij.Macro;
 import ij.Menus;
 
 import ij.io.PluginClassLoader;
@@ -41,6 +42,11 @@ public class Refresh_Javas extends RefreshScripts {
 	public void run(String arg) {
 		setLanguageProperties(".java", "Java");
 		setVerbose(false);
+		if (arg == null || arg.equals("")) {
+			arg = Macro.getOptions();
+			if (arg != null)
+				arg = arg.trim();
+		}
 		super.run(arg);
 	}
 
@@ -51,12 +57,18 @@ public class Refresh_Javas extends RefreshScripts {
 
 	/** Compile and run an ImageJ plugin */
 	public void runScript(String path) {
+		compileAndRun(path, false);
+	}
+
+	/** Compile and optionally run an ImageJ plugin */
+	public void compileAndRun(String path, boolean compileOnly) {
 		String c = path;
 		if (c.endsWith(".java")) {
 			try {
 				String[] result = fake(path);
 				if (result != null) {
-					runPlugin(result[1], result[0], true);
+					if (!compileOnly)
+						runPlugin(result[1], result[0], true);
 					return;
 				}
 			} catch (Exception e) {
@@ -86,7 +98,8 @@ public class Refresh_Javas extends RefreshScripts {
 				runOutOfTreePlugin(path);
 				return;
 			}
-			runPlugin(c.replace('/', '.'));
+			if (!compileOnly)
+				runPlugin(c.replace('/', '.'));
 		} catch (Exception e) {
 			e.printStackTrace(new PrintStream(err));
 		}
@@ -147,6 +160,8 @@ public class Refresh_Javas extends RefreshScripts {
 		} catch (FileNotFoundException e) {
 			e.printStackTrace(new PrintStream(err));
 		}
+		if (parser != null && parser.getRule(target) == null)
+			target = "jars/" + base + ".jar";
 		if (parser == null || parser.getRule(target) == null) {
 			String rule = "all <- " + target + "\n"
 				+ "\n"
