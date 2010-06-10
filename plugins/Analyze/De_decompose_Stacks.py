@@ -7,7 +7,7 @@ import ij
 import sys
 import os
 import copy
-import fiji.util
+import fiji.util.gui
 #import register_virtual_stack
  
 ##############################
@@ -16,7 +16,7 @@ import fiji.util
 
 unalignedFile=""
 transformFile=""
-gd = fiji.util.GenericDialogPlus("Mass Transform Virtual Stack Sections")
+gd = fiji.util.gui.GenericDialogPlus("Mass Transform Virtual Stack Sections")
 gd.addDirectoryField("Unaligned Sections Folder:",unalignedFile,20)
 gd.addDirectoryField("Transform Folder:",transformFile,20)
 gd.showDialog()
