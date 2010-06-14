@@ -25,6 +25,7 @@ import java.awt.event.WindowEvent;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -525,6 +526,10 @@ public class TextEditor extends JFrame implements ActionListener,
 		return false;
 	}
 
+	protected void grabFocus() {
+		toFront();
+	}
+
 	public void actionPerformed(ActionEvent ae) {
 		final Object source = ae.getSource();
 		if (source == newFile)
@@ -536,6 +541,7 @@ public class TextEditor extends JFrame implements ActionListener,
 				System.getProperty("fiji.dir");
 			OpenDialog dialog = new OpenDialog("Open...",
 					defaultDir, "");
+			grabFocus();
 			String name = dialog.getFileName();
 			if (name != null)
 				open(dialog.getDirectory() + name);
@@ -828,6 +834,7 @@ public class TextEditor extends JFrame implements ActionListener,
 	public boolean saveAs() {
 		SaveDialog sd = new SaveDialog("Save as ",
 				getEditorPane().getFileName() , "");
+		grabFocus();
 		String name = sd.getFileName();
 		if (name == null)
 			return false;
@@ -887,8 +894,11 @@ public class TextEditor extends JFrame implements ActionListener,
 		if (name.endsWith(currentLanguage.extension))
 			name = name.substring(0, name.length()
 				- currentLanguage.extension.length());
+		if (name.indexOf('_') < 0)
+			name += "_";
 		name += ".jar";
 		SaveDialog sd = new SaveDialog("Export ", name, ".jar");
+		grabFocus();
 		name = sd.getFileName();
 		if (name == null)
 			return false;
@@ -919,13 +929,25 @@ public class TextEditor extends JFrame implements ActionListener,
 		File tmpDir = null, file = getEditorPane().file;
 		String sourceName = null;
 		Languages.Language currentLanguage = getCurrentLanguage();
-		if (currentLanguage.interpreter instanceof Refresh_Javas) try {
-			String sourcePath = file.getAbsolutePath();
-			Refresh_Javas java =
-				(Refresh_Javas)currentLanguage.interpreter;
+		if (!(currentLanguage.interpreter instanceof Refresh_Javas))
+			sourceName = file.getName();
+		if (!currentLanguage.menuLabel.equals("None")) try {
 			tmpDir = File.createTempFile("tmp", "");
 			tmpDir.delete();
 			tmpDir.mkdir();
+
+			String sourcePath;
+			Refresh_Javas java;
+			if (sourceName == null) {
+	 			sourcePath = file.getAbsolutePath();
+				java = (Refresh_Javas)currentLanguage.interpreter;
+			}
+			else {
+				// this is a script, we need to generate a Java wrapper
+				sourcePath = generateScriptWrapper(tmpDir, sourceName, currentLanguage.interpreter);
+				java = (Refresh_Javas)Languages.get(".java").interpreter;
+			}
+System.err.println("source: " + sourcePath + ", output: " + tmpDir.getAbsolutePath());
 			java.compile(sourcePath, tmpDir.getAbsolutePath());
 			getClasses(tmpDir, paths, names);
 			if (includeSources) {
@@ -941,8 +963,6 @@ public class TextEditor extends JFrame implements ActionListener,
 				throw (IOException)e;
 			throw new IOException(e.getMessage());
 		}
-		else
-			sourceName = file.getName();
 
 		OutputStream out = new FileOutputStream(path);
 		JarOutputStream jar = new JarOutputStream(out);
@@ -958,6 +978,39 @@ public class TextEditor extends JFrame implements ActionListener,
 
 		if (tmpDir != null)
 			deleteRecursively(tmpDir);
+	}
+
+	protected final static String scriptWrapper =
+		"import ij.IJ;\n" +
+		"\n" +
+		"import ij.plugin.PlugIn;\n" +
+		"\n" +
+		"public class CLASS_NAME implements PlugIn {\n" +
+		"\tpublic void run(String arg) {\n" +
+		"\t\ttry {\n" +
+		"\t\t\tnew INTERPRETER().runScript(getClass()\n" +
+		"\t\t\t\t.getResource(\"SCRIPT_NAME\").openStream());\n" +
+		"\t\t} catch (Exception e) {\n" +
+		"\t\t\tIJ.handleException(e);\n" +
+		"\t\t}\n" +
+		"\t}\n" +
+		"}\n";
+	protected String generateScriptWrapper(File outputDirectory, String scriptName, RefreshScripts interpreter)
+			throws FileNotFoundException, IOException {
+		String className = scriptName;
+		int dot = className.indexOf('.');
+		if (dot >= 0)
+			className = className.substring(0, dot);
+		if (className.indexOf('_') < 0)
+			className += "_";
+		String code = scriptWrapper.replace("CLASS_NAME", className)
+			.replace("SCRIPT_NAME", scriptName)
+			.replace("INTERPRETER", interpreter.getClass().getName());
+		File output = new File(outputDirectory, className + ".java");
+		OutputStream out = new FileOutputStream(output);
+		out.write(code.getBytes());
+		out.close();
+		return output.getAbsolutePath();
 	}
 
 	static void getClasses(File directory,
@@ -1461,6 +1514,7 @@ public class TextEditor extends JFrame implements ActionListener,
 
 	public void extractSourceJar() {
 		OpenDialog dialog = new OpenDialog("Open...", "");
+		grabFocus();
 		String name = dialog.getFileName();
 		if (name != null)
 			extractSourceJar(dialog.getDirectory() + name);

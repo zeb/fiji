@@ -89,7 +89,7 @@ import org.jfree.data.xy.XYSeriesCollection;
  * This plugin chops the image into
  * square pieces, and computes their Fourier power spectra. The later are
  * analyzed in polar coordinates, and the power is measured for each angle using
- * the spatial filters proposed in [1]
+ * the spatial filters proposed in [1].
  * 
  * <h3>Local gradient orientation</h3>
  * 
@@ -369,7 +369,9 @@ public class Directionality_ implements PlugIn {
 				}
 			}
 		} else {
-			showDialog();
+			boolean userHasCanceled = showDialog();
+			if (userHasCanceled)
+				return;
 		}
 		
 		// Launch analysis, this will set the directionality field
@@ -1031,8 +1033,9 @@ public class Directionality_ implements PlugIn {
 	 * Display the dialog when the plugin is launched from ImageJ. A successful interaction will
 	 * result in setting the {@link #nbins}, {@link #bin_start}, {@link #display_table} 
 	 * and {@link #debug} fields.
+	 * @return  true is the user has pressed the 'Cancel' button.
 	 */
-	private void showDialog() {
+	private boolean showDialog() {
 
 		// Prepare dialog
 		String current = imp.getTitle();
@@ -1055,7 +1058,7 @@ public class Directionality_ implements PlugIn {
 
 		// Collect dialog settings
 		if (gd.wasCanceled())
-			return;
+			return true;
 		String chosen_method = gd.getNextChoice();
 		for (int i = 0; i < method_names.length; i++) {
 			if (chosen_method.equals(method_names[i])) {
@@ -1080,6 +1083,7 @@ public class Directionality_ implements PlugIn {
 		setting_display_color_wheel = display_color_wheel;
 		setting_display_table = display_table;
 		setting_debug = debug;
+		return false;
 	}
 	
 	/**
@@ -1377,7 +1381,8 @@ public class Directionality_ implements PlugIn {
 					for (int i = 0; i < big_hue_px.length; i++) {
 						if ((255*saturation_px[i]/max_norm) >= big_saturation_px[i]) {
 							big_saturation_px[i] = (255*saturation_px[i]/max_norm);
-							big_hue_px[i] = (float) ( 255 *  ( ( 1 + hue_px[i]/Math.PI ) % 1 ) ); 
+//							big_hue_px[i] = (float) ( 255 *  ( ( 1 + hue_px[i]/Math.PI ) % 1 ) ); 
+							big_hue_px[i] = (float) ( 255 *  ( ( 0.5 + hue_px[i]/Math.PI )  ) ); 
 						}
 					}
 				}
@@ -1423,7 +1428,7 @@ public class Directionality_ implements PlugIn {
 		for (int i=1; i<= nbins; i++) {
 			
 			pixels = new float[pad_size*pad_size];
-			theta_c = bins[i-1];
+			theta_c = bins[i-1]+Math.PI/2;
 			
 			for (int index = 0; index < pixels.length; index++) {
 
