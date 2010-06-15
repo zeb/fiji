@@ -12,7 +12,7 @@ from math import log
 import random
 import os
 import string
-import fiji.util.gui
+from fiji.util.gui import GenericDialogPlus
 
 global syn_radius
 syn_radius = 5
@@ -136,7 +136,7 @@ def process_reference_channel(image):
 referenceImage=""
 featuresFolder=""
 
-gd = fiji.util.gui.GenericDialogPlus("Montage from Pivot List")
+gd = GenericDialogPlus("Montage from Pivot List")
 gd.addFileField("Pivot List/Reference Channel:",referenceImage,20)
 gd.addDirectoryField("Stacks Folder:",featuresFolder,20)
 gd.showDialog()

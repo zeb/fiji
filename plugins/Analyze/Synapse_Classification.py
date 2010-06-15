@@ -9,7 +9,7 @@ import copy
 from math import sqrt
 import random
 import time
-import fiji.util.gui
+from fiji.util.gui import GenericDialogPlus
  
 global foldername
 global syn_radius
@@ -317,7 +317,7 @@ featuresFolder=""
 subset=None
 
 #make ze gui
-gd = fiji.util.gui.GenericDialogPlus("Array Tomography Pivot and Feature Extraction")
+gd = GenericDialogPlus("Array Tomography Pivot and Feature Extraction")
 gd.addFileField("Reference Channel/Pivot List:",referenceImage,20)
 gd.addCheckbox("Make a random subset?",False)
 gd.addStringField("Subset size:",'1000')
