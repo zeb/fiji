@@ -87,6 +87,8 @@ def scan_pivots(image):
     h = image.getHeight();
     d = image.getStackSize();
     bitdepth = image.getBitDepth() 
+    print w*h*d
+    count=0
     for z in xrange(1,d+1):        
         pixels = image.getStack().getPixels(z)
         for y in xrange(0,h):
@@ -98,8 +100,10 @@ def scan_pivots(image):
                     scan=True
                 elif bitdepth == 16 and p > 7000:
                     scan=True'''
-                if p > 0:
+                #print p
+                if p != 0:
                     scan=True
+                    count+=1
                 else:
                     scan=False
                 if scan:
@@ -109,6 +113,7 @@ def scan_pivots(image):
                     s.brightness=p
                     s.position=(x,y,z)
                     new_pivots.append(s)
+    print count
     return new_pivots
     
 
@@ -140,6 +145,7 @@ def process_reference_channel(image,folder):
         IJ.run("Object Counter3D", "threshold=7000 slice="+str(d//2)+" min=1 max=155623236 geometrical dot=1 font=12");
 
     i=IJ.getImage()
+    #IJ.error("SCANNING")
     pivots=scan_pivots(i)
     print_pivots(pivots,folder+'/'+image.getTitle()+".pivots.txt")   
     IJ.run("Close All Without Saving")
@@ -293,9 +299,15 @@ def make_ImageJ_ROI(pivots, filename):
 
 def make_subset(pivots):
     subset=[]
+    rand=[]
     maxlen=len(pivots)
+    newr=random.randint(0,maxlen-1)
+    if subset_size > maxlen: return pivots
     for i in range(0,subset_size):
-        subset.append(pivots[random.randint(0,maxlen-1)])
+        while newr in rand:
+            newr=random.randint(0,maxlen-1)
+        rand.append(newr)
+        subset.append(pivots[newr])
     return subset
     
 def printSimpleFeatures(filename, features):

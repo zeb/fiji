@@ -243,6 +243,7 @@ roiFiles=[f for f in File(featuresFolder+"/tmp/").listFiles(Filter())]
 import re    
 print len(pivots)
 for ep,p in enumerate(pivots):#for er,r in enumerate(ROIs): #for each pivot
+    IJ.showProgress(0.5*ep/len(pivots));
     roiname=str(p.position)#r.getName() #the "name" (location) of the ROI
     #if the ROI manager added a -1 at the end of the ROI, remove the -1
     #roiname=re.split("-.$",roiname)[0]
