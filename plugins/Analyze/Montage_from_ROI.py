@@ -134,11 +134,11 @@ def process_reference_channel(image):
 ##############################
 
 referenceImage=""
-featuresFolder=""
+featuresFolder=IJ.getDirectory('current')
 
 gd = GenericDialogPlus("Montage from Pivot List")
 gd.addFileField("Pivot List/Reference Channel:",referenceImage,20)
-gd.addDirectoryField("Stacks Folder:",featuresFolder,20)
+gd.addDirectoryField("Stacks Folder:",IJ.getDirectory('current'),20)
 gd.showDialog()
 if gd.wasCanceled():    print "nevermind"
 
