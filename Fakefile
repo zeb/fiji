@@ -178,7 +178,7 @@ all <- fiji $SUBMODULE_TARGETS $PLUGIN_TARGETS third-party-plugins jars/zs.jar p
 # Python_Recorder
 CLASSPATH(plugins/Python_Recorder.jar)=plugins/Script_Editor.jar
 
-all <- fiji $SUBMODULE_TARGETS $PLUGIN_TARGETS third-party-plugins
+# all <- fiji $SUBMODULE_TARGETS $PLUGIN_TARGETS third-party-plugins
 
 # The "run" rule just executes ./fiji (as long as the file "run" does not exist...)
 # It has items on the right side, because these would be passed to the executable.

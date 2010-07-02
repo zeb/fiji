@@ -380,16 +380,6 @@ public class TextEditor extends JFrame implements ActionListener,
 		return item;
 	}
 
-<<<<<<< HEAD
-	public JTextArea getTextArea() {
-		return textArea;
-	}
-
-	public void append(String string) {
-		textArea.insert(string, getDocument().getLength());
-		textArea.setCaretPosition(getDocument().getLength());
-	}
-=======
 	protected static class AcceleratorTriplet {
 		JMenuItem component;
 		int key, modifiers;
@@ -397,7 +387,6 @@ public class TextEditor extends JFrame implements ActionListener,
 
 	protected List<AcceleratorTriplet> defaultAccelerators =
 		new ArrayList<AcceleratorTriplet>();
->>>>>>> origin/master
 
 	public void addAccelerator(final JMenuItem component,
 			int key, int modifiers) {
@@ -936,19 +925,6 @@ public class TextEditor extends JFrame implements ActionListener,
 		}
 	}
 
-<<<<<<< HEAD
-	public boolean setLanguage(String name) {
-		Languages.Language language =
-			Languages.getInstance().getLanguage(name);
-		if (!name.equals("None") && language == Languages.get(""))
-			return false;
-		setLanguage(language);
-		return true;
-	}
-
-	private void setLanguageByExtension(String extension) {
-		setLanguage(Languages.get(extension));
-=======
 	public void makeJar(String path, boolean includeSources)
 			throws IOException {
 		List<String> paths = new ArrayList<String>();
@@ -1005,7 +981,6 @@ System.err.println("source: " + sourcePath + ", output: " + tmpDir.getAbsolutePa
 
 		if (tmpDir != null)
 			deleteRecursively(tmpDir);
->>>>>>> origin/master
 	}
 
 	protected final static String scriptWrapper =
