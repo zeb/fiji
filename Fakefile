@@ -86,6 +86,7 @@ ENVOVERRIDES(JAVA_HOME)=true
 
 SUBMODULE_TARGETS=\
 	jars/ij.jar \
+	misc/headless.jar \
 	plugins/loci_tools.jar \
 	jars/VectorString.jar \
 	plugins/TrakEM2_.jar \
@@ -194,6 +195,7 @@ jdk[bin/checkout-jdk.py $JDK] <-
 
 # From submodules
 jars/ij.jar <- jars/javac.jar ImageJA/
+misc/headless.jar <- jars/javac.jar ImageJA/
 CLASSPATH(plugins/mpicbg_.jar)=jars/mpicbg.jar
 plugins/mpicbg_.jar <- mpicbg/
 jars/mpicbg.jar <- mpicbg/
@@ -217,7 +219,7 @@ jars/jython.jar <- jython/
 # From source
 libs[] <- jars/test-fiji.jar jars/zs.jar jars/VIB-lib.jar jars/Jama-1.0.2.jar \
 	jars/fiji-scripting.jar jars/fiji-lib.jar jars/jep.jar \
-	jars/pal-optimization.jar
+	jars/pal-optimization.jar jars/MacOSX_Updater_Fix.jar
 
 plugins/Record_Screen.jar <- src-plugins/Record_Screen/ src-plugins/Record_Screen/**/*
 
@@ -281,6 +283,8 @@ src-plugins/VIB-lib/math3d/Eigensystem2x2Float.java[src-plugins/VIB-lib/sed.py $
 	src-plugins/VIB-lib/math3d/Eigensystem2x2Double.java
 
 MAINCLASS(jars/test-fiji.jar)=fiji.Tests
+
+MAINCLASS(jars/MacOSX_Updater_Fix.jar)=fiji.updater.Fix
 
 # the default rules
 
