@@ -80,6 +80,12 @@ public class Image3DUniverse extends DefaultAnimatableUniverse {
 	/** A reference to the RegistrationMenubar */
 	private RegistrationMenubar registrationMenubar;
 
+	/** A reference to the sidebar */
+	private final AttributesPanel attrPanel;
+
+	/** Flag indicating whether the sidebar is visible */
+	private boolean attributesPanelVisible = false;
+
 	/** A reference to the ImageCanvas3D */
 	private ImageCanvas3D canvas;
 
@@ -123,6 +129,7 @@ public class Image3DUniverse extends DefaultAnimatableUniverse {
 	public Image3DUniverse(int width, int height) {
 		super(width, height);
 		canvas = (ImageCanvas3D)getCanvas();
+		attrPanel = new AttributesPanel(this);
 		executer = new Executer(this);
 		this.timeline = new Timeline(this);
 		this.timelineGUI = new TimelineGUI(timeline);
@@ -451,6 +458,35 @@ public class Image3DUniverse extends DefaultAnimatableUniverse {
 		globalCenter.x = globalMin.x + (globalMax.x - globalMin.x) / 2;
 		globalCenter.y = globalMin.y + (globalMax.y - globalMin.y) / 2;
 		globalCenter.z = globalMin.z + (globalMax.z - globalMin.z) / 2;
+	}
+
+	/**
+	 * Attaches the attributes panel as a side bar.
+	 */
+	public void attachAttributesPanel() {
+		if(!attributesPanelVisible && win != null) {
+			win.add(attrPanel, BorderLayout.EAST, -1);
+			attributesPanelVisible = true;
+			win.pack();
+		}
+	}
+
+	/**
+	 * Removes the sidebar, if visible
+	 */
+	public void detachAttributesPanel() {
+		if(attributesPanelVisible && win != null) {
+			win.remove(attrPanel);
+			attributesPanelVisible = false;
+			win.pack();
+		}
+	}
+
+	/**
+	 * Returns a reference to the sidebar.
+	 */
+	public AttributesPanel getAttributesPanel() {
+		return attrPanel;
 	}
 
 	/**

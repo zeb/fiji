@@ -1126,6 +1126,13 @@ public class Executer {
 		record(STOP_ANIMATE);
 	}
 
+	public void showSidebar(boolean b) {
+		if(b)
+			univ.attachAttributesPanel();
+		else
+			univ.detachAttributesPanel();
+	}
+
 	public void viewPreferences() {
 		UniverseSettings.initFromDialog(univ);
 	}

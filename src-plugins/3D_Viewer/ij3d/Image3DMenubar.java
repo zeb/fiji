@@ -77,6 +77,8 @@ public class Image3DMenubar extends MenuBar implements ActionListener,
 	private CheckboxMenuItem show;
 	private MenuItem viewposXY, viewposXZ, viewposYZ, viewnegXY, viewnegXZ, viewnegYZ;
 
+	private CheckboxMenuItem attrp;
+
 	private Menu transformMenu;
 	private Menu editMenu;
 	private Menu selectMenu;
@@ -339,6 +341,12 @@ public class Image3DMenubar extends MenuBar implements ActionListener,
 		scalebar = new MenuItem("Edit Scalebar");
 		scalebar.addActionListener(this);
 		view.add(scalebar);
+
+		view.addSeparator();
+
+		attrp = new CheckboxMenuItem("Show sidebar");
+		attrp.addItemListener(this);
+		view.add(attrp);
 
 		view.addSeparator();
 
@@ -605,6 +613,8 @@ public class Image3DMenubar extends MenuBar implements ActionListener,
 			executer.setShaded(c, shaded.getState());
 		else if (src == pl_show)
 			executer.showPointList(c, pl_show.getState());
+		else if (src == attrp)
+			executer.showSidebar(attrp.getState());
 	}
 
 
