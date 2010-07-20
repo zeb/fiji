@@ -14,8 +14,8 @@ from fiji.util.gui import GenericDialogPlus
 ''' Start of actual script '''
 ##############################
 
-unalignedFile=""
-transformFile=""
+unalignedFile=IJ.getDirectory('current') 
+transformFile=IJ.getDirectory('current') 
 gd = GenericDialogPlus("Mass Transform Virtual Stack Sections")
 gd.addDirectoryField("Unaligned Sections Folder:",unalignedFile,20)
 gd.addDirectoryField("Transform Folder:",transformFile,20)

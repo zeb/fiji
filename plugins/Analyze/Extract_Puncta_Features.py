@@ -324,8 +324,8 @@ def printSimpleFeatures(filename, features):
 ''' Start of actual script '''
 ##############################
 
-referenceImage=""
-featuresFolder=""
+referenceImage= IJ.getDirectory('current') 
+featuresFolder= IJ.getDirectory('current') 
 subset=None
 
 #make ze gui
