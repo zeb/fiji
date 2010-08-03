@@ -91,6 +91,7 @@ SUBMODULE_TARGETS=\
 	jars/VectorString.jar \
 	plugins/TrakEM2_.jar \
 	plugins/mpicbg_.jar \
+	plugins/panorama_.jar \
 	jars/clojure.jar \
 	plugins/ij-ImageIO_.jar \
 	jars/jacl.jar \
@@ -197,6 +198,8 @@ jars/ij.jar <- jars/javac.jar ImageJA/
 misc/headless.jar <- jars/javac.jar ImageJA/
 CLASSPATH(plugins/mpicbg_.jar)=jars/mpicbg.jar
 plugins/mpicbg_.jar <- mpicbg/
+CLASSPATH(plugins/panorama_.jar)=jars/mpicbg.jar
+plugins/panorama_.jar <- mpicbg/
 jars/mpicbg.jar <- mpicbg/
 CLASSPATH(jars/imglib.jar)=jars/mpicbg.jar
 jars/imglib.jar <- plugins/loci_tools.jar imglib/
