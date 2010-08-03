@@ -258,14 +258,17 @@ public class Wiki_Editor implements PlugIn, ActionListener {
 		}
 		else if (source == insertPluginInfobox) {
 			JTextArea textArea = editor.getTextArea();
+			Calendar now = Calendar.getInstance();
+			String today = new SimpleDateFormat("dd/MM/yyyy")
+				.format(Calendar.getInstance().getTime());
 			textArea.insert("{{Infobox Plugin\n"
 				+ "| software               = ImageJ\n"
 				+ "| name                   = \n"
 				+ "| maintainer             = [mailto:author_at_example_dot_com A U Thor]\n"
 				+ "| author                 = A U Thor\n"
 				+ "| source                 = \n"
-				+ "| released               = 15/06/2005\n"
-				+ "| latest version         = 12/08/2009\n"
+				+ "| released               = " + today + "\n"
+				+ "| latest version         = " + today + "\n"
 				+ "| status                 = \n"
 				+ "| category               = [[:Category:Plugins]]\n"
 				+ "| website                = \n"
@@ -482,6 +485,19 @@ public class Wiki_Editor implements PlugIn, ActionListener {
 		return false;
 	}
 
+	protected String normalizeImageTitle(String title) {
+		title = title.replace(' ', '_');
+		if (title.length() > 0)
+			title = capitalize(title);
+		for (;;) {
+			int colon = title.indexOf(':');
+			if (colon < 0)
+				break;
+			title = title.substring(0, colon) + title.substring(colon + 1);
+		}
+		return title;
+	}
+
 	protected boolean saveOrUploadImages(GraphicalMediaWikiClient client,
 			List<String> images) {
 		int i = 0, total = images.size() * 2 + 1;
@@ -489,11 +505,11 @@ public class Wiki_Editor implements PlugIn, ActionListener {
 			ImagePlus imp = WindowManager.getImage(image);
 			if (imp == null)
 				return error("There is no image " + image);
-			if (image.indexOf(' ') >= 0) {
-				String newTitle = image.replace(' ', '_');
+			String newTitle = normalizeImageTitle(image);
+			if (!image.equals(newTitle)) {
 				if (!IJ.showMessageWithCancel("Rename Image",
 						"Image title '" + image
-						+ "' contains spaces; fix?"))
+						+ "' is invalid; fix?"))
 					return error("Aborted");
 				imp.setTitle(newTitle);
 				rename(image, newTitle);
