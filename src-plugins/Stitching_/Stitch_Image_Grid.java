@@ -366,7 +366,7 @@ public class Stitch_Image_Grid implements PlugIn
     		return null;
 
     	Stitch_Image_Collection smc = new Stitch_Image_Collection();
-    	return smc.work(gridLayout, previewOnly, computeOverlap, fileName);
+    	return smc.work(gridLayout, previewOnly, computeOverlap, fileName, false);
 	}
 	
 	public static String getLeadingZeros(int zeros, int number)
