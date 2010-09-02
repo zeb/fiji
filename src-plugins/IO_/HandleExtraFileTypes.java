@@ -145,6 +145,10 @@ public class HandleExtraFileTypes extends ImagePlus implements PlugIn {
 				return tryPlugIn("Analyze_Reader", path);
 		}
 
+		// Meta Image format (.mhd)
+		if (name.endsWith(".mhd"))
+			return tryPlugIn("Open_Meta_Image", path);
+
 		// NIFTI format (.nii) handler
 		if (name.endsWith(".nii") || name.endsWith( ".nii.gz" ) ||
 				name.endsWith(".nii.z")) {
