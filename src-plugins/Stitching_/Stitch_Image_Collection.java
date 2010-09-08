@@ -72,6 +72,7 @@ public class Stitch_Image_Collection implements PlugIn
 	
 	public double alpha, thresholdR, thresholdDisplacementRelative, thresholdDisplacementAbsolute;
 	public String rgbOrder;
+	private double maxDeltaToExpectedCorrelation;
 	
 	public static String fileNameStatic = "TileConfiguration.txt";
 	public static boolean computeOverlapStatic = true;
@@ -85,6 +86,7 @@ public class Stitch_Image_Collection implements PlugIn
 	public static boolean previewOnlyStatic = false;
 	public static boolean fastCorrelationStatic = false;
 
+	public static double maxDeltaToExpectedCorrelationStatic = -1;
 	
 	public void run(String arg0)
 	{
@@ -101,6 +103,7 @@ public class Stitch_Image_Collection implements PlugIn
 		gd.addNumericField("Regression Threshold", thresholdRStatic, 2);
 		gd.addNumericField("Max/Avg Displacement Threshold", thresholdDisplacementRelativeStatic, 2);		
 		gd.addNumericField("Absolute Avg Displacement Threshold", thresholdDisplacementAbsoluteStatic, 2);		
+		gd.addNumericField("Threshold_for_delta_to_the_expected_positions \n(-1: don't reject)", maxDeltaToExpectedCorrelationStatic, 0);
 		gd.addCheckbox("Create_only_Preview", previewOnlyStatic);
 		gd.addMessage("");
 		gd.addMessage("This Plugin is developed by Stephan Preibisch\n" + myURL);
@@ -141,6 +144,9 @@ public class Stitch_Image_Collection implements PlugIn
 		this.thresholdDisplacementAbsolute = gd.getNextNumber();
 		thresholdDisplacementAbsoluteStatic = thresholdDisplacementAbsolute;
 		
+		this.maxDeltaToExpectedCorrelation = gd.getNextNumber();
+		maxDeltaToExpectedCorrelationStatic = maxDeltaToExpectedCorrelation;
+
 		boolean previewOnly = gd.getNextBoolean();
 		previewOnlyStatic = previewOnly;
 
@@ -1244,6 +1250,7 @@ public class Stitch_Image_Collection implements PlugIn
 			setROI(imp1, o.i1, o.i2);
 			setROI(imp2, o.i2, o.i1);
 			
+			Point2D expected = new Point2D(Math.abs(round(o.i2.offset[0] - o.i1.offset[0])), Math.abs(round(o.i2.offset[1] - o.i1.offset[1])));
 			//imp1.show();
 			//imp2.show();
 			
@@ -1302,24 +1309,37 @@ public class Stitch_Image_Collection implements PlugIn
 				
 				stitch.doLogging = false;
 				stitch.computeOverlap = true;
-				
+				Point2D deltaToExpected = null;
+				boolean correlationFallBack = false;
 				try
 				{
 					stitch.work();
 					
 					o.R = stitch.getCrossCorrelationResult().R;
 					o.translation2D = stitch.getTranslation();
+					
+					//if the correlation is found too far than expected, take the expected position
+					deltaToExpected = new Point2D(Math.abs(o.translation2D.x) - expected.x, Math.abs(o.translation2D.y) - expected.y);
+					if (maxDeltaToExpectedCorrelation != -1 && Math.sqrt(Math.pow(deltaToExpected.x, 2) + Math.pow(deltaToExpected.y, 2)) > maxDeltaToExpectedCorrelation)
+					{
+						o.R =  thresholdR;
+						correlationFallBack = true;
+						o.translation2D = new Point2D(round(o.i2.offset[0]-o.i1.offset[0]), round(o.i2.offset[1]-o.i1.offset[1]));
+					}
 				}
 				catch (Exception e)
 				{
 					o.R = -1;
-					o.translation2D = new Point2D(0, 0);
+					o.translation2D = deltaToExpected = new Point2D(0, 0);
 				}
 				
 				imp1.setProcessor(imp1.getTitle(), ip1);
 				imp2.setProcessor(imp2.getTitle(), ip2);
 								
-				IJ.log(String.format(o.i1.id + " overlaps " + o.i2.id + ": %.2f translation: " + o.translation2D, o.R));
+				if (correlationFallBack)
+					IJ.log(String.format(o.i1.id + " doesn't overlap well " + o.i2.id + " translation: " +  o.translation2D + " ; Delta to expected = " + deltaToExpected));
+				else
+					IJ.log(String.format(o.i1.id + " overlaps " + o.i2.id + ": %.2f translation: " + o.translation2D + " ; Delta to expected = " + deltaToExpected, o.R));
 			}
 			else 
 			{
