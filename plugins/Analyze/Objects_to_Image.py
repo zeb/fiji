@@ -72,7 +72,19 @@ def draw_single_pivot(pivot, image, newimage, radius):
     dx,dy,dz=0,0,0
     cenx,ceny,cenz=0.0,0.0,0.0
     bitdepth = image.getBitDepth() 
-
+    
+    (r,g,b)=(random.random(),random.random(),random.random())
+    m=min(r,g,b)
+    (r,g,b)=(r-m,g-m,b-m)
+    m=max(r,g,b)
+    (r,g,b)=(r/m,g/m,b/m)
+    
+    #s=r+g+b
+    #(r,g,b)=(r/s,g/s,b/s)
+    #print r,g,b
+    color=r
+    p=0
+    
     for z in xrange(int(cz-radius),int(cz+radius)+1):
         if z <= 0 or z > d: continue
         dz = (z-cz)*(z-cz)
@@ -87,8 +99,21 @@ def draw_single_pivot(pivot, image, newimage, radius):
                 dx = (x-cx)*(x-cx)                  
 
                 if dx+dy+dz > radius*radius: continue   
-
-                newpixels[y*w + x]=pixels[y*w + x]
+                
+                newp=pixels[y*w + x]
+                newd=newpixels[y*w + x]
+                #if newp < 0 : p += 5
+                #if p > 0: 
+                #    print newp
+                #    p -= 1
+                if newp<0: newp += 256
+                if newd<0: newd += 256
+                newp = int(newp*color)
+                if newp > 127: newp -= 256
+                #print color, pixels[y*w + x], newp
+                #if  int(color*pixels[y*w + x]) < 0:
+                #    print pixels[y*w + x],int(color*pixels[y*w + x])
+                newpixels[y*w + x]=newp#int(color*pixels[y*w + x])
     return newimage
 
 def draw_pivots(pivots,image,radius):
@@ -120,13 +145,15 @@ def draw_pivots(pivots,image,radius):
 ''' Start of actual script '''
 ##############################
 
+random.seed(0)
+
 refFile=IJ.getDirectory('current') 
 objectFile=IJ.getDirectory('current') 
 
 gd = GenericDialogPlus("Plot a Synaptic Subset")
 gd.addFileField("Reference Channel:",refFile,20)
 gd.addFileField("Object File:",objectFile,20)
-gd.addNumericField("Keep Pixel Radius",5,4);
+gd.addNumericField("Keep Pixel Radius",4,3);
 gd.showDialog()
 
 refFile=gd.getNextString()
@@ -145,7 +172,7 @@ IJ.run("Enhance Contrast", "saturated=0 normalize normalize_all")
 
 newimage=draw_pivots(pivots,image,radius)
 
-IJ.saveAs(newimage,"Tiff",refFile+"subset.tif")
+IJ.saveAs(newimage,"Tiff",refFile+"Redsubset.tif")
 
 
 Interp.batchMode = False
