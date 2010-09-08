@@ -41,6 +41,8 @@ public class Content extends BranchGroup implements UniverseListener, ContentCon
 		timepointToSwitchIndex.put(tp, 0);
 		contentSwitch = new Switch();
 		contentSwitch.setCapability(Switch.ALLOW_SWITCH_WRITE);
+		contentSwitch.setCapability(Switch.ALLOW_CHILDREN_WRITE);
+		contentSwitch.setCapability(Switch.ALLOW_CHILDREN_EXTEND);
 		contentSwitch.addChild(ci);
 		addChild(contentSwitch);
 	}
@@ -53,6 +55,8 @@ public class Content extends BranchGroup implements UniverseListener, ContentCon
 		timepointToSwitchIndex = new HashMap<Integer, Integer>();
 		contentSwitch = new Switch();
 		contentSwitch.setCapability(Switch.ALLOW_SWITCH_WRITE);
+		contentSwitch.setCapability(Switch.ALLOW_CHILDREN_WRITE);
+		contentSwitch.setCapability(Switch.ALLOW_CHILDREN_EXTEND);
 		for(int i : contents.keySet()) {
 			ContentInstant c = contents.get(i);
 			c.timepoint = i;
@@ -211,12 +215,10 @@ public class Content extends BranchGroup implements UniverseListener, ContentCon
 			c.showPointList(b);
 	}
 
-	// TODO only for current point, makes this sense?
 	public void loadPointList() {
 		getCurrent().loadPointList();
 	}
 
-	// TODO only for current point, makes this sense?
 	public void savePointList() {
 		getCurrent().savePointList();
 	}

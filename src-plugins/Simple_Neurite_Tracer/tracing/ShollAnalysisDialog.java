@@ -1,6 +1,6 @@
 /* -*- mode: java; c-basic-offset: 8; indent-tabs-mode: t; tab-width: 8 -*- */
 
-/* Copyright 2006, 2007, 2008, 2009 Mark Longair */
+/* Copyright 2006, 2007, 2008, 2009, 2010 Mark Longair */
 
 /*
   This file is part of the ImageJ plugin "Simple Neurite Tracer".
@@ -154,7 +154,6 @@ public class ShollAnalysisDialog extends Dialog implements WindowListener, Actio
 						       "sholl-"+(detail?"detail":"summary")+results.getSuggestedSuffix(),
 						       ".csv");
 
-			String savePath;
 			if(sd.getFileName()==null) {
 				return;
 			}
@@ -329,7 +328,6 @@ public class ShollAnalysisDialog extends Dialog implements WindowListener, Actio
 						       "sholl"+suggestedSuffix,
 						       ".svg");
 
-			String savePath;
 			if(sd.getFileName()==null) {
 				return;
 			}
@@ -661,7 +659,10 @@ public class ShollAnalysisDialog extends Dialog implements WindowListener, Actio
 
 
 			xAxis.setRange(minX,maxX);
-			yAxis.setRange(minY,maxY);
+			if( axes == AXES_NORMAL )
+				yAxis.setRange(0,maxY);
+			else
+				yAxis.setRange(minY,maxY);
 
 			XYItemRenderer renderer = null;
 			if( sphereSeparation > 0 ) {
@@ -947,9 +948,7 @@ public class ShollAnalysisDialog extends Dialog implements WindowListener, Actio
 		numberOfAllPaths = 0;
 		numberOfSelectedPaths = 0;
 
-		Iterator<Path> pi = pafm.allPaths.iterator();
-		while( pi.hasNext() ) {
-			Path p = pi.next();
+		for( Path p : pafm.allPaths ) {
 			boolean selected = p.getSelected();
 			if( p.getUseFitted() ) {
 				p = p.fitted;

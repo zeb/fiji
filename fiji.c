@@ -2113,6 +2113,7 @@ static int start_ij(void)
 			string_append_path_list(class_path, "/usr/share/java/ant.jar");
 			string_append_path_list(class_path, "/usr/share/java/ant-launcher.jar");
 			string_append_path_list(class_path, "/usr/share/java/ant-nodeps.jar");
+			string_append_path_list(class_path, "/usr/share/java/ant-junit.jar");
 		}
 		else if (!strcmp(main_argv[i], "--retrotranslator") ||
 				!strcmp(main_argv[i], "--retro"))
@@ -2479,7 +2480,7 @@ static int is_intel(void)
 
 	if (sysctl(mib, 2, result, &len, NULL, 0) < 0)
 		return 0;
-	return !strcmp(result, "i386");
+	return !strcmp(result, "i386") || !strncmp(result, "x86", 3);
 }
 
 static void set_path_to_JVM(void)

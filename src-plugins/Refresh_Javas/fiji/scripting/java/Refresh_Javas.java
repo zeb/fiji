@@ -71,6 +71,13 @@ public class Refresh_Javas extends RefreshScripts {
 						runPlugin(result[1], result[0], true);
 					return;
 				}
+			} catch (Fake.FakeException e) {
+				try {
+					err.write(e.getMessage().getBytes());
+				} catch (IOException e2) {
+					e.printStackTrace();
+				}
+				return;
 			} catch (Exception e) {
 				e.printStackTrace(new PrintStream(err));
 				return;
@@ -94,7 +101,7 @@ public class Refresh_Javas extends RefreshScripts {
 			while ((file = file.getParentFile()) != null &&
 					!file.equals(plugins))
 				c = file.getName() + "." + c;
-			if (file == null) {
+			if (!compileOnly && file == null) {
 				runOutOfTreePlugin(path);
 				return;
 			}

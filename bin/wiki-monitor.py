@@ -10,6 +10,7 @@
 # credentials to your $HOME/.netrc. The cached recent changes will be stored
 # in the file ".recent-changes.<host>" in your current working directory.
 
+from codecs import open
 from sys import argv, exit
 
 if len(argv) != 2:
@@ -54,7 +55,7 @@ from fiji import MediaWikiClient
 client = MediaWikiClient(url)
 if user != None and password != None and not client.isLoggedIn():
 	client.logIn(user, password)
-response = client.sendRequest(['title', 'Special:RecentChanges'], None)
+response = client.sendRequest(['title', 'Special:RecentChanges', 'hidebots', '0'], None)
 if client.isLoggedIn():
 	client.logOut()
 
@@ -106,11 +107,11 @@ for line in response.split('\n'):
 			title = ' ->> ' + line[start:end]
 		result += '\t' + time + ' ' + title + ' (' + author + ')\n'
 
-firstLine = 'From ' + url + '/Special:RecentChanges\n'
+firstLine = 'From ' + url + '/Special:RecentChanges?hidebots=0\n'
 from java.lang import System
 backup = '.recent-changes.' + host
 if path.exists(backup):
-	f = open(backup, 'r')
+	f = open(backup, 'r', 'utf-8')
 	firstline = f.readline().strip()
 	secondline = f.readline().strip()
 	f.close()
@@ -133,6 +134,6 @@ else:
 	System.out.println(firstLine)
 	System.out.println(result)
 
-f = open(backup, 'w')
+f = open(backup, 'w', 'utf-8')
 f.write(result)
 f.close()

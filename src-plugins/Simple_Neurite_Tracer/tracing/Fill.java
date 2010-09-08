@@ -1,6 +1,6 @@
 /* -*- mode: java; c-basic-offset: 8; indent-tabs-mode: t; tab-width: 8 -*- */
 
-/* Copyright 2006, 2007, 2008, 2009 Mark Longair */
+/* Copyright 2006, 2007, 2008, 2009, 2010 Mark Longair */
 
 /*
   This file is part of the ImageJ plugin "Simple Neurite Tracer".
@@ -105,14 +105,14 @@ public class Fill {
 	public void writeNodesXML( PrintWriter pw ) {
 
 		int i = 0;
-		for( Iterator it = nodeList.iterator(); it.hasNext(); ++i ) {
-			Node n = (Node)it.next();
+		for( Node n : nodeList ) {
 			pw.println( "    <node id=\"" + i + "\" " +
 				    "x=\"" + n.x + "\" " +
 				    "y=\"" + n.y + "\" " +
 				    "z=\"" + n.z + "\" " +
 				    ((n.previous >= 0) ? "previousid=\"" + n.previous + "\" " : "") +
 				    "distance=\"" + n.distance + "\" status=\"" + (n.open ? "open" : "closed") + "\"/>" );
+			++ i;
 		}
 	}
 
