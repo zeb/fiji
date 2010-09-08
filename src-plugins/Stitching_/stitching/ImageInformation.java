@@ -41,7 +41,7 @@ public class ImageInformation extends Tile implements Comparable<ImageInformatio
 	public int w, d, h;
 
 	public int imageType;
-	public String imageName;
+	public String imageName, imageShortName;
 	public ImagePlus imp = null, maxIntensity = null, tmp = null;
 	public boolean overlaps = false;
 	public boolean invalid = false;
@@ -53,7 +53,7 @@ public class ImageInformation extends Tile implements Comparable<ImageInformatio
 	
 	public String toString()
 	{
-		String out =  "Image: '" + imageName + "' Imp: '" + imp + "' Offset: (";
+		String out =  "Image: '" + imageShortName + "' Imp: '" + imp + "' Offset: (";
 		
 		for (int i = 0; i < offset.length; i++)
 		{

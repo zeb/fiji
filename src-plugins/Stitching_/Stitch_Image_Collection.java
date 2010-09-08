@@ -30,6 +30,7 @@ import static stitching.CommonFunctions.getPixelMinRGB;
 
 import java.awt.Rectangle;
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileReader;
 import java.io.PrintWriter;
 
@@ -210,9 +211,9 @@ public class Stitch_Image_Collection implements PlugIn
 		for (ImageInformation i: newImageInformationList)
 		{
 			if (dim == 3)
-				IJ.log("Tile " + i.id + " (" + i.imageName + "): " + i.position[0] + ", " + i.position[1] + ", " + i.position[2]);
+				IJ.log("Tile " + i.id + " (" + i.imageShortName + "): " + i.position[0] + ", " + i.position[1] + ", " + i.position[2]);
 			else
-				IJ.log("Tile " + i.id + " (" + i.imageName + "): " + i.position[0] + ", " + i.position[1]);
+				IJ.log("Tile " + i.id + " (" + i.imageShortName + "): " + i.position[0] + ", " + i.position[1]);
 		}
 		
 		// write new TileConfiguration with registered positions
@@ -253,9 +254,9 @@ public class Stitch_Image_Collection implements PlugIn
 	        for ( ImageInformation iI : imageInformationList )
 	        {	        		        	
 		        if (dim == 3)
-	    			out.println(iI.imageName + "; ; (" + iI.position[0] + ", " + iI.position[1] + ", " + iI.position[2] + ")");
+	    			out.println(iI.imageShortName + "; ; (" + iI.position[0] + ", " + iI.position[1] + ", " + iI.position[2] + ")");
 	    		else
-	    			out.println(iI.imageName + "; ; (" + iI.position[0] + ", " + iI.position[1] + ")");
+	    			out.println(iI.imageShortName + "; ; (" + iI.position[0] + ", " + iI.position[1] + ")");
 	        }
 
 			out.close();
@@ -1149,9 +1150,21 @@ public class Stitch_Image_Collection implements PlugIn
 				double avgError = tc.getAvgError();
 				double maxError = tc.getMaxError();				
 				
-				if ( (avgError*thresholdDisplacementRelative < maxError && maxError > 0.75) || avgError > thresholdDisplacementAbsolute)
+				boolean reoptimize = false;
+				if (avgError*thresholdDisplacementRelative < maxError && maxError > 0.75)
 				{
-					IJ.log("maxError more than " + thresholdDisplacementRelative + " times bigger than avgerror.");
+					IJ.log("maximum displacement greater than " + thresholdDisplacementRelative + " times bigger than average displacement.");
+					reoptimize = true;
+				}
+				
+				if (avgError > thresholdDisplacementAbsolute)
+				{
+					IJ.log("average displacement greater than " + thresholdDisplacementAbsolute);
+					reoptimize = true;
+				}
+				
+				if (reoptimize)
+				{
 					Tile worstTile = tc.getWorstError();
 					ArrayList< PointMatch > matches = worstTile.getMatches();
 					
@@ -1165,7 +1178,7 @@ public class Stitch_Image_Collection implements PlugIn
 							worstMatch = p;
 						}
 					
-					IJ.log("Identified link between " + worstMatch.o.i1.imageName + " and " + worstMatch.o.i2.imageName + " (R=" + worstMatch.o.R +") to be bad. Reoptimizing.");
+					IJ.log("Identified link between " + worstMatch.o.i1.imageShortName + " and " + worstMatch.o.i2.imageShortName + " (R=" + worstMatch.o.R +") to be bad. Reoptimizing.");
 					worstMatch.o.validOverlap = false;
 					redo = true;
 					
@@ -1306,7 +1319,7 @@ public class Stitch_Image_Collection implements PlugIn
 				imp1.setProcessor(imp1.getTitle(), ip1);
 				imp2.setProcessor(imp2.getTitle(), ip2);
 								
-				IJ.log(o.i1.id + " overlaps " + o.i2.id + ": " + o.R + " translation: " + o.translation2D);
+				IJ.log(String.format(o.i1.id + " overlaps " + o.i2.id + ": %.2f translation: " + o.translation2D, o.R));
 			}
 			else 
 			{
@@ -1446,7 +1459,7 @@ public class Stitch_Image_Collection implements PlugIn
 			if (iI.invalid)
 			{
 				imageInformationList.remove(i);
-				IJ.log("Removed: " + iI.imageName);
+				IJ.log("Removed: " + iI.imageShortName);
 			}
 			else
 				i++;
@@ -1530,6 +1543,8 @@ public class Stitch_Image_Collection implements PlugIn
 
 		try
 		{
+			File layoutFileDir = new File(new File(fileName).getParent());
+			
 			BufferedReader in = openFileRead(fileName);
 			int lineNo = 0;
 			
@@ -1585,6 +1600,7 @@ public class Stitch_Image_Collection implements PlugIn
 							return null;						
 						}
 						String imageName = entries[0].trim();
+						String imageShortName = imageName;
 						String imp = entries[1].trim();
 						
 						if (imageName.length() == 0 && imp.length() == 0)
@@ -1592,6 +1608,12 @@ public class Stitch_Image_Collection implements PlugIn
 							System.err.println("Stitch_Many_Cubes.readLayoutFile: Line " + lineNo + ": You have to give a filename or a ImagePlus [fileName; ImagePlus; (x,y,...)]: " + line);
 							IJ.error("Stitch_Many_Cubes.readLayoutFile: Line " + lineNo + ": You have to give a filename or a ImagePlus [fileName; ImagePlus; (x,y,...)]: " + line);
 							return null;						
+						}
+						
+						//if file names are relative, make them absolute
+						if (!(new File(imageName).isAbsolute()))
+						{
+							imageName = new File(layoutFileDir, imageName).getAbsolutePath();
 						}
 						
 						String point = entries[2].trim();
@@ -1619,6 +1641,7 @@ public class Stitch_Image_Collection implements PlugIn
 							imageInformation = new ImageInformation(dim, imageInformationList.size(), new TranslationModel2D());
 						
 						imageInformation.imageName = imageName;
+						imageInformation.imageShortName = imageShortName;
 						if (imp.length() > 0)
 							imageInformation.imp = WindowManager.getImage(imp);
 						else
