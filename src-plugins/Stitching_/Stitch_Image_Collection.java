@@ -506,7 +506,7 @@ public class Stitch_Image_Collection implements PlugIn
 
 			for (ImageInformation iI : imageInformationList)
 			{
-				int[] cornerUL = round(iI.position);//up-left corner
+				int[] cornerUL = CommonFunctions.round(iI.position);//up-left corner
 				int[] cornerDR = new int[]{cornerUL[0] + (int)iI.size[0], cornerUL[1] + (int)iI.size[1]};//down-right corner
 				tilesHorizontalLines.add(cornerUL[1]);
 				tilesHorizontalLines.add(cornerDR[1]);
@@ -576,128 +576,131 @@ public class Stitch_Image_Collection implements PlugIn
 	        						posUL[1] = tilesHorizontalLines.get(horizIndex);
 	        						posDR[0] = tilesVerticalLines.get(verticIndex+1);
 	        						posDR[1] = tilesHorizontalLines.get(horizIndex+1);
-	        						
-	        						// check which images are needed for this "tile" and fill indices with the matching images
-	        						final int num = getImagesAtCoordinate(imageInformationList, indices, posUL);
 
-	        						if (num > 0)
+	        						for (posUL[2]=0; posUL[2]<imgD; posUL[2]++)
 	        						{
-	        							//get positions of images
-	        							int[][] positions = new int[num][];
-	        							for (int i=0; i<num; i++)
-	        								positions[i] = round(indices[i].position);
+		        						// check which images are needed for this "tile" and fill indices with the matching images
+		        						final int num = getImagesAtCoordinate(imageInformationList, indices, posUL);
+	
+		        						if (num > 0)
+		        						{
+		        							//get positions of images
+		        							int[][] positions = new int[num][];
+		        							for (int i=0; i<num; i++)
+		        								positions[i] = CommonFunctions.round(indices[i].position);
 
-	        							//compute final pixel value inside "tile"
-	        							for (pos[0]=posUL[0]; pos[0]<posDR[0];pos[0]++)
-	        							{
-	        								for (pos[1]=posUL[1]; pos[1]<posDR[1];pos[1]++)
-	        								{
-	        									// get the pixel values of all images that contribute
-	        									for (int i = 0; i < num; i++)
-	        									{
-	        										if (imageType == ImagePlus.COLOR_RGB)
-	        										{
-	        											if (dimension == 3)
-	        												rgbPixels[i] = getPixelMinRGB(indices[i].imageStack, indices[i].w, indices[i].h, indices[i].d,
-	        											        			  pos[0] - positions[i][0],
-	        											        			  pos[1] - positions[i][1],
-	        											        			  pos[2] - positions[i][2], 0);
-	        											else
-	        												rgbPixels[i] = getPixelMinRGB(indices[i].imageStack, indices[i].w, indices[i].h, indices[i].d,
-	        							        							  pos[0] - positions[i][0],
-	        							        							  pos[1] - positions[i][1],
-	        							        							  0, 0);
-	        										
-	        										}
-	        										else
-	        										{
-	        											if (dimension == 3)
-	        												pixels[i] = getPixelMin(imageType, indices[i].imageStack, indices[i].w, indices[i].h, indices[i].d,
-	        						       				  					  pos[0] - positions[i][0],
-	        						       				  					  pos[1] - positions[i][1],
-	        						       				  					  pos[2] - positions[i][2], 0);
-	        											else
-	        												pixels[i] = getPixelMin(imageType, indices[i].imageStack, indices[i].w, indices[i].h, indices[i].d,
-	        																  pos[0] - positions[i][0],
-	        																  pos[1] - positions[i][1],
-	        																  0, 0);
-	        											//TODO: Remove test
-	        											//pixels[i] = (float)Math.pow(2, indices[i].id);
-	        										}
-	        									}
-	        							
-	        									// compute the final value for the pixel
-	        									if (type == MIN)
-	        									{
-	        										if (imageType == ImagePlus.COLOR_RGB)
-	        										{
-	        											finalRGBPixel[0] = getMin(rgbPixels, 0, num);
-	        											finalRGBPixel[1] = getMin(rgbPixels, 1, num);
-	        											finalRGBPixel[2] = getMin(rgbPixels, 2, num);
-	        										}
-	        										else
-	        										{
-	        											finalPixel = getMin(pixels, num);
-	        										}
-	        									}
-	        									else if (type == AVG)
-	        									{
-	        										if (imageType == ImagePlus.COLOR_RGB)
-	        										{
-	        											finalRGBPixel[0] = avg(rgbPixels, 0, num);
-	        											finalRGBPixel[1] = avg(rgbPixels, 1, num);
-	        											finalRGBPixel[2] = avg(rgbPixels, 2, num);
-	        										}
-	        										else
-	        										{
-	        											finalPixel = avg(pixels, num);
-	        										}
-	        									}
-	        									else // Linear Blending
-	        									{
-	        										computeLinearWeights(indices, num, pos, weights, tmp, alpha);
-	        										if (imageType == ImagePlus.COLOR_RGB)
-	        										{
-	        											finalRGBPixel[0] = avg(rgbPixels, 0, weights, num);
-	        											finalRGBPixel[1] = avg(rgbPixels, 1, weights, num);
-	        											finalRGBPixel[2] = avg(rgbPixels, 2, weights, num);
-	        										}
-	        										else
-	        										{
-	        											finalPixel = avg(pixels, weights, num);
-	        										}
-	        									}
-	        							
-	        									// set the pixel into the volume
-	        									if (imageType == ImagePlus.COLOR_RGB)
-	        									{
-	        										ip[pos[2]].putPixel(pos[0], pos[1], finalRGBPixel);
-	        									}
-	        									else
-	        									{
-	        										if (imageType == ImagePlus.GRAY8 || imageType == ImagePlus.GRAY16)
-	        										{
-	        											ip[pos[2]].putPixel(pos[0] , pos[1] , (int) (finalPixel + 0.5));
-	        										}
-	        										else
-	        										{
-	        											ip[pos[2]].putPixelValue(pos[0], pos[1], finalPixel);
-
-	        											synchronized (minmax)
-	        											{
-	        												if (finalPixel < minmax[0])
-	        													minmax[0] = finalPixel;
-
-	        												if (finalPixel > minmax[1])
-	        													minmax[1] = finalPixel;
-	        											}
-	        										}
-	        									}
-	        								}
-	        							}
-	        						}
+		        							pos[2] = posUL[2];
+		        							//compute final pixel value inside "tile"
+		        							for (pos[0]=posUL[0]; pos[0]<posDR[0];pos[0]++)
+		        							{
+		        								for (pos[1]=posUL[1]; pos[1]<posDR[1];pos[1]++)
+		        								{
+		        									// get the pixel values of all images that contribute
+		        									for (int i = 0; i < num; i++)
+		        									{
+		        										if (imageType == ImagePlus.COLOR_RGB)
+		        										{
+		        											if (dimension == 3)
+		        												rgbPixels[i] = getPixelMinRGB(indices[i].imageStack, indices[i].w, indices[i].h, indices[i].d,
+		        											        			  pos[0] - positions[i][0],
+		        											        			  pos[1] - positions[i][1],
+		        											        			  pos[2] - positions[i][2], 0);
+		        											else
+		        												rgbPixels[i] = getPixelMinRGB(indices[i].imageStack, indices[i].w, indices[i].h, indices[i].d,
+		        							        							  pos[0] - positions[i][0],
+		        							        							  pos[1] - positions[i][1],
+		        							        							  0, 0);
+		        										
+		        										}
+		        										else
+		        										{
+		        											if (dimension == 3)
+		        												pixels[i] = getPixelMin(imageType, indices[i].imageStack, indices[i].w, indices[i].h, indices[i].d,
+		        						       				  					  pos[0] - positions[i][0],
+		        						       				  					  pos[1] - positions[i][1],
+		        						       				  					  pos[2] - positions[i][2], 0);
+		        											else
+		        												pixels[i] = getPixelMin(imageType, indices[i].imageStack, indices[i].w, indices[i].h, indices[i].d,
+		        																  pos[0] - positions[i][0],
+		        																  pos[1] - positions[i][1],
+		        																  0, 0);
+		        											//TODO: Remove test
+		        											//pixels[i] = (float)Math.pow(2, indices[i].id);
+		        										}
+		        									}
+		        							
+		        									// compute the final value for the pixel
+		        									if (type == MIN)
+		        									{
+		        										if (imageType == ImagePlus.COLOR_RGB)
+		        										{
+		        											finalRGBPixel[0] = getMin(rgbPixels, 0, num);
+		        											finalRGBPixel[1] = getMin(rgbPixels, 1, num);
+		        											finalRGBPixel[2] = getMin(rgbPixels, 2, num);
+		        										}
+		        										else
+		        										{
+		        											finalPixel = getMin(pixels, num);
+		        										}
+		        									}
+		        									else if (type == AVG)
+		        									{
+		        										if (imageType == ImagePlus.COLOR_RGB)
+		        										{
+		        											finalRGBPixel[0] = avg(rgbPixels, 0, num);
+		        											finalRGBPixel[1] = avg(rgbPixels, 1, num);
+		        											finalRGBPixel[2] = avg(rgbPixels, 2, num);
+		        										}
+		        										else
+		        										{
+		        											finalPixel = avg(pixels, num);
+		        										}
+		        									}
+		        									else // Linear Blending
+		        									{
+		        										computeLinearWeights(indices, num, pos, weights, tmp, alpha);
+		        										if (imageType == ImagePlus.COLOR_RGB)
+		        										{
+		        											finalRGBPixel[0] = avg(rgbPixels, 0, weights, num);
+		        											finalRGBPixel[1] = avg(rgbPixels, 1, weights, num);
+		        											finalRGBPixel[2] = avg(rgbPixels, 2, weights, num);
+		        										}
+		        										else
+		        										{
+		        											finalPixel = avg(pixels, weights, num);
+		        										}
+		        									}
+		        							
+		        									// set the pixel into the volume
+		        									if (imageType == ImagePlus.COLOR_RGB)
+		        									{
+		        										ip[pos[2]].putPixel(pos[0], pos[1], finalRGBPixel);
+		        									}
+		        									else
+		        									{
+		        										if (imageType == ImagePlus.GRAY8 || imageType == ImagePlus.GRAY16)
+		        										{
+		        											ip[pos[2]].putPixel(pos[0] , pos[1] , (int) (finalPixel + 0.5));
+		        										}
+		        										else
+		        										{
+		        											ip[pos[2]].putPixelValue(pos[0], pos[1], finalPixel);
+	
+		        											synchronized (minmax)
+		        											{
+		        												if (finalPixel < minmax[0])
+		        													minmax[0] = finalPixel;
+	
+		        												if (finalPixel > minmax[1])
+		        													minmax[1] = finalPixel;
+		        											}
+		        										}
+		        									}
+		        								}
+		        							}
+		        						}
+		        					}
 	        					}
-	        				
 	        				int line = progress.incrementAndGet();
 	        				
 	        				// only the first Thread redraws
@@ -929,19 +932,6 @@ public class Stitch_Image_Collection implements PlugIn
 		return min;
 	}
 
-	final private static int round( final float value )
-	{
-		return (int)( value + (0.5f * Math.signum( value ) ) );
-	}	
-
-	final private static int[] round( final float[] value )
-	{
-		int[] ret=new int[value.length];
-		for(int i=0; i<value.length; ++i)
-		{ret[i]=round(value[i]);}
-		return ret;
-	}
-
 	final private static int getImagesAtCoordinate(final ArrayList<ImageInformation> imageInformationList, final ImageInformation indices[], final int[] pos)
 	{
 		int num = 0;
@@ -951,7 +941,7 @@ public class Stitch_Image_Collection implements PlugIn
 			// check if pixel is inside the image
 			boolean isInside = true;
 			for (int dim = 0; dim < iI.dim && isInside; dim++)
-				if ( !(pos[dim] >= round(iI.position[dim]) && pos[dim] < round(iI.position[dim] + iI.size[dim]) ) )
+				if ( !(pos[dim] >= CommonFunctions.round(iI.position[dim]) && pos[dim] < CommonFunctions.round(iI.position[dim] + iI.size[dim]) ) )
 					isInside = false;
 			
 			if (isInside)
@@ -1250,7 +1240,6 @@ public class Stitch_Image_Collection implements PlugIn
 			setROI(imp1, o.i1, o.i2);
 			setROI(imp2, o.i2, o.i1);
 			
-			Point2D expected = new Point2D(Math.abs(round(o.i2.offset[0] - o.i1.offset[0])), Math.abs(round(o.i2.offset[1] - o.i1.offset[1])));
 			//imp1.show();
 			//imp2.show();
 			
@@ -1276,14 +1265,19 @@ public class Stitch_Image_Collection implements PlugIn
 					
 					o.R = stitch.getCrossCorrelationResult().R;
 					o.translation3D = stitch.getTranslation();
+					//constraint the translation to expected, if found too far
+					o.checkDeltaToExpected(maxDeltaToExpectedCorrelation, thresholdR);
 				}
 				catch (Exception e)
 				{
 					o.R = -1;
 					o.translation3D = new Point3D(0,0,0);
 				}
-								
-				IJ.log(o.i1.id + " overlaps " + o.i2.id + ": " + o.R + " translation: " + o.translation3D);
+
+				if (o.correlationFallBack)
+					IJ.log(o.i1.id + " doesn't overlap well " + o.i2.id + " translation: " +  o.translation3D + " ; Delta to expected = " + o.deltaToExpected);
+				else
+					IJ.log(String.format(o.i1.id + " overlaps " + o.i2.id + ": %.2f translation: " + o.translation3D + " ; Delta to expected = " + o.deltaToExpected, o.R));
 			}
 			else if (dim == 2)
 			{
@@ -1309,37 +1303,28 @@ public class Stitch_Image_Collection implements PlugIn
 				
 				stitch.doLogging = false;
 				stitch.computeOverlap = true;
-				Point2D deltaToExpected = null;
-				boolean correlationFallBack = false;
 				try
 				{
 					stitch.work();
 					
 					o.R = stitch.getCrossCorrelationResult().R;
 					o.translation2D = stitch.getTranslation();
-					
-					//if the correlation is found too far than expected, take the expected position
-					deltaToExpected = new Point2D(Math.abs(o.translation2D.x) - expected.x, Math.abs(o.translation2D.y) - expected.y);
-					if (maxDeltaToExpectedCorrelation != -1 && Math.sqrt(Math.pow(deltaToExpected.x, 2) + Math.pow(deltaToExpected.y, 2)) > maxDeltaToExpectedCorrelation)
-					{
-						o.R =  thresholdR;
-						correlationFallBack = true;
-						o.translation2D = new Point2D(round(o.i2.offset[0]-o.i1.offset[0]), round(o.i2.offset[1]-o.i1.offset[1]));
-					}
+					//constraint the translation to expected, if found too far
+					o.checkDeltaToExpected(maxDeltaToExpectedCorrelation, thresholdR);
 				}
 				catch (Exception e)
 				{
 					o.R = -1;
-					o.translation2D = deltaToExpected = new Point2D(0, 0);
+					o.translation2D = new Point2D(0, 0);
 				}
 				
 				imp1.setProcessor(imp1.getTitle(), ip1);
 				imp2.setProcessor(imp2.getTitle(), ip2);
-								
-				if (correlationFallBack)
-					IJ.log(String.format(o.i1.id + " doesn't overlap well " + o.i2.id + " translation: " +  o.translation2D + " ; Delta to expected = " + deltaToExpected));
+
+				if (o.correlationFallBack)
+					IJ.log(o.i1.id + " doesn't overlap well " + o.i2.id + " translation: " +  o.translation2D + " ; Delta to expected = " + o.deltaToExpected);
 				else
-					IJ.log(String.format(o.i1.id + " overlaps " + o.i2.id + ": %.2f translation: " + o.translation2D + " ; Delta to expected = " + deltaToExpected, o.R));
+					IJ.log(String.format(o.i1.id + " overlaps " + o.i2.id + ": %.2f translation: " + o.translation2D + " ; Delta to expected = " + o.deltaToExpected, o.R));
 			}
 			else 
 			{

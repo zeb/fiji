@@ -1068,5 +1068,16 @@ public class CommonFunctions
 			return pixelTmp[x + y * width];
 		}
 	}
+	public final static int round( final float value )
+	{
+		return (int)( value + (0.5f * Math.signum( value ) ) );
+	}
+	public final static int[] round( final float[] value )
+	{
+		int[] ret=new int[value.length];
+		for(int i=0; i<value.length; ++i)
+		{ret[i]=round(value[i]);}
+		return ret;
+	}
 
 }
