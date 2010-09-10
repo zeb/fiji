@@ -24,6 +24,8 @@ import java.io.File;
  */
 public class Open_Meta_Image extends ImagePlus implements PlugIn {
 
+	protected int stackSlices = 0;
+
 	/**
 	 * This method gets called by ImageJ / Fiji.
 	 * 
@@ -264,7 +266,12 @@ public class Open_Meta_Image extends ImagePlus implements PlugIn {
 
 	private int appendToStack(ImageStack stack, String filename) {
 
-		ImagePlus imp       = IJ.openImage(filename);
+		ImagePlus imp = null;
+		try {
+			imp = IJ.openImage(filename);
+		} catch (Exception e) {
+			IJ.log("Error when opening " + filename + ".");
+		}
 		if (imp == null) {
 			IJ.error("Image file " + filename + " could not be opened.");
 			return 0;
@@ -275,6 +282,11 @@ public class Open_Meta_Image extends ImagePlus implements PlugIn {
 			IJ.error("Image " + filename + " does have invalid dimensions.");
 			return 0;
 		}
+
+		if (stackSlices == 0)
+			stackSlices = newStack.getSize();
+		else if (stackSlices != newStack.getSize())
+			IJ.error("Image " + filename + " does have " + newStack.getSize() + " slices, the other ones had " + stackSlices);
 
 		for (int s = 1; s <= newStack.getSize(); s++)
 			stack.addSlice("", newStack.getProcessor(s));
