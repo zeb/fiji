@@ -3,6 +3,7 @@ package volumeCalculator;
 import com.sun.j3d.utils.picking.PickCanvas;
 import com.sun.j3d.utils.picking.PickResult;
 import com.sun.j3d.utils.picking.PickTool;
+import delaunay.Pnt;
 
 import ij.IJ;
 import ij.ImagePlus;
@@ -17,10 +18,14 @@ import javax.media.j3d.ColoringAttributes;
 import javax.media.j3d.Group;
 import javax.media.j3d.LineArray;
 import javax.media.j3d.Node;
+import javax.media.j3d.PickSegment;
+import javax.media.j3d.PickShape;
 import javax.media.j3d.SceneGraphPath;
 import javax.media.j3d.Shape3D;
 import javax.vecmath.Color3f;
+import javax.vecmath.Point3d;
 import javax.vecmath.Point3f;
+import javax.vecmath.Vector3d;
 import skeleton_analysis.Edge;
 import skeleton_analysis.Point;
 import skeleton_analysis.Vertex;
@@ -53,6 +58,7 @@ public class CustomVolumeBehavior extends InteractiveBehavior {
     private static final String NO_PATH_MSG = "No path between those two points.";
     
     private final PickCanvas pickCanvas;
+    private PickSegment pickSegment = new PickSegment();
     private boolean firstPickPicked;
     private SceneGraphPath firstClickSGP;
     private SceneGraphPath secondClickSGP;
@@ -74,7 +80,7 @@ public class CustomVolumeBehavior extends InteractiveBehavior {
 
         pickCanvas = new PickCanvas(universe.getCanvas(), content);
         pickCanvas.setMode(PickTool.GEOMETRY_INTERSECT_INFO);
-
+        pickCanvas.setShape(pickSegment,new Point3d(2, 2, 2));
     }
 
     /**
@@ -89,12 +95,17 @@ public class CustomVolumeBehavior extends InteractiveBehavior {
         if (iD == MouseEvent.MOUSE_CLICKED) {
             // Get the point on the geometry where the mouse
             // press occurred
+            Point3d pnt = new Point3d();
+            Vector3d vctrd = new Vector3d();
             pickCanvas.setShapeLocation(e.getX(), e.getY());
+//            pickCanvas.setShapeCylinderRay(pnt, vctrd,.1d);
+            PickShape pickShape = pickCanvas.getPickShape();
             PickResult pickResult = pickCanvas.pickClosest();
             if (pickResult != null) {
                 if (firstPickPicked) {
                     volumesPanel.showStatus("Second Click");
                     secondClickSGP = pickResult.getSceneGraphPath();
+
 
                     // Determine if the two paths share  any nodes. Because each
                     // Network tree is a different branch graph, if the branch nodes
@@ -149,6 +160,7 @@ public class CustomVolumeBehavior extends InteractiveBehavior {
                 } else {
                     firstPickPicked = true;
                     firstClickSGP = pickResult.getSceneGraphPath();
+                    SceneGraphPath[] pickAll = pickCanvas.getBranchGroup().pickAll(pickSegment);
                     volumesPanel.showStatus("First Click");
                 }
             } else {
@@ -162,7 +174,7 @@ public class CustomVolumeBehavior extends InteractiveBehavior {
 
     /**
      * Use the currently selected color to paint an edge and
-     * caluculate the edge's volume and add it to that color's total.
+     * calculate the edge's volume and add it to that color's total.
      * @param shape Shape3D
      */
     void highlightEdge(Shape3D shape) {

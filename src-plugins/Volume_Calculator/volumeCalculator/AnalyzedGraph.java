@@ -12,17 +12,14 @@ import ij.process.ImageProcessor;
 import java.awt.Color;
 import java.util.ArrayList;
 import java.util.Enumeration;
-import java.util.HashMap;
 import java.util.Stack;
 import javax.media.j3d.Appearance;
-import javax.media.j3d.Bounds;
 import javax.media.j3d.BranchGroup;
 import javax.media.j3d.ColoringAttributes;
 import javax.media.j3d.Group;
 import javax.media.j3d.LineArray;
 import javax.media.j3d.LineAttributes;
 import javax.media.j3d.Node;
-import javax.media.j3d.PointArray;
 import javax.media.j3d.PointAttributes;
 import javax.media.j3d.Shape3D;
 import javax.vecmath.Color3f;
@@ -37,7 +34,7 @@ import javax.vecmath.Point3f;
  * edges in all the trees and create a Java 3D representation of those edges
  * using the LineArray Shape.
  * </p>
- * @author pcmarks - Maine Medical Center Research Institute www.mcri.org
+ * @author p c marks - Maine Medical Center Research Institute www.mcri.org
  * 
  */
 class AnalyzedGraph {
@@ -248,18 +245,21 @@ class AnalyzedGraph {
 
                                 vertexGroup.addChild(edgeGroup);
 
-//                                int numberOfPoints = 2 + edge.getSlabs().size();
-//
-//                                LineArray la = new LineArray(2*(numberOfPoints-1), LineArray.COORDINATES);
-//                                la.setCoordinate(0, point2point3f(v1.getPoints().get(0)));
-//                                for (int s = 0; s < edge.getSlabs().size();s++) {
-//                                    la.setCoordinate((2*s)+1, point2point3f(edge.getSlabs().get(s)));
-//                                    la.setCoordinate((2*s)+2, point2point3f(edge.getSlabs().get(s)));
-//                                }
-//                                la.setCoordinate(numberOfPoints-1, point2point3f(v2.getPoints().get(0)));
-                                LineArray la = new LineArray(2, LineArray.COORDINATES);
+                                int numberOfEdges  = 1 + edge.getSlabs().size();
+                                int numberOfPoints = 2 * numberOfEdges;
+
+                                LineArray la = new LineArray(numberOfPoints, LineArray.COORDINATES);
                                 la.setCoordinate(0, point2point3f(v1.getPoints().get(0)));
-                                la.setCoordinate(1, point2point3f(v2.getPoints().get(0)));
+                                for (int edgePoint = 0; edgePoint < edge.getSlabs().size();edgePoint++) {
+                                    Point point = edge.getSlabs().get(edgePoint);
+                                    la.setCoordinate((2*edgePoint)+1, point2point3f(point));
+                                    la.setCoordinate((2*edgePoint)+2, point2point3f(point));
+                                }
+                                la.setCoordinate(numberOfPoints-1, point2point3f(v2.getPoints().get(0)));
+
+//                                LineArray la = new LineArray(2, LineArray.COORDINATES);
+//                                la.setCoordinate(0, point2point3f(v1.getPoints().get(0)));
+//                                la.setCoordinate(1, point2point3f(v2.getPoints().get(0)));
 //++
                                 la.setCapability(LineArray.ALLOW_COLOR_READ);
                                 la.setCapability(LineArray.ALLOW_COLOR_WRITE);
