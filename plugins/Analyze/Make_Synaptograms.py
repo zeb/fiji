@@ -140,7 +140,8 @@ gd = GenericDialogPlus("Montage from Pivot List")
 gd.addFileField("Pivot List/Reference Channel:",referenceImage,20)
 gd.addDirectoryField("Stacks Folder:",IJ.getDirectory('current'),20)
 gd.showDialog()
-if gd.wasCanceled():    print "nevermind"
+if gd.wasCanceled():
+    print "nevermind"
 
 referenceImage=gd.getNextString()
 featuresFolder=gd.getNextString()
@@ -288,7 +289,7 @@ for ep,p in enumerate(pivots):#for er,r in enumerate(ROIs): #for each pivot
     IJ.run("Make Montage...", "columns=1 rows="+str(len(roiCurr))+" scale=1 first=1 last="+str(len(roiCurr))+" increment=1 border=0 font=12 label use"); 
     IJ.selectWindow("Montage")
     mont=IJ.getImage()
-    IJ.saveAs(mont,"Tiff",featuresFolder+"/montage/"+str(ep).zfill(int(round(log(len(pivots))/log(10))))+".tif")
+    IJ.saveAs(mont,"BMP",featuresFolder+"/montage/"+str(ep).zfill(int(round(log(len(pivots))/log(10))))+".bmp")
     mont.close()
     while ij.WindowManager.getCurrentImage():
         ij.WindowManager.getCurrentImage().close()
