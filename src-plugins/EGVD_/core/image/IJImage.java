@@ -11,6 +11,28 @@ public class IJImage extends Image {
 	private ImagePlus imp;
 	private ImageProcessor[] ips;
 	
+	public IJImage() {}
+
+	public IJImage(ImagePlus imp) {
+		this.imp = imp;
+		storeDimensions(imp.getWidth(), imp.getHeight(), imp.getStackSize());
+		referenceImageProcessors();
+	}
+
+	public IJImage(String title, Image image) {
+		storeDimensions(image.width, image.height, image.depth);
+		this.imp = image.getMaxPossibleValue() <= 255 ?
+			NewImage.createByteImage(title, width, height, depth,
+				NewImage.FILL_BLACK) :
+			NewImage.createFloatImage(title, width, height, depth,
+				NewImage.FILL_BLACK);
+		referenceImageProcessors();
+		for (int k = 0; k < depth; k++)
+			for (int j = 0; j < height; j++)
+				for (int i = 0; i < width; i++)
+					set(i, j, k, image.get(i, j, k));
+	}
+
 	@Override
 	public int get(int x, int y, int z) {
 		return ips[z].get(x, y);
