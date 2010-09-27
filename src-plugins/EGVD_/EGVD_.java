@@ -33,9 +33,9 @@ public class EGVD_ implements PlugIn, ProgressListener {
 			IJ.error("No images open");
 			return;
 		}
-		gd.addNumericField("Cell_threshold_min", 0, 0);
+		gd.addNumericField("Cell_threshold_min", 128, 0);
 		gd.addNumericField("Cell_threshold_max", 255, 0);
-		gd.addNumericField("Cell_threshold_levels", 1, 0);
+		gd.addNumericField("Cell_threshold_levels", 10, 0);
 		gd.addNumericField("Seed_threshold", 128, 0);
 		gd.addNumericField("Particle_size", 100, 0);
 		gd.showDialog();
@@ -50,6 +50,11 @@ public class EGVD_ implements PlugIn, ProgressListener {
 		params.cellThresholdParams.thresholdLevels = (int)gd.getNextNumber();
 		params.seedThreshold = (int)gd.getNextNumber();
 		params.particleSize = (int)gd.getNextNumber();
+
+		if (params.cellThresholdParams.min <= 0 || params.seedThreshold <= 0) {
+			IJ.error("Thresholds need to be positive");
+			return;
+		}
 
 		EGVD egvd = new EGVD(params);
 		egvd.addProgressListener(this);
