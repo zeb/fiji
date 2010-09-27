@@ -286,7 +286,7 @@ for ep,p in enumerate(pivots):#for er,r in enumerate(ROIs): #for each pivot
         mont.setTitle(img.name.split(".tif")[0])      
     if firstImg: firstImg.close()
     IJ.run("Images to Stack")
-    IJ.run("Make Montage...", "columns=1 rows="+str(len(roiCurr))+" scale=1 first=1 last="+str(len(roiCurr))+" increment=1 border=0 font=12 label use"); 
+    IJ.run("Make Montage...", "columns=1 rows="+str(len(roiCurr))+" scale=1 first=1 last="+str(len(roiCurr))+" increment=1 border=0 font=12 use"); 
     IJ.selectWindow("Montage")
     mont=IJ.getImage()
     IJ.saveAs(mont,"BMP",featuresFolder+"/montage/"+str(ep).zfill(int(round(log(len(pivots))/log(10))))+".bmp")

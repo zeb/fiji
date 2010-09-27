@@ -336,7 +336,8 @@ gd.addStringField("Subset size:",'1000')
 gd.addCheckbox("Extract local features?",True)
 gd.addDirectoryField("Feature Folder:",featuresFolder,20)
 gd.showDialog()
-if gd.wasCanceled():    print "nevermind"
+if gd.wasCanceled():
+    print "nevermind"
 else:
     #read in ze gui
     referenceImage=gd.getNextString()
@@ -365,7 +366,7 @@ else:
     if makesubset:
         subset=make_subset(pivots)
         #IJ.error("subset "+ref_foldername+File(referenceImage).getName()+'SubsetObjects.xls')
-        print_pivots(subset,ref_foldername+'/'+File(referenceImage).getName()+'SubsetObjects.txt')
+        print_pivots(subset,ref_foldername+'/'+File(referenceImage).getName()+'SubsetPivots.txt')
         
     if get_features:
         tifs= [f for f in File(featuresFolder).listFiles(Filter())]

@@ -79,10 +79,7 @@ def draw_single_pivot(pivot, image, newimage, radius):
     m=max(r,g,b)
     (r,g,b)=(r/m,g/m,b/m)
     
-    #s=r+g+b
-    #(r,g,b)=(r/s,g/s,b/s)
-    #print r,g,b
-    color=r
+    color=1#r
     p=0
     
     for z in xrange(int(cz-radius),int(cz+radius)+1):
@@ -172,8 +169,8 @@ IJ.run("Enhance Contrast", "saturated=0 normalize normalize_all")
 
 newimage=draw_pivots(pivots,image,radius)
 
-IJ.saveAs(newimage,"Tiff",refFile+"Redsubset.tif")
-
+#IJ.saveAs(newimage,"Tiff",refFile+"Redsubset.tif")
+IJ.saveAs(newimage,"Tiff",refFile+"Obj2Img.tif")
 
 Interp.batchMode = False
 print "Done"
