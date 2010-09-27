@@ -12,6 +12,7 @@ import core.progress.event.EGVDProgressEvent;
 import fiji.util.gui.GenericDialogPlus;
 
 import ij.IJ;
+import ij.ImagePlus;
 
 import ij.plugin.PlugIn;
 
@@ -65,8 +66,12 @@ public class EGVD_ implements PlugIn, ProgressListener {
 			IJ.handleException(e);
 			return;
 		}
-		new IJImage("GVD", egvd.getGVDLines()).show();
-		new IJImage("Region image", egvd.getRegionImage()).show();
+		ImagePlus gvd = new IJImage("GVD", egvd.getGVDLines()).getImagePlus();
+		gvd.setDisplayRange(0, 1);
+		gvd.show();
+		ImagePlus region = new IJImage("Region image", egvd.getRegionImage()).getImagePlus();
+		region.setDisplayRange(0, 1);
+		region.show();
 	}
 
 	public void progressOccurred(ProgressEvent e) {
