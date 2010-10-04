@@ -29,38 +29,37 @@ import java.util.jar.JarFile;
 
 /*
  * This plugin looks through all files in a given directory (default:
- * $ROOT/user-plugins/, where $ROOT is the parent directory of misc/Fiji.jar)
+ * $ROOT/user-plugins/, where $ROOT is the parent directory of jars/Fiji.jar)
  * and inserts the found plugins into a given menu (default: Plugins>User).
  */
 public class User_Plugins implements PlugIn {
 	public String path, menuPath;
+	protected boolean stripPluginsPrefix;
 
 	public User_Plugins() {
-		this(getDefaultPath(), getDefaultMenuPath());
+		this(true);
 	}
 
-	public User_Plugins(String path, String menuPath) {
+	public User_Plugins(boolean stripPluginsPrefix) {
+		this(getDefaultPath(), getDefaultMenuPath(), stripPluginsPrefix);
+	}
+
+	public User_Plugins(String path, String menuPath, boolean stripPluginsPrefix) {
 		this.path = path;
 		if (menuPath.endsWith(">"))
 			menuPath = menuPath.substring(0, menuPath.length() - 1);
 		this.menuPath = menuPath;
+		this.stripPluginsPrefix = stripPluginsPrefix;
 	}
 
 	public void run(String arg) {
-		if ("update".equals(arg))
+		if ("update".equals(arg)) {
 			Menus.updateImageJMenus();
-		installScripts();
-		installPlugins(path, ".", menuPath);
-		/* make sure "Update Menus" runs _this_ plugin */
-		Menus.getCommands().put("Update Menus",
-			"fiji.User_Plugins(\"update\")");
-		// make sure "Edit>Options>Memory & Threads runs Fiji's plugin
-		Menus.getCommands().put("Memory & Threads...", "fiji.Memory");
-
-		FijiClassLoader classLoader = new FijiClassLoader();
-		try {
-			classLoader.addPath(Menus.getPlugInsPath());
-		} catch (IOException e) {}
+			ClassLoader loader = IJ.getClassLoader();
+			if (loader != null && (loader instanceof FijiClassLoader))
+				return;
+		}
+		FijiClassLoader classLoader = new FijiClassLoader(true);
 		try {
 			classLoader.addPath(path);
 		} catch (IOException e) {}
@@ -74,6 +73,29 @@ public class User_Plugins implements PlugIn {
 			method.setAccessible(true);
 			method.invoke(null, new Object[] { classLoader });
 		} catch (Exception e) { e.printStackTrace(); }
+
+		installScripts();
+		installPlugins(path, ".", menuPath);
+		/* make sure "Update Menus" runs _this_ plugin */
+		Menus.getCommands().put("Update Menus",
+			"fiji.User_Plugins(\"update\")");
+		Menus.getCommands().put("Refresh Menus",
+			"fiji.User_Plugins(\"update\")");
+		if (IJ.getInstance() != null) {
+			Menu help = Menus.getMenuBar().getHelpMenu();
+			for (int i = help.getItemCount() - 1; i >= 0; i--) {
+				MenuItem item = help.getItem(i);
+				String name = item.getLabel();
+				if (name.equals("Update Menus"))
+					item.setLabel("Refresh Menus");
+			}
+		}
+
+		// make sure "Edit>Options>Memory & Threads runs Fiji's plugin
+		Menus.getCommands().put("Memory & Threads...", "fiji.Memory");
+
+		SampleImageLoader.install();
+		Main.installRecentCommands();
 	}
 
 	public static void install() {
@@ -87,6 +109,8 @@ public class User_Plugins implements PlugIn {
 	}
 
 	public static void installScripts() {
+		if (System.getProperty("jnlp") != null)
+			return;
 		runPlugIn("Refresh Javas");
 		String[] languages = {
 			"Jython", "JRuby", "Clojure", "BSH", "Javascript"
@@ -126,7 +150,7 @@ public class User_Plugins implements PlugIn {
 		}
 	}
 
-	protected List getJarPluginList(File jarFile, String menuPath)
+	public List getJarPluginList(File jarFile, String menuPath)
 			throws IOException {
 		List result = new ArrayList();
 		JarFile jar = new JarFile(jarFile);
@@ -137,7 +161,11 @@ public class User_Plugins implements PlugIn {
 			if (name.endsWith("plugins.config"))
 				return parsePluginsConfig(jar
 					.getInputStream(entry), menuPath);
-			if (name.indexOf('_') < 0)
+			if (name.indexOf('_') < 0 || name.indexOf('$') >= 0)
+				continue;
+			if (name.endsWith(".class"))
+				name = name.substring(0, name.length() - 6).replace('/', '.');
+			else
 				continue;
 			String[] item = new String[3];
 			item[0] = menuPath;
@@ -184,7 +212,9 @@ public class User_Plugins implements PlugIn {
 		return className.replace('_', ' ');
 	}
 
-	protected static String makeMenuPath(String original, String menuPath) {
+	protected String makeMenuPath(String original, String menuPath) {
+		if (!stripPluginsPrefix)
+			return original;
 		if (original.equals("Plugins"))
 			return menuPath;
 		if (original.startsWith("Plugins>"))
@@ -195,12 +225,12 @@ public class User_Plugins implements PlugIn {
 	}
 
 	/* TODO: sorted */
-	protected void installPlugin(String menuPath, String name,
+	public static MenuItem installPlugin(String menuPath, String name,
 			String command) {
 		if (Menus.getCommands().get(name) != null) {
 			IJ.log("The user plugin " + name
 				+ " would override an existing command!");
-			return;
+			return null;
 		}
 
 		int croc = menuPath.lastIndexOf('>');
@@ -209,6 +239,7 @@ public class User_Plugins implements PlugIn {
 		menu.add(item);
 		item.addActionListener(IJ.getInstance());
 		Menus.getCommands().put(name, command);
+		return item;
 	}
 
 	protected static Menu getMenu(String menuPath) {
@@ -252,6 +283,8 @@ public class User_Plugins implements PlugIn {
 	 */
 	protected static MenuItem getMenuItem(MenuBar menuBar, Menu menu,
 			String name, boolean createIfNecessary) {
+		if (menuBar == null && menu == null)
+			return null;
 		if (menuBar != null && name.equals("Help")) {
 			menu = menuBar.getHelpMenu();
 			if (menu == null && createIfNecessary) {
@@ -286,17 +319,8 @@ public class User_Plugins implements PlugIn {
 	/* defaults */
 
 	public static String getDefaultPath() {
-		final String prefix = "file:";
-		final String suffix = "/misc/Fiji.jar!/fiji/User_Plugins.class";
 		try {
-			String path = Class.forName("fiji.User_Plugins")
-				.getResource("User_Plugins.class").getPath();
-			if (path.startsWith(prefix))
-				path = path.substring(prefix.length());
-			if (path.endsWith(suffix))
-				path = path.substring(0,
-					path.length() - suffix.length());
-			return path + "/user-plugins";
+			return FijiTools.getFijiDir() + "/user-plugins";
 		} catch (Exception e) {
 			e.printStackTrace();
 			return "";

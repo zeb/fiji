@@ -1,5 +1,11 @@
+/fiji-*
+!/fiji-*.copyright
+!/fiji-*.README.Debian
 *.log
-fiji
+*.pyc
+/fiji
 *.substvars
 *.debhelper
-files
+/files
+/db.xml
+/db.xml.gz

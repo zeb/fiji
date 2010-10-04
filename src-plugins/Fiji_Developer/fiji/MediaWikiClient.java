@@ -23,6 +23,8 @@
 
 package fiji;
 
+import ij.IJ;
+
 import ij.plugin.BrowserLauncher;
 
 import java.net.URL;
@@ -44,9 +46,13 @@ import java.util.HashMap;
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
 
+import javax.net.ssl.HostnameVerifier;
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLSession;
+
 public class MediaWikiClient {
 	final String wikiBaseURI;
-	String sessionID, domain;
+	String sessionID, domain, loginToken;
 
 	public MediaWikiClient() {
 		this("http://pacific.mpi-cbg.de/wiki/index.php");
@@ -74,29 +80,31 @@ public class MediaWikiClient {
 				"action", "submitlogin",
 				"type", "login"
 			};
-			String[] postVars = {
-				"wpName", user,
-				"wpPassword", password
-			};
-			if (!hasSessionKey()) {
-				sendRequest(getVars, postVars,
+			if (!hasSessionKey() || loginToken == null) {
+				String response = sendRequest(getVars, null /* postVars */,
 						null, true);
+				loginToken = getFormVariable(response, "wpLoginToken");
+				if (IJ.debugMode)
+					debugShow(response);
 				if (!hasSessionKey()) {
 					System.err.println("Failed to "
 							+ "get session key!");
 					return false;
 				}
 			}
-			if (domain != null)
-				postVars = new String[] {
-					"wpName", user,
-					"wpPassword", password,
-					"wpDomain", domain
-				};
+			String[] postVars = {
+				"wpName", user,
+				"wpPassword", password,
+				"wpDomain", domain,
+				"wpLoginToken", loginToken
+			};
 
 			String response =
 				sendRequest(getVars, postVars);
-			loggedIn = response.indexOf("Login error:") < 0;
+			loginToken = null;
+			loggedIn = response.indexOf("Login error") < 0;
+			if (IJ.debugMode)
+				debugShow(response);
 			return loggedIn;
 		} catch (IOException e) { }
 		return false;
@@ -130,6 +138,12 @@ public class MediaWikiClient {
 		matcher = pattern.matcher(html);
 		if (matcher.matches())
 			return matcher.group(1);
+		pattern = Pattern.compile(".*<input type=.hidden. "
+			+ "name=\"" + name + "\" value=\"([^\"]*)\" />.*",
+			Pattern.DOTALL);
+		matcher = pattern.matcher(html);
+		if (matcher.matches())
+			return matcher.group(1);
 		return null;
 	}
 
@@ -154,6 +168,8 @@ public class MediaWikiClient {
 			if (time == null || token == null || summary == null) {
 				System.err.println("time: " + time + ", token: "
 					+ token + ", summary: " + summary);
+				if (IJ.debugMode)
+					debugShow(response);
 				return null;
 			}
 
@@ -229,7 +245,7 @@ public class MediaWikiClient {
 		}
 	}
 
-	String sendRequest(String[] getVars,
+	public String sendRequest(String[] getVars,
 			String[] postVars) throws IOException {
 		return sendRequest(getVars, postVars, null, false);
 	}
@@ -250,6 +266,15 @@ public class MediaWikiClient {
 		URL url = new URL(uri);
 		HttpURLConnection conn =
 			(HttpURLConnection)url.openConnection();
+		if (conn instanceof HttpsURLConnection) {
+			HttpsURLConnection secure = (HttpsURLConnection)conn;
+			secure.setHostnameVerifier(new HostnameVerifier() {
+				public boolean verify(String hostname,
+						SSLSession session) {
+					return true;
+				}
+			});
+		}
 
 		conn.setDoInput(true);
 		conn.setUseCaches(false);
@@ -299,7 +324,8 @@ public class MediaWikiClient {
 				new PrintStream(conn.getOutputStream());
 			for (int i = 0; postVars != null &&
 					i + 1 < postVars.length; i += 2)
-				ps.print((i == 0 ? "" : "&")
+				if (postVars[i + 1] != null)
+					ps.print((i == 0 ? "" : "&")
 						+ urlEncode(postVars[i]) + "="
 						+ urlEncode(postVars[i + 1]));
 			ps.close();
@@ -355,7 +381,7 @@ public class MediaWikiClient {
 
 	String sessionKey = "wikidb_session";
 	Pattern cookiePattern =
-		Pattern.compile("^(wikidb_[^=]*session)=([^;]*);.*$");
+		Pattern.compile("^(wikidb[^_]*_[^=]*session)=([^;]*);.*$");
 	void getCookies(List<String> headers) {
 		if (headers == null)
 			return;

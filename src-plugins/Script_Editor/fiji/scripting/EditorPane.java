@@ -3,11 +3,12 @@ package fiji.scripting;
 import fiji.scripting.completion.ClassCompletionProvider;
 import fiji.scripting.completion.DefaultProvider;
 
+import java.awt.Component;
 import java.awt.Container;
 import java.awt.Dimension;
+import java.awt.Font;
 
 import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -16,7 +17,10 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 
-import javax.swing.KeyStroke;
+import java.util.Vector;
+
+import javax.swing.JScrollPane;
+import javax.swing.JViewport;
 import javax.swing.ToolTipManager;
 
 import javax.swing.event.DocumentEvent;
@@ -24,15 +28,16 @@ import javax.swing.event.DocumentListener;
 
 import javax.swing.text.BadLocationException;
 import javax.swing.text.DefaultEditorKit;
-import javax.swing.text.Document;
 
 import org.fife.ui.autocomplete.AutoCompletion;
 
 import org.fife.ui.rsyntaxtextarea.RSyntaxDocument;
 import org.fife.ui.rsyntaxtextarea.RSyntaxTextArea;
-import org.fife.ui.rsyntaxtextarea.SyntaxConstants;
+import org.fife.ui.rsyntaxtextarea.Style;
+import org.fife.ui.rsyntaxtextarea.SyntaxScheme;
 
 import org.fife.ui.rtextarea.Gutter;
+import org.fife.ui.rtextarea.GutterIconInfo;
 import org.fife.ui.rtextarea.IconGroup;
 import org.fife.ui.rtextarea.RTextArea;
 import org.fife.ui.rtextarea.RTextScrollPane;
@@ -41,7 +46,8 @@ import org.fife.ui.rtextarea.ToolTipSupplier;
 
 public class EditorPane extends RSyntaxTextArea implements DocumentListener {
 	TextEditor frame;
-	File file;
+	String fallBackBaseName;
+	File file, gitDirectory;
 	long fileLastModified;
 	Languages.Language currentLanguage;
 	AutoCompletion autocomp;
@@ -172,6 +178,12 @@ public class EditorPane extends RSyntaxTextArea implements DocumentListener {
 			setTitle();
 	}
 
+	public boolean isNew() {
+		return !fileChanged() && file == null &&
+			fallBackBaseName == null &&
+			getDocument().getLength() == 0;
+	}
+
 	public void checkForOutsideChanges() {
 		if (frame != null && wasChangedOutside() &&
 				!frame.reload("The file " + file.getName()
@@ -194,11 +206,19 @@ public class EditorPane extends RSyntaxTextArea implements DocumentListener {
 	}
 
 	public void setFile(String path) throws IOException {
+		File oldFile = file;
 		file = null;
 		if (path == null)
 			setText("");
 		else {
 			File file = new File(path);
+			if (!file.isAbsolute())
+				file = new File(ij.io.OpenDialog.getDefaultDirectory(), path);
+			int line = 0;
+			try {
+				if (file.getCanonicalPath().equals(oldFile.getCanonicalPath()))
+					line = getCaretLineNumber();
+			} catch (Exception e) { /* ignore */ }
 			if (!file.exists()) {
 				modifyCount = Integer.MIN_VALUE;
 				setFileName(file);
@@ -207,19 +227,45 @@ public class EditorPane extends RSyntaxTextArea implements DocumentListener {
 			read(new BufferedReader(new FileReader(file)),
 				null);
 			this.file = file;
+			if (line > getLineCount())
+				line = getLineCount() - 1;
+			try {
+				setCaretPosition(getLineStartOffset(line));
+			} catch (BadLocationException e) { /* ignore */ }
 		}
 		discardAllEdits();
 		modifyCount = 0;
 		setFileName(file);
 	}
 
+	public void setFileName(String baseName) {
+		String name = baseName;
+		if (baseName.endsWith(currentLanguage.extension))
+			name = name.substring(0, name.length()
+					- currentLanguage.extension.length());
+		fallBackBaseName = name;
+		if (currentLanguage.extension.equals(".java"))
+			new TokenFunctions(this).setClassName(name);
+	}
+
 	public void setFileName(File file) {
 		this.file = file;
+		updateGitDirectory();
 		setTitle();
-		if (file != null)
-			setLanguageByExtension(getExtension(file.getName()));
+		if (file != null) {
+			setLanguageByFileName(file.getName());
+			fallBackBaseName = null;
+		}
 		fileLastModified = file == null || !file.exists() ? 0 :
 			file.lastModified();
+	}
+
+	protected void updateGitDirectory() {
+		gitDirectory = new FileFunctions(frame).getGitDirectory(file);
+	}
+
+	public File getGitDirectory() {
+		return gitDirectory;
 	}
 
 	protected String getFileName() {
@@ -231,7 +277,8 @@ public class EditorPane extends RSyntaxTextArea implements DocumentListener {
 			if (name != null)
 				return name + currentLanguage.extension;
 		}
-		return "New_" + currentLanguage.extension;
+		return (fallBackBaseName == null ? "New_" : fallBackBaseName)
+			+ currentLanguage.extension;
 	}
 
 	private synchronized void setTitle() {
@@ -244,14 +291,20 @@ public class EditorPane extends RSyntaxTextArea implements DocumentListener {
 		return dot < 0 ?  "" : fileName.substring(dot);
 	}
 
-	private void setLanguageByExtension(String extension) {
-		setLanguage(Languages.get(extension));
+	protected void setLanguageByFileName(String name) {
+		if (name.equals("Fakefile") || name.endsWith("/Fakefile"))
+			setLanguage(Languages.fakefile);
+		else
+			setLanguage(Languages.get(getExtension(name)));
 	}
 
-	void setLanguage(Languages.Language language) {
+	protected void setLanguage(Languages.Language language) {
 		if (language == null)
 			language = Languages.get("");
 
+		if (fallBackBaseName != null && fallBackBaseName.endsWith(".txt"))
+			fallBackBaseName = fallBackBaseName.substring(0,
+				fallBackBaseName.length() - 4);
 		if (file != null) {
 			String name = file.getName();
 			if (!name.endsWith(language.extension) &&
@@ -260,8 +313,11 @@ public class EditorPane extends RSyntaxTextArea implements DocumentListener {
 				if (name.endsWith(ext))
 					name = name.substring(0, name.length()
 							- ext.length());
+				else if (name.endsWith(".txt"))
+					name = name.substring(0, name.length() - 4);
 				file = new File(file.getParentFile(),
 						name + language.extension);
+				updateGitDirectory();
 				modifyCount = Integer.MIN_VALUE;
 			}
 		}
@@ -278,9 +334,44 @@ public class EditorPane extends RSyntaxTextArea implements DocumentListener {
 		else if (language.extension.equals(".m"))
 			getRSyntaxDocument()
 				.setSyntaxStyle(new MatlabTokenMaker());
+		else if (language.extension.equals(".ijm"))
+			getRSyntaxDocument()
+				.setSyntaxStyle(new ImageJMacroTokenMaker());
 
 		frame.setTitle();
 		frame.updateLanguageMenu(language);
+	}
+
+	public float getFontSize() {
+		return getFont().getSize2D();
+	}
+
+	public void setFontSize(float size) {
+		increaseFontSize(size / getFontSize());
+	}
+
+	public void increaseFontSize(float factor) {
+		if (factor == 1)
+			return;
+		SyntaxScheme scheme = getSyntaxScheme();
+		for (Style style : scheme.styles) {
+			if (style == null || style.font == null)
+				continue;
+			float size = (float)Math.max(5, style.font.getSize2D() * factor);
+			style.font = style.font.deriveFont(size);
+		}
+		Font font = getFont();
+		float size = (float)Math.max(5, font.getSize2D() * factor);
+		setFont(font.deriveFont(size));
+		setSyntaxScheme(scheme);
+		Component parent = getParent();
+		if (parent instanceof JViewport) {
+			parent = parent.getParent();
+			if (parent instanceof JScrollPane) {
+				parent.repaint();
+			}
+		}
+		parent.repaint();
 	}
 
 	protected RSyntaxDocument getRSyntaxDocument() {
@@ -288,7 +379,51 @@ public class EditorPane extends RSyntaxTextArea implements DocumentListener {
 	}
 
 	public ClassNameFunctions getClassNameFunctions() {
-		return new ClassNameFunctions(provider);
+		return new ClassNameFunctions(frame, provider);
+	}
+
+	public void toggleBookmark() {
+		toggleBookmark(getCaretLineNumber());
+	}
+
+	public void toggleBookmark(int line) {
+		if (gutter != null) try {
+			gutter.toggleBookmark(line);
+		} catch (BadLocationException e) { /* ignore */ }
+	}
+
+	public class Bookmark {
+		int tab;
+		GutterIconInfo info;
+
+		public Bookmark(int tab, GutterIconInfo info) {
+			this.tab = tab;
+			this.info = info;
+		}
+
+		public int getLineNumber() {
+			try {
+				return getLineOfOffset(info.getMarkedOffset());
+			} catch (BadLocationException e) {
+				return -1;
+			}
+		}
+
+		public void setCaret() {
+			frame.switchTo(tab);
+			setCaretPosition(info.getMarkedOffset());
+		}
+
+		public String toString() {
+			return "Line " + (getLineNumber() + 1) + " (" + getFileName() + ")";
+		}
+	}
+
+	public void getBookmarks(int tab, Vector<Bookmark> result) {
+		if (gutter == null)
+			return;
+		for (GutterIconInfo info : gutter.getBookmarks())
+			result.add(new Bookmark(tab, info));
 	}
 
 	public void startDebugging() {

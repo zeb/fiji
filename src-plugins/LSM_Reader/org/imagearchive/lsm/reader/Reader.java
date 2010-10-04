@@ -5,6 +5,7 @@ import ij.IJ;
 import ij.ImagePlus;
 import ij.ImageStack;
 import ij.LookUpTable;
+import ij.gui.ImageWindow;
 import ij.io.FileInfo;
 import ij.io.ImageReader;
 import ij.io.OpenDialog;
@@ -50,7 +51,8 @@ public class Reader {
 			imp.show();
 			imp.updateAndDraw();
 			WindowFocusListener listener = null;
-			try {
+			ImageWindow window = imp.getWindow();
+			if (window != null) try {
 				Class toolbox = Class
 						.forName("org.imagearchive.lsm.toolbox.gui.ImageFocusListener");
 				Object o = null;
@@ -59,7 +61,7 @@ public class Reader {
 				listener = (WindowFocusListener) o;
 				Method toolboxMet = o.getClass().getMethod("windowGainedFocus",new Class[] {WindowEvent.class});
 				if (listener != null) {
-					imp.getWindow().addWindowFocusListener(listener);
+					window.addWindowFocusListener(listener);
 				}
 				if (toolboxMet != null)
 					toolboxMet.invoke(o,new Object[]{null});
@@ -596,11 +598,11 @@ public class Reader {
 					.get(imageCounter);
 			for (int i = 0; i < imDir.TIF_STRIPBYTECOUNTS.length; i++)
 
+				flength = (int) new File(lsmFi.directory
+						+ System.getProperty("file.separator")
+						+ lsmFi.fileName).length();
 				if (imDir.TIF_COMPRESSION == 5) {
 					lsmFi.compression = FileInfo.LZW;
-					flength = (int) new File(lsmFi.directory
-							+ System.getProperty("file.separator")
-							+ lsmFi.fileName).length();
 					if (imDir.TIF_PREDICTOR == 2)
 						lsmFi.compression = FileInfo.LZW_WITH_DIFFERENCING;
 				} else

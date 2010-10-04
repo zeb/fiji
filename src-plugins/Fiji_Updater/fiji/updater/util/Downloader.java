@@ -42,6 +42,7 @@ public class Downloader extends Progressable {
 	}
 
 	public void start(Iterable<FileDownload> files) throws IOException {
+		Util.useSystemProxies();
 		cancelled = false;
 
 		count = total = itemCount = itemTotal = 0;
@@ -73,7 +74,9 @@ public class Downloader extends Progressable {
 		String destination = current.getDestination();
 		addItem(current);
 
-		new File(destination).getParentFile().mkdirs();
+		File parentDirectory = new File(destination).getParentFile();
+		if (parentDirectory != null)
+			parentDirectory.mkdirs();
 		InputStream in = connection.getInputStream();
 		OutputStream out = new FileOutputStream(destination);
 

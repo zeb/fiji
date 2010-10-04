@@ -46,7 +46,7 @@ public class Util {
 			.toString().replace("jar:file:", "")
 			.replace("plugins/Fiji_Updater.jar!/"
 				+ "fiji/updater/util/Util.class", "");
-		isDeveloper = new File(fijiRoot + "/fiji.cxx").exists();
+		isDeveloper = new File(fijiRoot + "/fiji.c").exists();
 		platform = getPlatform();
 
 		String macLauncher = macPrefix + "fiji-macosx";
@@ -76,6 +76,8 @@ public class Util {
 	public static String stripPrefix(String string, String prefix) {
 		if (!string.startsWith(prefix))
 			return string;
+		if (useMacPrefix && string.startsWith(prefix + macPrefix))
+			return string.substring((prefix + macPrefix).length());
 		return string.substring(prefix.length());
 	}
 
@@ -236,7 +238,7 @@ public class Util {
 
 	public static boolean isLauncher(String filename) {
 		return Arrays.binarySearch(launchers,
-				stripPrefix(filename, fijiRoot)) >= 0;
+				stripPrefix(stripPrefix(filename, fijiRoot), "precompiled/")) >= 0;
 	}
 
 	public static String[] getLaunchers() {
@@ -255,5 +257,9 @@ public class Util {
 			builder.append((builder.length() > 0 ? ", " : "")
 				+ object.toString());
 		return builder.toString();
+	}
+
+	public static void useSystemProxies() {
+		System.setProperty("java.net.useSystemProxies", "true");
 	}
 }

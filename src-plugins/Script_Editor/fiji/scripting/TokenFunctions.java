@@ -49,6 +49,11 @@ public class TokenFunctions implements Iterable<Token> {
 				token.textOffset, token.textCount);
 	}
 
+	public void replaceToken(Token token, String text) {
+		textArea.replaceRange(text, token.textOffset,
+				token.textOffset + token.textCount);
+	}
+
 	class TokenIterator implements Iterator<Token> {
 		int line = -1;
 		Token current, next;
@@ -109,6 +114,17 @@ public class TokenFunctions implements Iterable<Token> {
 			else if (classSeen && isIdentifier(token))
 				return getText(token);
 		return null;
+	}
+
+	public void setClassName(String className) {
+		boolean classSeen = false;
+		for (Token token : this)
+			if (isClass(token))
+				classSeen = true;
+			else if (classSeen && isIdentifier(token)) {
+				replaceToken(token, className);
+				return;
+			}
 	}
 
 	class Import implements Comparable<Import> {
@@ -359,6 +375,12 @@ public class TokenFunctions implements Iterable<Token> {
 
 	public void removeTrailingWhitespace() {
 		int end = textArea.getDocument().getLength();
+
+		// Turn CR and CRLF into LF
+		for (int i = end - 1; i >= 0; i--)
+			if (getText(i, i + 1).equals("\r"))
+				textArea.replaceRange("\n", i, i + 1
+					+ (i < end - 1 && getText(i + 1, i + 2).equals("\n") ? 1 : 0));
 
 		// remove trailing empty lines
 		int realEnd = end;

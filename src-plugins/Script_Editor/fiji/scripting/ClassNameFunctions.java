@@ -7,19 +7,32 @@ import ij.gui.GenericDialog;
 
 import ij.plugin.BrowserLauncher;
 
+import java.awt.Frame;
+
 import java.util.List;
 
 import javax.swing.JOptionPane;
 
 public class ClassNameFunctions {
 	ClassNames names;
+	Frame parent;
+
+	public ClassNameFunctions(Frame parent, ClassNames names) {
+		this.parent = parent;
+		this.names = names;
+	}
 
 	public ClassNameFunctions(ClassNames names) {
-		this.names = names;
+		this(null, names);
 	}
 
 	public ClassNameFunctions(ClassCompletionProvider provider) {
 		this(provider.names);
+	}
+
+	public ClassNameFunctions(Frame parent,
+			ClassCompletionProvider provider) {
+		this(parent, provider.names);
 	}
 
 	/**
@@ -30,13 +43,19 @@ public class ClassNameFunctions {
 	 * name.
 	 */
 	public String getFullName(String className) {
+		if (className.indexOf('.') > 0)
+			return className;
+
 		List<String> list = names.getFullPackageNames(className);
-		if (list.size() == 0)
+		if (list.size() == 0) {
+			JOptionPane.showMessageDialog(parent, "Class '"
+					+ className + "' was not found!");
 			return null;
+		}
 		if (list.size() == 1)
 			return list.get(0);
 		String[] names = list.toArray(new String[list.size()]);
-		GenericDialog gd = new GenericDialog("Choose class");
+		GenericDialog gd = new GenericDialog("Choose class", parent);
 		gd.addChoice("class", names, names[0]);
 		gd.showDialog();
 		if (gd.wasCanceled())
@@ -44,20 +63,18 @@ public class ClassNameFunctions {
 		return gd.getNextChoice();
 	}
 
-	public void openHelpForClass(String className) {
+	public void openHelpForClass(String className, boolean withFrames) {
 		String fullName = getFullName(className);
-		if (fullName == null) {
-			JOptionPane.showMessageDialog(null, "Class '"
-					+ className + "' was not found!");
+		if (fullName == null)
 			return;
-		}
 		String urlPrefix;
 		if (fullName.startsWith("java.") ||
 				fullName.startsWith("javax."))
 			urlPrefix = "http://java.sun.com/j2se/1.5.0/docs/api/";
 		else
 			urlPrefix = "http://pacific.mpi-cbg.de/javadoc/";
-		new BrowserLauncher().run(urlPrefix + "index.html?"
+		new BrowserLauncher().run(urlPrefix
+				+ (withFrames ? "index.html?" : "")
 				+ fullName.replace('.', '/') + ".html");
 	}
 }
