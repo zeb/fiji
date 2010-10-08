@@ -145,9 +145,11 @@ public class Stitch_Image_Collection implements PlugIn
 	{
 		// read the layout file
 		ArrayList<ImageInformation> imageInformationList = readLayoutFile(fileName);		
-		work(imageInformationList, createPreview, computeOverlap, fusionMethod, handleRGB, fileName);
+		ImagePlus imp = work(imageInformationList, createPreview, computeOverlap, fusionMethod, handleRGB, fileName);
+		if (null != imp) imp.show();
 	}
-	
+
+	/** Returns but doesn't call show() the image. */
 	public ImagePlus work( GridLayout gridLayout, boolean createPreview, boolean computeOverlap, String fileName )
 	{
 		this.alpha = gridLayout.alpha;
@@ -159,7 +161,8 @@ public class Stitch_Image_Collection implements PlugIn
 		
 		return work(gridLayout.imageInformationList, createPreview, computeOverlap, gridLayout.fusionMethod, gridLayout.handleRGB, fileName);
 	}
-	
+
+	/** Returns but doesn't call show() the image. */
 	public ImagePlus work(ArrayList<ImageInformation> imageInformationList, boolean createPreview, boolean computeOverlap, String fusionMethod, String handleRGB, String fileName)
 	{		
 		IJ.log("(" + new Date(System.currentTimeMillis()) + "): Stitching the following files:");
@@ -214,7 +217,6 @@ public class Stitch_Image_Collection implements PlugIn
 		
 		// fuse the images
 		ImagePlus fused = fuseImages(newImageInformationList, max, "Stitched Image", fusionMethod, rgbOrder, dim, alpha);
-		fused.show();
 		IJ.log("(" + new Date(System.currentTimeMillis()) + "): Finished Stitching.");
 		return fused;
 	}
@@ -306,7 +308,6 @@ public class Stitch_Image_Collection implements PlugIn
 		Calibration cal = null;
 		
 		final ImageStack fusedStack = fusedImp.getStack();	
-		fusedImp.show();
 
 		try
 		{

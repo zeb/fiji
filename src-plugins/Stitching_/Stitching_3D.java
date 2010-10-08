@@ -455,136 +455,35 @@ public class Stitching_3D implements PlugIn
 
 	public void work(FloatArray3D inputImage1, FloatArray3D inputImage2)
 	{
-		ImagePlus imp1, imp2;
-		FloatArray3D img1 = null, img2 = null, fft1, fft2;
-		
-		Point3D img1Dim = new Point3D(0, 0, 0), img2Dim = new Point3D(0, 0, 0), // (incl.
-																				// possible
-																				// ext!!!)
-		ext1Dim = new Point3D(0, 0, 0), ext2Dim = new Point3D(0, 0, 0), maxDim;
+		State s = computeOffset(inputImage1, inputImage2);
+		if (null == s) return;
 
-		// make it also executable as non-plugin/macro
-		if (inputImage1 == null || inputImage2 == null)
-		{
-			// get images
-			if (this.imp1 == null) imp1 = getImage(imgStack1);
-			else imp1 = this.imp1;
-
-			if (this.imp2 == null) imp2 = getImage(imgStack2);
-			else imp2 = this.imp2;
-
-			if (imp1 == null || imp2 == null)
-			{
-				IJ.error("Could not get the image stacks for some unknown reason.");
-				return;
-			}
-
-			// check for ROIs in images and whether they are valid
-			if (!checkRoi(imp1, imp2)) return;
-
-			// apply ROIs if they are there and save dimensions of original
-			// images and size increases
-			if (this.translation == null)
-			{
-				img1 = applyROI(imp1, img1Dim, ext1Dim, handleRGB1, windowing);
-				img2 = applyROI(imp2, img2Dim, ext2Dim, handleRGB2, windowing);
-			}
-		}
-		else
-		{
-			img1 = inputImage1;
-			img2 = inputImage2;
-
-			imp1 = FloatArrayToStack(img1, "Image1", 0, 0);
-			imp2 = FloatArrayToStack(img2, "Image2", 0, 0);
-
-			img1Dim.x = img1.width;
-			img1Dim.y = img1.height;
-			img1Dim.z = img1.depth;
-			img2Dim.x = img2.width;
-			img2Dim.y = img2.height;
-			img2Dim.z = img2.depth;
-
-		}
-
-		if (this.translation == null)
-		{
-			// apply windowing
-			if (windowing)
-			{
-				exponentialWindow(img1);
-				exponentialWindow(img2);
-			}
-
-			// zero pad images to fft-able size
-			FloatArray3D[] zeropadded = zeroPadImages(img1, img2);
-			img1 = zeropadded[0];
-			img2 = zeropadded[1];
-
-			// save dimensions of zeropadded image
-			maxDim = new Point3D(img1.width, img1.height, img1.depth);
-
-			// compute FFT's
-			fft1 = computeFFT(img1);
-			fft2 = computeFFT(img2);
-
-			// do the phase correlation
-			FloatArray3D invPCM = computePhaseCorrelationMatrix(fft1, fft2, maxDim.x);
-
-			// find the peaks
-			ArrayList<Point3D> peaks = findPeaks(invPCM, img1Dim, img2Dim, ext1Dim, ext2Dim);
-
-			// get the original images
-			img1 = applyROI(imp1, img1Dim, ext1Dim, handleRGB1, false /* no windowing of course*/);
-			img2 = applyROI(imp2, img2Dim, ext2Dim, handleRGB2, false /* no windowing of course*/);
-
-			// test peaks
-			result = testCrossCorrelation(invPCM, peaks, img1, img2);
-
-			// delete images from memory
-			img1.data = img2.data = null;
-			img1 = img2 = null;
-
-			// get shift of images relative to each other
-			shift = getImageOffset(result[0], imp1, imp2);
-		}
-		else
-		{
-			shift = this.translation;
-		}
-
+		// merge if wanted
 		if (fuseImages)
 		{
-			// merge if wanted
-			ImagePlus fused = fuseImages(imp1, imp2, shift, method, fusedImageName);
+			s = fuseImages(s);
+			if (null == s.fused) return;
+			s.fused.show();
+		}
 
-			if (fused != null)
+		// coregister other channels
+		if (coregister) for (int i = 0; i < numberOfChannels; i++)
+		{
+			String[] stacks = this.coregStacks.get(i);
+			ImagePlus[] imps = this.coregStackIMPs.get(i);
+
+			// get images
+			s.imp1 = imps[0];
+			s.imp2 = imps[1];
+
+			ImagePlus coregistered = fuseImages(s.imp1, s.imp2, s.shift, method, stacks[2]);
+
+			if (coregistered != null)
 			{
-				if (this.wasIndexed) new StackConverter(fused).convertToIndexedColor(256);
+				if (this.coregWasIndexed.get(i)) new StackConverter(s.fused).convertToIndexedColor(256);
 
-				fused.show();
+				coregistered.show();
 			}
-
-			// coregister other channels
-			if (coregister) for (int i = 0; i < numberOfChannels; i++)
-			{
-				String[] stacks = this.coregStacks.get(i);
-				ImagePlus[] imps = this.coregStackIMPs.get(i);
-
-				// get images
-				imp1 = imps[0];
-				imp2 = imps[1];
-
-				ImagePlus coregistered = fuseImages(imp1, imp2, shift, method, stacks[2]);
-
-				if (coregistered != null)
-				{
-					if (this.coregWasIndexed.get(i)) new StackConverter(fused).convertToIndexedColor(256);
-
-					coregistered.show();
-				}
-			}
-
 		}
 
 		if (doLogging)
@@ -593,11 +492,163 @@ public class Stitching_3D implements PlugIn
 			IJ.log("(second stack relative to first stack)");
 			
 			if ( this.translation == null )
-				IJ.log("x=" + shift.x + " y=" + shift.y + " z=" + shift.z + " R=" + result[0].R);
+				IJ.log("x=" + s.shift.x + " y=" + s.shift.y + " z=" + s.shift.z + " R=" + result[0].R);
 			else
-				IJ.log("x=" + shift.x + " y=" + shift.y + " z=" + shift.z );				
+				IJ.log("x=" + s.shift.x + " y=" + s.shift.y + " z=" + s.shift.z );				
 		}
 	}
+
+	public State fuseImages(State s) {
+		s.fused = fuseImages(s.imp1, s.imp2, s.shift, method, fusedImageName);
+
+		if (s.fused != null)
+		{
+			if (this.wasIndexed) new StackConverter(s.fused).convertToIndexedColor(256);
+
+		}
+		return s;
+	}
+
+	/** Intialize all parameters to their default values, or the values that were last used. */
+	public void initDefaults() {
+		method = methodStatic;
+		handleRGB1 = handleRGB1Static;
+		handleRGB2 = handleRGB2Static;
+		fuseImages = fuseImagesStatic;
+		windowing = windowingStatic;
+		coregister = coregisterStatic;
+		checkPeaks = checkPeaksStatic;
+		numberOfChannels = numberOfChannelsStatic;
+		alpha = alphaStatic;
+	}
+
+	/** Use this method if all you want is the Point3D that describes the 3D translation between @param imp1 and @param imp2;
+	 *  get the Point3F from the shift fielf of the returned state instance.
+	 *
+	 *    Stitching_3D stitch = new Stitching_3D();
+	 *    // set many parameters to stitch instance
+	 *    // ... 
+	 *    Point3D shift = stitch.computeOffset(imp1, imp2).shift;
+	 *
+	 *  Be sure to call run(null) once to set all sorts of parameters for this Stitching_3D instance,
+	 *  or set them directly (they are all public fields). */
+	public State computeOffset(ImagePlus imp1, ImagePlus imp2)
+	{
+		return computeOffset(StackToFloatArray(imp1.getStack(), handleRGB1), StackToFloatArray(imp2.getStack(), handleRGB2));
+	}
+
+	public class State {
+		public FloatArray3D inputImage1, inputImage2,
+		       		    img1, img2;
+		public ImagePlus imp1, imp2,
+		       		 fused;
+		public Point3D img1Dim = new Point3D(0, 0, 0),
+		               img2Dim = new Point3D(0, 0, 0), // (incl. possible ext!!!)
+			       ext1Dim = new Point3D(0, 0, 0),
+			       ext2Dim = new Point3D(0, 0, 0),
+			       maxDim;
+		public Point3D shift;
+	}
+
+	public State computeOffset(FloatArray3D inputImage1, FloatArray3D inputImage2)
+	{
+		State s = new State();
+		s.inputImage1 = inputImage1;
+		s.inputImage2 = inputImage2;
+
+		// make it also executable as non-plugin/macro
+		if (s.inputImage1 == null || s.inputImage2 == null)
+		{
+			// get images
+			if (this.imp1 == null) s.imp1 = getImage(imgStack1);
+			else s.imp1 = this.imp1;
+
+			if (this.imp2 == null) s.imp2 = getImage(imgStack2);
+			else s.imp2 = this.imp2;
+
+			if (s.imp1 == null || s.imp2 == null)
+			{
+				IJ.error("Could not get the image stacks for some unknown reason.");
+				return null;
+			}
+
+			// check for ROIs in images and whether they are valid
+			if (!checkRoi(s.imp1, s.imp2)) return null;
+
+			// apply ROIs if they are there and save dimensions of original
+			// images and size increases
+			if (this.translation == null)
+			{
+				s.img1 = applyROI(s.imp1, s.img1Dim, s.ext1Dim, handleRGB1, windowing);
+				s.img2 = applyROI(s.imp2, s.img2Dim, s.ext2Dim, handleRGB2, windowing);
+			}
+		}
+		else
+		{
+			s.img1 = s.inputImage1;
+			s.img2 = s.inputImage2;
+
+			s.imp1 = FloatArrayToStack(s.img1, "Image1", 0, 0);
+			s.imp2 = FloatArrayToStack(s.img2, "Image2", 0, 0);
+
+			s.img1Dim.x = s.img1.width;
+			s.img1Dim.y = s.img1.height;
+			s.img1Dim.z = s.img1.depth;
+			s.img2Dim.x = s.img2.width;
+			s.img2Dim.y = s.img2.height;
+			s.img2Dim.z = s.img2.depth;
+
+		}
+
+		if (this.translation == null)
+		{
+			// apply windowing
+			if (windowing)
+			{
+				exponentialWindow(s.img1);
+				exponentialWindow(s.img2);
+			}
+
+			// zero pad images to fft-able size
+			FloatArray3D[] zeropadded = zeroPadImages(s.img1, s.img2);
+			s.img1 = zeropadded[0];
+			s.img2 = zeropadded[1];
+
+			// save dimensions of zeropadded image
+			s.maxDim = new Point3D(s.img1.width, s.img1.height, s.img1.depth);
+
+			// compute FFT's
+			FloatArray3D fft1 = computeFFT(s.img1),
+				     fft2 = computeFFT(s.img2);
+
+			// do the phase correlation
+			FloatArray3D invPCM = computePhaseCorrelationMatrix(fft1, fft2, s.maxDim.x);
+
+			// find the peaks
+			ArrayList<Point3D> peaks = findPeaks(invPCM, s.img1Dim, s.img2Dim, s.ext1Dim, s.ext2Dim);
+
+			// get the original images
+			s.img1 = applyROI(s.imp1, s.img1Dim, s.ext1Dim, handleRGB1, false /* no windowing of course*/);
+			s.img2 = applyROI(s.imp2, s.img2Dim, s.ext2Dim, handleRGB2, false /* no windowing of course*/);
+
+			// test peaks
+			result = testCrossCorrelation(invPCM, peaks, s.img1, s.img2);
+
+			// delete images from memory
+			s.img1.data = s.img2.data = null;
+			s.img1 = s.img2 = null;
+
+			// get shift of images relative to each other
+			s.shift = getImageOffset(result[0], s.imp1, s.imp2);
+		}
+		else
+		{
+			s.shift = this.translation;
+		}
+
+		return s;
+	}
+
 
 	private Point3D getImageOffset(CrossCorrelationResult3D result, ImagePlus imp1, ImagePlus imp2)
 	{
