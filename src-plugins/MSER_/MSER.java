@@ -134,7 +134,7 @@ public class MSER<T extends RealType<T>> {
 			ConnectedComponent bigger;
 			ConnectedComponent smaller;
 
-			// the bigger region wins
+			// find the bigger region
 			if (this.size >= other.size) {
 
 				bigger  = this;
@@ -368,8 +368,10 @@ public class MSER<T extends RealType<T>> {
 
 		int curStack = curValue;
 
+		int progress = 0;
 		while (true) {
 
+			IJ.showProgress(progress, size);
 			while (nextNeighbors[curIndex] < neighbors) {
 
 				// don't run out of the image
@@ -383,6 +385,8 @@ public class MSER<T extends RealType<T>> {
 				if (!visited[neighborIndex]) {
 
 					visited[neighborIndex] = true;
+					progress++;
+
 					int neighborValue = (darkToBright ? values[neighborIndex] : 255 - values[neighborIndex]);
 
 					// neighbor value smaller than current value?
@@ -492,6 +496,8 @@ public class MSER<T extends RealType<T>> {
 					break;
 			} // current heap empty
 		} // while (true)
+	
+		IJ.showProgress(1.0);
 	}
 
 	/**
