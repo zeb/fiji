@@ -42,9 +42,9 @@ public class MSER_<T extends RealType<T>> implements PlugIn {
 
 		int delta = 10;
 		int minArea = 10;
-		int maxArea = 10000;
+		int maxArea = 1000000;
 		double maxVariation = 10.0;
-		double minDiversity = 0.0;
+		double minDiversity = 0.5;
 		final boolean darkToBright;
 		final boolean brightToDark;
 
@@ -56,7 +56,7 @@ public class MSER_<T extends RealType<T>> implements PlugIn {
 		gd.addNumericField("max variation:", maxVariation, 2);
 		gd.addNumericField("min diversity:", minDiversity, 2);
 		gd.addCheckbox("dark to bright", true);
-		gd.addCheckbox("bright to dark", true);
+		gd.addCheckbox("bright to dark", false);
 		gd.showDialog();
 		if (gd.wasCanceled())
 			return;
@@ -104,6 +104,8 @@ public class MSER_<T extends RealType<T>> implements PlugIn {
 		Thread processThread = new Thread(new Runnable() {
 			public void run() {
 				mser.process(regions, darkToBright, brightToDark);
+				// change the LUT for the segmentation image
+				IJ.run(reg, "glasbey", "");
 				reg.show();
 				reg.updateAndDraw();
 			}
