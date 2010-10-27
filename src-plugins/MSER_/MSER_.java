@@ -1,4 +1,7 @@
 
+import java.util.Collection;
+import java.util.HashSet;
+
 import ij.IJ;
 import ij.ImagePlus;
 import ij.ImageStack;
@@ -12,6 +15,8 @@ import ij.process.ImageProcessor;
 
 import mpicbg.imglib.cursor.LocalizableByDimCursor;
 
+import mpicbg.imglib.cursor.special.HyperSphereIterator;
+
 import mpicbg.imglib.image.Image;
 import mpicbg.imglib.image.ImagePlusAdapter;
 
@@ -24,6 +29,8 @@ public class MSER_<T extends RealType<T>> implements PlugIn {
 	private Image<T>  regions;
 	private ImagePlus imp;
 	private ImagePlus reg;
+
+	private LocalizableByDimCursor<T> regionsCursor;
 
 	private int[] dimensions;
 
@@ -42,7 +49,7 @@ public class MSER_<T extends RealType<T>> implements PlugIn {
 
 		int delta = 10;
 		int minArea = 10;
-		int maxArea = 1000000;
+		int maxArea = 100000;
 		double maxVariation = 10.0;
 		double minDiversity = 0.5;
 		final boolean darkToBright;
@@ -92,10 +99,10 @@ public class MSER_<T extends RealType<T>> implements PlugIn {
 		reg.setTitle("msers of " + imp.getTitle());
 	
 		regions = ImagePlusAdapter.wrap(reg);
-		LocalizableByDimCursor<T> cursor = regions.createLocalizableByDimCursor();
-		while (cursor.hasNext()) {
-			cursor.fwd();
-			cursor.getType().setReal(0.0);
+		regionsCursor = regions.createLocalizableByDimCursor();
+		while (regionsCursor.hasNext()) {
+			regionsCursor.fwd();
+			regionsCursor.getType().setReal(0.0);
 		}
 	
 		// set up algorithm
@@ -117,6 +124,38 @@ public class MSER_<T extends RealType<T>> implements PlugIn {
 			processThread.join();
 		} catch (InterruptedException e) {
 			processThread.interrupt();
+		}
+
+		// visualize MSER centers
+		HashSet<Region> topMsers = mser.getTopMsers();
+
+		regionsCursor = regions.createLocalizableByDimCursor();
+		drawRegions(topMsers);
+	}
+
+	private void drawRegions(Collection<Region> msers) {
+
+		for (Region mser: msers) {
+			drawRegions(mser.children);
+			drawRegion(mser, (int)(Math.sqrt(mser.size)/10));
+		}
+	}
+
+	private void drawRegion(Region mser, int radius) {
+
+		int[] center = new int[dimensions.length];
+		for (int d = 0; d < dimensions.length; d++) {
+			center[d] = (int)mser.center[d];
+			if (center[d] < radius || center[d] > dimensions[d] - radius - 1)
+				return;
+		}
+
+		// draw a circle
+		regionsCursor.setPosition(center);
+		HyperSphereIterator<T> sphereIterator = new HyperSphereIterator<T>(regions, regionsCursor, radius);
+		while (sphereIterator.hasNext()) {
+			sphereIterator.fwd();
+			sphereIterator.getType().setReal(255);
 		}
 	}
 }

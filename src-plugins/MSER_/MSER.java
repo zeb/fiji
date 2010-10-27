@@ -1,4 +1,5 @@
 
+import java.util.HashSet;
 import java.util.Stack;
 import java.util.Vector;
 
@@ -25,6 +26,11 @@ public class MSER<T extends RealType<T>> {
 	// maximum variation and minumum diversity for a stable region
 	private double maxVariation;
 	private double minDiversity;
+
+	/*
+	 * Region tree representation
+	 */
+	private HashSet<Region> topMsers;
 
 	/*
 	 * Internal Data
@@ -91,17 +97,23 @@ public class MSER<T extends RealType<T>> {
 
 		public GrowHistory history;
 
-		public int     value;
-		public int     size;
-		public boolean varChanged;
-		public double  variation;
+		public int      value;
+		public int      size;
+		public double[] center;
+		public boolean  varChanged;
+		public double   variation;
 
-		public void init() {
+		private Vector<Region> childRegions;
 
-			size       = 0;
-			variation  = 0.0;
-			varChanged = true;
-			history    = null;
+		public ConnectedComponent(int value) {
+
+			this.value   = value;
+			size         = 0;
+			center       = new double[numDimensions];
+			variation    = 0.0;
+			varChanged   = true;
+			history      = null;
+			childRegions = new Vector<Region>();
 		}
 
 		public void addHistory(GrowHistory newHistory) {
@@ -175,10 +187,19 @@ public class MSER<T extends RealType<T>> {
 			int newHead = (bigger.size  > 0) ? bigger.head  : smaller.head;
 			int newTail = (smaller.size > 0) ? smaller.tail : bigger.tail;
 
+			// update center position
+			double thisCenterWeight = (double)(this.size)/(this.size + other.size);
+
+			for (int d = 0; d < numDimensions; d++)
+				this.center[d] = thisCenterWeight*this.center[d] + (1.0 - thisCenterWeight)*other.center[d];
+
 			this.head = newHead;
 			this.tail = newTail;
 			this.history = newHistory;
 			this.size = this.size + other.size;
+
+			// update children
+			this.addChildRegions(other.getChildRegions());
 		}
 
 		public double calculateVariation() {
@@ -219,7 +240,6 @@ public class MSER<T extends RealType<T>> {
 
 			// change in variation?
 			boolean dvar     = (variation < var || history.value + 1 < value);
-			// TODO: why would we consider the old variation here?
 			boolean isStable = (dvar && !varChanged && variation < maxVariation && div > minDiversity);
 
 			variation  = var;
@@ -247,6 +267,30 @@ public class MSER<T extends RealType<T>> {
 
 			tail = index;
 			size++;
+
+			// update center
+			// TODO: find less expensive calculation
+			int[] position = new int[numDimensions];
+			indexToPosition(index, position);
+			double weight = 1.0/(double)(size);
+			for (int d = 0; d < numDimensions; d++)
+				center[d] = (1.0 - weight)*center[d] + weight*position[d];
+		}
+
+		public Vector<Region> getChildRegions() {
+
+			return childRegions;
+		}
+
+		public void setChildRegion(Region child) {
+
+			childRegions.clear();
+			childRegions.add(child);
+		}
+
+		public void addChildRegions(Vector<Region> children) {
+
+			childRegions.addAll(children);
 		}
 	}
 
@@ -287,6 +331,8 @@ public class MSER<T extends RealType<T>> {
 		histories.setSize(size);
 		components = new Vector<ConnectedComponent>(257);
 		components.setSize(257);
+
+		topMsers = new HashSet<Region>();
 
 		setParameters(delta, minArea, maxArea, maxVariation, minDiversity);
 	}
@@ -331,6 +377,16 @@ public class MSER<T extends RealType<T>> {
 		}
 	}
 
+	/**
+	 * Returns the root element of the region tree.
+	 *
+	 * @return The root element of the region tree
+	 */
+	public HashSet<Region> getTopMsers() {
+
+		return topMsers;
+	}
+
 	private void setupBuffers() {
 
 		for (int i = 0; i < size; i++) {
@@ -342,9 +398,6 @@ public class MSER<T extends RealType<T>> {
 		for (int i = 0; i < 256; i++)
 			stacks.set(i, new Stack<Integer>());
 
-		for (int i = 0; i < 256 + 1; i++)
-			components.set(i, new ConnectedComponent());
-
 		curComponent = 0;
 		curHistory   = 0;
 	}
@@ -353,7 +406,8 @@ public class MSER<T extends RealType<T>> {
 
 		IJ.log("Processing from " + (darkToBright ? "dark to bright" : "bright to dark"));
 
-		components.get(curComponent).value = 256;
+		// add dummy component
+		components.set(curComponent, new ConnectedComponent(256));
 		curComponent++;
 
 		int   curIndex         = 0;
@@ -361,8 +415,7 @@ public class MSER<T extends RealType<T>> {
 		int[] neighborPosition = new int[numDimensions];
 		int   curValue         = (darkToBright ? values[curIndex] : 255 - values[curIndex]);
 
-		components.get(curComponent).value = curValue;
-		components.get(curComponent).init();
+		components.set(curComponent, new ConnectedComponent(curValue));
 
 		visited[curIndex] = true;
 
@@ -390,7 +443,6 @@ public class MSER<T extends RealType<T>> {
 					int neighborValue = (darkToBright ? values[neighborIndex] : 255 - values[neighborIndex]);
 
 					// neighbor value smaller than current value?
-					// TODO: update curValue
 					if (neighborValue < curValue) {
 
 						// add current pixel to bundary heap and continue
@@ -408,8 +460,7 @@ public class MSER<T extends RealType<T>> {
 
 						// create a new connected component for it
 						curComponent++;
-						components.get(curComponent).value = curValue;
-						components.get(curComponent).init();
+						components.set(curComponent, new ConnectedComponent(curValue));
 
 						continue;
 
@@ -461,7 +512,7 @@ public class MSER<T extends RealType<T>> {
 
 						// check for stability of the current component
 						if (components.get(curComponent).isStable())
-							visualizeMser(components.get(curComponent));
+							addMser(components.get(curComponent));
 
 						components.get(curComponent).addHistory(histories.get(curHistory));
 						components.get(curComponent).value = nextValue;
@@ -482,7 +533,7 @@ public class MSER<T extends RealType<T>> {
 
 								// check for stability of the current component
 								if (components.get(curComponent).isStable())
-									visualizeMser(components.get(curComponent));
+									addMser(components.get(curComponent));
 
 								components.get(curComponent).addHistory(histories.get(curHistory));
 								components.get(curComponent).value = nextValue;
@@ -532,6 +583,23 @@ public class MSER<T extends RealType<T>> {
 		return op;
 	}
 
+	private void addMser(ConnectedComponent component) {
+
+		visualizeMser(component);
+
+		Region newRegion = new Region(component.size, component.center);
+
+		for (Region child : component.getChildRegions()) {
+			topMsers.remove(child);
+			child.setParent(newRegion);
+		}
+		topMsers.add(newRegion);
+
+		newRegion.setChildren(component.getChildRegions());
+
+		component.setChildRegion(newRegion);
+	}
+
 	private void visualizeMser(ConnectedComponent component) {
 
 		int   index    = component.head;
@@ -542,7 +610,7 @@ public class MSER<T extends RealType<T>> {
 			indexToPosition(index, position);
 			cursor.setPosition(position);
 
-			cursor.getType().setReal(cursor.getType().getRealFloat() + 1.0);
+			cursor.getType().setReal(cursor.getType().getRealFloat() + 10.0);
 
 			index = next[index];
 		}
@@ -575,5 +643,12 @@ public class MSER<T extends RealType<T>> {
 			position[d] = (index/prod) % dimensions[d];
 			prod *= dimensions[d];
 		}
+	}
+
+	private String arrayString(double[] array) {
+		String ret = "";
+		for (int d = 0; d < array.length; d++)
+			ret += " " + array[d];
+		return ret;
 	}
 }
