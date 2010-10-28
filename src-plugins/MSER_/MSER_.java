@@ -106,11 +106,11 @@ public class MSER_<T extends RealType<T>> implements PlugIn {
 		}
 	
 		// set up algorithm
-		mser = new MSER<T>(image, delta, minArea, maxArea, maxVariation, minDiversity);
+		mser = new MSER<T>(dimensions, delta, minArea, maxArea, maxVariation, minDiversity);
 	
 		Thread processThread = new Thread(new Runnable() {
 			public void run() {
-				mser.process(regions, darkToBright, brightToDark);
+				mser.process(image, darkToBright, brightToDark, regions);
 				// change the LUT for the segmentation image
 				IJ.run(reg, "glasbey", "");
 				reg.show();
