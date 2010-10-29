@@ -136,8 +136,8 @@ public class MSER_<T extends RealType<T>> implements PlugIn {
 	private void drawRegions(Collection<Region> msers) {
 
 		for (Region mser: msers) {
-			drawRegions(mser.children);
-			drawRegion(mser, (int)(Math.sqrt(mser.size)/10));
+			drawRegions(mser.getChildren());
+			drawRegion(mser, (int)(Math.sqrt(mser.getSize())/10));
 		}
 	}
 
@@ -145,7 +145,7 @@ public class MSER_<T extends RealType<T>> implements PlugIn {
 
 		int[] center = new int[dimensions.length];
 		for (int d = 0; d < dimensions.length; d++) {
-			center[d] = (int)mser.center[d];
+			center[d] = (int)mser.getCenter()[d];
 			if (center[d] < radius || center[d] > dimensions[d] - radius - 1)
 				return;
 		}

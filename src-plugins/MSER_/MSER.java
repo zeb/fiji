@@ -603,7 +603,7 @@ public class MSER<T extends RealType<T>> {
 		}
 		topMsers.add(newRegion);
 
-		newRegion.setChildren(component.getChildRegions());
+		newRegion.addChildren(component.getChildRegions());
 
 		component.setChildRegion(newRegion);
 	}
