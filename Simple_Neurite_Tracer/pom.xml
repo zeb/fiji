@@ -3,12 +3,12 @@
   <modelVersion>4.0.0</modelVersion>
 
   <groupId>de.mpi-cbg.pacific</groupId>
-  <artifactId>fiji-tracer</artifactId>
+  <artifactId>Simple_Neurite_Tracer</artifactId>
   <version>1.0-SNAPSHOT</version>
   <packaging>jar</packaging>
 
-  <name>fiji-tracer</name>
-  <url>http://maven.apache.org</url>
+  <name>Simple Neurite Tracer</name>
+  <url>http://pacific.mpi-cbg.de/wiki/index.php/Simple_Neurite_Tracer</url>
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
