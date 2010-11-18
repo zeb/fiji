@@ -211,6 +211,7 @@ PLUGIN_TARGETS=plugins/Jython_Interpreter.jar \
 	jars/wavelets.jar \
 	jars/imageware.jar \
 	plugins/Extended_Depth_Field.jar \
+	plugins/QuotedStringTester.jar \
 
 all <- fiji $SUBMODULE_TARGETS $PLUGIN_TARGETS
 
