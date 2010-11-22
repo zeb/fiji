@@ -17,15 +17,24 @@ public class MSER<T extends RealType<T>> {
 	 * Parameters
 	 */
 
-	private int delta;
+	public class Parameters {
 
-	// minimum and maximum size of connected components
-	private int minArea;
-	private int maxArea;
+		private int delta;
 
-	// maximum variation and minumum diversity for a stable region
-	private double maxVariation;
-	private double minDiversity;
+		// minimum and maximum size of connected components
+		private int minArea;
+		private int maxArea;
+
+		// maximum variation and minumum diversity for a stable region
+		private double maxVariation;
+		private double minDiversity;
+
+		public String toString() {
+			return String.format("%n %n %n %d %d", delta, minArea, maxArea, maxVariation, minDiversity);
+		}
+	}
+
+	Parameters parameters;
 
 	/*
 	 * Region tree representation
@@ -206,11 +215,11 @@ public class MSER<T extends RealType<T>> {
 			if (history != null) {
 
 				GrowHistory shortcut = history.shortcut;
-				while (shortcut != shortcut.shortcut && shortcut.value + delta > value)
+				while (shortcut != shortcut.shortcut && shortcut.value + parameters.delta > value)
 					shortcut = shortcut.shortcut;
 
 				GrowHistory child = shortcut.child;
-				while (child != child.child && child.value + delta <= value) {
+				while (child != child.child && child.value + parameters.delta <= value) {
 					shortcut = child;
 					child = child.child;
 				}
@@ -231,7 +240,7 @@ public class MSER<T extends RealType<T>> {
 
 		public boolean isStable() {
 
-			if (history == null || history.size <= minArea || history.size >= maxArea)
+			if (history == null || history.size <= parameters.minArea || history.size >= parameters.maxArea)
 				return false;
 
 			double div = (double)(history.size - history.stableSize)/(double)history.size;
@@ -239,7 +248,7 @@ public class MSER<T extends RealType<T>> {
 
 			// change in variation?
 			boolean dvar     = (variation < var || history.value + 1 < value);
-			boolean isStable = (dvar && !varChanged && variation < maxVariation && div > minDiversity);
+			boolean isStable = (dvar && !varChanged && variation < parameters.maxVariation && div > parameters.minDiversity);
 
 			variation  = var;
 			varChanged = dvar;
@@ -349,11 +358,24 @@ public class MSER<T extends RealType<T>> {
 	 */
 	public void setParameters(int delta, int minArea, int maxArea, double maxVariation, double minDiversity) {
 
-		this.delta        = delta;
-		this.minArea      = minArea;
-		this.maxArea      = maxArea;
-		this.maxVariation = maxVariation;
-		this.minDiversity = minDiversity;
+		if (parameters == null)
+			parameters = new Parameters();
+
+		parameters.delta        = delta;
+		parameters.minArea      = minArea;
+		parameters.maxArea      = maxArea;
+		parameters.maxVariation = maxVariation;
+		parameters.minDiversity = minDiversity;
+	}
+
+	public void setParameters(Parameters parameters) {
+
+		this.parameters = parameters;
+	}
+
+	public Parameters getParameters() {
+
+		return parameters;
 	}
 
 	public void process(Image<T> image, boolean darkToBright, boolean brightToDark) {
