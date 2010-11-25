@@ -46,28 +46,8 @@ public class Region {
 		return this.center[index];
 	}
 
-<<<<<<< Updated upstream
 	public Region getParent()
 	{
-=======
-	public void setClosestRegion(Region closestRegion) {
-		this.closestRegion = closestRegion;
-	}
-
-	public void setMinNegLogPAssignment(double minNegLogPAssignment) {
-		this.minNegLogPAssignment = minNegLogPAssignment;
-	}
-
-	public double getMinNegLogPAssignment() {
-		return this.minNegLogPAssignment;
-	}
-
-	public Region getClosestRegion() {
-		return this.closestRegion;
-	}
-
-	public Region getParent() {
->>>>>>> Stashed changes
 		return this.parent;
 	}
 
