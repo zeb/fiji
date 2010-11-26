@@ -1,44 +1,68 @@
 
+import java.io.Externalizable;
+import java.io.IOException;
+import java.io.ObjectInput;
+import java.io.ObjectOutput;
+
 import java.util.Vector;
 
-public class Region {
+public class Region<R extends Region<R>> implements Externalizable {
 
 	private static int NextId = 0;
 
 	private int id;
 
-	private Region         parent;
-	private Vector<Region> children;
+	private R         parent;
+	private Vector<R> children;
 
 	private int      size;
+	private int      perimeter;
 	private double[] center;
 
-	public Region(int size, double[] center) {
+	private RegionFactory<R> regionFactory;
 
-		this.id       = NextId;
+	public Region(int size, int perimeter, double[] center, RegionFactory<R> regionFactory) {
+
+		this.id        = NextId;
 		NextId++;
 
-		this.size     = size;
-		this.center   = new double[center.length];
+		this.size      = size;
+		this.perimeter = perimeter;
+		this.center    = new double[center.length];
 		System.arraycopy(center, 0, this.center, 0, center.length);
-		this.parent   = null;
-		this.children = new Vector<Region>();
+		this.parent    = null;
+		this.children  = new Vector<R>();
+
+		this.regionFactory = regionFactory;
 	}
 
-	public void setParent(Region parent) {
+	public void setParent(R parent) {
 
 		this.parent = parent;
 	}
 
-	public Vector<Region> getChildren() {
+	public void addChildren(Vector<R> children) {
+
+		this.children.addAll(children);
+	}
+
+	public Vector<R> getChildren() {
+
 		return this.children;
 	}
 
 	public int getSize() {
+
 		return this.size;
 	}
 
+	public int getPerimeter() {
+
+		return this.perimeter;
+	}
+
 	public double[] getCenter() {
+
 		return this.center;
 	}
 
@@ -46,17 +70,11 @@ public class Region {
 		return this.center[index];
 	}
 
-	public Region getParent()
-	{
+	public R getParent() {
 		return this.parent;
 	}
 
-	public void addChildren(Vector<Region> children) {
-
-		this.children.addAll(children);
-	}
-
-	public boolean isAncestorOf(Region other) {
+	public boolean isAncestorOf(R other) {
 
 		while (other.getParent() != null)
 			if (other.getParent() == this)
@@ -72,13 +90,46 @@ public class Region {
 
 	public String toString() {
 
-		String ret = "Region at ";
+		String ret = "Region " + id + ",";
 
 		for (int d = 0; d < center.length; d++)
-			ret += " " + center[d];
+			ret += " " + (int)center[d];
 
 		ret += ", size: " + size;
 
 		return ret;
+	}
+
+	public void writeExternal(ObjectOutput out) throws IOException {
+
+		out.writeInt(id);
+		// omit parent
+		out.writeInt(children.size());
+		for (R child : children)
+			child.writeExternal(out);
+		out.writeInt(size);
+		out.writeInt(perimeter);
+		out.writeObject(center);
+	}
+
+	public void readExternal(ObjectInput in) throws IOException {
+
+		id = in.readInt();
+		if (id >= NextId)
+			NextId = id + 1;
+		int numChildren = in.readInt();
+		for (int i = 0; i < numChildren; i++) {
+			R child = regionFactory.create();
+			child.readExternal(in);
+			child.setParent((R)this);
+			children.add(child);
+		}
+		size      = in.readInt();
+		perimeter = in.readInt();
+		try {
+			center = (double[])in.readObject();
+		} catch (ClassNotFoundException e) {
+			e.printStackTrace();
+		}
 	}
 }

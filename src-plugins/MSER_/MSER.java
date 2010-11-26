@@ -11,7 +11,7 @@ import mpicbg.imglib.image.Image;
 
 import mpicbg.imglib.type.numeric.RealType;
 
-public class MSER<T extends RealType<T>> {
+public class MSER<T extends RealType<T>, R extends Region<R>> {
 
 	/*
 	 * Parameters
@@ -39,8 +39,8 @@ public class MSER<T extends RealType<T>> {
 	/*
 	 * Region tree representation
 	 */
-	private HashSet<Region> topMsers;
-	private HashSet<Region> msers;
+	private HashSet<R> topMsers;
+	private HashSet<R> msers;
 
 	/*
 	 * Internal Data
@@ -78,6 +78,8 @@ public class MSER<T extends RealType<T>> {
 	// boundary pixel stacks (for each possible value)
 	private Vector<Stack<Integer>> stacks;
 
+	private RegionFactory<R> regionFactory;
+
 	private class OffsetsPostions {
 
 		public int[]   offsets;
@@ -98,7 +100,7 @@ public class MSER<T extends RealType<T>> {
 		public int size;
 	}
 
-	private class ConnectedComponent {
+	class ConnectedComponent {
 
 		public int head;
 		public int tail;
@@ -111,7 +113,7 @@ public class MSER<T extends RealType<T>> {
 		public boolean  varChanged;
 		public double   variation;
 
-		private Vector<Region> childRegions;
+		private Vector<R> childRegions;
 
 		public ConnectedComponent(int value) {
 
@@ -121,7 +123,7 @@ public class MSER<T extends RealType<T>> {
 			variation    = 0.0;
 			varChanged   = true;
 			history      = null;
-			childRegions = new Vector<Region>();
+			childRegions = new Vector<R>();
 		}
 
 		public void addHistory(GrowHistory newHistory) {
@@ -285,21 +287,55 @@ public class MSER<T extends RealType<T>> {
 				center[d] = (1.0 - weight)*center[d] + weight*position[d];
 		}
 
-		public Vector<Region> getChildRegions() {
+		public Vector<R> getChildRegions() {
 
 			return childRegions;
 		}
 
-		public void setChildRegion(Region child) {
+		public void setChildRegion(R child) {
 
 			childRegions.clear();
 			childRegions.add(child);
 		}
 
-		public void addChildRegions(Vector<Region> children) {
+		public void addChildRegions(Vector<R> children) {
 
 			childRegions.addAll(children);
 		}
+
+		/**
+		 * Computes the perimenter of a region as the sum of cracks (edges between
+		 * pixels) that seperate the region from the other pixels. This also
+		 * includes holes of the connected component.
+		 */
+		public int getPerimeter() {
+
+			int index     = head;
+			int numCracks = 0;
+
+			// collect all indices in a hash set
+			HashSet<Integer> indices = new HashSet<Integer>();
+			while (next[index] != index && next[index] != NONE) {
+
+				indices.add(index);
+				index = next[index];
+			}
+
+			index = head;
+			while (next[index] != index && next[index] != NONE) {
+
+				for (int offset : neighborOffsets) {
+
+					if (!indices.contains(index + offset))
+						numCracks++;
+				}
+
+				index = next[index];
+			}
+
+			return numCracks;
+		}
+
 	}
 
 	/**
@@ -311,8 +347,10 @@ public class MSER<T extends RealType<T>> {
 	 *                     stable
 	 * @param minDiversity Minimum diversity for a component to be considered
 	 *                     stable
+	 * @param regionFactory An implementation of RegionFactory for the specified
+	 *                      type of regions
 	 */
-	public MSER(int[] dimensions, int delta, int minArea, int maxArea, double maxVariation, double minDiversity) {
+	public MSER(int[] dimensions, int delta, int minArea, int maxArea, double maxVariation, double minDiversity, RegionFactory<R> regionFactory) {
 
 		this.dimensions = dimensions;
 		numDimensions = dimensions.length;
@@ -341,10 +379,12 @@ public class MSER<T extends RealType<T>> {
 		components = new Vector<ConnectedComponent>(257);
 		components.setSize(257);
 
-		topMsers = new HashSet<Region>();
-		msers    = new HashSet<Region>();
+		topMsers = new HashSet<R>();
+		msers    = new HashSet<R>();
 
 		setParameters(delta, minArea, maxArea, maxVariation, minDiversity);
+
+		this.regionFactory = regionFactory;
 	}
 
 	/**
@@ -413,7 +453,7 @@ public class MSER<T extends RealType<T>> {
 	 *
 	 * @return The root element of the region tree
 	 */
-	public HashSet<Region> getTopMsers() {
+	public HashSet<R> getTopMsers() {
 
 		return topMsers;
 	}
@@ -423,7 +463,7 @@ public class MSER<T extends RealType<T>> {
 	 *
 	 * @return The root element of the region tree
 	 */
-	public HashSet<Region> getMsers() {
+	public HashSet<R> getMsers() {
 
 		return msers;
 	}
@@ -628,11 +668,11 @@ public class MSER<T extends RealType<T>> {
 
 		visualizeMser(component);
 
-		Region newRegion = new Region(component.size, component.center);
+		R newRegion = regionFactory.create(component);
 
 		msers.add(newRegion);
 
-		for (Region child : component.getChildRegions()) {
+		for (R child : component.getChildRegions()) {
 			topMsers.remove(child);
 			child.setParent(newRegion);
 		}
