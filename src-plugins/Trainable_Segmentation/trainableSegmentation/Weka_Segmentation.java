@@ -1386,6 +1386,7 @@ public class Weka_Segmentation implements PlugIn
 
 		// Updating image
 		displayImage = new ImagePlus();
+		trainingImage = wekaSegmentation.getTrainingImage();
 		displayImage.setProcessor("Advanced Weka Segmentation", trainingImage.getProcessor().duplicate());
 
 		// Remove current classification result image

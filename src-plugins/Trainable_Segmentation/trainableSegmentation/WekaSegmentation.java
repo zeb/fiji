@@ -363,6 +363,11 @@ public class WekaSegmentation {
 		return traceTrainingData;
 	}
 
+	public ImagePlus getTrainingImage()
+	{
+		return trainingImage;
+	}
+
 	/**
 	 * Get current classification result
 	 * @return classified image
