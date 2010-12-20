@@ -131,7 +131,8 @@ public class GiniFunction extends SplitFunction
 
 			// Sort pairs in increasing order
 			//Collections.sort(list, comp);  // calls Arrays.sort by copying the array, then replacing every element. No need for that!
-			Arrays.sort( list, comp );
+			//Arrays.sort( list, comp );
+			quicksort( list, 0, list.length -1 );
 
 			final double[] probLeft  = new double[numClasses];
 			final double[] probRight = new double[numClasses];
@@ -209,4 +210,26 @@ public class GiniFunction extends SplitFunction
 		return new GiniFunction(this.numOfFeatures, this.random);
 	}
 
+
+	private static final void quicksort(final AttributeClassPair[] acps, int left, int right)
+	{
+		if (acps.length < 2) return;
+		int i = left,
+		    j = right;
+		final double x = acps[(left + right) / 2].attributeValue;
+
+		do {
+			while (acps[i].attributeValue < x) i++;
+			while (x < acps[j].attributeValue) j--;
+			if (i <= j) {
+				final AttributeClassPair temp = acps[i];
+				acps[i] = acps[j];
+				acps[j] = temp;
+				i++;
+				j--;
+			}
+		} while (i <= j);
+		if (left < j) quicksort(acps, left, j);
+		if (i < right) quicksort(acps, i, right);
+	}
 }
