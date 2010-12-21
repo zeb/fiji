@@ -46,7 +46,7 @@ public class GiniFunction extends SplitFunction
 	/** flag to identify when all samples belong to the same class */
 	boolean allSame;
 	/** number of random features to use */
-	int numOfFeatures;
+	final int numOfFeatures;
 	/** random number generator */
 	final Random random;
 		
@@ -75,58 +75,66 @@ public class GiniFunction extends SplitFunction
 	 * @param numOfFeatures number of features to use
 	 * @param random random number generator
 	 */
-	public GiniFunction(int numOfFeatures, final Random random)
+	public GiniFunction(final int numOfFeatures, final Random random)
 	{
 		this.numOfFeatures = numOfFeatures;
 		this.random = random;
 	}
-	
+
 	/**
 	 * Create split function based on Gini coefficient
 	 * 
-	 * @param data original data
-	 * @param indices indices of the samples to use
 	 */	 
-	public void init(Instances data, ArrayList<Integer> indices) 
+	public void init(final Instance[] ins, final int numAttributes, final int numClasses, final int classIndex)
 	{
-		if(indices.size() == 0)
+		if (0 == ins.length)
 		{
 			this.index = 0;
 			this.threshold = 0;
 			this.allSame = true;
 			return;
 		}
-		
-		final int len = data.numAttributes();
-		final int numElements = indices.size();	
-		final int numClasses = data.numClasses();
-		final int classIndex = data.classIndex();
+
+		//final int len = data.numAttributes();
+		//final int numElements = indices.size();
+		//final int numClasses = data.numClasses();
+		//final int classIndex = data.classIndex();
 		
 		// Create and shuffle indices of features to use
-		ArrayList<Integer> allIndices = new ArrayList<Integer>();
-		for(int i=0; i<len; i++)
-			if(i != classIndex)
-				allIndices.add(i);
-		
+		//ArrayList<Integer> allIndices = new ArrayList<Integer>();
+		//for(int i=0; i<len; i++)
+		//	if(i != classIndex)
+		//		allIndices.add(i);
+
+		// Create and shuffle indices of features to use
+		final int len = numAttributes;
+		final int[] featureIndices = new int[len-1];
+		for (int i=0, j=0; i<len; i++, j++) {
+			if (classIndex == i) continue;
+			featureIndices[j] = i;
+		}
+		final int[] fIndices = shuffled(featureIndices);
+
+		final int numElements = ins.length;
+
 		double minimumGini = Double.MAX_VALUE;
-				
-		for(int i=0; i < numOfFeatures; i++)		
+
+		//System.out.println("numElements: " + numElements + ", ins.length: " + ins.length + ", numFeatures: " + numOfFeatures);
+
+		for(int i=0; i < numOfFeatures; i++)
 		{
-			// Select the random feature
-			final int index = random.nextInt( allIndices.size() );
-			final int featureToUse = allIndices.get( index );
-			allIndices.remove( index ); // remove that element to prevent from repetitions
-				
+			final int featureToUse = fIndices[ i ];
+
 			// Get the smallest Gini coefficient
-		
+
 			// Create list with pairs attribute-class
 			//final ArrayList<AttributeClassPair> list = new ArrayList<AttributeClassPair>();
 			final AttributeClassPair[] list = new AttributeClassPair[numElements];
 			for(int j=0; j<numElements; j++)
 			{
-				final Instance ins = data.get(indices.get(j));
+				//final Instance ins = ins[j];
 				//list.add( new AttributeClassPair( ins.value( featureToUse ), (int) ins.value( classIndex ) ));
-				list[j] = new AttributeClassPair( ins.value( featureToUse ), (int) ins.value( classIndex ) );
+				list[j] = new AttributeClassPair( ins[j].value( featureToUse ), (int) ins[j].value( classIndex ) );
 			}
 
 			// Sort pairs in increasing order
@@ -256,5 +264,16 @@ public class GiniFunction extends SplitFunction
 		} while (i <= j);
 		if (left < j) quicksort(acps, left, j);
 		if (i < right) quicksort(acps, i, right);
+	}
+
+	/** Return a new array, shuffled. */
+	private final int[] shuffled(final int[] a) {
+		final int[] b = a.clone();
+		for (int i=a.length; i>1; i--) {
+			final int k = random.nextInt(i);
+			b[i-1] = b[k];
+			b[k] = a[k];
+		}
+		return b;
 	}
 }

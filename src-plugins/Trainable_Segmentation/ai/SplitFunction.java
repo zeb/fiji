@@ -4,7 +4,6 @@ import java.io.Serializable;
 import java.util.ArrayList;
 
 import weka.core.Instance;
-import weka.core.Instances;
 
 public abstract class SplitFunction implements Serializable
 {
@@ -15,7 +14,7 @@ public abstract class SplitFunction implements Serializable
 	int index;
 	double threshold;
 	boolean allSame;
-	public abstract void init(final Instances data, final ArrayList<Integer> indices);
+	public abstract void init(Instance[] ins, int numAttributes, int numClasses, int classIndex);
 	public abstract boolean evaluate(final Instance instance);
 	public abstract SplitFunction newInstance();
 }

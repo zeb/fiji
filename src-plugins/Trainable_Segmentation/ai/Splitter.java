@@ -23,6 +23,7 @@ package ai;
 import java.io.Serializable;
 import java.util.ArrayList;
 
+import weka.core.Instance;
 import weka.core.Instances;
 
 public class Splitter implements Serializable
@@ -31,7 +32,8 @@ public class Splitter implements Serializable
 	/** Serial version ID */
 	private static final long serialVersionUID = 52652189902462L;
 	/** split function template */
-	private SplitFunction template;
+	private final SplitFunction template;
+
 	/**
 	 * Construct a split function producer
 	 * 
@@ -41,7 +43,7 @@ public class Splitter implements Serializable
 	{
 		this.template = sfn;
 	}
-	
+
 	/**
 	 * Calculate split function based on the input data
 	 * @param data original data
@@ -53,13 +55,16 @@ public class Splitter implements Serializable
 			final ArrayList<Integer> indices)
 	{
 		try {
-			SplitFunction sf = template.newInstance();
-			sf.init(data, indices);
+			final Instance[] ins = new Instance[indices.size()];
+			for (int i=0; i<ins.length; i++) {
+				ins[i] = data.get(indices.get(i));
+			}
+			final SplitFunction sf = template.newInstance();
+			sf.init(ins, data.numAttributes(), data.numClasses(), data.classIndex());
 			return sf;
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 		return null;
 	}
-
 }
