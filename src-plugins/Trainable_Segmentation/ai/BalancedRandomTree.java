@@ -143,17 +143,16 @@ public class BalancedRandomTree implements Serializable
 		 */
 		public LeafNode(
 				final Instance[] ins,
-				final ArrayList<Integer> indices,
 				final int numClasses)
 		{
 			this.probability = new double[ numClasses ];
-			for(final int i : indices)
+			for(int i=0; i<ins.length; i++)
 			{
 				this.probability[ (int) ins[i].classValue() ] ++;
 			}
 			// Divide by the number of elements
 			for(int i=0; i<probability.length; i++)
-				this.probability[i] /= (double) indices.size();
+				this.probability[i] /= (double) ins.length;
 		}
 
 	} //end class LeafNode
@@ -281,7 +280,7 @@ public class BalancedRandomTree implements Serializable
 	 * @return root node 
 	 */
 	private InteriorNode createTree(
-			final Instance[] ins,
+			Instance[] ins,
 			final int numAttributes,
 			final int numClasses,
 			final int classIndex,
@@ -297,32 +296,33 @@ public class BalancedRandomTree implements Serializable
 		remainingNodes.add(root);
 		
 		// Create list of indices to process (it must match all the time with the node list)
-		final LinkedList<ArrayList<Integer>> remainingIndices = new LinkedList<ArrayList<Integer>>();
-		ArrayList<Integer> indices = new ArrayList<Integer>();
-		for (int i=0; i<ins.length; i++) indices.add(i);
-		remainingIndices.add(indices);
+		final LinkedList<Instance[]> remainingInstances = new LinkedList<Instance[]>();
+		remainingInstances.add(ins);
+		// Forget the large array:
+		ins = null;
 
-		// [NOTE: indices are now relative to the "Instnace[] ins" array, not to the original "Instances data"]
+		// [NOTE: indices are now relative to the "Instance[] ins" array, not to the original "Instances data"]
 		
 		// While there is still nodes to process
 		while (!remainingNodes.isEmpty())
 		{
-			final InteriorNode currentNode = remainingNodes.removeLast();
-			final ArrayList<Integer> currentIndices = remainingIndices.removeLast();
+			final InteriorNode currentNode = remainingNodes.removeLast(); // TODO $$$ removeFirst instead, to remove the large ones first
+			//final ArrayList<Integer> currentIndices = remainingIndices.removeLast();
+			final Instance[] currentInstances = remainingInstances.removeLast(); // TODO ^^^
 			// new arrays of indices for the left and right sons
-			final ArrayList<Integer> leftArray = new ArrayList<Integer>();
-			final ArrayList<Integer> rightArray = new ArrayList<Integer>();
+			final ArrayList<Instance> leftArray = new ArrayList<Instance>();
+			final ArrayList<Instance> rightArray = new ArrayList<Instance>();
 
 			// split data
-			for(final Integer it : currentIndices)
+			for(int i=0; i < currentInstances.length; i++)
 			{
-				if( currentNode.splitFn.evaluate( ins[it.intValue()] ) )
+				if( currentNode.splitFn.evaluate( currentInstances[i] ) )
 				{
-					leftArray.add(it);
+					leftArray.add(currentInstances[i]);
 				}
 				else
 				{
-					rightArray.add(it);
+					rightArray.add(currentInstances[i]);
 				}
 			}
 			//System.out.println("total left = " + leftArray.size() + ", total right = " + rightArray.size() + ", depth = " + currentNode.depth);					
@@ -332,23 +332,25 @@ public class BalancedRandomTree implements Serializable
 
 			if( leftArray.isEmpty() )
 			{
-				currentNode.left = new LeafNode(ins, rightArray, numClasses);
+				currentNode.left = new LeafNode(rightArray.toArray(new Instance[rightArray.size()]), numClasses);
 				//System.out.println("Created leaf with feature " + currentNode.splitFn.index);
 			}
 			else if ( rightArray.isEmpty() )
 			{
-				currentNode.left = new LeafNode(ins, leftArray, numClasses);
+				currentNode.left = new LeafNode(leftArray.toArray(new Instance[leftArray.size()]), numClasses);
 				//System.out.println("Created leaf with feature " + currentNode.splitFn.index);
 			}
 			else
 			{
-				currentNode.left = new InteriorNode(currentNode.depth+1, splitFnProducer.getSplitFunction(ins, leftArray, numAttributes, numClasses, classIndex));
+				final Instance[] leftIns = leftArray.toArray(new Instance[leftArray.size()]);
+				currentNode.left = new InteriorNode(currentNode.depth+1, splitFnProducer.getSplitFunction(leftIns, numAttributes, numClasses, classIndex));
 				remainingNodes.add((InteriorNode)currentNode.left);
-				remainingIndices.add(leftArray);
+				remainingInstances.add(leftIns);
 
-				currentNode.right = new InteriorNode(currentNode.depth+1, splitFnProducer.getSplitFunction(ins, rightArray, numAttributes, numClasses, classIndex));
+				final Instance[] rightIns = rightArray.toArray(new Instance[rightArray.size()]);
+				currentNode.right = new InteriorNode(currentNode.depth+1, splitFnProducer.getSplitFunction(rightIns, numAttributes, numClasses, classIndex));
 				remainingNodes.add((InteriorNode)currentNode.right);
-				remainingIndices.add(rightArray);
+				remainingInstances.add(rightIns);
 			}
 		}
 
