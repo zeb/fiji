@@ -301,14 +301,11 @@ public class BalancedRandomTree implements Serializable
 		// Forget the large array:
 		ins = null;
 
-		// [NOTE: indices are now relative to the "Instance[] ins" array, not to the original "Instances data"]
-		
 		// While there is still nodes to process
 		while (!remainingNodes.isEmpty())
 		{
-			final InteriorNode currentNode = remainingNodes.removeLast(); // TODO $$$ removeFirst instead, to remove the large ones first
-			//final ArrayList<Integer> currentIndices = remainingIndices.removeLast();
-			final Instance[] currentInstances = remainingInstances.removeLast(); // TODO ^^^
+			final InteriorNode currentNode = remainingNodes.removeFirst(); // remove first, to forget the large arrays quickly
+			final Instance[] currentInstances = remainingInstances.removeFirst();
 			// new arrays of indices for the left and right sons
 			final ArrayList<Instance> leftArray = new ArrayList<Instance>();
 			final ArrayList<Instance> rightArray = new ArrayList<Instance>();
