@@ -120,6 +120,7 @@ public class GiniFunction extends SplitFunction
 		double minimumGini = Double.MAX_VALUE;
 
 		//System.out.println("numElements: " + numElements + ", ins.length: " + ins.length + ", numFeatures: " + numOfFeatures);
+		//System.out.println("numAttributes: " + numAttributes + ", numClasses: " + numClasses + ", classIndex: " + classIndex);
 
 		for(int i=0; i < numOfFeatures; i++)
 		{
@@ -134,6 +135,7 @@ public class GiniFunction extends SplitFunction
 			{
 				//final Instance ins = ins[j];
 				//list.add( new AttributeClassPair( ins.value( featureToUse ), (int) ins.value( classIndex ) ));
+				//System.out.println("j: " + j + "ins[j]: " + ins[j]);
 				list[j] = new AttributeClassPair( ins[j].value( featureToUse ), (int) ins[j].value( classIndex ) );
 			}
 

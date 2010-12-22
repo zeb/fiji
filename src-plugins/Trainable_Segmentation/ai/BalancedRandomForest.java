@@ -219,11 +219,10 @@ public class BalancedRandomForest extends AbstractClassifier implements Randomiz
 		
 		final Random random = new Random(seed);
 		
-		// Executor service to run concurrent trees
+		// Executor service to create trees concurrently
 		final ExecutorService exe = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
 		
-		List< Future<BalancedRandomTree> > futures =
-            new ArrayList< Future<BalancedRandomTree> >( numTrees );
+		List< Future<BalancedRandomTree> > futures = new ArrayList< Future<BalancedRandomTree> >( numTrees );
 
 		
 		final boolean[][] inBag = new boolean [ numTrees ][ numInstances ];
@@ -244,18 +243,23 @@ public class BalancedRandomForest extends AbstractClassifier implements Randomiz
 					bagIndices.add( indexSample[ randomClass ].get( randomSample ) );
 					inBag[ i ][ indexSample[ randomClass ].get( randomSample ) ] = true;
 				}
+				// TODO bagIndices and indexSample could all be int[] arrays
 
 				// Create random tree
 				final Splitter splitter = 
 					new Splitter(new GiniFunction(numFeatures, data.getRandomNumberGenerator( random.nextInt() ) ));
 
-				futures.add(exe.submit(new Callable<BalancedRandomTree>() {
-					public BalancedRandomTree call() {
-						return new BalancedRandomTree( data, bagIndices, splitter );
-					}
-				}));
+				// Copy the subset into an array
+				final Instance[] ins = new Instance[bagIndices.size()];
+				int next = 0;
+				for (final int k : bagIndices) {
+					ins[next++] = data.get(k);
+				}
+				//System.out.println("data.numAttributes: " + data.numAttributes() + ", data.numClasses: " + data.numClasses() + ", data.classIndex: " + data.classIndex());
+				// Pass the array over to a non-anonymous class, which will then not have a closure with 'data' in it
+				futures.add(exe.submit(new CreateTree(ins, data.numAttributes(), data.numClasses(), data.classIndex(), splitter)));
 			}
-			
+
 			// Grab all trained trees before proceeding
 			for (int treeIdx = 0; treeIdx < numTrees; treeIdx++) 
 				tree[treeIdx] = futures.get(treeIdx).get();
@@ -306,6 +310,25 @@ public class BalancedRandomForest extends AbstractClassifier implements Randomiz
 			exe.shutdownNow();
 		}
 		
+	}
+
+	static private final class CreateTree implements Callable<BalancedRandomTree> {
+		final int numAttributes,
+		          numClasses,
+			  classIndex;
+		final Instance[] ins;
+		final Splitter splitter;
+
+		private CreateTree(final Instance[] ins, final int numAttributes, final int numClasses, final int classIndex, final Splitter splitter) {
+			this.ins = ins;
+			this.numAttributes = numAttributes;
+			this.numClasses = numClasses;
+			this.classIndex = classIndex;
+			this.splitter = splitter;
+		}
+		public final BalancedRandomTree call() {
+			return new BalancedRandomTree(ins, numAttributes, numClasses, classIndex, splitter);
+		}
 	}
 
 	/**

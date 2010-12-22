@@ -45,24 +45,24 @@ public class BalancedRandomTree implements Serializable
 	/**
 	 * Build random tree for a balanced random forest  
 	 * 
-	 * @param data original data
-	 * @param bagIndices indices of the data samples to use
+	 * @param ins The instances to use.
 	 * @param splitter split function generator
 	 */
-	public BalancedRandomTree(final Instances data, final ArrayList<Integer> bagIndices, final Splitter splitter)
+	public BalancedRandomTree(final Instance[] ins, final int numAttributes, final int numClasses, final int classIndex, final Splitter splitter)
 	{
-		this.rootNode = createNode( data, bagIndices, splitter );
+		this.rootNode = createNode( ins, numAttributes, numClasses, classIndex, splitter );
 	}
 
 	/**
 	 * Build the random tree based on the data specified 
 	 * in the constructor 
 	 */
-	private final BaseNode createNode(final Instances data, final ArrayList<Integer> bagIndices, final Splitter splitter)
+	private final BaseNode createNode(final Instance[] ins, final int numAttributes, final int numClasses, final int classIndex, final Splitter splitter)
 	{
+			
 		final long start = System.currentTimeMillis();
 		try {
-			return createTree(data, bagIndices, 0, splitter);
+			return createTree(ins, numAttributes, numClasses, classIndex, 0, splitter);
 		} finally {
 			final long end = System.currentTimeMillis();
 			IJ.log("Creating tree took: " + (end-start) + "ms");
@@ -121,7 +121,7 @@ public class BalancedRandomTree implements Serializable
 		double[] probability;
 
 		@Override
-		public double[] eval(Instance instance) 
+		public double[] eval(Instance instance)   // TODO isn't this an error? instance is ignored
 		{		
 			return probability;
 		}
@@ -142,16 +142,17 @@ public class BalancedRandomTree implements Serializable
 		 * @param indices indices at this node
 		 */
 		public LeafNode(
-				final Instances data, 
-				ArrayList<Integer> indices)
+				final Instance[] ins,
+				final ArrayList<Integer> indices,
+				final int numClasses)
 		{
-			this.probability = new double[ data.numClasses() ];
-			for(final Integer it : indices)
+			this.probability = new double[ numClasses ];
+			for(final int i : indices)
 			{
-				this.probability[ (int) data.get( it.intValue() ).classValue()] ++;
+				this.probability[ (int) ins[i].classValue() ] ++;
 			}
 			// Divide by the number of elements
-			for(int i=0; i<data.numClasses(); i++)
+			for(int i=0; i<probability.length; i++)
 				this.probability[i] /= (double) indices.size();
 		}
 
@@ -280,14 +281,16 @@ public class BalancedRandomTree implements Serializable
 	 * @return root node 
 	 */
 	private InteriorNode createTree(
-			final Instances data,
-			final ArrayList<Integer> indices,
+			final Instance[] ins,
+			final int numAttributes,
+			final int numClasses,
+			final int classIndex,
 			final int depth,
 			final Splitter splitFnProducer)
 	{
 		int maxDepth = depth;
 		// Create root node
-		InteriorNode root = new InteriorNode(depth, splitFnProducer.getSplitFunction(data, indices));
+		InteriorNode root = new InteriorNode(depth, splitFnProducer.getSplitFunction(ins, numAttributes, numClasses, classIndex));
 		
 		// Create list of nodes to process and add the root to it
 		final LinkedList<InteriorNode> remainingNodes = new LinkedList<InteriorNode>();
@@ -295,10 +298,14 @@ public class BalancedRandomTree implements Serializable
 		
 		// Create list of indices to process (it must match all the time with the node list)
 		final LinkedList<ArrayList<Integer>> remainingIndices = new LinkedList<ArrayList<Integer>>();
+		ArrayList<Integer> indices = new ArrayList<Integer>();
+		for (int i=0; i<ins.length; i++) indices.add(i);
 		remainingIndices.add(indices);
+
+		// [NOTE: indices are now relative to the "Instnace[] ins" array, not to the original "Instances data"]
 		
 		// While there is still nodes to process
-		while (!remainingNodes.isEmpty()) 
+		while (!remainingNodes.isEmpty())
 		{
 			final InteriorNode currentNode = remainingNodes.removeLast();
 			final ArrayList<Integer> currentIndices = remainingIndices.removeLast();
@@ -309,7 +316,7 @@ public class BalancedRandomTree implements Serializable
 			// split data
 			for(final Integer it : currentIndices)
 			{
-				if( currentNode.splitFn.evaluate( data.get(it.intValue()) ) )
+				if( currentNode.splitFn.evaluate( ins[it.intValue()] ) )
 				{
 					leftArray.add(it);
 				}
@@ -325,21 +332,21 @@ public class BalancedRandomTree implements Serializable
 
 			if( leftArray.isEmpty() )
 			{
-				currentNode.left = new LeafNode(data, rightArray);
+				currentNode.left = new LeafNode(ins, rightArray, numClasses);
 				//System.out.println("Created leaf with feature " + currentNode.splitFn.index);
 			}
 			else if ( rightArray.isEmpty() )
 			{
-				currentNode.left = new LeafNode(data, leftArray);
+				currentNode.left = new LeafNode(ins, leftArray, numClasses);
 				//System.out.println("Created leaf with feature " + currentNode.splitFn.index);
 			}
 			else
 			{
-				currentNode.left = new InteriorNode(currentNode.depth+1, splitFnProducer.getSplitFunction(data, leftArray));
+				currentNode.left = new InteriorNode(currentNode.depth+1, splitFnProducer.getSplitFunction(ins, leftArray, numAttributes, numClasses, classIndex));
 				remainingNodes.add((InteriorNode)currentNode.left);
 				remainingIndices.add(leftArray);
 
-				currentNode.right = new InteriorNode(currentNode.depth+1, splitFnProducer.getSplitFunction(data, rightArray));
+				currentNode.right = new InteriorNode(currentNode.depth+1, splitFnProducer.getSplitFunction(ins, rightArray, numAttributes, numClasses, classIndex));
 				remainingNodes.add((InteriorNode)currentNode.right);
 				remainingIndices.add(rightArray);
 			}
