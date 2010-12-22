@@ -306,7 +306,7 @@ public class BalancedRandomTree implements Serializable
 		{
 			final InteriorNode currentNode = remainingNodes.removeFirst(); // remove first, to forget the large arrays quickly
 			final Instance[] currentInstances = remainingInstances.removeFirst();
-			// new arrays of indices for the left and right sons
+			// new arrays for the left and right sons
 			final ArrayList<Instance> leftArray = new ArrayList<Instance>();
 			final ArrayList<Instance> rightArray = new ArrayList<Instance>();
 

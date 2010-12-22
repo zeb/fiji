@@ -37,7 +37,7 @@ import weka.core.Instances;
 public class GiniFunction extends SplitFunction 
 {
 	
-	/** Servial version ID */
+	/** Serial version ID */
 	private static final long serialVersionUID = 9707184791345L;
 	/** index of the splitting attribute */
 	int index;
@@ -195,10 +195,6 @@ public class GiniFunction extends SplitFunction
 				probRight[list[splitPoint].classValue] --;
 			}
 		}
-		
-		// free list of possible indices to help garbage collector
-		//allIndices.clear();
-		//allIndices = null;
 	}
 
 	/**
@@ -221,7 +217,6 @@ public class GiniFunction extends SplitFunction
 	{
 		return new GiniFunction(this.numOfFeatures, this.random);
 	}
-
 
 	private static final void sort(final AttributeClassPair[] acps)
 	{
@@ -246,6 +241,7 @@ public class GiniFunction extends SplitFunction
 		quicksort(acps, 0, acps.length-1);
 	}
 
+	/** Adapted from Preibisch code. */
 	private static final void quicksort(final AttributeClassPair[] acps, int left, int right)
 	{
 		// quicksort:

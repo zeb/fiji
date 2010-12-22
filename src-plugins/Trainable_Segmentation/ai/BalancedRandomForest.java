@@ -245,11 +245,11 @@ public class BalancedRandomForest extends AbstractClassifier implements Randomiz
 				}
 				// TODO bagIndices and indexSample could all be int[] arrays
 
-				// Create random tree
+				// Create a Splitter for this tree
 				final Splitter splitter = 
 					new Splitter(new GiniFunction(numFeatures, data.getRandomNumberGenerator( random.nextInt() ) ));
 
-				// Copy the subset into an array of FinalInstance
+				// Copy the subset into an array
 				final Instance[] ins = new Instance[bagIndices.size()];
 				int next = 0;
 				for (final int k : bagIndices) {
