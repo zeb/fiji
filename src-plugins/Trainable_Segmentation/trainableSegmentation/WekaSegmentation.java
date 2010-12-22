@@ -68,7 +68,6 @@ import weka.classifiers.Evaluation;
 import weka.classifiers.pmml.consumer.PMMLClassifier;
 
 import weka.core.Attribute;
-import weka.core.DenseInstance;
 import weka.core.Instances;
 
 import weka.core.pmml.PMMLFactory;
@@ -638,7 +637,7 @@ public class WekaSegmentation {
 						for (int z=1; z<=featureStack.getSize(); z++)
 							values[z-1] = featureStack.getProcessor(z).getPixelValue(x, y);
 						values[featureStack.getSize()] = (double) classIndex;
-						loadedTrainingData.add(new DenseInstance(1.0, values));
+						addNewInstance(loadedTrainingData, 1.0, values);
 						// increase number of instances for this class
 						nl ++;
 				}
@@ -2640,7 +2639,7 @@ public class WekaSegmentation {
 							for (int z=1; z<=featureStack.getSize(); z++)
 								values[z-1] = featureStack.getProcessor(z).getPixelValue(x[i], y[i]);
 							values[featureStack.getSize()] = (double) l;
-							trainingData.add(new DenseInstance(1.0, values));
+							addNewInstance(trainingData, 1.0, values);
 							// increase number of instances for this class
 							nl ++;
 						}
@@ -2677,7 +2676,7 @@ public class WekaSegmentation {
 									for (int z=1; z<=featureStack.getSize(); z++)
 										values[z-1] = featureStack.getProcessor(z).getInterpolatedValue(x, y);
 									values[featureStack.getSize()] = (double) l;
-									trainingData.add(new DenseInstance(1.0, values));
+									addNewInstance(trainingData, 1.0, values);
 									// increase number of instances for this class
 									nl ++;
 								}
@@ -2704,7 +2703,7 @@ public class WekaSegmentation {
 								for (int z=1; z<=featureStack.getSize(); z++)
 									values[z-1] = featureStack.getProcessor(z).getPixelValue(x, y);
 								values[featureStack.getSize()] = (double) l;
-								trainingData.add(new DenseInstance(1.0, values));
+								addNewInstance(trainingData, 1.0, values);
 								// increase number of instances for this class
 								nl ++;
 							}
@@ -3323,5 +3322,13 @@ public class WekaSegmentation {
 		rf.setMaxDepth(maxDepth);
 
 		return true;
+	}
+
+	/** Add a new instance but setting the new Instance reference to Instances as null.
+	 *  Avoids concurrency issues. */
+	private static final void addNewInstance(final Instances data, final double weight, final double[] values) {
+		final ai.FinalDenseInstance di = new ai.FinalDenseInstance(weight, values);
+		data.add(di);
+		di.setDataset(null);
 	}
 }
