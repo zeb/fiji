@@ -222,7 +222,7 @@ public class BalancedRandomForest extends AbstractClassifier implements Randomiz
 		// Executor service to create trees concurrently
 		final ExecutorService exe = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
 		
-		//List< Future<BalancedRandomTree> > futures = new ArrayList< Future<BalancedRandomTree> >( numTrees );
+		List< Future<BalancedRandomTree> > futures = new ArrayList< Future<BalancedRandomTree> >( numTrees );
 
 		
 		final boolean[][] inBag = new boolean [ numTrees ][ numInstances ];
@@ -257,15 +257,12 @@ public class BalancedRandomForest extends AbstractClassifier implements Randomiz
 				}
 				//System.out.println("data.numAttributes: " + data.numAttributes() + ", data.numClasses: " + data.numClasses() + ", data.classIndex: " + data.classIndex());
 				// Pass the array over to a non-anonymous class, which will then not have a closure with 'data' in it
-				//futures.add(exe.submit(new CreateTree(ins, data.numAttributes(), data.numClasses(), data.classIndex(), splitter)));
-				tree[i] = new BalancedRandomTree(ins, data.numAttributes(), data.numClasses(), data.classIndex(), splitter, exe);
+				futures.add(exe.submit(new CreateTree(ins, data.numAttributes(), data.numClasses(), data.classIndex(), splitter)));
 			}
 
 			// Grab all trained trees before proceeding
-			/*
 			for (int treeIdx = 0; treeIdx < numTrees; treeIdx++) 
 				tree[treeIdx] = futures.get(treeIdx).get();
-			*/
 
 			// Calculate out of bag error
 			final boolean numeric = data.classAttribute().isNumeric();
@@ -315,7 +312,6 @@ public class BalancedRandomForest extends AbstractClassifier implements Randomiz
 		
 	}
 
-	/*
 	static private final class CreateTree implements Callable<BalancedRandomTree> {
 		final int numAttributes,
 		          numClasses,
@@ -334,7 +330,6 @@ public class BalancedRandomForest extends AbstractClassifier implements Randomiz
 			return new BalancedRandomTree(ins, numAttributes, numClasses, classIndex, splitter);
 		}
 	}
-	*/
 
 	/**
 	 * Calculates the class membership probabilities for the given test

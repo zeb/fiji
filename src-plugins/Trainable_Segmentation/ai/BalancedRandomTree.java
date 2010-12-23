@@ -26,11 +26,6 @@ import ij.IJ;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.LinkedList;
-import java.util.Vector;
-import java.util.concurrent.Callable;
-import java.util.concurrent.Future;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import weka.core.Instance;
 import weka.core.Instances;
@@ -53,21 +48,21 @@ public class BalancedRandomTree implements Serializable
 	 * @param ins The instances to use.
 	 * @param splitter split function generator
 	 */
-	public BalancedRandomTree(final Instance[] ins, final int numAttributes, final int numClasses, final int classIndex, final Splitter splitter, final ExecutorService exec) throws Exception
+	public BalancedRandomTree(final Instance[] ins, final int numAttributes, final int numClasses, final int classIndex, final Splitter splitter)
 	{
-		this.rootNode = createNode( ins, numAttributes, numClasses, classIndex, splitter, exec );
+		this.rootNode = createNode( ins, numAttributes, numClasses, classIndex, splitter );
 	}
 
 	/**
 	 * Build the random tree based on the data specified 
 	 * in the constructor 
 	 */
-	private final BaseNode createNode(final Instance[] ins, final int numAttributes, final int numClasses, final int classIndex, final Splitter splitter, final ExecutorService exec) throws Exception
+	private final BaseNode createNode(final Instance[] ins, final int numAttributes, final int numClasses, final int classIndex, final Splitter splitter)
 	{
 			
 		final long start = System.currentTimeMillis();
 		try {
-			return createTree(ins, numAttributes, numClasses, classIndex, 0, splitter, exec);
+			return createTree(ins, numAttributes, numClasses, classIndex, 0, splitter);
 		} finally {
 			final long end = System.currentTimeMillis();
 			IJ.log("Creating tree took: " + (end-start) + "ms");
@@ -92,7 +87,7 @@ public class BalancedRandomTree implements Serializable
 	 * Basic node of the tree
 	 *
 	 */
-	static abstract class BaseNode implements Serializable
+	abstract class BaseNode implements Serializable
 	{
 
 		/** serial version ID */
@@ -118,7 +113,7 @@ public class BalancedRandomTree implements Serializable
 	 * Leaf node in the tree 
 	 *
 	 */
-	static class LeafNode extends BaseNode implements Serializable
+	class LeafNode extends BaseNode implements Serializable
 	{
 		/** serial version ID */
 		private static final long serialVersionUID = 2019873470157L;
@@ -166,7 +161,7 @@ public class BalancedRandomTree implements Serializable
 	 * Interior node of the tree
 	 *
 	 */
-	static class InteriorNode extends BaseNode implements Serializable
+	class InteriorNode extends BaseNode implements Serializable
 	{
 		/** serial version ID */
 		private static final long serialVersionUID = 9972970234021L;
@@ -275,38 +270,42 @@ public class BalancedRandomTree implements Serializable
 		}
 	}
 
-
-	static private abstract class Task implements Callable<Integer>
+	/**
+	 * Create random tree (non-recursively)
+	 * 
+	 * @param data original data
+	 * @param indices indices of the samples to use
+	 * @param depth starting depth
+	 * @param splitFnProducer split function producer
+	 * @return root node 
+	 */
+	private InteriorNode createTree(
+			Instance[] ins,
+			final int numAttributes,
+			final int numClasses,
+			final int classIndex,
+			final int depth,
+			final Splitter splitFnProducer)
 	{
-		private final Instance[] currentInstances;
-		private final int numAttributes, numClasses, classIndex, depth;
-		private final Splitter splitFnProducer;
-		private final ExecutorService exec;
-		private final Vector<Future<Integer>> futures;
-		private final AtomicInteger counter;
-		private final Object sentinel;
+		int maxDepth = depth;
+		// Create root node
+		InteriorNode root = new InteriorNode(depth, splitFnProducer.getSplitFunction(ins, numAttributes, numClasses, classIndex));
+		
+		// Create list of nodes to process and add the root to it
+		final LinkedList<InteriorNode> remainingNodes = new LinkedList<InteriorNode>();
+		remainingNodes.add(root);
+		
+		// Create list of indices to process (it must match all the time with the node list)
+		final LinkedList<Instance[]> remainingInstances = new LinkedList<Instance[]>();
+		remainingInstances.add(ins);
+		// Forget the large array:
+		ins = null;
 
-		private Task(final Instance[] ins, final int numAttributes, final int numClasses,
-				final int classIndex, final int depth, final Splitter splitFnProducer,
-				final ExecutorService exec, final Vector<Future<Integer>> futures,
-				final AtomicInteger counter, final Object sentinel) {
-			this.currentInstances = ins;
-			this.numAttributes = numAttributes;
-			this.numClasses = numClasses;
-			this.classIndex = classIndex;
-			this.depth = depth;
-			this.splitFnProducer = splitFnProducer;
-			this.exec = exec;
-			this.futures = futures;
-			this.counter = counter;
-			counter.incrementAndGet();
-			this.sentinel = sentinel;
-		}
-
-		public final Integer call() {
-
-			final InteriorNode currentNode = new InteriorNode(depth, splitFnProducer.getSplitFunction(currentInstances, numAttributes, numClasses, classIndex));
-
+		// While there is still nodes to process
+		while (!remainingNodes.isEmpty())
+		{
+			final InteriorNode currentNode = remainingNodes.removeFirst(); // remove first, to forget the large arrays quickly
+			final Instance[] currentInstances = remainingInstances.removeFirst();
 			// new arrays for the left and right sons
 			final ArrayList<Instance> leftArray = new ArrayList<Instance>();
 			final ArrayList<Instance> rightArray = new ArrayList<Instance>();
@@ -324,6 +323,9 @@ public class BalancedRandomTree implements Serializable
 				}
 			}
 			//System.out.println("total left = " + leftArray.size() + ", total right = " + rightArray.size() + ", depth = " + currentNode.depth);					
+			// Update maximum depth (for the record)
+			if(currentNode.depth > maxDepth)
+				maxDepth = currentNode.depth;
 
 			if( leftArray.isEmpty() )
 			{
@@ -337,88 +339,20 @@ public class BalancedRandomTree implements Serializable
 			}
 			else
 			{
-				futures.add(exec.submit(new Task(leftArray.toArray(new Instance[leftArray.size()]), numAttributes, numClasses, classIndex, depth+1, splitFnProducer, exec, futures, counter, sentinel) {
-					@Override
-					final void assign(final InteriorNode node) {
-						currentNode.left = node;
-					}
-				}));
+				final Instance[] leftIns = leftArray.toArray(new Instance[leftArray.size()]);
+				currentNode.left = new InteriorNode(currentNode.depth+1, splitFnProducer.getSplitFunction(leftIns, numAttributes, numClasses, classIndex));
+				remainingNodes.add((InteriorNode)currentNode.left);
+				remainingInstances.add(leftIns);
 
-				futures.add(exec.submit(new Task(rightArray.toArray(new Instance[rightArray.size()]), numAttributes, numClasses, classIndex, depth+1, splitFnProducer, exec, futures, counter, sentinel) {
-					@Override
-					final void assign(final InteriorNode node) {
-						currentNode.right = node;
-					}
-				}));
+				final Instance[] rightIns = rightArray.toArray(new Instance[rightArray.size()]);
+				currentNode.right = new InteriorNode(currentNode.depth+1, splitFnProducer.getSplitFunction(rightIns, numAttributes, numClasses, classIndex));
+				remainingNodes.add((InteriorNode)currentNode.right);
+				remainingInstances.add(rightIns);
 			}
-
-			assign(currentNode);
-
-			// Update maximum depth (for the record)
-			/*
-			if(currentNode.depth > maxDepth)
-				maxDepth = currentNode.depth;
-			*/
-
-			if (0 == this.counter.decrementAndGet()) {
-				synchronized (this.sentinel) {
-					this.sentinel.notifyAll();
-				}
-			}
-
-			return this.depth;
 		}
-		abstract void assign(InteriorNode node);
+
+		//System.out.println("Max depth = " + maxDepth);
+		return root;
 	}
 
-	/**
-	 * Create random tree (non-recursively)
-	 * 
-	 * @param data original data
-	 * @param indices indices of the samples to use
-	 * @param depth starting depth
-	 * @param splitFnProducer split function producer
-	 * @return root node 
-	 */
-	private InteriorNode createTree(
-			Instance[] ins,
-			final int numAttributes,
-			final int numClasses,
-			final int classIndex,
-			final int depth,
-			final Splitter splitFnProducer,
-			final ExecutorService exec) throws Exception
-	{
-		final InteriorNode[] root = new InteriorNode[1];
-
-		final Vector<Future<Integer>> futures = new Vector<Future<Integer>>();
-
-		final Object sentinel = new Object();
-		final AtomicInteger counter = new AtomicInteger(0);
-
-		futures.add(exec.submit(new Task(ins, numAttributes, numClasses, classIndex, depth, splitFnProducer, exec, futures, counter, sentinel) {
-			@Override
-			final void assign(final InteriorNode node) {
-				root[0] = node;
-			}
-		}));
-
-		// Wait until all branches have been split
-		synchronized (counter) {
-			if (counter.get() > 0) {
-				synchronized (sentinel) {
-					sentinel.wait();
-				}
-			}
-		}
-
-		int maxDepth = 0;
-		for (final Future<Integer> fu : futures) {
-			maxDepth = Math.max(maxDepth, fu.get());
-		}
-
-		System.out.println("maxDepth: " + maxDepth);
-
-		return root[0];
-	}
 }
