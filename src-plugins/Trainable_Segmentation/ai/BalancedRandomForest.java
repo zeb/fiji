@@ -222,15 +222,19 @@ public class BalancedRandomForest extends AbstractClassifier implements Randomiz
 		// Executor service to create trees concurrently
 		final ExecutorService exe = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
 		
-		//List< Future<BalancedRandomTree> > futures = new ArrayList< Future<BalancedRandomTree> >( numTrees );
+		final List< Future<BalancedRandomTree> > futures = new ArrayList< Future<BalancedRandomTree> >( numTrees );
 
-		
+
 		final boolean[][] inBag = new boolean [ numTrees ][ numInstances ];
 		
 		try
 		{
-			for(int i = 0; i < numTrees; i++)
+			for(int i_ = 0; i_ < numTrees; i_++)
 			{
+				final int i = i_;
+				futures.add(exe.submit(new Callable<BalancedRandomTree>() {
+					public BalancedRandomTree call() throws Exception {
+
 				final ArrayList<Integer> bagIndices = new ArrayList<Integer>(); 
 
 				// Randomly select the indices in a balanced way
@@ -258,14 +262,15 @@ public class BalancedRandomForest extends AbstractClassifier implements Randomiz
 				//System.out.println("data.numAttributes: " + data.numAttributes() + ", data.numClasses: " + data.numClasses() + ", data.classIndex: " + data.classIndex());
 				// Pass the array over to a non-anonymous class, which will then not have a closure with 'data' in it
 				//futures.add(exe.submit(new CreateTree(ins, data.numAttributes(), data.numClasses(), data.classIndex(), splitter)));
-				tree[i] = new BalancedRandomTree(ins, data.numAttributes(), data.numClasses(), data.classIndex(), splitter, exe);
+				//tree[i] = new BalancedRandomTree(ins, data.numAttributes(), data.numClasses(), data.classIndex(), splitter, exe);
+			
+					return new BalancedRandomTree(ins, data.numAttributes(), data.numClasses(), data.classIndex(), splitter, exe);
+					}}));
 			}
 
 			// Grab all trained trees before proceeding
-			/*
 			for (int treeIdx = 0; treeIdx < numTrees; treeIdx++) 
 				tree[treeIdx] = futures.get(treeIdx).get();
-			*/
 
 			// Calculate out of bag error
 			final boolean numeric = data.classAttribute().isNumeric();
