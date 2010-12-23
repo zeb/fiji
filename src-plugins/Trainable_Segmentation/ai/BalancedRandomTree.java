@@ -30,6 +30,7 @@ import java.util.Vector;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import weka.core.Instance;
@@ -46,6 +47,8 @@ public class BalancedRandomTree implements Serializable
 	private static final long serialVersionUID = 41518309467L;
 	/** root node */
 	private final BaseNode rootNode;
+
+	static private final int NCPUS = Runtime.getRuntime().availableProcessors();
 
 	/**
 	 * Build random tree for a balanced random forest  
@@ -274,7 +277,29 @@ public class BalancedRandomTree implements Serializable
 			return this.depth;
 		}
 	}
+	
+	static private final class FakeFuture<T> implements Future<T> {
+		final T result;
+		/** Executes the Callable right now. */
+		FakeFuture(final Callable<T> c) throws Exception {
+			this.result = c.call();
+		}
+		@Override
+		public boolean cancel(boolean mayInterruptIfRunning) { return true; }
+		@Override
+		public T get() { return result; }
+		@Override
+		public T get(long timeout, TimeUnit unit) { return result; }
+		@Override
+		public boolean isCancelled() { return false; }
+		@Override
+		public boolean isDone() { return true; }
+	}
 
+	/** Number of elements in an Instance[] array to send for processing in parallel.
+	 * When the array is smaller, then all the synch overhead is avoided,
+	 * and many threads are processing the already many branches of the tree, so concurrency is as good as it gets. */
+	static private final int MIN_SIZE = 1000;
 
 	static private abstract class Task implements Callable<Integer>
 	{
@@ -303,7 +328,7 @@ public class BalancedRandomTree implements Serializable
 			this.sentinel = sentinel;
 		}
 
-		public final Integer call() {
+		public final Integer call() throws Exception {
 
 			final InteriorNode currentNode = new InteriorNode(depth, splitFnProducer.getSplitFunction(currentInstances, numAttributes, numClasses, classIndex));
 
@@ -323,7 +348,7 @@ public class BalancedRandomTree implements Serializable
 					rightArray.add(currentInstances[i]);
 				}
 			}
-			//System.out.println("total left = " + leftArray.size() + ", total right = " + rightArray.size() + ", depth = " + currentNode.depth);					
+			//System.out.println("total left = " + leftArray.size() + ", total right = " + rightArray.size() + ", depth = " + currentNode.depth);
 
 			if( leftArray.isEmpty() )
 			{
@@ -337,19 +362,31 @@ public class BalancedRandomTree implements Serializable
 			}
 			else
 			{
-				futures.add(exec.submit(new Task(leftArray.toArray(new Instance[leftArray.size()]), numAttributes, numClasses, classIndex, depth+1, splitFnProducer, exec, futures, counter, sentinel) {
+				Task tl = new Task(leftArray.toArray(new Instance[leftArray.size()]), numAttributes, numClasses, classIndex, depth+1, splitFnProducer, exec, futures, counter, sentinel) {
 					@Override
 					final void assign(final InteriorNode node) {
 						currentNode.left = node;
 					}
-				}));
+				};
+				if (leftArray.size() > MIN_SIZE) {
+					futures.add(exec.submit(tl));
+					tl = null;
+				}
 
-				futures.add(exec.submit(new Task(rightArray.toArray(new Instance[rightArray.size()]), numAttributes, numClasses, classIndex, depth+1, splitFnProducer, exec, futures, counter, sentinel) {
+				Task tr = new Task(rightArray.toArray(new Instance[rightArray.size()]), numAttributes, numClasses, classIndex, depth+1, splitFnProducer, exec, futures, counter, sentinel) {
 					@Override
 					final void assign(final InteriorNode node) {
 						currentNode.right = node;
 					}
-				}));
+				};
+				if (rightArray.size() > MIN_SIZE) {
+					futures.add(exec.submit(tr));
+					tr = null;
+				}
+
+				// Compute here, in this Thread
+				if (null != tl) futures.add(new FakeFuture(tl));
+				if (null != tr) futures.add(new FakeFuture(tr));
 			}
 
 			assign(currentNode);
