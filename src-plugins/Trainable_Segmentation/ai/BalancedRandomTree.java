@@ -143,16 +143,17 @@ public class BalancedRandomTree implements Serializable
 		 */
 		public LeafNode(
 				final Instance[] ins,
+				final int insSize,
 				final int numClasses)
 		{
 			this.probability = new double[ numClasses ];
-			for(int i=0; i<ins.length; i++)
+			for(int i=0; i<insSize; i++)
 			{
 				this.probability[ (int) ins[i].classValue() ] ++;
 			}
 			// Divide by the number of elements
 			for(int i=0; i<probability.length; i++)
-				this.probability[i] /= (double) ins.length;
+				this.probability[i] /= insSize;
 		}
 
 	} //end class LeafNode
@@ -289,7 +290,7 @@ public class BalancedRandomTree implements Serializable
 	{
 		int maxDepth = depth;
 		// Create root node
-		InteriorNode root = new InteriorNode(depth, splitFnProducer.getSplitFunction(ins, numAttributes, numClasses, classIndex));
+		InteriorNode root = new InteriorNode(depth, splitFnProducer.getSplitFunction(ins, ins.length, numAttributes, numClasses, classIndex));
 		
 		// Create list of nodes to process and add the root to it
 		final LinkedList<InteriorNode> remainingNodes = new LinkedList<InteriorNode>();
@@ -298,56 +299,76 @@ public class BalancedRandomTree implements Serializable
 		// Create list of indices to process (it must match all the time with the node list)
 		final LinkedList<Instance[]> remainingInstances = new LinkedList<Instance[]>();
 		remainingInstances.add(ins);
+		final LinkedList<Integer> remainingSizes = new LinkedList<Integer>();
+		remainingSizes.add(ins.length);
 		// Forget the large array:
 		ins = null;
 
-		// While there is still nodes to process
+		// While there still are nodes to process
 		while (!remainingNodes.isEmpty())
 		{
 			final InteriorNode currentNode = remainingNodes.removeFirst(); // remove first, to forget the large arrays quickly
 			final Instance[] currentInstances = remainingInstances.removeFirst();
+			final int currentSize = remainingSizes.removeFirst();
 			// new arrays for the left and right sons
-			final ArrayList<Instance> leftArray = new ArrayList<Instance>();
-			final ArrayList<Instance> rightArray = new ArrayList<Instance>();
+			//final ArrayList<Instance> leftArray = new ArrayList<Instance>();
+			//final ArrayList<Instance> rightArray = new ArrayList<Instance>();
+			final Instance[] leftArray = new Instance[currentSize];
+			final Instance[] rightArray = new Instance[currentSize];
+			int nextLeft = 0,
+			    nextRight = 0;
 
 			// split data
-			for(int i=0; i < currentInstances.length; i++)
+			//for(int i=0; i < currentInstances.length; i++)
+			for(int i=0; i < currentSize; i++)
 			{
 				if( currentNode.splitFn.evaluate( currentInstances[i] ) )
 				{
-					leftArray.add(currentInstances[i]);
+					//leftArray.add(currentInstances[i]);
+					leftArray[nextLeft++] = currentInstances[i];
 				}
 				else
 				{
-					rightArray.add(currentInstances[i]);
+					//rightArray.add(currentInstances[i]);
+					rightArray[nextRight++] = currentInstances[i];
 				}
 			}
 			//System.out.println("total left = " + leftArray.size() + ", total right = " + rightArray.size() + ", depth = " + currentNode.depth);					
+			//System.out.println("total left = " + nextLeft + ", total right = " + nextRight + ", depth = " + currentNode.depth);					
+
 			// Update maximum depth (for the record)
 			if(currentNode.depth > maxDepth)
 				maxDepth = currentNode.depth;
 
-			if( leftArray.isEmpty() )
+			//if( leftArray.isEmpty() )
+			if (0 == nextLeft)
 			{
-				currentNode.left = new LeafNode(rightArray.toArray(new Instance[rightArray.size()]), numClasses);
+				//currentNode.left = new LeafNode(rightArray.toArray(new Instance[rightArray.size()]), numClasses);
+				currentNode.left = new LeafNode(rightArray, nextRight, numClasses);
 				//System.out.println("Created leaf with feature " + currentNode.splitFn.index);
 			}
-			else if ( rightArray.isEmpty() )
+			//else if ( rightArray.isEmpty() )
+			else if (0 == nextRight)
 			{
-				currentNode.left = new LeafNode(leftArray.toArray(new Instance[leftArray.size()]), numClasses);
+				//currentNode.left = new LeafNode(leftArray.toArray(new Instance[leftArray.size()]), numClasses);
+				currentNode.left = new LeafNode(leftArray, nextLeft, numClasses);
 				//System.out.println("Created leaf with feature " + currentNode.splitFn.index);
 			}
 			else
 			{
-				final Instance[] leftIns = leftArray.toArray(new Instance[leftArray.size()]);
-				currentNode.left = new InteriorNode(currentNode.depth+1, splitFnProducer.getSplitFunction(leftIns, numAttributes, numClasses, classIndex));
+				//final Instance[] leftIns = leftArray.toArray(new Instance[leftArray.size()]);
+				//currentNode.left = new InteriorNode(currentNode.depth+1, splitFnProducer.getSplitFunction(leftIns, numAttributes, numClasses, classIndex));
+				currentNode.left = new InteriorNode(currentNode.depth+1, splitFnProducer.getSplitFunction(leftArray, nextLeft, numAttributes, numClasses, classIndex));
 				remainingNodes.add((InteriorNode)currentNode.left);
-				remainingInstances.add(leftIns);
+				remainingInstances.add(leftArray);
+				remainingSizes.add(nextLeft);
 
-				final Instance[] rightIns = rightArray.toArray(new Instance[rightArray.size()]);
-				currentNode.right = new InteriorNode(currentNode.depth+1, splitFnProducer.getSplitFunction(rightIns, numAttributes, numClasses, classIndex));
+				//final Instance[] rightIns = rightArray.toArray(new Instance[rightArray.size()]);
+				//currentNode.right = new InteriorNode(currentNode.depth+1, splitFnProducer.getSplitFunction(rightIns, numAttributes, numClasses, classIndex));
+				currentNode.right = new InteriorNode(currentNode.depth+1, splitFnProducer.getSplitFunction(rightArray, nextRight, numAttributes, numClasses, classIndex));
 				remainingNodes.add((InteriorNode)currentNode.right);
-				remainingInstances.add(rightIns);
+				remainingInstances.add(rightArray);
+				remainingSizes.add(nextRight);
 			}
 		}
 

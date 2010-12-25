@@ -50,33 +50,13 @@ public class Splitter implements Serializable
 	 */
 	public SplitFunction getSplitFunction(
 			final Instance[] ins,
+			final int insSize,
 			final int numAttributes,
 			final int numClasses,
 			final int classIndex)
 	{
 			final SplitFunction sf = template.newInstance();
-			sf.init(ins, numAttributes, numClasses, classIndex);
+			sf.init(ins, insSize, numAttributes, numClasses, classIndex);
 			return sf;
-	}
-
-	/**
-	 * Calculate split function based on the input data
-	 * @param ins The instances array to draw from.
-	 * @param indices The subset of indices to use from the {@param ins} instances array.
-	 * @return split function
-	 */
-	public SplitFunction getSplitFunction(
-			final Instance[] ins,
-			final ArrayList<Integer> indices,
-			final int numAttributes,
-			final int numClasses,
-			final int classIndex)
-	{
-		// Shorten ins to ins2
-		final Instance[] ins2 = new Instance[indices.size()];
-		for (int i=0; i<ins2.length; i++) {
-			ins2[i] = ins[indices.get(i)];
-		}
-		return getSplitFunction(ins2, numAttributes, numClasses, classIndex);
 	}
 }

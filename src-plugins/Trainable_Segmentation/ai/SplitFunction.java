@@ -14,7 +14,7 @@ public abstract class SplitFunction implements Serializable
 	int index;
 	double threshold;
 	boolean allSame;
-	public abstract void init(Instance[] ins, int numAttributes, int numClasses, int classIndex);
+	public abstract void init(Instance[] ins, int insSize, int numAttributes, int numClasses, int classIndex);
 	public abstract boolean evaluate(final Instance instance);
 	public abstract SplitFunction newInstance();
 }

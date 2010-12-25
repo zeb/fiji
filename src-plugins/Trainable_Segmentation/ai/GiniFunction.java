@@ -85,9 +85,9 @@ public class GiniFunction extends SplitFunction
 	 * Create split function based on Gini coefficient
 	 * 
 	 */	 
-	public void init(final Instance[] ins, final int numAttributes, final int numClasses, final int classIndex)
+	public void init(final Instance[] ins, final int insSize, final int numAttributes, final int numClasses, final int classIndex)
 	{
-		if (0 == ins.length)
+		if (0 == insSize)
 		{
 			this.index = 0;
 			this.threshold = 0;
@@ -115,7 +115,7 @@ public class GiniFunction extends SplitFunction
 		}
 		final int[] fIndices = shuffled(featureIndices);
 
-		final int numElements = ins.length;
+		final int numElements = insSize;
 
 		double minimumGini = Double.MAX_VALUE;
 
@@ -204,7 +204,7 @@ public class GiniFunction extends SplitFunction
 	 * @param instance sample to evaluate
 	 * @return false if the instance is on the right of the splitting point, true if it's on the left 
 	 */
-	public boolean evaluate(Instance instance) 
+	public boolean evaluate(final Instance instance) 
 	{
 		if(allSame)
 			return true;
