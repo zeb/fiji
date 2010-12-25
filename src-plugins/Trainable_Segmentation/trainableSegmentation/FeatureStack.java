@@ -1687,7 +1687,7 @@ public class FeatureStack
 		// Assign class
 		values[values.length-1] = (double) classValue;
 		
-		return new DenseInstance(1.0, values);
+		return new ai.FinalDenseInstance(1.0, values);
 	}
 	
 	/**

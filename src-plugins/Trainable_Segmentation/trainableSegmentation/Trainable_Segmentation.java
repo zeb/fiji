@@ -920,7 +920,7 @@ public class Trainable_Segmentation implements PlugIn
 							for (int z=1; z<=featureStack.getSize(); z++)
 								values[z-1] = featureStack.getProcessor(z).getPixelValue(x[i], y[i]);
 							values[featureStack.getSize()] = (double) l;
-							trainingData.add(new DenseInstance(1.0, values));
+							trainingData.add(new ai.FinalDenseInstance(1.0, values));
 							// increase number of instances for this class
 							nl ++;
 						}
@@ -957,7 +957,7 @@ public class Trainable_Segmentation implements PlugIn
 									for (int z=1; z<=featureStack.getSize(); z++)
 										values[z-1] = featureStack.getProcessor(z).getInterpolatedValue(x, y);
 									values[featureStack.getSize()] = (double) l;
-									trainingData.add(new DenseInstance(1.0, values));
+									trainingData.add(new ai.FinalDenseInstance(1.0, values));
 									// increase number of instances for this class
 									nl ++;
 								}																
@@ -984,7 +984,7 @@ public class Trainable_Segmentation implements PlugIn
 								for (int z=1; z<=featureStack.getSize(); z++)
 									values[z-1] = featureStack.getProcessor(z).getPixelValue(x, y);
 								values[featureStack.getSize()] = (double) l;
-								trainingData.add(new DenseInstance(1.0, values));
+								trainingData.add(new ai.FinalDenseInstance(1.0, values));
 								// increase number of instances for this class
 								nl ++;
 							}
