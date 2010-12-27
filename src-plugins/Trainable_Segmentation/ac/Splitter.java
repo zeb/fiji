@@ -47,11 +47,11 @@ public class Splitter implements Serializable
 	 */
 	public SplitFunction getSplitFunction(
 			final SortedInstances si,
-			final int[] instanceIndices,
-			final int instanceIndicesSize)
+			final BitVector bits,
+			final int count)
 	{
 			final SplitFunction sf = template.newInstance();
-			sf.init(si, instanceIndices, instanceIndicesSize);
+			sf.init(si, bits, count);
 			return sf;
 	}
 }
