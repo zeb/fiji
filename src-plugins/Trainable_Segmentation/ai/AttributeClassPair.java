@@ -7,9 +7,9 @@ package ai;
 public final class AttributeClassPair
 {
 	/** real value of the corresponding attribute */
-	final double attributeValue;
+	double attributeValue;
 	/** index of the class associated to this pair */
-	final int classValue;
+	int classValue;
 	/**
 	 * Create pair attribute-class
 	 * 
@@ -17,6 +17,12 @@ public final class AttributeClassPair
 	 * @param classIndex index of the class associated to this sample
 	 */
 	AttributeClassPair(final double attributeValue, final int classIndex)
+	{
+		this.attributeValue = attributeValue;
+		this.classValue = classIndex;
+	}
+
+	final void set(final double attributeValue, final int classIndex)
 	{
 		this.attributeValue = attributeValue;
 		this.classValue = classIndex;
