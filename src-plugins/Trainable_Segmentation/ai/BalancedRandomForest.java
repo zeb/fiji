@@ -30,6 +30,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.Callable;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import weka.classifiers.AbstractClassifier;
 import weka.core.Capabilities;
@@ -189,6 +190,7 @@ public class BalancedRandomForest extends AbstractClassifier implements Randomiz
 	 */
 	public void buildClassifier(final Instances data) throws Exception 
 	{
+
 		// If number of features is 0 then set it to log2 of M (number of attributes)
 		if (numFeatures < 1) 
 			numFeatures = (int) Utils.log2(data.numAttributes())+1;
@@ -222,15 +224,28 @@ public class BalancedRandomForest extends AbstractClassifier implements Randomiz
 		// Executor service to create trees concurrently
 		final ExecutorService exe = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
 		
-		List< Future<BalancedRandomTree> > futures = new ArrayList< Future<BalancedRandomTree> >( numTrees );
+		//List< Future<BalancedRandomTree> > futures = new ArrayList< Future<BalancedRandomTree> >( numTrees );
 
-		
+		// Threads to create trees concurrently without creating arrays in RAM when not yet processable.
+		final Thread[] threads = new Thread[Runtime.getRuntime().availableProcessors()];
+		final AtomicInteger ai = new AtomicInteger(0);
+
 		final boolean[][] inBag = new boolean [ numTrees ][ numInstances ];
-		
+
 		try
 		{
-			for(int i = 0; i < numTrees; i++)
+
+			for (int ith = 0; ith < threads.length; ith++) {
+				threads[ith] = new Thread() {
+					{ setPriority(Thread.NORM_PRIORITY); }
+					public void run() {
+
+			//for(int i = 0; i < numTrees; i++)
+			for(int i = ai.getAndIncrement(); i < numTrees; i = ai.getAndIncrement())
 			{
+
+				try {
+
 				final ArrayList<Integer> bagIndices = new ArrayList<Integer>(); 
 
 				// Randomly select the indices in a balanced way
@@ -255,14 +270,36 @@ public class BalancedRandomForest extends AbstractClassifier implements Randomiz
 				for (final int k : bagIndices) {
 					ins[next++] = data.get(k);
 				}
+
+				System.out.println("BRF instance class: " + ins[0].getClass());
+
+
 				//System.out.println("data.numAttributes: " + data.numAttributes() + ", data.numClasses: " + data.numClasses() + ", data.classIndex: " + data.classIndex());
 				// Pass the array over to a non-anonymous class, which will then not have a closure with 'data' in it
-				futures.add(exe.submit(new CreateTree(ins, data.numAttributes(), data.numClasses(), data.classIndex(), splitter)));
+				//futures.add(exe.submit(new CreateTree(ins, data.numAttributes(), data.numClasses(), data.classIndex(), splitter)));
+				tree[i] = new BalancedRandomTree(ins, data.numAttributes(), data.numClasses(), data.classIndex(), splitter);
+				} catch (Throwable e) {
+					e.printStackTrace();
+				}
 			}
 
+				}};
+			}
+
+			// Start all threads
+			for (final Thread t : threads) t.start();
+			// Await all threads
+			for (final Thread t : threads) t.join();
+
+			// check:
+			for (int treeIdx = 0; treeIdx < numTrees; treeIdx++) 
+				System.out.println("tree[" + treeIdx + "] = " + tree[treeIdx]);
+
 			// Grab all trained trees before proceeding
+			/*
 			for (int treeIdx = 0; treeIdx < numTrees; treeIdx++) 
 				tree[treeIdx] = futures.get(treeIdx).get();
+			*/
 
 			// Calculate out of bag error
 			final boolean numeric = data.classAttribute().isNumeric();
