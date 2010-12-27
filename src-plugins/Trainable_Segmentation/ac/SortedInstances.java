@@ -21,8 +21,13 @@ public class SortedInstances
 
 	/** An array of [numAttributes][num instances] where each value is the value of an Instance for that given attribute. */
 	final public double[][] values;
-	/** An array of [numAttributes][num instances] where each i is the index of an Instance in the dataset. */
+	/** An array of [numAttributes][num instances] where the ith value is the index of an Instance in the dataset;
+	 *  this array is thus associated with the values array. */
 	final public int[][] indices;
+	/** An array of [numAttributes][num instances] where the ith value is the index in the values array for the ith Instance.
+	 * This array enables finding the index of the attribute in the corresponding sorted double[] array. */
+	final public int[][] reverseIndices;
+
 	/** The weights of each instance */
 	final public double[] weights;
 
@@ -64,11 +69,15 @@ public class SortedInstances
 		}
 
 		// Create indices relating each Instance to the values
-		this.indices = new int[numAttributes][];
+		this.indices = new int[numAttributes][];  // TODO make classIndex entry null
+		this.reverseIndices = new int[numAttributes][]; // TODO idem
 		final int[] range = new int[size];
 		for (int i=0; i < size; i++) range[i] = i;
 		this.indices[0] = range;
-		for (int i=1; i < numAttributes; i++) this.indices[i] = range.clone();
+		for (int i=1; i < numAttributes; i++) {
+			this.indices[i] = range.clone();
+			this.reverseIndices[i] = range.clone();
+		}
 	}
 
 	public final Instance getInstanceAt(final int ith) {
@@ -92,6 +101,12 @@ public class SortedInstances
 						for (int i = ai.getAndIncrement(); i < numAttributes; i = ai.getAndIncrement()) {
 							if (classIndex == i) continue; // class values are not sorted, so that they are retrieved directly by index.
 							quicksort(values[i], indices[i], 0, last);
+							// Given the indices, create the inverse relationship
+							final int[] indicesI = indices[i];
+							final int[] reverseIndicesI = reverseIndices[i];
+							for (int k=0; k<indicesI.length; i++) {
+								reverseIndicesI[indicesI[k]] = k;
+							}
 						}
 					} catch (Throwable t) {
 						t.printStackTrace();
