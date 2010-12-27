@@ -7,6 +7,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Random;
 
 /** Class values are not sorted. To retrieve class values, use:
  *  
@@ -16,6 +17,8 @@ import java.util.Map;
  * */
 public class SortedInstances
 {
+	final private Instances dataset;
+
 	/** An array of [numAttributes][num instances] where each value is the value of an Instance for that given attribute. */
 	final public double[][] values;
 	/** An array of [numAttributes][num instances] where each i is the index of an Instance in the dataset. */
@@ -31,8 +34,11 @@ public class SortedInstances
 
 	final public boolean isNumeric;
 
+	final private Random random = new Random();
+
 	public SortedInstances(final Instances dataset) throws Exception {
 		// Store properties
+		this.dataset = dataset;
 		this.classIndex = dataset.classIndex();
 		this.numAttributes = dataset.numAttributes();
 		this.numClasses = dataset.numClasses();
@@ -65,18 +71,30 @@ public class SortedInstances
 		for (int i=1; i < numAttributes; i++) this.indices[i] = range.clone();
 	}
 
+	public final Instance getInstanceAt(final int ith) {
+		return dataset.get(ith);
+	}
+
 	public void sort() throws Exception {
 		// Sort the instance values for a given attribute, remembering which was the original instance index
 		// except for the class values--these then can be accessed directly.
+
+		if (this.size < 2) return;
+		final int last = this.size - 1;
+
 		final Thread[] thread = new Thread[Runtime.getRuntime().availableProcessors()];
 		final AtomicInteger ai = new AtomicInteger(0);
 		for (int t=0; t<thread.length; t++) {
 			thread[t] = new Thread() {
 				{ setPriority(Thread.NORM_PRIORITY); }
 				public void run() {
-					for (int i = ai.getAndIncrement(); i < numAttributes; i++) {
-						if (classIndex == i) continue; // class values are not sorted, so that they are retrieved directly by index.
-						quicksort(values[i], indices[i], 0, values[0].length -1);
+					try {
+						for (int i = ai.getAndIncrement(); i < numAttributes; i = ai.getAndIncrement()) {
+							if (classIndex == i) continue; // class values are not sorted, so that they are retrieved directly by index.
+							quicksort(values[i], indices[i], 0, last);
+						}
+					} catch (Throwable t) {
+						t.printStackTrace();
 					}
 				}
 			};
@@ -129,6 +147,22 @@ public class SortedInstances
 		if (i < right) quicksort(values, indices, i, right);
 	}
 
+	/** Return a new array, shuffled. */
+	public final int[] shuffledFeatureIndices() {
+		final int[] b = featureIndices.clone();
+		for (int i=b.length; i>1; i--) {
+			final int k = random.nextInt(i);
+			final int tmp = b[i-1];
+			b[i-1] = b[k];
+			b[k] = tmp;
+		}
+		return b;
+	}
+
+	public final int nextRandomFeatureIndex() {
+		return featureIndices[random.nextInt(featureIndices.length)];
+	}
+
 	/** Test index-preserving quicksort. */
 	static public final void main(String[] args) {
 		double[] v = new double[20];
@@ -176,5 +210,33 @@ public class SortedInstances
 	}
 	static private final String s3(final double val) {
 		return s3((int)val);
+	}
+
+
+	// Reverse quicksort
+	private static final void quicksort2(final double[] values, final int[] indices, int left, int right) {
+		if (left < right) {
+			final int q = partition(values, indices, left, right);
+			quicksort2(values, indices, left, q-1);
+			quicksort2(values, indices, q+1, right);
+		}
+	}
+	private static final int partition(final double[] values, final int[] indices, final int p, final int r) {
+		final double x = values[r];
+		int j = p - 1;
+		for (int i=p; i<r; i++) {
+			if (x <= values[i]) {
+				j++;
+				final double tmpD = values[j];
+				values[j] = values[i];
+				values[i] = tmpD;
+				final int tmpI = indices[j];
+				indices[j] = indices[i];
+				indices[i] = tmpI;
+			}
+		}
+		values[r] = values[j + 1];
+		values[j + 1] = x;
+		return j+1;
 	}
 }

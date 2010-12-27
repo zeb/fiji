@@ -58,7 +58,6 @@ public class BalancedRandomTree implements Serializable
 	 */
 	private final BaseNode createNode(final SortedInstances si, final Splitter splitter)
 	{
-			
 		final long start = System.currentTimeMillis();
 		try {
 			return createTree(si, 0, splitter);
@@ -161,7 +160,7 @@ public class BalancedRandomTree implements Serializable
 		public LeafNode(
 				final SortedInstances si,
 				final int[] instanceIndices,
-				final int instanceIndicesSize,
+				final int count, // the number of indices in instanceIndices that are not -1. That is, those still in use.
 				final int numClasses)
 		{
 			this.probability = new double[ numClasses ];
@@ -169,14 +168,15 @@ public class BalancedRandomTree implements Serializable
 			// Class values are accessed directly by index
 			final double[] classValues = si.values[si.classIndex];
 
-			for(int i=0; i<instanceIndicesSize; i++)
+			for(int i=0; i<instanceIndices.length; i++)
 			{
+				if (-1 == instanceIndices[i]) continue;
 				//this.probability[ (int) ins[i].classValue() ] ++;
-				this.probability[ (int) classValues[instanceIndices[i]] ] ++;
+				this.probability[ (int) classValues[i] ] ++;
 			}
 			// Divide by the number of elements
 			for(int i=0; i<probability.length; i++)
-				this.probability[i] /= instanceIndices.length;
+				this.probability[i] /= count;
 		}
 
 	} //end class LeafNode
@@ -270,8 +270,9 @@ public class BalancedRandomTree implements Serializable
 			final Splitter splitFnProducer)
 	{
 		int maxDepth = depth;
+
 		// Create root node
-		int[] range = si.createIndexRange();
+		int[] range = si.createIndexRange(); // could just as well be 0/1 values, or true/false. Currently using -1 as 'false'.
 		InteriorNode root = new InteriorNode(depth, splitFnProducer.getSplitFunction(si, range, range.length));
 
 		// Create list of nodes to process and add the root to it
@@ -281,8 +282,6 @@ public class BalancedRandomTree implements Serializable
 		// Create list of indices to process (it must match all the time with the node list)
 		final LinkedList<int[]> remainingInstanceIndices = new LinkedList<int[]>();
 		remainingInstanceIndices.add(range);
-		final LinkedList<Integer> remainingSizes = new LinkedList<Integer>();
-		remainingSizes.add(range.length);
 
 		// Forget the array:
 		range = null;
@@ -292,54 +291,62 @@ public class BalancedRandomTree implements Serializable
 		{
 			final InteriorNode currentNode = remainingNodes.removeFirst(); // remove first, to forget the large arrays quickly
 			final int[] currentInstanceIndices = remainingInstanceIndices.removeFirst();
-			final int currentSize = remainingSizes.removeFirst();
 
 			// new arrays for the left and right branches
-			final int[] leftArray = new int[currentSize];
-			final int[] rightArray = new int[currentSize];
-			int nextLeft = 0,
-			    nextRight = 0;
+			final int[] leftArray = new int[currentInstanceIndices.length]; // to make it shorter, I'd have to record the last index that is not -1.
+			final int[] rightArray = new int[currentInstanceIndices.length];
+			int leftCount = 0,
+			    rightCount = 0;
 
 			// split data
-			for(int i=0; i < currentSize; i++)
+			for(int i=0; i < currentInstanceIndices.length; i++)
 			{
-				if( currentNode.splitFn.evaluate( si, currentInstanceIndices[i] ) )
+				// Check if removed
+				if (-1 == currentInstanceIndices[i]) {
+					// flags
+					leftArray[i] = -1;
+					rightArray[i] = -1;
+					continue;
+				}
+
+				if (currentNode.splitFn.evaluate( si, i ) )
 				{
-					leftArray[nextLeft++] = currentInstanceIndices[i];
+					leftArray[i] = i;
+					leftCount++;
+					rightArray[i] = -1; // flag as empty
 				}
 				else
 				{
-					rightArray[nextRight++] = currentInstanceIndices[i];
+					rightArray[i] = i;
+					rightCount++;
+					leftArray[i] = -1; // flag as empty
 				}
 			}
-			//System.out.println("total left = " + nextLeft + ", total right = " + nextRight + ", depth = " + currentNode.depth);					
+			System.out.println("total left = " + leftCount + ", total right = " + rightCount + ", depth = " + currentNode.depth);					
 
 			// Update maximum depth (for the record)
 			if(currentNode.depth > maxDepth)
 				maxDepth = currentNode.depth;
 
-			if (0 == nextLeft)
+			if (0 == leftCount)
 			{
-				currentNode.left = new LeafNode(si, rightArray, nextRight, si.numClasses);
+				currentNode.left = new LeafNode(si, rightArray, rightCount, si.numClasses);
 				//System.out.println("Created leaf with feature " + currentNode.splitFn.index);
 			}
-			//else if ( rightArray.isEmpty() )
-			else if (0 == nextRight)
+			else if (0 == rightCount)
 			{
-				currentNode.left = new LeafNode(si, leftArray, nextLeft, si.numClasses);
+				currentNode.left = new LeafNode(si, leftArray, leftCount, si.numClasses);
 				//System.out.println("Created leaf with feature " + currentNode.splitFn.index);
 			}
 			else
 			{
-				currentNode.left = new InteriorNode(currentNode.depth+1, splitFnProducer.getSplitFunction(si, leftArray, nextLeft));
+				currentNode.left = new InteriorNode(currentNode.depth+1, splitFnProducer.getSplitFunction(si, leftArray, leftCount));
 				remainingNodes.add((InteriorNode)currentNode.left);
 				remainingInstanceIndices.add(leftArray);
-				remainingSizes.add(nextLeft);
 
-				currentNode.right = new InteriorNode(currentNode.depth+1, splitFnProducer.getSplitFunction(si, rightArray, nextRight));
+				currentNode.right = new InteriorNode(currentNode.depth+1, splitFnProducer.getSplitFunction(si, rightArray, rightCount));
 				remainingNodes.add((InteriorNode)currentNode.right);
 				remainingInstanceIndices.add(rightArray);
-				remainingSizes.add(nextRight);
 			}
 		}
 
