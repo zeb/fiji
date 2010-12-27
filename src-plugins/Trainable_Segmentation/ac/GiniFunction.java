@@ -184,8 +184,9 @@ public class GiniFunction extends SplitFunction
 		final int[] b = a.clone();
 		for (int i=a.length; i>1; i--) {
 			final int k = random.nextInt(i);
+			final int tmp = b[i-1];
 			b[i-1] = b[k];
-			b[k] = a[k];
+			b[k] = tmp;
 		}
 		return b;
 	}

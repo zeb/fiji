@@ -201,12 +201,11 @@ public class GiniFunction extends SplitFunction
 	 * Evaluate a single instance based on the current 
 	 * state of the split function
 	 * 
-	 * @param instance sample to evaluate
 	 * @return false if the instance is on the right of the splitting point, true if it's on the left 
 	 */
-	public boolean evaluate(final Instance instance) 
+	public boolean evaluate(final Instance instance)
 	{
-		if(allSame)
+		if (allSame)
 			return true;
 		else
 			return instance.value(this.index) < this.threshold;
@@ -269,8 +268,9 @@ public class GiniFunction extends SplitFunction
 		final int[] b = a.clone();
 		for (int i=a.length; i>1; i--) {
 			final int k = random.nextInt(i);
+			final int tmp = b[i-1];
 			b[i-1] = b[k];
-			b[k] = a[k];
+			b[k] = tmp;
 		}
 		return b;
 	}
