@@ -49,25 +49,6 @@ public class GiniFunction extends SplitFunction
 	final int numOfFeatures;
 	/** random number generator */
 	final Random random;
-		
-				
-	/** Attribute-class pair comparator (by attribute value) */
-	static final Comparator<AttributeClassPair> comp = new Comparator<AttributeClassPair>(){
-		public final int compare(final AttributeClassPair o1, final AttributeClassPair o2)
-		{
-			final double diff = o2.attributeValue - o1.attributeValue; 
-			if(diff < 0)
-				return 1;
-			else if(diff == 0)
-				return 0;
-			else
-				return -1;
-		}
-		public boolean equals(Object o)
-		{
-			return false;
-		}
-	};
 
 	/**
 	 * Constructs a Gini function (initialize it)
