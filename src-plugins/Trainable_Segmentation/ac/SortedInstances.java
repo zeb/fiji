@@ -128,4 +128,53 @@ public class SortedInstances
 		if (left < j) quicksort(values, indices, left, j);
 		if (i < right) quicksort(values, indices, i, right);
 	}
+
+	/** Test index-preserving quicksort. */
+	static public final void main(String[] args) {
+		double[] v = new double[20];
+		int[] indices = new int[20];
+		for (int i=0; i<v.length; i++) {
+			v[i] = i;
+			indices[i] = i;
+		}
+		StringBuilder sbo = new StringBuilder();
+		for (int i=0; i<v.length; i++) {
+			sbo.append(s3(v[i])).append(", ");
+		}
+		System.out.println("original: " + sbo.toString());
+		// suffle b, a clone of v
+		final double[] b = v.clone();
+		final java.util.Random random = new java.util.Random();
+		for (int i=v.length; i>1; i--) {
+			final int k = random.nextInt(i);
+			final double tmp = b[i-1];
+			b[i-1] = b[k];
+			b[k] = tmp;
+		}
+		// print shuffled
+		StringBuilder sb = new StringBuilder();
+		for (int i=0; i<b.length; i++) {
+			sb.append(s3(b[i])).append(", ");
+		}
+		System.out.println("shuffled: " + sb.toString());
+		// quicksort b, with indices
+		quicksort(b, indices, 0, b.length-1);
+		// print sorted and indices
+		StringBuilder sbs = new StringBuilder();
+		StringBuilder sbi = new StringBuilder();
+		for (int i=0; i<b.length; i++) {
+			sbs.append(s3(b[i])).append(", ");
+			sbi.append(s3(indices[i])).append(", ");
+		}
+		System.out.println("  sorted: " + sbs.toString());
+		System.out.println(" indices: " + sbi.toString());
+	}
+	static private final String s3(final int val) {
+		String s = Integer.toString(val);
+		while (s.length() < 4) s = " " + s;
+		return s;
+	}
+	static private final String s3(final double val) {
+		return s3((int)val);
+	}
 }
