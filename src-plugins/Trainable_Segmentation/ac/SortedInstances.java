@@ -117,10 +117,9 @@ public class SortedInstances
 				values[i] = values[j];
 				values[j] = tmpD;
 				// At i, store the j, so that the value can be found by looking at the stored index
-				final int old_i = indices[i];
-				final int old_j = indices[j];
-				indices[old_i] = j;
-				indices[old_j] = i;
+				final int tmpI = indices[i];
+				indices[i] = indices[j];
+				indices[j] = tmpI;
 				
 				i++;
 				j--;
