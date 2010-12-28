@@ -256,4 +256,14 @@ public class GiniFunction extends SplitFunction
 		}
 		return b;
 	}
+
+	// Test
+	static private final void main(String[] arg) {
+		GiniFunction g = new GiniFunction(10, new Random());
+		int[] a = new int[]{1, 2, 3, 4, 5, 6, 7, 8, 9};
+		int[] b = g.shuffled(a);
+		StringBuilder sb = new StringBuilder();
+		for (int i=0; i<b.length; i++) sb.append(b[i]).append(", ");
+		System.out.println(sb.toString());
+	}
 }
