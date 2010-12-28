@@ -34,7 +34,7 @@ import weka.core.Instances;
  * This class implements a split function based on the Gini coefficient
  *
  */
-public class GiniFunction extends SplitFunction
+public class GiniFunction extends SplitFunction 
 {
 	
 	/** Serial version ID */
@@ -88,7 +88,6 @@ public class GiniFunction extends SplitFunction
 		//		allIndices.add(i);
 
 		// Create and shuffle indices of features to use
-		/*
 		final int len = numAttributes;
 		final int[] featureIndices = new int[len-1];
 		for (int i=0, j=0; i<len; i++, j++) {
@@ -96,47 +95,44 @@ public class GiniFunction extends SplitFunction
 			featureIndices[j] = i;
 		}
 		final int[] fIndices = shuffled(featureIndices);
-		*/
 
 		final int numElements = insSize;
 
 		double minimumGini = Double.MAX_VALUE;
 
-		// initial probabilities (all samples on the right)
-		// Can be precomputed given that it's always the same set of features, no matter in what order.
-		final double[] templateProbRight = new double[numClasses];
-		for(int i = 0; i < insSize; i++)
-			templateProbRight[(int) ins[i].value(classIndex)] ++;
-
 		//System.out.println("numElements: " + numElements + ", ins.length: " + ins.length + ", numFeatures: " + numOfFeatures);
 		//System.out.println("numAttributes: " + numAttributes + ", numClasses: " + numClasses + ", classIndex: " + classIndex);
 
-		int firstFeatureIndex = nextFeatureIndex(numAttributes, classIndex);
-	
-		// Pre-create a list of AttributeClassPair for the first feature to use and re-use them for all other features
-		final AttributeClassPair[] list = new AttributeClassPair[numElements];
-		for (int i=0; i<list.length; i++) {
-			list[i] = new AttributeClassPair(ins[i].value(firstFeatureIndex), (int) ins[i].value(classIndex));
-		}
-
-		// Get the smallest Gini coefficient
 		for(int i=0; i < numOfFeatures; i++)
 		{
-			// For the first feature the list is already built
-			final int featureToUse = 0 == i ? firstFeatureIndex : nextFeatureIndex(numAttributes, classIndex);
-			if (i > 0) {
-				for (int j=0; j<numElements; j++) {
-					list[j].set( ins[j].value( featureToUse ), (int) ins[j].value( classIndex ) );
-				}
+			final int featureToUse = fIndices[ i ];
+
+			// Get the smallest Gini coefficient
+
+			// Create list with pairs attribute-class
+			//final ArrayList<AttributeClassPair> list = new ArrayList<AttributeClassPair>();
+			final AttributeClassPair[] list = new AttributeClassPair[numElements];
+			for(int j=0; j<numElements; j++)
+			{
+				//final Instance ins = ins[j];
+				//list.add( new AttributeClassPair( ins.value( featureToUse ), (int) ins.value( classIndex ) ));
+				//System.out.println("j: " + j + "ins[j]: " + ins[j]);
+				list[j] = new AttributeClassPair( ins[j].value( featureToUse ), (int) ins[j].value( classIndex ) );
 			}
 
 			// Sort pairs in increasing order
+			//Collections.sort(list, comp);  // calls Arrays.sort by copying the array, then replacing every element. No need for that!
+			// From 22 to 15 seconds/tree
+			//Arrays.sort( list, comp );
+			// Down to 10.3 seconds/tree
 			sort( list );
 
-			// initial probabilities (all samples on the right)
 			final double[] probLeft  = new double[numClasses];
-			final double[] probRight = templateProbRight.clone();
-
+			final double[] probRight = new double[numClasses];
+			// initial probabilities (all samples on the right)
+			for(int n = 0; n < list.length; n++)
+				probRight[list[n].classValue] ++;
+			
 			// Try all splitting points, from position 0 to the end
 			for(int splitPoint=0; splitPoint < numElements; splitPoint++)
 			{								
@@ -259,12 +255,5 @@ public class GiniFunction extends SplitFunction
 			b[k] = tmp;
 		}
 		return b;
-	}
-
-	private final int nextFeatureIndex(final int numAttributes, final int classIndex) {
-		int featureToUse = random.nextInt(numAttributes);
-		while (featureToUse == classIndex)
-			featureToUse = random.nextInt(numAttributes);
-		return featureToUse;
 	}
 }
