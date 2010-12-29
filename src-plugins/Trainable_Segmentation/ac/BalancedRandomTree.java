@@ -254,6 +254,8 @@ public class BalancedRandomTree implements Serializable
 		}
 	}
 
+	static public final int LIMIT = 5000;
+
 	/**
 	 * Create random tree (non-recursively)
 	 * 
@@ -303,8 +305,8 @@ public class BalancedRandomTree implements Serializable
 
 			// split data
 
-			//if (null != currentBA.complete && currentSize > 5000) { // TODO determine a proper cut
-			if (true) { // TODO determine a proper cut, and implement GiniFunction ability to cope with the lack of a complete non-null array by resorting.
+			if (currentSize > LIMIT) { // TODO determine a proper cut
+			//if (true) { // TODO determine a proper cut, and implement GiniFunction ability to cope with the lack of a complete non-null array by resorting.
 				//
 				completeLeftArray = new boolean[si.size]; // all false by default
 				completeRightArray = new boolean[si.size];
@@ -378,12 +380,12 @@ public class BalancedRandomTree implements Serializable
 			}
 			else
 			{
-				final BoundedArray leftBA = new BoundedArray(leftArray, leftCount, completeLeftArray);
+				final BoundedArray leftBA = new BoundedArray(leftArray, leftCount, leftCount > LIMIT ? completeLeftArray : null);
 				currentNode.left = new InteriorNode(currentNode.depth+1, splitFnProducer.getSplitFunction(si, leftBA));
 				remainingNodes.add((InteriorNode)currentNode.left);
 				remainingIndices.add(leftBA);
 
-				final BoundedArray rightBA = new BoundedArray(rightArray, rightCount, completeRightArray);
+				final BoundedArray rightBA = new BoundedArray(rightArray, rightCount, rightCount > LIMIT ? completeRightArray : null);
 				currentNode.right = new InteriorNode(currentNode.depth+1, splitFnProducer.getSplitFunction(si, rightBA));
 				remainingNodes.add((InteriorNode)currentNode.right);
 				remainingIndices.add(rightBA);

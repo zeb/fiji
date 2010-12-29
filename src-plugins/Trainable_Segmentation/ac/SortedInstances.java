@@ -135,12 +135,12 @@ public class SortedInstances
 	}
 
 	/** Adapted from Preibisch code. */
-	private static final void quicksort(final double[] values, final int[] indices, int left, int right)
+	static public final void quicksort(final double[] values, final int[] indices, int left, int right)
 	{
 		// quicksort:
 		int i = left,
 		    j = right;
-		final double x = values[(left + right) / 2];
+		final double x = values[(left + right) / 2]; // TODO: choose the median, if possible. For example, iterate and choose the first value within a certain error distance from the theoretical median, if the latter is known. We could approximate the median with the average, assuming the distribution approximates a normal. So: compute average, then find first value within x % of that, or the value closest to it if none is within that x %. Requires iterating up to the whole list once, or less.
 
 		do {
 			while (values[i] < x) i++;
@@ -154,7 +154,7 @@ public class SortedInstances
 				final int tmpI = indices[i];
 				indices[i] = indices[j];
 				indices[j] = tmpI;
-				
+
 				i++;
 				j--;
 			}
@@ -191,7 +191,7 @@ public class SortedInstances
 		for (int i=0; i<v.length; i++) {
 			sbo.append(s3(v[i])).append(", ");
 		}
-		System.out.println("original: " + sbo.toString());
+		System.out.println("  source: " + sbo.toString());
 		// suffle b, a clone of v
 		final double[] b = v.clone();
 		final java.util.Random random = new java.util.Random();
@@ -209,15 +209,24 @@ public class SortedInstances
 		System.out.println("shuffled: " + sb.toString());
 		// quicksort b, with indices
 		quicksort(b, indices, 0, b.length-1);
-		// print sorted and indices
+		// Compute reverse indices
+		final int[] reverseIndices = new int[indices.length];
+		for (int k=0; k<indices.length; k++) {
+			reverseIndices[indices[k]] = k;
+		}
+		// print sorted, indices, and reverseIndices
 		StringBuilder sbs = new StringBuilder();
 		StringBuilder sbi = new StringBuilder();
+		StringBuilder sbr = new StringBuilder();
 		for (int i=0; i<b.length; i++) {
 			sbs.append(s3(b[i])).append(", ");
 			sbi.append(s3(indices[i])).append(", ");
+			sbr.append(s3(reverseIndices[i])).append(", ");
 		}
 		System.out.println("  sorted: " + sbs.toString());
 		System.out.println(" indices: " + sbi.toString());
+		System.out.println(" reverse: " + sbr.toString());
+
 	}
 	static private final String s3(final int val) {
 		String s = Integer.toString(val);

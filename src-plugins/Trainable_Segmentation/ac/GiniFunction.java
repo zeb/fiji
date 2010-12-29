@@ -95,72 +95,153 @@ public class GiniFunction extends SplitFunction
 			initialProbRight[ (int) classValues[instanceIndices[i]]] ++; // classValues are not sorted, so access by i and not by instanceIndices[i] (would be the same)
 		}
 
-		for(int i=0; i < numOfFeatures; i++)
+		if (null != complete)
 		{
-			//final int featureToUse = fIndices[ i ];
-			final int featureToUse = si.nextRandomFeatureIndex();
-			final double[] values = si.values[featureToUse]; // already sorted. These are the sorted values of all instances for featureToUse feature or attribute, not just those referred to in the instanceIndices
-			final int[] indices = si.indices[featureToUse];
-
-			// Get the smallest Gini coefficient
-
-			// --- list[j] = new AttributeClassPair( ins[j].value( featureToUse ), (int) ins[j].value( classIndex ) );
-
-			// initial probabilities (all samples on the right)
-			final double[] probLeft  = new double[initialProbRight.length]; // == numClasses as length
-			final double[] probRight = initialProbRight.clone();
-
-			// Try all splitting points, from position 0 to the end
-			// Iterates sorted values.
-			//for(int splitPoint=0; splitPoint < instanceIndicesSize; splitPoint++)
-			for(int j=0, splitPoint=0; j < indices.length; j++)
+			for(int i=0; i < numOfFeatures; i++)
 			{
-				// Retrieve the Instance index 'k' from the indices array (which was sorted along with the values array)
-				final int k = indices[j];
-				if (!complete[k]) continue;
+				//final int featureToUse = fIndices[ i ];
+				final int featureToUse = si.nextRandomFeatureIndex();
+				final double[] values = si.values[featureToUse]; // already sorted. These are the sorted values of all instances for featureToUse feature or attribute, not just those referred to in the instanceIndices
+				final int[] indices = si.indices[featureToUse];
 
-				// Calculate Gini coefficient
-				double giniLeft = 0;
-				double giniRight = 0;
-				final int rightNumElements = count - splitPoint;
+				// Get the smallest Gini coefficient
 
-				for(int nClass = 0; nClass < probLeft.length; nClass++) // == numClasses as length
-				{	
-					// left set
-					double prob = probLeft[nClass];
-					// Divide by the number of elements to get probabilities
-					if (splitPoint != 0)
-						prob /= splitPoint;
-					giniLeft += prob * prob;
+				// --- list[j] = new AttributeClassPair( ins[j].value( featureToUse ), (int) ins[j].value( classIndex ) );
 
-					// right set
-					prob = probRight[nClass];
-					// Divide by the number of elements to get probabilities
-					if (rightNumElements != 0)
-						prob /= rightNumElements;
-					giniRight += prob * prob;
-				}
+				// initial probabilities (all samples on the right)
+				final double[] probLeft  = new double[initialProbRight.length]; // == numClasses as length
+				final double[] probRight = initialProbRight.clone();
 
-				// Total Gini value
-				final double gini = ( (1.0 - giniLeft) * splitPoint 
-									+ (1.0 - giniRight) * rightNumElements ) 
-									/ (double) count;
-
-				// Save values of minimum Gini coefficient
-				if( gini < minimumGini )
+				// Try all splitting points, from position 0 to the end
+				// Iterates sorted values.
+				//for(int splitPoint=0; splitPoint < instanceIndicesSize; splitPoint++)
+				for(int j=0, splitPoint=0; j < indices.length; j++)
 				{
-					minimumGini = gini;
-					this.index = featureToUse;
-					//this.threshold = list[splitPoint].attributeValue;
-					this.threshold = values[j];
+					// Retrieve the Instance index 'k' from the indices array (which was sorted along with the values array)
+					final int k = indices[j];
+					if (!complete[k]) continue;
+
+					// Calculate Gini coefficient
+					double giniLeft = 0;
+					double giniRight = 0;
+					final int rightNumElements = count - splitPoint;
+
+					for(int nClass = 0; nClass < probLeft.length; nClass++) // == numClasses as length
+					{	
+						// left set
+						double prob = probLeft[nClass];
+						// Divide by the number of elements to get probabilities
+						if (splitPoint != 0)
+							prob /= splitPoint;
+						giniLeft += prob * prob;
+
+						// right set
+						prob = probRight[nClass];
+						// Divide by the number of elements to get probabilities
+						if (rightNumElements != 0)
+							prob /= rightNumElements;
+						giniRight += prob * prob;
+					}
+
+					// Total Gini value
+					final double gini = ( (1.0 - giniLeft) * splitPoint 
+										+ (1.0 - giniRight) * rightNumElements ) 
+										/ (double) count;
+
+					// Save values of minimum Gini coefficient
+					if( gini < minimumGini )
+					{
+						minimumGini = gini;
+						this.index = featureToUse;
+						//this.threshold = list[splitPoint].attributeValue;
+						this.threshold = values[j];
+					}
+
+					// update probabilities for next iteration
+					probLeft[(int) classValues[k]] ++;   // use instanceIndices to find the original index of the Instance at j (via k = indices[j]), and then use it to retrieve its class value.
+					probRight[(int) classValues[k]] --;
+
+					// next
+					splitPoint++;
 				}
+			}
+		} else {
+			for(int i=0; i < numOfFeatures; i++)
+			{
+				//final int featureToUse = fIndices[ i ];
+				final int featureToUse = si.nextRandomFeatureIndex();
 
-				// update probabilities for next iteration
-				probLeft[(int) classValues[k]] ++;   // use instanceIndices to find the original index of the Instance at j (via k = indices[j]), and then use it to retrieve its class value.
-				probRight[(int) classValues[k]] --;
+				final int[] sindices = si.indices[featureToUse];
+				final double[] svalues = si.values[featureToUse];
+				final int[] indices = new int[count];
+				final double[] values = new double[count];
+				for (int g=0; g<count; g++) {
+					final int k = sindices[instanceIndices[g]];
+					indices[g] = k;
+					values[g] = svalues[k];
+				}
+				// sort by values
+				SortedInstances.quicksort(values, indices, 0, count-1);
 
-				// next
-				splitPoint++;
+				// Get the smallest Gini coefficient
+
+				// --- list[j] = new AttributeClassPair( ins[j].value( featureToUse ), (int) ins[j].value( classIndex ) );
+
+				// initial probabilities (all samples on the right)
+				final double[] probLeft  = new double[initialProbRight.length]; // == numClasses as length
+				final double[] probRight = initialProbRight.clone();
+
+				// Try all splitting points, from position 0 to the end
+				// Iterates sorted values.
+				//for(int splitPoint=0; splitPoint < instanceIndicesSize; splitPoint++)
+				for(int j=0, splitPoint=0; j < indices.length; j++)
+				{
+					// Retrieve the Instance index 'k' from the indices array (which was sorted along with the values array)
+					final int k = indices[j];
+
+					// Calculate Gini coefficient
+					double giniLeft = 0;
+					double giniRight = 0;
+					final int rightNumElements = count - splitPoint;
+
+					for(int nClass = 0; nClass < probLeft.length; nClass++) // == numClasses as length
+					{	
+						// left set
+						double prob = probLeft[nClass];
+						// Divide by the number of elements to get probabilities
+						if (splitPoint != 0)
+							prob /= splitPoint;
+						giniLeft += prob * prob;
+
+						// right set
+						prob = probRight[nClass];
+						// Divide by the number of elements to get probabilities
+						if (rightNumElements != 0)
+							prob /= rightNumElements;
+						giniRight += prob * prob;
+					}
+
+					// Total Gini value
+					final double gini = ( (1.0 - giniLeft) * splitPoint 
+										+ (1.0 - giniRight) * rightNumElements ) 
+										/ (double) count;
+
+					// Save values of minimum Gini coefficient
+					if( gini < minimumGini )
+					{
+						minimumGini = gini;
+						this.index = featureToUse;
+						//this.threshold = list[splitPoint].attributeValue;
+						this.threshold = values[j];
+					}
+
+					// update probabilities for next iteration
+					probLeft[(int) classValues[k]] ++;   // use instanceIndices to find the original index of the Instance at j (via k = indices[j]), and then use it to retrieve its class value.
+					probRight[(int) classValues[k]] --;
+
+					// next
+					splitPoint++;
+				}
 			}
 		}
 	}
