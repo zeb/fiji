@@ -104,7 +104,7 @@ public class SortedInstances
 							// Given the indices, create the inverse relationship
 							final int[] indicesI = indices[i];
 							final int[] reverseIndicesI = reverseIndices[i];
-							for (int k=0; k<indicesI.length; i++) {
+							for (int k=0; k<indicesI.length; k++) {
 								reverseIndicesI[indicesI[k]] = k;
 							}
 						}
