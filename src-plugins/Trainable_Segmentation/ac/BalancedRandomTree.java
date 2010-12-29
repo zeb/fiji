@@ -168,7 +168,7 @@ public class BalancedRandomTree implements Serializable
 			// Class values are accessed directly by index
 			final double[] classValues = si.values[si.classIndex];
 
-			for(int i=0; i<bits.size(); i++)
+			for(int i=bits.size()-1; i>-1; i--)
 			{
 				if (bits.get(i)) {
 					this.probability[ (int) classValues[i] ] ++;
@@ -300,7 +300,7 @@ public class BalancedRandomTree implements Serializable
 			    rightCount = 0;
 
 			// split data
-			for(int i=0; i < currentBits.size(); i++)
+			for(int i=currentBits.size()-1; i>-1; i--)
 			{
 				// Check if removed
 				if (currentBits.get(i)) {
@@ -313,7 +313,8 @@ public class BalancedRandomTree implements Serializable
 					}
 				}
 			}
-			//System.out.println("total left = " + leftCount + ", total right = " + rightCount + ", depth = " + currentNode.depth);					
+
+			System.out.println("total left = " + leftCount + ", total right = " + rightCount + ", depth = " + currentNode.depth);
 
 			// Update maximum depth (for the record)
 			if(currentNode.depth > maxDepth)

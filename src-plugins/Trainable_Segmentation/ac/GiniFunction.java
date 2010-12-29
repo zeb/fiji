@@ -88,7 +88,7 @@ public class GiniFunction extends SplitFunction
 
 		// initial probabilities (all samples on the right)
 		final double[] initialProbRight = new double[si.numClasses];
-		for (int i=0; i<bits.size(); i++) {
+		for (int i=bits.size()-1; i>0; i--) {
 			if (bits.get(i)) {
 				initialProbRight[ (int) classValues[i]] ++; // classValues are not sorted, so access by i and not by instanceIndices[i] (would be the same)
 			}
