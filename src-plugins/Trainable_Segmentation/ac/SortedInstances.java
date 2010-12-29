@@ -74,6 +74,7 @@ public class SortedInstances
 		final int[] range = new int[size];
 		for (int i=0; i < size; i++) range[i] = i;
 		this.indices[0] = range;
+		this.reverseIndices[0] = range.clone();
 		for (int i=1; i < numAttributes; i++) {
 			this.indices[i] = range.clone();
 			this.reverseIndices[i] = range.clone();
