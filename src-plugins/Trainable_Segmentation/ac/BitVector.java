@@ -17,7 +17,10 @@ public final class BitVector {
 	public final int size() {
 		return size;
 	}
-	public final BitVector copy() {
+	public final long[] getBitsCopy() {
+		return bits.clone();
+	}
+	public BitVector copy() {
 		return new BitVector(bits.clone(), size);
 	}
 	public final boolean get(final int ith) {
