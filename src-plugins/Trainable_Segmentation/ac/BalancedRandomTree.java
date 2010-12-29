@@ -26,6 +26,7 @@ import ij.IJ;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.LinkedList;
+import java.util.HashSet;
 
 import weka.core.Instance;
 
@@ -159,8 +160,8 @@ public class BalancedRandomTree implements Serializable
 		 */
 		public LeafNode(
 				final SortedInstances si,
-				final BitVector bits,
-				final int count, // the number of indices in instanceIndices that are not -1. That is, those still in use.
+				final int[] indices,
+				final int count,
 				final int numClasses)
 		{
 			this.probability = new double[ numClasses ];
@@ -168,11 +169,9 @@ public class BalancedRandomTree implements Serializable
 			// Class values are accessed directly by index
 			final double[] classValues = si.values[si.classIndex];
 
-			for(int i=bits.size()-1; i>-1; i--)
+			for(int i=0; i<count; i++)
 			{
-				if (bits.get(i)) {
-					this.probability[ (int) classValues[i] ] ++;
-				}
+				this.probability[ (int) classValues[indices[i]] ] ++;
 			}
 			// Divide by the number of elements
 			for(int i=0; i<probability.length; i++)
@@ -272,49 +271,96 @@ public class BalancedRandomTree implements Serializable
 		int maxDepth = depth;
 
 		// Create root node
-		BitVector bits = new BitVector(si.size);
-		bits.setAllTrue();
-		InteriorNode root = new InteriorNode(depth, splitFnProducer.getSplitFunction(si, bits, bits.size()));
-
+		BoundedArray range = new BoundedArray(si.createIndexRange());
+		InteriorNode root = new InteriorNode(depth, splitFnProducer.getSplitFunction(si, range));
 		// Create list of nodes to process and add the root to it
 		final LinkedList<InteriorNode> remainingNodes = new LinkedList<InteriorNode>();
 		remainingNodes.add(root);
 
 		// Create list of indices to process (it must match all the time with the node list)
-		final LinkedList<BitVector> remainingBits = new LinkedList<BitVector>();
-		remainingBits.add(bits);
+		final LinkedList<BoundedArray> remainingIndices = new LinkedList<BoundedArray>();
+		remainingIndices.add(range);
 
 		// Forget the array:
-		bits = null;
+		range = null;
 
 		// While there still are nodes to process
 		while (!remainingNodes.isEmpty())
 		{
 			final InteriorNode currentNode = remainingNodes.removeFirst(); // remove first, to forget the large arrays quickly
-			final BitVector currentBits = remainingBits.removeFirst();
+			final BoundedArray currentBA = remainingIndices.removeFirst();
+			final int[] currentIndices = currentBA.a;
+			final int currentSize = currentBA.size;
 
 			// new arrays for the left and right branches
-			final BitVector leftArray = currentBits.copy();
-			final BitVector rightArray = currentBits.copy();
+			final int[] leftArray = new int[currentSize];
+			final int[] rightArray = new int[currentSize];
 			int leftCount = 0,
 			    rightCount = 0;
 
+			// Complete si.size arrays with false values for instances not in use.
+			final boolean[] completeLeftArray, completeRightArray;
+
 			// split data
-			for(int i=currentBits.size()-1; i>-1; i--)
-			{
-				// Check if removed
-				if (currentBits.get(i)) {
-					if (currentNode.splitFn.evaluate( si, i )) {
-						leftCount++;
-						rightArray.setFalse(i); // flag as empty
+
+			//if (null != currentBA.complete && currentSize > 5000) { // TODO determine a proper cut
+			if (true) { // TODO determine a proper cut, and implement GiniFunction ability to cope with the lack of a complete non-null array by resorting.
+				//
+				completeLeftArray = new boolean[si.size]; // all false by default
+				completeRightArray = new boolean[si.size];
+				//
+				for(int i=0; i<currentSize; i++)
+				{
+					final int k = currentIndices[i];
+					if (currentNode.splitFn.evaluate( si, k ))
+					{
+						leftArray[leftCount++] = k;
+						completeLeftArray[k] = true;
 					} else {
-						rightCount++;
-						leftArray.setFalse(i); // flag as empty
+						rightArray[rightCount++] = k;
+						completeRightArray[k] = true;
+					}
+				}
+			} else {
+				completeLeftArray = null;
+				completeRightArray = null;
+				//
+				for(int i=0; i<currentSize; i++)
+				{
+					final int k = currentIndices[i];
+					if (currentNode.splitFn.evaluate( si, k ))
+					{
+						leftArray[leftCount++] = k;
+					} else {
+						rightArray[rightCount++] = k;
 					}
 				}
 			}
 
 			System.out.println("total left = " + leftCount + ", total right = " + rightCount + ", depth = " + currentNode.depth);
+
+			/*
+			//debug:
+			// All indices should have a true entry in complete
+			int rmatches1 = 0, rmatches2 = 0;
+			int lmatches1 = 0, lmatches2 = 0;
+			final HashSet<Integer> differentIndices = new HashSet<Integer>();
+			for (int i=0; i<leftCount; i++) {
+				if (completeLeftArray[leftArray[i]]) lmatches1++;
+				differentIndices.add(leftArray[i]);
+			}
+			for (int i=0; i<rightCount; i++) {
+				if (completeRightArray[rightArray[i]]) rmatches1++;
+			}
+			for (int i=0; i<completeLeftArray.length; i++) {
+				if (completeLeftArray[i]) lmatches2++;
+				if (completeRightArray[i]) rmatches2++;
+			}
+			System.out.println((lmatches1 == leftCount) +", " + (lmatches1 == lmatches2) + ", " + (rmatches1 == rightCount) +", " + (rmatches1 == rmatches2));
+			System.out.println(leftCount + ", " + lmatches1 + ", " + lmatches2 + ", -- " + rightCount + ", " + rmatches1 + ", " + rmatches2);
+			System.out.println("different indices in left array: " + differentIndices.size());
+			*/
+
 
 			// Update maximum depth (for the record)
 			if(currentNode.depth > maxDepth)
@@ -332,13 +378,15 @@ public class BalancedRandomTree implements Serializable
 			}
 			else
 			{
-				currentNode.left = new InteriorNode(currentNode.depth+1, splitFnProducer.getSplitFunction(si, leftArray, leftCount));
+				final BoundedArray leftBA = new BoundedArray(leftArray, leftCount, completeLeftArray);
+				currentNode.left = new InteriorNode(currentNode.depth+1, splitFnProducer.getSplitFunction(si, leftBA));
 				remainingNodes.add((InteriorNode)currentNode.left);
-				remainingBits.add(leftArray);
+				remainingIndices.add(leftBA);
 
-				currentNode.right = new InteriorNode(currentNode.depth+1, splitFnProducer.getSplitFunction(si, rightArray, rightCount));
+				final BoundedArray rightBA = new BoundedArray(rightArray, rightCount, completeRightArray);
+				currentNode.right = new InteriorNode(currentNode.depth+1, splitFnProducer.getSplitFunction(si, rightBA));
 				remainingNodes.add((InteriorNode)currentNode.right);
-				remainingBits.add(rightArray);
+				remainingIndices.add(rightBA);
 			}
 		}
 

@@ -65,11 +65,11 @@ public class GiniFunction extends SplitFunction
 	 * Create split function based on Gini coefficient
 	 *
 	 * @param si All the instances, reachable by index.
-	 * @param instanceIndices The indices of the list of Instance to use
-	 * @param count The number of indices in instanceIndices that are not -1.
 	 */	 
-	public void init(final SortedInstances si, final BitVector bits, final int count)
+	public void init(final SortedInstances si, final BoundedArray ba)
 	{
+		final int count = ba.size;
+
 		if (0 == count)
 		{
 			this.index = 0;
@@ -77,6 +77,9 @@ public class GiniFunction extends SplitFunction
 			this.allSame = true;
 			return;
 		}
+
+		final int[] instanceIndices = ba.a;
+		final boolean[] complete = ba.complete;
 
 		double minimumGini = Double.MAX_VALUE;
 
@@ -88,10 +91,8 @@ public class GiniFunction extends SplitFunction
 
 		// initial probabilities (all samples on the right)
 		final double[] initialProbRight = new double[si.numClasses];
-		for (int i=bits.size()-1; i>0; i--) {
-			if (bits.get(i)) {
-				initialProbRight[ (int) classValues[i]] ++; // classValues are not sorted, so access by i and not by instanceIndices[i] (would be the same)
-			}
+		for (int i=0; i<count; i++) {
+			initialProbRight[ (int) classValues[instanceIndices[i]]] ++; // classValues are not sorted, so access by i and not by instanceIndices[i] (would be the same)
 		}
 
 		for(int i=0; i < numOfFeatures; i++)
@@ -116,7 +117,7 @@ public class GiniFunction extends SplitFunction
 			{
 				// Retrieve the Instance index 'k' from the indices array (which was sorted along with the values array)
 				final int k = indices[j];
-				if (!bits.get(k)) continue;
+				if (!complete[k]) continue;
 
 				// Calculate Gini coefficient
 				double giniLeft = 0;
