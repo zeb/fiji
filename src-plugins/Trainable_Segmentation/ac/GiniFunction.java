@@ -171,14 +171,12 @@ public class GiniFunction extends SplitFunction
 				//final int featureToUse = fIndices[ i ];
 				final int featureToUse = si.nextRandomFeatureIndex();
 
-				final int[] sindices = si.indices[featureToUse];
+				final int[] sindices = si.reverseIndices[featureToUse];
 				final double[] svalues = si.values[featureToUse];
-				final int[] indices = new int[count];
+				final int[] indices = instanceIndices; // WARNING will get sorted and it's not a copy, but it's not in use anywhere else
 				final double[] values = new double[count];
 				for (int g=0; g<count; g++) {
-					final int k = sindices[instanceIndices[g]];
-					indices[g] = k;
-					values[g] = svalues[k];
+					values[g] = svalues[sindices[instanceIndices[g]]];
 				}
 				// sort by values
 				SortedInstances.quicksort(values, indices, 0, count-1);
@@ -196,9 +194,6 @@ public class GiniFunction extends SplitFunction
 				//for(int splitPoint=0; splitPoint < instanceIndicesSize; splitPoint++)
 				for(int j=0, splitPoint=0; j < indices.length; j++)
 				{
-					// Retrieve the Instance index 'k' from the indices array (which was sorted along with the values array)
-					final int k = indices[j];
-
 					// Calculate Gini coefficient
 					double giniLeft = 0;
 					double giniRight = 0;
@@ -234,6 +229,8 @@ public class GiniFunction extends SplitFunction
 						//this.threshold = list[splitPoint].attributeValue;
 						this.threshold = values[j];
 					}
+
+					final int k = indices[j];
 
 					// update probabilities for next iteration
 					probLeft[(int) classValues[k]] ++;   // use instanceIndices to find the original index of the Instance at j (via k = indices[j]), and then use it to retrieve its class value.

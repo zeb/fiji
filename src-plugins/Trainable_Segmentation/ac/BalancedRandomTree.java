@@ -254,6 +254,7 @@ public class BalancedRandomTree implements Serializable
 		}
 	}
 
+	/** Below, quicksort has nicer dynamics. */
 	static public final int LIMIT = 5000;
 
 	/**
@@ -339,7 +340,7 @@ public class BalancedRandomTree implements Serializable
 				}
 			}
 
-			System.out.println("total left = " + leftCount + ", total right = " + rightCount + ", depth = " + currentNode.depth);
+			//System.out.println("total left = " + leftCount + ", total right = " + rightCount + ", depth = " + currentNode.depth);
 
 			/*
 			//debug:
