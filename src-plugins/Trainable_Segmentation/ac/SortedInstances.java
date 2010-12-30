@@ -90,7 +90,6 @@ public class SortedInstances
 		// except for the class values--these then can be accessed directly.
 
 		if (this.size < 2) return;
-		final int last = this.size - 1;
 
 		final Thread[] thread = new Thread[Runtime.getRuntime().availableProcessors()];
 		final AtomicInteger ai = new AtomicInteger(0);
@@ -101,7 +100,7 @@ public class SortedInstances
 					try {
 						for (int i = ai.getAndIncrement(); i < numAttributes; i = ai.getAndIncrement()) {
 							if (classIndex == i) continue; // class values are not sorted, so that they are retrieved directly by index.
-							quicksort(values[i], indices[i], 0, last);
+							quicksort(values[i], indices[i]);
 							// Given the indices, create the inverse relationship
 							final int[] indicesI = indices[i];
 							final int[] reverseIndicesI = reverseIndices[i];
@@ -120,6 +119,17 @@ public class SortedInstances
 		for (int t=0; t<thread.length; t++) {
 			thread[t].join();
 		}
+
+
+		//debug: what are the min and max of each?
+		for (int i=0; i<values.length; i++) {
+			double min = Double.MAX_VALUE, max = -Double.MAX_VALUE;
+			for (double v : values[i]) {
+				if (v < min) min = v;
+				if (v > max) max = v;
+			}
+			System.out.println("feature " + i + ": min,max " + min + ", " + max);
+		}
 	}
 
 	// TODO should not use this, too much indirection
@@ -135,12 +145,36 @@ public class SortedInstances
 	}
 
 	/** Adapted from Preibisch code. */
-	static public final void quicksort(final double[] values, final int[] indices, int left, int right)
+	static public final void quicksort(final double[] values, final int[] indices)
+	{
+		int pivot = values.length / 2;
+		if (values.length > 5000) { // TODO determine cutoff
+			// Approximate the median with the first near-average
+			double min = Double.MAX_VALUE,
+			       max = -Double.MAX_VALUE;
+			for (final double v : values) {
+				if (v < min) min = v;
+				if (v > max) max = v;
+			}
+			final double mean = (min + max) / 2;
+			final double error = mean * 0.05; // 5%
+			for (int i=0; i<values.length; i++) {
+				if (Math.abs(values[i] - mean) < error) {
+					pivot = i;
+					break;
+				}
+			}
+		}
+
+		quicksort(values, indices, 0, values.length -1, pivot);
+	}
+	static public final void quicksort(final double[] values, final int[] indices, final int left, final int right, final int pivot)
 	{
 		// quicksort:
 		int i = left,
 		    j = right;
-		final double x = values[(left + right) / 2]; // TODO: choose the median, if possible. For example, iterate and choose the first value within a certain error distance from the theoretical median, if the latter is known. We could approximate the median with the average, assuming the distribution approximates a normal. So: compute average, then find first value within x % of that, or the value closest to it if none is within that x %. Requires iterating up to the whole list once, or less.
+		final double x = values[pivot];
+		//final double x = values[(left + right) / 2]; // TODO: choose the median, if possible. For example, iterate and choose the first value within a certain error distance from the theoretical median, if the latter is known. We could approximate the median with the average, assuming the distribution approximates a normal. So: compute average, then find first value within x % of that, or the value closest to it if none is within that x %. Requires iterating up to the whole list once, or less.
 
 		do {
 			while (values[i] < x) i++;
@@ -159,8 +193,8 @@ public class SortedInstances
 				j--;
 			}
 		} while (i <= j);
-		if (left < j) quicksort(values, indices, left, j);
-		if (i < right) quicksort(values, indices, i, right);
+		if (left < j) quicksort(values, indices, left, j, (left + j) /2);
+		if (i < right) quicksort(values, indices, i, right, (i + right) /2);
 	}
 
 	/** Return a new array, shuffled. */
@@ -208,7 +242,7 @@ public class SortedInstances
 		}
 		System.out.println("shuffled: " + sb.toString());
 		// quicksort b, with indices
-		quicksort(b, indices, 0, b.length-1);
+		quicksort(b, indices, 0, b.length-1, b.length/2);
 		// Compute reverse indices
 		final int[] reverseIndices = new int[indices.length];
 		for (int k=0; k<indices.length; k++) {

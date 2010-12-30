@@ -179,7 +179,7 @@ public class GiniFunction extends SplitFunction
 					values[g] = svalues[sindices[instanceIndices[g]]];
 				}
 				// sort by values
-				SortedInstances.quicksort(values, indices, 0, count-1);
+				SortedInstances.quicksort(values, indices);
 
 				// Get the smallest Gini coefficient
 
