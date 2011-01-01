@@ -247,6 +247,10 @@ public class BalancedRandomForest extends AbstractClassifier implements Randomiz
 					{ setPriority(Thread.NORM_PRIORITY); }
 					public void run() {
 
+
+			// Create a Splitter for this Thread
+			final Splitter splitter = new Splitter(new GiniFunction(numFeatures, data.getRandomNumberGenerator( random.nextInt() ) ));
+
 			for(int i = ai.getAndIncrement(); i < numTrees; i = ai.getAndIncrement())
 			{
 
@@ -265,10 +269,6 @@ public class BalancedRandomForest extends AbstractClassifier implements Randomiz
 					inBag[ i ][ indexSample[ randomClass ].get( randomSample ) ] = true;
 				}
 				// TODO bagIndices and indexSample could all be int[] arrays
-
-				// Create a Splitter for this tree
-				final Splitter splitter = 
-					new Splitter(new GiniFunction(numFeatures, data.getRandomNumberGenerator( random.nextInt() ) ));
 
 				tree[i] = new BalancedRandomTree(si, splitter);
 				} catch (Throwable e) {
