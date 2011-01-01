@@ -100,7 +100,7 @@ public class GiniFunction extends SplitFunction
 			for(int i=0; i < numOfFeatures; i++)
 			{
 				//final int featureToUse = fIndices[ i ];
-				final int featureToUse = si.nextRandomFeatureIndex();
+				final int featureToUse = si.nextRandomFeatureIndex(this.random);
 				final double[] values = si.values[featureToUse]; // already sorted. These are the sorted values of all instances for featureToUse feature or attribute, not just those referred to in the instanceIndices
 				final int[] indices = si.indices[featureToUse];
 
@@ -169,7 +169,7 @@ public class GiniFunction extends SplitFunction
 			for(int i=0; i < numOfFeatures; i++)
 			{
 				//final int featureToUse = fIndices[ i ];
-				final int featureToUse = si.nextRandomFeatureIndex();
+				final int featureToUse = si.nextRandomFeatureIndex(this.random);
 
 				final int[] sindices = si.reverseIndices[featureToUse];
 				final double[] svalues = si.values[featureToUse];

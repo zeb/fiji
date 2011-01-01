@@ -39,8 +39,6 @@ public class SortedInstances
 
 	final public boolean isNumeric;
 
-	final private Random random = new Random();
-
 	public SortedInstances(final Instances dataset) throws Exception {
 		// Store properties
 		this.dataset = dataset;
@@ -198,7 +196,7 @@ public class SortedInstances
 	}
 
 	/** Return a new array, shuffled. */
-	public final int[] shuffledFeatureIndices() {
+	public final int[] shuffledFeatureIndices(final Random random) {
 		final int[] b = featureIndices.clone();
 		for (int i=b.length; i>1; i--) {
 			final int k = random.nextInt(i);
@@ -209,7 +207,7 @@ public class SortedInstances
 		return b;
 	}
 
-	public final int nextRandomFeatureIndex() {
+	public final int nextRandomFeatureIndex(final Random random) {
 		return featureIndices[random.nextInt(featureIndices.length)];
 	}
 
