@@ -195,6 +195,41 @@ public class SortedInstances
 		if (i < right) quicksort(values, indices, i, right, (i + right) /2);
 	}
 
+	// Second version of quicksort: 0.006 instead of 0.005, so a tiny bit slower
+	static public final void qsort(final double[] values, final int[] indices, final int p, final int r) {
+		if (p < r) {
+			final int q = partition2(values, indices, p, r);
+			qsort(values, indices, p, q-1);
+			qsort(values, indices, q+1, r);
+		}
+	}
+	static private final int partition2(final double[] values, final int[] indices, final int p, final int r) {
+		int res = p-1;
+		final double v = values[r];
+		for (int i=res, j=p;;) {
+			if (j >= r) {
+				res = i;
+				break;
+			}
+			if (values[j] > v) {
+				j++;
+				continue;
+			}
+			swap(values, indices, ++i, j);
+			++j;
+		}
+		swap(values, indices, ++res, r);
+		return res;
+	}
+	static private final void swap(final double[] values, final int[] indices, final int i, final int j) {
+		final double tmpv = values[i];
+		final int tmpi = indices[i];
+		values[i] = values[j];
+		values[j] = tmpv;
+		indices[i] = indices[j];
+		indices[j] = tmpi;
+	}
+
 	/** Return a new array, shuffled. */
 	public final int[] shuffledFeatureIndices(final Random random) {
 		final int[] b = featureIndices.clone();
