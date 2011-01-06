@@ -9,6 +9,7 @@ import sys
 import copy
 from math import sqrt
 from math import log
+from math import ceil
 import random
 import os
 import string
@@ -232,7 +233,8 @@ for et,t in enumerate(tifs):
         #print roiname, slicenum, newr.getBounds().getX(), newr.getBounds().getY(), i.width, i.height
         smalli = ij.plugin.Duplicator().run(i,slicenum,slicenum+2*syn_radius);
         #smalli = dupe.duplicateSubstack(i,i.getTitle()+" "+roiname,slicenum,slicenum+2*syn_radius)
-        IJ.saveAs(smalli,"Tiff",featuresFolder+"/tmp/"+str(ep).zfill(int(round(log(len(pivots))/log(10))))+i.getTitle()+" "+roiname)
+        #IJ.saveAs(smalli,"Tiff",featuresFolder+"/tmp/"+str(ep).zfill(int(round(log(len(pivots))/log(10))))+i.getTitle()+" "+roiname)
+        IJ.saveAs(smalli,"Tiff",featuresFolder+"/tmp/"+str(ep+1).zfill(int(ceil(log(len(pivots)+1)/log(10))))+i.getTitle()+" "+roiname)
         smalli.close()
     i.close()
     while ij.WindowManager.getCurrentImage():
@@ -289,7 +291,8 @@ for ep,p in enumerate(pivots):#for er,r in enumerate(ROIs): #for each pivot
     IJ.run("Make Montage...", "columns=1 rows="+str(len(roiCurr))+" scale=1 first=1 last="+str(len(roiCurr))+" increment=1 border=0 font=12 label use"); 
     IJ.selectWindow("Montage")
     mont=IJ.getImage()
-    IJ.saveAs(mont,"BMP",featuresFolder+"/montage/"+str(ep).zfill(int(round(log(len(pivots))/log(10))))+".bmp")
+    #IJ.saveAs(mont,"BMP",featuresFolder+"/montage/"+str(ep).zfill(int(round(log(len(pivots))/log(10))))+".bmp")
+    IJ.saveAs(mont,"Tiff",featuresFolder+"/montage/"+str(ep+1).zfill(int(ceil(log(len(pivots)+1)/log(10))))+".tif")
     mont.close()
     while ij.WindowManager.getCurrentImage():
         ij.WindowManager.getCurrentImage().close()

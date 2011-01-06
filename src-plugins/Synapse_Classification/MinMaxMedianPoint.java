@@ -58,10 +58,10 @@ public class MinMaxMedianPoint {
 		d = image.getStackSize();
 		
 		// Adjust minimum and maximum indices (because of filter size)
-		int min = diameter/2;
-		int max_x = w - diameter/2;
-		int max_y = h - diameter/2;
-		int max_z = d - diameter/2;
+		int min = 0;//diameter/2;
+		int max_x = w ;//- diameter/2;
+		int max_y = h ;//- diameter/2;
+		int max_z = d ;//- diameter/2;
 	
 		// determine image type
 		isByte = image.getProcessor().getPixels() instanceof byte[];
@@ -170,9 +170,14 @@ public class MinMaxMedianPoint {
 			for(int k=-r; k<=+r; k++) {
 				for(int j=-r; j<=+r; j++) {
 					for(int i=-r; i<=+r; i++) {
-						values[index++] = 
-							(Float)slices_in[z+k].
-							getValue(x+i,y+j);
+						float nv= (Float)(float) 0.0;
+						try{
+							nv=(Float)slices_in[z+k].getValue(x+i,y+j);
+						}catch(Exception e){
+						
+						}
+						values[index++] = nv;
+							
 					}
 				}
 			}
@@ -223,9 +228,13 @@ public class MinMaxMedianPoint {
 			for(int k=-r; k<=+r; k++) {
 				for(int j=-r; j<=+r; j++) {
 					for(int i=-r; i<=+r; i++) {
-						values[index++] =
-							(Short)slices_in[z+k].
-							getValue(x+i,y+j)&0xffff;
+						int nv= 0;
+						try{
+							nv=(Short)slices_in[z+k].getValue(x+i,y+j)&0xffff;
+						}catch(Exception e){
+						
+						}
+						values[index++] = nv;
 					}
 				}
 			}
@@ -277,10 +286,14 @@ public class MinMaxMedianPoint {
 			int r = diameter/2;
 			for(int k=-r; k<=+r; k++) {
 				for(int j=-r; j<=+r; j++) {
-					for(int i=-r; i<=+r; i++) {
-						values[index++] = 
-							(Byte)slices_in[z+k].
-							getValue(x+i,y+j)&0xff;
+					for(int i=-r; i<=+r; i++) {					
+						int nv=0;
+						try{
+							nv=(Byte)slices_in[z+k].getValue(x+i,y+j)&0xff;
+						}catch(Exception e){
+						
+						}
+						values[index++] = nv;
 					}
 				}
 			}

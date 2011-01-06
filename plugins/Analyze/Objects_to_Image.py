@@ -62,7 +62,7 @@ def load_pivots(filename):
             new_pivots.append(s)
     return new_pivots
     
-def draw_single_pivot(pivot, image, newimage, radius):
+def draw_single_pivot(pivot, image, newimage, radius, rgb=None, colorpivot=None):
     #find image bounds
     w = image.getWidth();
     h = image.getHeight();
@@ -79,7 +79,14 @@ def draw_single_pivot(pivot, image, newimage, radius):
     m=max(r,g,b)
     (r,g,b)=(r/m,g/m,b/m)
     
-    color=1#r
+    if rgb == 'Red':
+        color= r if not colorpivot else colorpivot.position[0]/255.0
+    elif rgb == 'Green':
+        color= g if not colorpivot else colorpivot.position[1]/255.0
+    elif rgb == 'Blue':
+        color= b if not colorpivot else colorpivot.position[2]/255.0
+    else:
+        color=1
     p=0
     
     for z in xrange(int(cz-radius),int(cz+radius)+1):
@@ -103,17 +110,23 @@ def draw_single_pivot(pivot, image, newimage, radius):
                 #if p > 0: 
                 #    print newp
                 #    p -= 1
-                if newp<0: newp += 256
-                if newd<0: newd += 256
-                newp = int(newp*color)
-                if newp > 127: newp -= 256
+                if image.getType()==ImagePlus.GRAY8:
+                    if newp<0: newp += 256
+                    if newd<0: newd += 256
+                    newp = int(newp*color)
+                    if newp > 127: newp -= 256
+                else:
+                    if newp<0: newp += 65536
+                    if newd<0: newd += 65536
+                    newp = int(newp*color)
+                    if newp > 32767: newp -= 65536
                 #print color, pixels[y*w + x], newp
                 #if  int(color*pixels[y*w + x]) < 0:
                 #    print pixels[y*w + x],int(color*pixels[y*w + x])
                 newpixels[y*w + x]=newp#int(color*pixels[y*w + x])
     return newimage
 
-def draw_pivots(pivots,image,radius):
+def draw_pivots(pivots,image,radius,rgb=None,colorpivots=[]):
     'create a black copy of image, and copy over the bits within radius of pivots'
     #tmp=image.createEmptyStack()
     #imp=image.createImagePlus()
@@ -132,7 +145,10 @@ def draw_pivots(pivots,image,radius):
     for ep,p in enumerate(pivots):            
         if ep % 10000 == 0:
             print "     Punctum",ep,"of",len(pivots)
-        imp=draw_single_pivot(p,image,imp,radius)
+        colorpivot=None
+        if colorpivots != []:
+            colorpivot=colorpivots[ep]           
+        imp=draw_single_pivot(p,image,imp,radius,rgb,colorpivot)
     return imp
     
     
@@ -146,31 +162,54 @@ random.seed(0)
 
 refFile=IJ.getDirectory('current') 
 objectFile=IJ.getDirectory('current') 
+colorFile=IJ.getDirectory('current')
 
 gd = GenericDialogPlus("Plot a Synaptic Subset")
 gd.addFileField("Reference Channel:",refFile,20)
 gd.addFileField("Object File:",objectFile,20)
 gd.addNumericField("Keep Pixel Radius",4,3);
+gd.addCheckbox("Make RGB channels?",True)
+gd.addCheckbox("Randomize colors?",False)
+gd.addFileField("Color File:",colorFile,20)
 gd.showDialog()
 
 refFile=gd.getNextString()
 objectFile=gd.getNextString()
 radius=gd.getNextNumber()
 
-pivots=load_pivots(objectFile) 
+use_rgb=gd.getNextBoolean()
+rand_colors=gd.getNextBoolean()
+colorFile=gd.getNextString()
 
 Interp = ij.macro.Interpreter()
 Interp.batchMode = True
 
+pivots=load_pivots(objectFile) 
+
+if use_rgb:
+    if rand_colors:
+        color_pivots=[]
+    else:
+        color_pivots=load_pivots(colorFile) #color_pivots: pivots whose x,y,z info are really color information for another set of pivots
+        if len(pivots) != len (color_pivots):
+            IJ.error('Length of pivot list differs from length of pivot color.\nThis is not likely to end well.')
+
+
 image=Opener().openImage(refFile)
 image.show()
-IJ.run("Subtract Background...", "rolling=10 stack")
-IJ.run("Enhance Contrast", "saturated=0 normalize normalize_all")
 
-newimage=draw_pivots(pivots,image,radius)
+if not use_rgb:
+    newimage=draw_pivots(pivots,image,radius)
+    IJ.saveAs(newimage,"Tiff",refFile+"Obj2Img.tif")
+else:
+    for c in ['Red','Green','Blue']:
+        newimage=draw_pivots(pivots,image,radius,c,color_pivots)
+        IJ.saveAs(newimage,"Tiff",refFile+c+"Obj2Img.tif")    
+            
+    
 
 #IJ.saveAs(newimage,"Tiff",refFile+"Redsubset.tif")
-IJ.saveAs(newimage,"Tiff",refFile+"Obj2Img.tif")
+
 
 Interp.batchMode = False
 print "Done"
