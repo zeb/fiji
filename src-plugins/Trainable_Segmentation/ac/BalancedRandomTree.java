@@ -45,23 +45,24 @@ public class BalancedRandomTree implements Serializable
 	/**
 	 * Build random tree for a balanced random forest  
 	 * 
-	 * @param ins The instances to use.
-	 * @param splitter split function generator
+	 * @param si The reference sorted instances stash.
+	 * @param instanceIndices The instances to use.
+	 * @param splitter split function generator.
 	 */
-	public BalancedRandomTree(final SortedInstances si, final Splitter splitter)
+	public BalancedRandomTree(final SortedInstances si, final int[] instanceIndices, final Splitter splitter)
 	{
-		this.rootNode = createNode( si, splitter );
+		this.rootNode = createNode( si, instanceIndices, splitter );
 	}
 
 	/**
 	 * Build the random tree based on the data specified 
 	 * in the constructor 
 	 */
-	private final BaseNode createNode(final SortedInstances si, final Splitter splitter)
+	private final BaseNode createNode(final SortedInstances si, final int[] instanceIndices, final Splitter splitter)
 	{
 		final long start = System.currentTimeMillis();
 		try {
-			return createTree(si, 0, splitter);
+			return createTree(si, instanceIndices, 0, splitter);
 		} finally {
 			final long end = System.currentTimeMillis();
 			IJ.log("Creating tree took: " + (end-start) + "ms");
@@ -268,13 +269,16 @@ public class BalancedRandomTree implements Serializable
 	 */
 	private InteriorNode createTree(
 			final SortedInstances si,
+			int[] instanceIndices,
 			final int depth,
 			final Splitter splitFnProducer)
 	{
 		int maxDepth = depth;
 
 		// Create root node
-		BoundedArray range = new BoundedArray(si.createIndexRange());
+		boolean[] complete = new boolean[si.size]; // the mask
+		for (int i=0; i<instanceIndices.length; i++) complete[instanceIndices[i]] = true;
+		BoundedArray range = new BoundedArray(instanceIndices, instanceIndices.length, complete); // si.createIndexRange());
 		InteriorNode root = new InteriorNode(depth, splitFnProducer.getSplitFunction(si, range));
 		// Create list of nodes to process and add the root to it
 		final LinkedList<InteriorNode> remainingNodes = new LinkedList<InteriorNode>();
@@ -286,6 +290,8 @@ public class BalancedRandomTree implements Serializable
 
 		// Forget the array:
 		range = null;
+		instanceIndices = null;
+		complete = null;
 
 		// While there still are nodes to process
 		while (!remainingNodes.isEmpty())

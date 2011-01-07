@@ -257,6 +257,9 @@ public class BalancedRandomForest extends AbstractClassifier implements Randomiz
 
 				try {
 
+				final int[] instanceIndices = new int[si.size];
+				int next = 0;
+
 				// Randomly select the indices in a balanced way
 				for(int j = 0 ; j < numInstances; j++)
 				{
@@ -264,11 +267,16 @@ public class BalancedRandomForest extends AbstractClassifier implements Randomiz
 					final int randomClass = rand.nextInt( numClasses );
 					// Select then a random sample of that class
 					final int randomSample = rand.nextInt( indexSample[randomClass].size() );
-					inBag[ i ][ indexSample[ randomClass ].get( randomSample ) ] = true;
+					final int k = indexSample[ randomClass ].get( randomSample );
+					inBag[ i ][ k ] = true;
+					instanceIndices[next++] = k;
 				}
 				// TODO bagIndices and indexSample could all be int[] arrays
 
-				tree[i] = new BalancedRandomTree(si, splitter);
+				final int[] instanceIndices2 = new int[next];
+				System.arraycopy(instanceIndices, 0, instanceIndices2, 0, next);
+
+				tree[i] = new BalancedRandomTree(si, instanceIndices2, splitter);
 				} catch (Throwable e) {
 					e.printStackTrace();
 				}
