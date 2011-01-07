@@ -9,7 +9,6 @@ import ij.ImagePlus;
 import ij.WindowManager;
 import ij.gui.ImageWindow;
 import ij.gui.ImageCanvas;
-import ij.gui.Toolbar;
 import ij.process.ColorProcessor;
 import ij.macro.Interpreter;
 
@@ -58,6 +57,7 @@ public class ImageWindow3D extends ImageWindow implements UniverseListener,
 		if (j3dNoOffScreen != null && j3dNoOffScreen.equals("true"))
 			noOffScreen = true;
 		imp = new ImagePlus();
+		imp.setTitle("ImageJ 3D Viewer");
 		this.universe = universe;
 		this.canvas3D = (ImageCanvas3D)universe.getCanvas();
 
@@ -94,12 +94,14 @@ public class ImageWindow3D extends ImageWindow implements UniverseListener,
 		}
 		universe.addUniverseListener(this);
 		updateImagePlus();
-		Toolbar.getInstance().setTool(Toolbar.HAND);
+		universe.ui.setHandTool();
+		lastToolID = universe.ui.getToolId();
 		show();
 	}
 
 	public boolean close() {
 		boolean b = super.close();
+		WindowManager.removeWindow(this);
 		return b;
 	}
 
@@ -109,10 +111,6 @@ public class ImageWindow3D extends ImageWindow implements UniverseListener,
 
 	public ImageCanvas getCanvas() {
 		return new ImageCanvas(getImagePlus());
-	}
-
-	private static Canvas3D getCanvas3D(int width, int height) {
-		return new ImageCanvas3D(width, height);
 	}
 
 	/* prevent ImageWindow from painting */
@@ -380,15 +378,15 @@ public class ImageWindow3D extends ImageWindow implements UniverseListener,
 		updateImagePlus();
 	}
 
-	private int lastToolID = Toolbar.HAND;
+	private int lastToolID;
 
 	public void keyPressed(KeyEvent e) {
 		if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
-			if (Toolbar.getToolId() == Toolbar.HAND)
-				Toolbar.getInstance().setTool(lastToolID);
+			if (universe.ui.isHandTool())
+				universe.ui.setTool(lastToolID);
 			else {
-				lastToolID = Toolbar.getToolId();
-				Toolbar.getInstance().setTool(Toolbar.HAND);
+				lastToolID = universe.ui.getToolId();
+				universe.ui.setHandTool();
 			}
 		}
 		// AVOID forwarding the x,y,z commands to ImageJ when manipulating

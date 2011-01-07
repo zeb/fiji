@@ -13,9 +13,11 @@ import java.awt.event.ActionEvent;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 
 import java.util.Vector;
 
@@ -60,6 +62,7 @@ public class EditorPane extends RSyntaxTextArea implements DocumentListener {
 
 	public EditorPane(TextEditor frame) {
 		this.frame = frame;
+		setLineWrap(false);
 		setTabSize(8);
 		getActionMap().put(DefaultEditorKit
 				.nextWordAction, wordMovement(+1, false));
@@ -81,6 +84,11 @@ public class EditorPane extends RSyntaxTextArea implements DocumentListener {
 		ToolTipManager.sharedInstance().registerComponent(this);
 		getDocument().addDocumentListener(this);
 		currentLanguage = Languages.get("");
+	}
+
+	public void setTabSize(int width) {
+		if (getTabSize() != width)
+			super.setTabSize(width);
 	}
 
 	public void embedWithScrollbars(Container container) {
@@ -198,7 +206,7 @@ public class EditorPane extends RSyntaxTextArea implements DocumentListener {
 
 	public void write(File file) throws IOException {
 		BufferedWriter outFile =
-			new BufferedWriter(new FileWriter(file));
+			new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), "UTF-8"));
 		outFile.write(getText());
 		outFile.close();
 		modifyCount = 0;
@@ -224,8 +232,17 @@ public class EditorPane extends RSyntaxTextArea implements DocumentListener {
 				setFileName(file);
 				return;
 			}
-			read(new BufferedReader(new FileReader(file)),
-				null);
+			StringBuffer string = new StringBuffer();
+			BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(file), "UTF-8"));
+			char[] buffer = new char[16384];
+			for (;;) {
+				int count = reader.read(buffer);
+				if (count < 0)
+					break;
+				string.append(buffer, 0, count);
+			}
+			reader.close();
+			setText(string.toString());
 			this.file = file;
 			if (line > getLineCount())
 				line = getLineCount() - 1;
@@ -235,7 +252,8 @@ public class EditorPane extends RSyntaxTextArea implements DocumentListener {
 		}
 		discardAllEdits();
 		modifyCount = 0;
-		setFileName(file);
+		fileLastModified = file == null || !file.exists() ? 0 :
+			file.lastModified();
 	}
 
 	public void setFileName(String baseName) {
@@ -253,7 +271,7 @@ public class EditorPane extends RSyntaxTextArea implements DocumentListener {
 		updateGitDirectory();
 		setTitle();
 		if (file != null) {
-			setLanguageByExtension(getExtension(file.getName()));
+			setLanguageByFileName(file.getName());
 			fallBackBaseName = null;
 		}
 		fileLastModified = file == null || !file.exists() ? 0 :
@@ -291,11 +309,14 @@ public class EditorPane extends RSyntaxTextArea implements DocumentListener {
 		return dot < 0 ?  "" : fileName.substring(dot);
 	}
 
-	void setLanguageByExtension(String extension) {
-		setLanguage(Languages.get(extension));
+	protected void setLanguageByFileName(String name) {
+		if (name.equals("Fakefile") || name.endsWith("/Fakefile"))
+			setLanguage(Languages.fakefile);
+		else
+			setLanguage(Languages.get(getExtension(name)));
 	}
 
-	void setLanguage(Languages.Language language) {
+	protected void setLanguage(Languages.Language language) {
 		if (language == null)
 			language = Languages.get("");
 
