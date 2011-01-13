@@ -1864,6 +1864,8 @@ static void __attribute__((__noreturn__)) usage(void)
 		"\tstart JavaC, the Java Compiler, instead of ImageJ\n"
 		"--ant\n"
 		"\trun Apache Ant\n"
+		"--ant-bare\n"
+		"\trun Apache Ant without adding Fiji's .jar files to the classpath\n"
 		"--javap\n"
 		"\tstart javap instead of ImageJ\n"
 		"--javadoc\n"
@@ -2196,8 +2198,17 @@ static int start_ij(void)
 			else
 				die("Unknown tool: %s", main_argv[i]);
 		}
-		else if (!strcmp(main_argv[i], "--ant")) {
+		else if (!strcmp(main_argv[i], "--ant") || !strcmp(main_argv[i], "--ant-bare")) {
 			main_class = "org.apache.tools.ant.Main";
+			if (!strcmp(main_argv[i], "--ant-bare")) {
+				string_addf_path_list(class_path, "%s/jars/ant.jar", fiji_dir);
+				string_addf_path_list(class_path, "%s/jars/ant-junit.jar", fiji_dir);
+				string_addf_path_list(class_path, "%s/jars/ant-launcher.jar", fiji_dir);
+				string_addf_path_list(class_path, "%s/jars/ant-nodeps.jar", fiji_dir);
+				string_addf_path_list(class_path, "%s/jars/javac.jar", fiji_dir);
+				skip_build_classpath = 1;
+			}
+
 			string_addf_path_list(class_path, "%s/../lib/tools.jar", get_jre_home());
 			/* When running on Debian / Ubuntu we depend on the
 			   external version of ant, so add those jars too: */
