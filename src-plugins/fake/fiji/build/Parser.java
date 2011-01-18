@@ -313,6 +313,8 @@ public class Parser {
 			final Rule rule = getRule(key);
 			if (key.endsWith("-clean") ||
 					key.endsWith("-clean-dry-run") ||
+					key.endsWith("-dependency-map") ||
+					key.endsWith("-rebuild") ||
 					(rule instanceof Special))
 				continue;
 			final String cleanKey = key + "-clean";
@@ -331,6 +333,14 @@ public class Parser {
 				addSpecialRule(new Special(Parser.this, dependencyMapKey) {
 					void action() throws FakeException {
 						showMap(buildDependencyMap(Collections.singletonList(rule)));
+					}
+				});
+			final String rebuildKey = key + "-rebuild";
+			if (!allRules.containsKey(rebuildKey))
+				addSpecialRule(new Special(Parser.this, rebuildKey) {
+					void action() throws FakeException {
+						rule.clean(false);
+						rule.action();
 					}
 				});
 		}
@@ -564,11 +574,12 @@ public class Parser {
 			return;
 		}
 
-		if (isVarName(name, "CLASSPATH") || isVarName(name, "TOOLSPATH"))
+		if (isVarName(name, "CLASSPATH") || isVarName(name, "TOOLSPATH") || isVarName(name, "TOOLS_JAR")  || isVarName(name, "FIJI_JAVA_HOME"))
 			value = fake.prefixPaths(cwd, value, true);
 
 		value = expandVariables(value, paren < 0 ? null :
 			key.substring(paren + 1, key.length() - 1));
+
 
 		if (value.indexOf('*') >= 0 ||
 				value.indexOf('?') >= 0) {
@@ -677,7 +688,7 @@ public class Parser {
 		String res = null;
 		if ("true".equals(variables.get("ENVOVERRIDES("
 						+ key + ")")))
-			res = fake.stripFijiHome(System.getenv(key));
+			res = System.getenv(key);
 		key = key.toUpperCase();
 		if (subkey != null && res == null)
 			res = (String)variables.get(key
