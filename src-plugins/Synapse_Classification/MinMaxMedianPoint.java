@@ -6,6 +6,7 @@ package Synapse_Classification;
 import java.util.Arrays;
 import java.awt.image.ColorModel;
 
+import ij.*;
 import ij.process.FloatProcessor;
 import ij.process.ByteProcessor;
 import ij.process.ShortProcessor;
