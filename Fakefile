@@ -402,6 +402,7 @@ CLASSPATH(plugins/Graph_Cut.jar)=jars/ij.jar:jars/imglib.jar:jars/imglib-ij.jar:
 CLASSPATH(jars/mij.jar)=jars/ij.jar
 CLASSPATH(plugins/Differentials_.jar)=jars/ij.jar
 CLASSPATH(plugins/StackReg_.jar)=jars/ij.jar
+CLASSPATH(plugins/Synapse_Classification.jar)=jars/ij.jar
 CLASSPATH(plugins/PointPicker_.jar)=jars/ij.jar
 CLASSPATH(plugins/Lasso_and_Blow_Tool.jar)=jars/ij.jar:jars/fiji-lib.jar
 CLASSPATH(plugins/Linear_Kuwahara.jar)=jars/ij.jar
