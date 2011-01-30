@@ -1,0 +1,18 @@
+#!/bin/sh
+
+cd "$(dirname "$0")/../incanter" &&
+if test ! -d .git
+then
+	echo "The 'incanter' submodule was not checked out!"
+	exit 1
+fi &&
+../bin/leiningen deps &&
+for lib in lib/*.jar
+do
+	case "$lib" in
+	itext*|jcommon*|jfreechart*|junit*) ;;
+	*)
+		cp "$lib" ../jars/
+		;;
+	esac
+done
