@@ -1,0 +1,11 @@
+#!/bin/sh
+
+DIR="$(cd "$(dirname "$0")" && pwd)" &&
+if test ! -x "$DIR/lein"
+then
+	(cd "$DIR" &&
+	 curl -O https://github.com/technomancy/leiningen/raw/stable/bin/lein &&
+	 chmod a+x lein)
+fi &&
+JAVA_CMD="$($DIR/../fiji --print-java-home)/bin/java" \
+exec "$DIR/lein" "$@"
