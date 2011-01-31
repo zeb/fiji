@@ -38,6 +38,7 @@ Name					File					Author(s)						Contact								License
 * Fiji as a framework																							GPL
 * Graph Cut				Graph_Cut.jar				Jan Funke						jan.funke@inf.tu-dresden.de					GPL 2
 * ij-ImageIO 				ij-ImageIO_.jar				Jarek Sacha 						jarek@ieee.org 							LGPL
+* Image-based Tool for Counting Nuclei	ITCN_.jar				Thomas Kuo						thekuo@ece.ucsb.edu						ITCN (see below)
 * ImageJA				ij.jar					Johannes Schindelin, Wayne Rasband			Johannes.Schindelin@gmx.de					PD
 * imagescience.jar 			imagescience.jar 			Erik Meijering 						meijering@imagescience.org 					imagescience (see below)
 * imageware.jar				imageware.jar				Daniel Sage et al					http://bigwww.epfl.ch/						BIG (see below)
@@ -120,6 +121,14 @@ imagescience (Erik Meijering; http://www.imagescience.org/meijering/software/):
 
 	Erik
 
+ITCN (Thomas Kuo; http://www.bioimage.ucsb.edu/automatic-nuclei-counter-plug-in-for-imagej):
+
+	Date: Tue, 25 May 2010 13:59:16 -0700
+	From: Thomas Kuo <thekuo@ece.ucsb.edu>
+
+	If it is for non-commercial use, there are no problems.  The University of
+	California owns the copyright.  If this is for a commercial license, we'll
+	have to talk to our Office of Research.
 
 Unresolved (TODO):
 * Example/ scripts folder
