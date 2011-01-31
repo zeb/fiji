@@ -211,6 +211,7 @@ PLUGIN_TARGETS=plugins/Jython_Interpreter.jar \
 	jars/wavelets.jar \
 	jars/imageware.jar \
 	plugins/Extended_Depth_Field.jar \
+	plugins/ITCN_.jar \
 
 all <- fiji $SUBMODULE_TARGETS $PLUGIN_TARGETS
 
@@ -410,6 +411,7 @@ CLASSPATH(plugins/SheppLogan_.jar)=jars/ij.jar
 CLASSPATH(jars/wavelets.jar)=jars/ij.jar
 CLASSPATH(jars/imageware.jar)=jars/ij.jar
 CLASSPATH(plugins/Extended_Depth_Field.jar)=jars/ij.jar:jars/imageware.jar:jars/wavelets.jar
+CLASSPATH(plugins/ITCN_.jar)=jars/ij.jar
 
 # pre-Java5 generics ;-)
 
