@@ -59,15 +59,25 @@ public class ITCN_ extends PlugInFrame {
         openMaskButton = new java.awt.Button();
         buttonPanel = new java.awt.Panel();
         okButton = new java.awt.Button();
-        cancelButton = new java.awt.Button();
+        exitButton = new java.awt.Button();
+        widthButton = new java.awt.Button();
+        minDistButton = new java.awt.Button();
+        thresLabel = new java.awt.Label();
+        thresTextField = new java.awt.TextField();
+        thresScroll = new java.awt.Scrollbar();
+        midPanel = new java.awt.Panel();
 
-        setLayout(new java.awt.GridLayout(6, 1));
+		java.awt.GridBagConstraints gridBagConstraints;
+		int ipadx = 50;
+
+        setLayout(new java.awt.GridLayout(5, 1));
 
         addWindowListener(new java.awt.event.WindowAdapter() {
-            public void windowClosing(java.awt.event.WindowEvent evt) {
+            public void windowClosed(java.awt.event.WindowEvent evt) {
                 exitForm(evt);
             }
         });
+
 
 		// window manager stuff.....
 
@@ -108,11 +118,18 @@ public class ITCN_ extends PlugInFrame {
 
         add(imagePanel);
 
-        varsPanel.setLayout(new java.awt.GridLayout(2, 3));
+        //varsPanel.setLayout(new java.awt.GridLayout(3, 4));
+        varsPanel.setLayout(new java.awt.GridBagLayout());
 
         widthLabel.setAlignment(java.awt.Label.RIGHT);
         widthLabel.setText("Width");
-        varsPanel.add(widthLabel);
+        gridBagConstraints = new java.awt.GridBagConstraints();
+        gridBagConstraints.anchor = java.awt.GridBagConstraints.EAST;
+        varsPanel.add(widthLabel, gridBagConstraints);
+
+//        widthLabel.setAlignment(java.awt.Label.RIGHT);
+//        widthLabel.setText("Width");
+//        varsPanel.add(widthLabel);
 
         widthTextField.setText(Integer.toString(widthDefault));
         widthTextField.addTextListener(new java.awt.event.TextListener() {
@@ -120,31 +137,111 @@ public class ITCN_ extends PlugInFrame {
                 widthTextFieldTextValueChanged(evt);
             }
         });
-
-        varsPanel.add(widthTextField);
+        //varsPanel.add(widthTextField);
+		gridBagConstraints = new java.awt.GridBagConstraints();
+		gridBagConstraints.fill = java.awt.GridBagConstraints.HORIZONTAL;
+		gridBagConstraints.ipadx = ipadx;
+		varsPanel.add(widthTextField, gridBagConstraints);
 
         minDistUnitsLabel.setText("pixels");
         varsPanel.add(minDistUnitsLabel);
 
+        widthButton.setLabel("Measure Line Length");
+        widthButton.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                widthButtonActionPerformed(evt);
+            }
+        });
+		//varsPanel.add(widthButton);
+		gridBagConstraints = new java.awt.GridBagConstraints();
+        varsPanel.add(widthButton,gridBagConstraints);
+
         minDistLabel.setAlignment(java.awt.Label.RIGHT);
         minDistLabel.setText("Minimum Distance");
         varsPanel.add(minDistLabel);
+        gridBagConstraints = new java.awt.GridBagConstraints();
+        gridBagConstraints.gridx = 0;
+        gridBagConstraints.gridy = 1;
+        gridBagConstraints.anchor = java.awt.GridBagConstraints.EAST;
+        varsPanel.add(minDistLabel, gridBagConstraints);
 
         minDistTextField.setText(Double.toString(min_distDefault));
-
         varsPanel.add(minDistTextField);
+        gridBagConstraints = new java.awt.GridBagConstraints();
+        gridBagConstraints.gridx = 1;
+        gridBagConstraints.gridy = 1;
+		gridBagConstraints.fill = java.awt.GridBagConstraints.HORIZONTAL;
+		gridBagConstraints.ipadx = ipadx;
+        varsPanel.add(minDistTextField, gridBagConstraints);
 
         widthUnitsLabel.setText("pixels");
         varsPanel.add(widthUnitsLabel);
+        gridBagConstraints = new java.awt.GridBagConstraints();
+        gridBagConstraints.gridx = 2;
+        gridBagConstraints.gridy = 1;
+        varsPanel.add(widthUnitsLabel, gridBagConstraints);
+
+        minDistButton.setLabel("Measure Line Length");
+        minDistButton.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                minDistButtonActionPerformed(evt);
+            }
+        });
+		varsPanel.add(minDistButton);
+		gridBagConstraints = new java.awt.GridBagConstraints();
+        gridBagConstraints.gridx = 3;
+        gridBagConstraints.gridy = 1;
+        varsPanel.add(minDistButton, gridBagConstraints);
+
+		thresLabel.setAlignment(java.awt.Label.RIGHT);
+		thresLabel.setText("Threshold");
+		varsPanel.add(thresLabel);
+		gridBagConstraints = new java.awt.GridBagConstraints();
+        gridBagConstraints.gridx = 0;
+        gridBagConstraints.gridy = 2;
+        gridBagConstraints.anchor = java.awt.GridBagConstraints.EAST;
+        varsPanel.add(thresLabel, gridBagConstraints);
+
+		thresTextField.setText(Double.toString(thresDefault));
+        thresTextField.addTextListener(new java.awt.event.TextListener() {
+            public void textValueChanged(java.awt.event.TextEvent evt) {
+                thresTextFieldTextValueChanged(evt);
+            }
+        });
+		varsPanel.add(thresTextField);
+		gridBagConstraints = new java.awt.GridBagConstraints();
+        gridBagConstraints.gridx = 1;
+        gridBagConstraints.gridy = 2;
+		gridBagConstraints.fill = java.awt.GridBagConstraints.HORIZONTAL;
+		gridBagConstraints.ipadx = ipadx;
+        varsPanel.add(thresTextField, gridBagConstraints);
+
+		//varsPanel.add(thresScroll);
+		thresScroll.setValues((int)(thresPrecision*thresDefault),1,0,10*(int)thresPrecision+1);
+        thresScroll.setOrientation(java.awt.Scrollbar.HORIZONTAL);
+        thresScroll.addAdjustmentListener(new java.awt.event.AdjustmentListener() {
+            public void adjustmentValueChanged(java.awt.event.AdjustmentEvent evt) {
+                thresScrollAdjustmentValueChanged(evt);
+            }
+        });
+        gridBagConstraints = new java.awt.GridBagConstraints();
+        gridBagConstraints.gridx = 3;
+        gridBagConstraints.gridy = 2;
+        gridBagConstraints.fill = java.awt.GridBagConstraints.HORIZONTAL;
+        varsPanel.add(thresScroll, gridBagConstraints);
 
         add(varsPanel);
 
+		midPanel.setLayout(new java.awt.GridLayout(2,1));
+
         recomendLabel.setAlignment(java.awt.Label.CENTER);
         recomendLabel.setText("(Recommended: Minimum Distance = Width/2)");
-        add(recomendLabel);
+        midPanel.add(recomendLabel);
 
         darkPeaksCheckbox.setLabel("Detect Dark Peaks");
-        add(darkPeaksCheckbox);
+        midPanel.add(darkPeaksCheckbox);
+
+		add(midPanel);
 
         maskLabel.setText("Mask Image");
         maskPanel.add(maskLabel);
@@ -174,7 +271,7 @@ public class ITCN_ extends PlugInFrame {
 
         buttonPanel.setLayout(new java.awt.GridLayout());
 
-        okButton.setLabel("OK");
+        okButton.setLabel("Count");
         okButton.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 okButtonActionPerformed(evt);
@@ -183,38 +280,70 @@ public class ITCN_ extends PlugInFrame {
 
         buttonPanel.add(okButton);
 
-        cancelButton.setLabel("Cancel");
-        cancelButton.addActionListener(new java.awt.event.ActionListener() {
+        exitButton.setLabel("Exit");
+        exitButton.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
-                cancelButtonActionPerformed(evt);
+                exitButtonActionPerformed(evt);
             }
         });
 
-        buttonPanel.add(cancelButton);
+        buttonPanel.add(exitButton);
 
         add(buttonPanel);
 
         pack();
-        setSize(400, 300);
+        setSize(400, 375);
 		GUI.center(this);
         show();
-
-        currImp.unlock();
     }
 
     private void widthTextFieldTextValueChanged(TextEvent evt) {
 		minDistTextField.setText(Double.toString(Double.parseDouble(widthTextField.getText())/2));
     }
 
-    private void cancelButtonActionPerformed(ActionEvent evt) {
+	private void widthButtonActionPerformed(ActionEvent evt) {
+		Roi roi = currImp.getRoi();
+
+		if (roi.isLine()) {
+			Line line = (Line) roi;
+			widthTextField.setText(Integer.toString((int)Math.ceil(line.getRawLength())));
+		}
+	}
+
+	private void minDistButtonActionPerformed(ActionEvent evt) {
+		Roi roi = currImp.getRoi();
+
+		if (roi.isLine()) {
+			Line line = (Line) roi;
+			minDistTextField.setText(Integer.toString((int)Math.ceil(line.getRawLength())));
+		}
+	}
+
+	private void thresTextFieldTextValueChanged(TextEvent evt) {
+		double threshold = Double.parseDouble(thresTextField.getText());
+		if (thresPrecision*threshold != Math.round(thresPrecision*threshold)) {
+			threshold = Math.round(thresPrecision*threshold)/thresPrecision;
+			thresTextField.setText(Double.toString(threshold));
+		}
+		if ((double)thresScroll.getValue() != thresPrecision*threshold)
+			thresScroll.setValue((int)(thresPrecision*threshold));
+	}
+
+	private void thresScrollAdjustmentValueChanged(java.awt.event.AdjustmentEvent evt) {
+		double threshold = (double)thresScroll.getValue();
+		thresTextField.setText(Double.toString(threshold/thresPrecision));
+	}
+
+	private void exitButtonActionPerformed(ActionEvent evt) {
 		close();
-    }
+	}
 
     private void okButtonActionPerformed(ActionEvent evt) {
-		close();
+		//close();
 
 		widthDefault = Integer.parseInt(widthTextField.getText());
 		min_distDefault = Double.parseDouble(minDistTextField.getText());
+		thresDefault = Double.parseDouble(thresTextField.getText());
 
 		int maskIndex = maskChoice.getSelectedIndex();
 		String maskString = maskChoice.getSelectedItem();
@@ -224,7 +353,8 @@ public class ITCN_ extends PlugInFrame {
 		ImagePlus maskImp = WindowManager.getImage(maskID.intValue());
 
 		new ITCN_Runner(currImp, Integer.parseInt(widthTextField.getText()),
-			Double.parseDouble(minDistTextField.getText()), 0, darkPeaksCheckbox.getState(), maskImp);
+			Double.parseDouble(minDistTextField.getText()), Double.parseDouble(thresTextField.getText()),
+			darkPeaksCheckbox.getState(), maskImp);
     }
 
     private void openMaskButtonActionPerformed(ActionEvent evt) {
@@ -247,12 +377,12 @@ public class ITCN_ extends PlugInFrame {
 
     /** Exit the Application */
     private void exitForm(java.awt.event.WindowEvent evt) {
-        //System.exit(0);
+		currImp.unlock();
     }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private java.awt.Panel buttonPanel;
-    private java.awt.Button cancelButton;
+    private java.awt.Button exitButton;
     private java.awt.Label ccImageLabel;
     private java.awt.Checkbox darkPeaksCheckbox;
     private java.awt.Label filenameLabel;
@@ -270,11 +400,19 @@ public class ITCN_ extends PlugInFrame {
     private java.awt.Label widthLabel;
     private java.awt.TextField widthTextField;
     private java.awt.Label widthUnitsLabel;
+    private java.awt.Button widthButton;
+    private java.awt.Button minDistButton;
+    private java.awt.Label thresLabel;
+    private java.awt.TextField thresTextField;
+    private java.awt.Scrollbar thresScroll;
+    private java.awt.Panel midPanel;
 	private static final String strNONE = "Use selected ROI";
 	private ImagePlus currImp;
 	private ArrayList winIDList;
 	private static int widthDefault = 10;				// Filter width
 	private static double min_distDefault = 5.0;		// Min distance
+	private static double thresDefault = 0.0;			// Threshold
+	private static double thresPrecision = 10;
     // End of variables declaration//GEN-END:variables
 }
 
@@ -381,8 +519,8 @@ class ITCN_Runner extends Thread {
 
 		image = filter2(ip,kernel,width,width);
 
-		for (int i=0; i<r.width; i++) {
-			for (int j=0; j<r.height; j++) {
+		for (int i=0; i<ip.getWidth(); i++) {
+			for (int j=0; j<ip.getHeight(); j++) {
 				if (image[i][j]<threshold) image[i][j]=threshold;
 				image[i][j] -= threshold;
 			}
@@ -469,7 +607,7 @@ class ITCN_Runner extends Thread {
 		// Read units
 		Calibration cali = impImage.getCalibration();
 
-		DecimalFormat densityForm = new DecimalFormat("###0.0000");
+		DecimalFormat densityForm = new DecimalFormat("###0.00");
 
 		if (cali == null) {
 			IJ.write("Number of Cells: "+peaks.size());
