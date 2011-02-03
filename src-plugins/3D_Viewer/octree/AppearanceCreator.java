@@ -4,6 +4,7 @@ import java.awt.image.*;
 import javax.media.j3d.*;
 import javax.vecmath.*;
 import ij3d.AxisConstants;
+import ij3d.J3DUtils;
 
 public class AppearanceCreator implements AxisConstants {
 
@@ -102,7 +103,8 @@ public class AppearanceCreator implements AxisConstants {
 
 		// Avoid rendering of voxels having an alpha value of zero
 		rendAttr = new RenderingAttributes();
-		rendAttr.setDepthTestFunction(RenderingAttributes.ALWAYS);
+		//rendAttr.setDepthTestFunction(RenderingAttributes.ALWAYS);
+		J3DUtils.setDepthTestFunction(rendAttr, RenderingAttributes.ALWAYS);
 		rendAttr.setCapability(
 			RenderingAttributes.ALLOW_ALPHA_TEST_VALUE_WRITE);
  		rendAttr.setAlphaTestValue(0f);

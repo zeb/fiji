@@ -480,7 +480,7 @@ public class ContentInstant extends BranchGroup implements UniverseListener, Con
 	 * getters
 	 *
 	 **************************************************************/
-	@Override
+	//@Override
 	public String getName() {
 		return name;
 	}

@@ -3,6 +3,9 @@ package ij3d.shapes;
 import com.sun.j3d.utils.universe.*;
 import com.sun.j3d.utils.geometry.*;
 import com.sun.j3d.utils.behaviors.mouse.*;
+
+import ij3d.J3DUtils;
+
 import javax.media.j3d.*;
 import javax.vecmath.*;
 
@@ -54,7 +57,8 @@ public class BoundingSphere extends BranchGroup {
 		appearance.setColoringAttributes(ca);
 
 		Sphere sphere = new Sphere(1, /*Primitive.ENABLE_GEOMETRY_PICKING,*/ appearance);
-		sphere.setName("BS");
+		//sphere.setName("BS");
+		J3DUtils.setName(sphere, "BS");
 
 		Vector3f translateV = new Vector3f(center);
 		translate.set(translateV);

@@ -404,7 +404,7 @@ public class Content extends BranchGroup implements UniverseListener, ContentCon
 	 * getters
 	 *
 	 **************************************************************/
-	@Override
+	//@Override
 	public String getName() {
 		return name;
 	}

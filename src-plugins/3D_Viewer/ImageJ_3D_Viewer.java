@@ -18,6 +18,7 @@ public class ImageJ_3D_Viewer implements PlugIn {
 	 * Returns true if the viewer can run.
 	 */
 	public static boolean checkJava3D() {
+		if (true) return true; //TEMP
 		String version = ij3d.Install_J3D.getJava3DVersion();
 		System.out.println("version = " + version);
 		if(version != null && Float.parseFloat(version) >= 1.5)

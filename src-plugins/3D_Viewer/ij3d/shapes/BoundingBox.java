@@ -3,6 +3,9 @@ package ij3d.shapes;
 import com.sun.j3d.utils.universe.*;
 import com.sun.j3d.utils.geometry.*;
 import com.sun.j3d.utils.behaviors.mouse.*;
+
+import ij3d.J3DUtils;
+
 import javax.media.j3d.*;
 import javax.vecmath.*;
 
@@ -44,7 +47,7 @@ public class BoundingBox extends BranchGroup {
 		p[7] = new Point3f(min.x, max.y, min.z);
 
 		Shape3D shape = new Shape3D();
-		shape.setName("BB");
+		J3DUtils.setName(shape, "BB");
 
 		float lx = max.x - min.x;
 		float ly = max.y - min.y;

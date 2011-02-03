@@ -1,5 +1,9 @@
 package ij3d.pointlist;
 
+import com.sun.j3d.utils.geometry.Sphere;
+
+import ij3d.J3DUtils;
+
 import javax.media.j3d.Alpha;
 import javax.media.j3d.Appearance;
 import javax.media.j3d.BoundingSphere;
@@ -18,8 +22,6 @@ import javax.vecmath.Vector3f;
 
 import vib.BenesNamedPoint;
 import vib.PointList;
-
-import com.sun.j3d.utils.geometry.Sphere;
 
 /**
  * This class extends BranchGroup to represent a PointList as a number
@@ -137,7 +139,8 @@ public class PointListShape extends BranchGroup
 	 */
 	public void renamed(BenesNamedPoint p) {
 		int i = points.indexOf(p);
-		getChild(i).setName(points.get(i).getName());
+		//getChild(i).setName(points.get(i).getName());
+		J3DUtils.setName(getChild(i), points.get(i).getName());
 	}
 
 	/**
@@ -187,7 +190,8 @@ public class PointListShape extends BranchGroup
 	private void deletePointFromGeometry(String name) {
 		for(int i = 0; i < numChildren(); i++) {
 			BranchGroup bg = (BranchGroup)getChild(i);
-			if(bg.getName().equals(name)) {
+			//if(bg.getName().equals(name)) {
+			if(J3DUtils.getName(bg).equals(name)) {
 				bg.detach();
 				return;
 			}
@@ -203,7 +207,8 @@ public class PointListShape extends BranchGroup
 		v3f.x = p.x; v3f.y = p.y; v3f.z = p.z;
 
 		BranchGroup bg = new BranchGroup();
-		bg.setName(name);
+		//bg.setName(name);
+		J3DUtils.setName(bg, name);
 		bg.setCapability(BranchGroup.ALLOW_DETACH);
 
 		t3d.set(v3f);
