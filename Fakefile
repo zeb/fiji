@@ -212,7 +212,8 @@ PLUGIN_TARGETS=plugins/Jython_Interpreter.jar \
 	plugins/Extended_Depth_Field.jar \
 	plugins/panorama_.jar \
 	jars/weave_jy2java.jar \
-	plugins/3D_Blob_Segmentation.jar
+	plugins/3D_Blob_Segmentation.jar \
+	plugins/Ricks_Example_Plugin.jar
 
 all <- fiji $SUBMODULE_TARGETS $PLUGIN_TARGETS
 
@@ -415,6 +416,7 @@ CLASSPATH(plugins/panorama_.jar)=jars/ij.jar:jars/mpicbg.jar:/jars/mpicbg_.jar
 CLASSPATH(jars/weave_jy2java.jar)=plugins/Refresh_Javas.jar:jars/fiji-scripting.jar:jars/Fiji.jar:jars/ij.jar:plugins/Script_Editor.jar
 CLASSPATH(plugins/3D_Blob_Segmentation.jar)=jars/ij.jar:plugins/level_sets.jar:plugins/3D_Viewer.jar:jars/VIB-lib.jar:jars/imglib.jar
 CLASSPATH(plugins/Feature_Detection.jar)=jars/ij.jar:jars/imglib-ij.jar:jars/imglib.jar:jars/imglib-algorithms.jar:jars/Jama-1.0.2.jar
+CLASSPATH(plugins/Ricks_Example_Plugin.jar)=jars/ij.jar:jars/jocl.jar:jars/gluegen.jar:jars/gluegen-rt.jar:jars/JOCL-0.1.4-beta1.jar
 
 # pre-Java5 generics ;-)
 
