@@ -8,7 +8,11 @@ import javax.swing.JMenuBar;
 import javax.swing.JMenu;
 import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JMenuItem;
+import javax.swing.SwingUtilities;
 
+import java.awt.GraphicsEnvironment;
+import java.awt.GraphicsDevice;
+import java.awt.Rectangle;
 import java.awt.Menu;
 import java.awt.MenuItem;
 import java.awt.CheckboxMenuItem;
@@ -106,6 +110,11 @@ public class Image3DUniverse extends DefaultAnimatableUniverse {
 	private PointListDialog plDialog;
 
 	/**
+	 * Flag indicating if we are currently in fullscreen mode.
+	 */
+	private boolean fullscreen = false;
+
+	/**
 	 * The timelapse listeners.
 	 */
 	private ArrayList<TimelapseListener> timeListeners =
@@ -194,6 +203,58 @@ public class Image3DUniverse extends DefaultAnimatableUniverse {
 
 		win.pack();
 		win.setVisible(true);
+	}
+
+	/**
+	 * Sets fullscreen mode on or of.
+	 */
+	public void setFullScreen(final boolean f) {
+		SwingUtilities.invokeLater(new Runnable() {
+			public void run() {
+				doSetFullScreen(f);
+			}
+		});
+	}
+
+	private Rectangle lastNonFullscreenBounds;
+	private void doSetFullScreen(boolean f) {
+		if(win == null || f == fullscreen)
+			return;
+
+		if(f)
+			lastNonFullscreenBounds = win.getBounds();
+
+		GraphicsDevice dev = win.getGraphicsConfiguration().getDevice();
+
+		win.quitImageUpdater();
+		win.dispose();
+		dev.setFullScreenWindow(null);
+
+		win = new ImageWindow3D("ImageJ 3D Viewer", this);
+
+		if(!f) {
+			win.setUndecorated(false);
+			win.setJMenuBar(menubar);
+			fullscreen = false;
+			win.setBounds(lastNonFullscreenBounds);
+		} else {
+			try {
+				win.setUndecorated(true);
+				win.setJMenuBar(null);
+				dev.setFullScreenWindow(win);
+				fullscreen = true;
+			} catch(Exception e) {
+				e.printStackTrace();
+				fullscreen = false;
+				dev.setFullScreenWindow(null);
+			}
+		}
+		win.setVisible(true);
+		menubar.updateMenus();
+	}
+
+	public boolean isFullScreen() {
+		return fullscreen;
 	}
 
 	/**
@@ -1183,6 +1244,8 @@ public class Image3DUniverse extends DefaultAnimatableUniverse {
 	 * @return
 	 */
 	public Collection getContents() {
+		if(contents == null)
+			return null;
 		return contents.values();
 	}
 
