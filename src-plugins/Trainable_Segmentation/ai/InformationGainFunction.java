@@ -188,6 +188,14 @@ public class InformationGainFunction extends SplitFunction
 	{		
 		return new InformationGainFunction(this.numOfFeatures, this.random);
 	}
+
+
+	@Override
+	public void init(Instance[] ins, int insSize, int numAttributes,
+			int numClasses, int classIndex) {
+		// TODO Auto-generated method stub
+		
+	}
 	
 	
 }
