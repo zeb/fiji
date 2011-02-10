@@ -193,6 +193,8 @@ public class BalancedRandomForest extends AbstractClassifier implements Randomiz
 	public void buildClassifier(final Instances data) throws Exception 
 	{
 
+		System.out.println("Data size: " + data.numInstances() + " instances");
+		
 		long t0 = System.currentTimeMillis();
 
 		this.si = new SortedInstances(data);
@@ -229,6 +231,9 @@ public class BalancedRandomForest extends AbstractClassifier implements Randomiz
 			indexSample[ (int) si.values[si.classIndex][i] ].add( i );
 		}
 
+		System.out.println("Indices of class 1: " + indexSample[0].size());
+		System.out.println("Indices of class 2: " + indexSample[1].size());
+		
 		final Random random = new Random(seed);
 
 		final ExecutorService exe = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
