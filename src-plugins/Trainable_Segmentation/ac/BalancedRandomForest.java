@@ -102,13 +102,13 @@ public class BalancedRandomForest extends AbstractClassifier implements Randomiz
 
 	/** random seed */
 	int seed = 1;
-	
+
 	/** number of trees */
 	int numTrees = 10;
-		
+
 	/** number of features used on each node of the trees */
 	int numFeatures = 0;
-	
+
 	/** array of random trees that form the forest */
 	BalancedRandomTree[] tree = null;
 
@@ -116,7 +116,7 @@ public class BalancedRandomForest extends AbstractClassifier implements Randomiz
 
 	/** the out of bag error which has been calculated */
 	double outOfBagError = 0;
-	
+
 	/**
 	 * Returns a string describing classifier
 	 * @return a description suitable for
@@ -153,8 +153,8 @@ public class BalancedRandomForest extends AbstractClassifier implements Randomiz
 		return result;
 	}
 
-	
-	
+
+
 	/**
 	 * Returns the tip text for this property
 	 * @return tip text for this property suitable for
@@ -164,8 +164,8 @@ public class BalancedRandomForest extends AbstractClassifier implements Randomiz
 	{
 		return "The number of trees to be generated.";
 	}
-	
-	
+
+
 	/**
 	 * Returns the tip text for this property
 	 * @return tip text for this property suitable for
@@ -175,7 +175,7 @@ public class BalancedRandomForest extends AbstractClassifier implements Randomiz
 	{
 		return "The number of attributes to be used in random selection of each node.";
 	}
-	
+
 	/**
 	 * Returns the tip text for this property
 	 * @return tip text for this property suitable for
@@ -185,8 +185,8 @@ public class BalancedRandomForest extends AbstractClassifier implements Randomiz
 	{
 		return "The random number seed to be used.";
 	}
-	
-	
+
+
 	/**
 	 * Build Balanced Random Forest
 	 */
@@ -222,7 +222,7 @@ public class BalancedRandomForest extends AbstractClassifier implements Randomiz
 			indexSample[i] = new ArrayList<Integer>();
 
 		//System.out.println("numClasses = " + numClasses);
-		
+
 		// fill indexSample with the indices of each class
 		for(int i = 0 ; i < numInstances; i++)
 		{
@@ -247,42 +247,42 @@ public class BalancedRandomForest extends AbstractClassifier implements Randomiz
 					{ setPriority(Thread.NORM_PRIORITY); }
 					public void run() {
 
-			// A Random for this Thread
-			final Random rand = data.getRandomNumberGenerator(random.nextInt());
-			// Create a Splitter for this Thread
-			final Splitter splitter = new Splitter(new GiniFunction(numFeatures, rand));
+						// A Random for this Thread
+						final Random rand = data.getRandomNumberGenerator(random.nextInt());
+						// Create a Splitter for this Thread
+						final Splitter splitter = new Splitter(new GiniFunction(numFeatures, rand));
 
-			for(int i = ai.getAndIncrement(); i < numTrees; i = ai.getAndIncrement())
-			{
+						for(int i = ai.getAndIncrement(); i < numTrees; i = ai.getAndIncrement())
+						{
 
-				try {
+							try {
 
-				final int[] instanceIndices = new int[si.size];
-				int next = 0;
+								final int[] instanceIndices = new int[si.size];
+								int next = 0;
 
-				// Randomly select the indices in a balanced way
-				for(int j = 0 ; j < numInstances; j++)
-				{
-					// Select first the class
-					final int randomClass = rand.nextInt( numClasses );
-					// Select then a random sample of that class
-					final int randomSample = rand.nextInt( indexSample[randomClass].size() );
-					final int k = indexSample[ randomClass ].get( randomSample );
-					inBag[ i ][ k ] = true;
-					instanceIndices[next++] = k;
-				}
-				// TODO bagIndices and indexSample could all be int[] arrays
+								// Randomly select the indices in a balanced way
+								for(int j = 0 ; j < numInstances; j++)
+								{
+									// Select first the class
+									final int randomClass = rand.nextInt( numClasses );
+									// Select then a random sample of that class
+									final int randomSample = rand.nextInt( indexSample[randomClass].size() );
+									final int k = indexSample[ randomClass ].get( randomSample );
+									inBag[ i ][ k ] = true;
+									instanceIndices[next++] = k;
+								}
+								// TODO bagIndices and indexSample could all be int[] arrays
 
-				final int[] instanceIndices2 = new int[next];
-				System.arraycopy(instanceIndices, 0, instanceIndices2, 0, next);
+								final int[] instanceIndices2 = new int[next];
+								System.arraycopy(instanceIndices, 0, instanceIndices2, 0, next);
 
-				tree[i] = new BalancedRandomTree(si, instanceIndices2, splitter);
-				} catch (Throwable e) {
-					e.printStackTrace();
-				}
-			}
+								tree[i] = new BalancedRandomTree(si, instanceIndices2, splitter);
+							} catch (Throwable e) {
+								e.printStackTrace();
+							}
+						}
 
-				}};
+					}};
 			}
 
 			// Start all threads
@@ -299,7 +299,7 @@ public class BalancedRandomForest extends AbstractClassifier implements Randomiz
 
 			List<Future<Double>> votes =
 				new ArrayList<Future<Double>>(si.size);
-			
+
 			for (int i = 0; i < si.size; i++) 
 			{
 				VotesCollector aCollector = new VotesCollector(tree, i, si, inBag);
@@ -330,7 +330,7 @@ public class BalancedRandomForest extends AbstractClassifier implements Randomiz
 			}
 
 			outOfBagError = errorSum / outOfBagCount;
-			
+
 		}
 		catch(Exception ex)
 		{
@@ -340,7 +340,7 @@ public class BalancedRandomForest extends AbstractClassifier implements Randomiz
 		{
 			exe.shutdownNow();
 		}
-		
+
 	}
 
 	/**
@@ -398,8 +398,8 @@ public class BalancedRandomForest extends AbstractClassifier implements Randomiz
 
 		return (String[]) result.toArray(new String[result.size()]);
 	}
-	
-	
+
+
 	/**
 	 * Parses a given list of options. <p/>
 	 * 
@@ -449,13 +449,13 @@ public class BalancedRandomForest extends AbstractClassifier implements Randomiz
 		} else {
 			setSeed(1);
 		}
-	
+
 		super.setOptions(options);
 
 		Utils.checkForRemainingOptions(options);
 	}
-	
-	
+
+
 	/**
 	 * Get the number of random features to use
 	 * in each node of the random trees.
@@ -488,7 +488,7 @@ public class BalancedRandomForest extends AbstractClassifier implements Randomiz
 
 		// attributes		
 		result.enable(Capability.NUMERIC_ATTRIBUTES);
-		
+
 		// class
 		result.enable(Capability.NOMINAL_CLASS);
 
@@ -579,11 +579,11 @@ public class BalancedRandomForest extends AbstractClassifier implements Randomiz
 		else 
 		{
 			throw new IllegalArgumentException(additionalMeasureName 
-				+ " not supported (Bagging)");
+					+ " not supported (Bagging)");
 		}
 	}
-	
-	
+
+
 	/**
 	 * Outputs a description of this classifier.
 	 *
@@ -610,6 +610,6 @@ public class BalancedRandomForest extends AbstractClassifier implements Randomiz
 	public static void main(String[] argv) {
 		runClassifier(new BalancedRandomForest(), argv);
 	}
-	
+
 }
 

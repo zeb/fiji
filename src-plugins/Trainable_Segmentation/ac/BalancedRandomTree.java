@@ -24,9 +24,7 @@ package ac;
 import ij.IJ;
 
 import java.io.Serializable;
-import java.util.ArrayList;
 import java.util.LinkedList;
-import java.util.HashSet;
 
 import weka.core.Instance;
 
@@ -61,9 +59,17 @@ public class BalancedRandomTree implements Serializable
 	private final BaseNode createNode(final SortedInstances si, final int[] instanceIndices, final Splitter splitter)
 	{
 		final long start = System.currentTimeMillis();
-		try {
+		try 
+		{
 			return createTree(si, instanceIndices, 0, splitter);
-		} finally {
+		} 
+		catch(Exception ex)
+		{
+			ex.printStackTrace();
+			return null;
+		}
+		finally 
+		{
 			final long end = System.currentTimeMillis();
 			IJ.log("Creating tree took: " + (end-start) + "ms");
 		}
