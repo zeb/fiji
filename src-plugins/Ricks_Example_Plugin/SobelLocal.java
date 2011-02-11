@@ -1,187 +1,87 @@
 
-import ij.IJ;
-import ij.ImagePlus;
-import ij.plugin.PlugIn;
 
-import java.awt.Image;
-import java.awt.image.PixelGrabber;
+import ij.ImagePlus;
+import ij.plugin.filter.PlugInFilter;
+import ij.process.ImageProcessor;
+
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
+
 import com.jogamp.opencl.CLBuffer;
 import com.jogamp.opencl.CLCommandQueue;
 import com.jogamp.opencl.CLContext;
 import com.jogamp.opencl.CLDevice.Type;
 import com.jogamp.opencl.CLKernel;
 import com.jogamp.opencl.CLMemory.Mem;
-import com.jogamp.opencl.CLPlatform;
 import com.jogamp.opencl.CLProgram;
 
-import java.io.IOException;
-import java.io.InputStream;
-
-
-public class SobelLocal implements PlugIn {
+public class FijiOpenCLImageFilterPlugin implements PlugInFilter {
+    
+    @Override
+	public void run(ImageProcessor imp) 
+    {
+	String libDir = System.getProperty("fiji.dir") + "/lib/macosx/"; 
+	String jarDir = System.getProperty("fiji.dir") + "/jars/"; 
+	
+	JNI.loadLibrary( libDir + "libJOCL-apple-x86_64.dylib");
+	JNI.loadLibrary( libDir + "libjocl.dylib");
+	JNI.loadLibrary( libDir + "libgluegen-rt.dylib");
+	
+	JNI.loadLibrary(jarDir + "jocl.jar");
+	JNI.loadLibrary(jarDir + "gluegen.jar");
+	JNI.loadLibrary(jarDir + "gluegen-rt.jar");
+	JNI.loadLibrary(jarDir + "JOCL-0.1.4-beta1.jar");
 	
 	
-	public void run(String arg) 
-	{
-		// this is used to get detailed program level debug statements to the console
-		boolean DEBUG = true;
-		
-		// **CHANGE THESE - Platform specific locations per getting started document at:
-		// https://docs.google.com/document/d/1y_psquVas0bALfpO8GwvPGFrZ64V_fZl9Sz6CfJ4D2k/edit?hl=en
-		if (DEBUG) { System.out.println( "Loading the OpenCL native libraries"); }
-		//Get the Fiji property for these files:
-		String libDir = System.getProperty("fiji.dir") + "/lib/macosx/"; 
-		System.load( libDir + "libJOCL-apple-x86_64.dylib");
-		System.load( libDir + "libjocl.dylib");
-		System.load( libDir + "libgluegen-rt.jnilib");
-		
-		
-		if (DEBUG) { System.out.println( "Obtain the currently active image" ); }
-		ImagePlus imp = IJ.getImage();
-		if (null == imp)
-			return;
+	float[] testImage = (float[]) imp.getPixels();
+	String openCLCodeString = "__kernel void sobel( __global float* input,__global float* output, int width,    int height ){get_global_id(0); int y = get_global_id(1);    int offset = y * width + x;    float p0, p1, p2, p3, p5, p6, p7, p8 = 0;if( x < 1 || y < 1 || x > width - 2 || y > height - 2 ){  output[offset] = 0;}else{ p0 = input[offset - width - 1] ; p1 = input[offset - width] ;p2 = input[offset - width + 1] ;   p3 = input[offset - 1] ; p5 = input[offset + 1] ; p6 = input[offset + width - 1] ; p7 = input[offset + width] ; p8 = input[offset + width + 1] ; float sum1 = p0 + 2*p1 + p2 - p6 - 2*p7 - p8;   float sum2 = p0 + 2*p3 + p6 - p2 - 2*p5 - p8;  output[offset] = sqrt(  sum1*sum1 + sum2*sum2 );}}";
 
-		if (DEBUG) { System.out.println( "Convert to an awt.Image image"); }
-		Image image = imp.getImage();
-		int imageWidth = imp.getWidth();
-		int imageHeight = imp.getHeight();
+	CLProgram program = null;
+	CLContext context;
+	CLKernel kernel;
+	CLCommandQueue queue;
 
-		if (DEBUG) { System.out.println( "Grab the pixels"); }
-		int[] inputImage = new int[imageWidth * imageHeight];
-		PixelGrabber pixelGrabber = new PixelGrabber(image, 0, 0, imageWidth,
-				imageHeight, inputImage, 0, imageWidth);
-		try {
-			pixelGrabber.grabPixels();
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-		}
+	FloatBuffer data;
+	CLBuffer<FloatBuffer> clFloatBufferDataCopy;
+	CLBuffer<FloatBuffer> clFloatBufferData;
 
-		if (DEBUG) { System.out.println( "Convert Image to float"); }
-		float[] testImage = new float[imageWidth * imageHeight];
-		for (int i = 0; i < imageWidth; i++)
-			for (int j = 0; j < imageHeight; j++)
-				testImage[i * imageHeight + j] = getAvg(inputImage[i* imageHeight + j]);
+	context = CLContext.create(Type.GPU);
+	program = context.createProgram( openCLCodeString );
+	program.build();
+	kernel = program.createCLKernel( "sobel" );
+	queue = context.getMaxFlopsDevice().createCommandQueue();
+	data = ByteBuffer.allocateDirect(imp.getHeight() * imp.getWidth() * 4).order( ByteOrder.nativeOrder() ).asFloatBuffer();
+	clFloatBufferData = context.createBuffer( data, Mem.READ_WRITE );
+	clFloatBufferDataCopy = context.createFloatBuffer( imp.getHeight()* imp.getWidth(), Mem.READ_ONLY );
 
-		if (DEBUG) { System.out.println( "Getting the OpenCL code"); } 
-		String openCLCodeString = null;
-		try {
-			openCLCodeString = getString(
-					getClass().getResourceAsStream("sobel.cl") );
-		} catch (Exception e1) {
-			IJ.handleException(e1);
-		}
-
-		
-		CLProgram program = null;
-		CLContext context;
-		CLKernel kernel;
-		CLCommandQueue queue;
-
-		FloatBuffer data;
-		CLBuffer<FloatBuffer> clFloatBufferDataCopy;
-		CLBuffer<FloatBuffer> clFloatBufferData;
-
-		if (DEBUG) { System.out.println( "Creating an OpenCL context from GPU"); }
-		context = CLContext.create(Type.GPU);
-
-		if (DEBUG) { System.out.println( "Create the OpenCL program"); }
-		program = context.createProgram(openCLCodeString);
-
-		if (DEBUG) { System.out.println( "The OpenCL source is " + program.getSource()) ; }
-		program.build();
-
-		// Display java.libary.path -Djava.library.path=""
-		if (DEBUG) {
-			System.out.println(" Java.library.path is "
-					+ System.getProperty("java.library.path"));
-		}
-
-		if (DEBUG) {
-			CLPlatform[] platforms = CLPlatform.listCLPlatforms();
-			if (DEBUG) {
-				for (CLPlatform clPlatform : platforms) {
-					System.out.println("Discovered " + clPlatform.getName());
-				}
-			}
-		}
-
-		if (DEBUG) { System.out.println("Creating the OpenCL kernel"); }
-		kernel = program.createCLKernel("sobel");
-
-		if (DEBUG) { System.out.println("Creating the OpenCL command queue"); }
-		queue = context.getMaxFlopsDevice().createCommandQueue();
-
-		data = ByteBuffer.allocateDirect(imageHeight * imageWidth * 4)
-				.order(ByteOrder.nativeOrder()).asFloatBuffer();
-
-		if (DEBUG) { System.out.println("Creating device buffers for the data.");}
-		clFloatBufferData = context.createBuffer(data, Mem.READ_WRITE);
-		clFloatBufferDataCopy = context.createFloatBuffer(imageHeight* imageWidth, Mem.READ_ONLY);
-
-		if (DEBUG) { System.out.println("Making the OpenCL kernel assignments"); }
-		kernel.setArg(0, clFloatBufferDataCopy);
-		kernel.setArg(1, clFloatBufferData);
-		kernel.setArg(2, imageWidth);
-		kernel.setArg(3, imageHeight);
-
-		if( DEBUG ) System.out.println( "Adding the input data to the objects buffer");
-		for (int i = 0; i < imageHeight * imageWidth; i++) {
-			data.put(i, testImage[i]);
-		}
-
-		if (DEBUG) { System.out.println("Writing the OpenCL input data to the device"); }
-		queue.putWriteBuffer(clFloatBufferData, false);
-
-		if (DEBUG) { System.out.println( "Making a copy of the input data buffer"); }
-		queue.putCopyBuffer(clFloatBufferData, clFloatBufferDataCopy);
-
-		if (DEBUG) { System.out.println("Enqueing the OpenCL kernel"); }
-		queue.put2DRangeKernel(kernel, 0, 0, imageWidth, imageHeight, 0, 0);
-
-		if (DEBUG) { System.out.println("Waiting for the OpenCL kernel to finish"); }
-		queue.finish();
-
-		if (DEBUG) { System.out.println("Reading back data results from the device"); }
-		queue.putReadBuffer(clFloatBufferData, true);
-		
-		if( DEBUG ) System.out.println("Copying data from the NIO buffer to the JVM float[]");
-		for (int i = 0; i < imageHeight * imageWidth; i++) {
-			testImage[i] = data.get(i);
-		}
-
-		if (DEBUG)  System.out.println("Releasing the OpenCL context");
-		context.release();
-		
-		if (DEBUG)  System.out.println("Creating a new Image from the results");
-		ij.process.FloatProcessor floatProcessor = new ij.process.FloatProcessor(imp.getWidth(), imp.getHeight() );
-		floatProcessor.setPixels( testImage );	
-		ImagePlus scaled = new ImagePlus( "Sobel", floatProcessor );
+	kernel.setArg(0, clFloatBufferDataCopy);
+	kernel.setArg(1, clFloatBufferData);
+	kernel.setArg(2, imp.getWidth());
+	kernel.setArg(3, imp.getHeight());
 	
-		if (DEBUG)  System.out.println("Showing the image");
-		scaled.show();
-		
+	for (int i = 0; i < imp.getHeight() * imp.getWidth(); i++) {
+	    data.put(i, testImage[i]);
 	}
 
-	public static float getAvg(int c) {
-		int r = (c & 0xff0000) >> 16;
-		int g = (c & 0xff00) >> 8;
-		int b = c & 0xff;
-		return (r + g + b) / 3;
+	queue.putWriteBuffer(clFloatBufferData, false);
+	queue.putCopyBuffer(clFloatBufferData, clFloatBufferDataCopy);
+	queue.put2DRangeKernel(kernel, 0, 0, imp.getWidth(), imp.getHeight(), 0, 0);
+	queue.finish();
+	
+	queue.putReadBuffer(clFloatBufferData, true);
+	for (int i = 0; i < imp.getHeight() * imp.getWidth(); i++) {
+	    testImage[i] = data.get(i);
 	}
+	
+	context.release();
+	imp.setPixels( testImage );
+    }
 
-	protected static String getString( InputStream inputStream ) throws IOException {
-		byte[] byteArray = new byte[1024];
-		StringBuffer stringBuffer = new StringBuffer();
-		for( ;;)
-		{
-			int count = inputStream.read( byteArray );
-			if (count < 0) break;
-			stringBuffer.append( new String( byteArray,0,count ) );
-		}
-		inputStream.close();
-		return stringBuffer.toString();
-	}
+    @Override
+	public int setup( String arg0, ImagePlus arg1 ) 
+    {
+	return DOES_32;
+    }
+
 }
