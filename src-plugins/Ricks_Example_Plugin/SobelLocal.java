@@ -16,7 +16,7 @@ import com.jogamp.opencl.CLKernel;
 import com.jogamp.opencl.CLMemory.Mem;
 import com.jogamp.opencl.CLProgram;
 
-public class FijiOpenCLImageFilterPlugin implements PlugInFilter {
+public class SobelLocal implements PlugInFilter {
     
     @Override
 	public void run(ImageProcessor imp) 
