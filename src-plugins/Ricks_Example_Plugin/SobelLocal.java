@@ -21,19 +21,20 @@ public class SobelLocal implements PlugInFilter {
     @Override
 	public void run(ImageProcessor imp) 
     {
-	String libDir = System.getProperty("fiji.dir") + "/lib/macosx/"; 
-	String jarDir = System.getProperty("fiji.dir") + "/jars/"; 
-	
-	JNI.loadLibrary( libDir + "libJOCL-apple-x86_64.dylib");
-	JNI.loadLibrary( libDir + "libjocl.dylib");
-	JNI.loadLibrary( libDir + "libgluegen-rt.dylib");
-	
-	JNI.loadLibrary(jarDir + "jocl.jar");
-	JNI.loadLibrary(jarDir + "gluegen.jar");
-	JNI.loadLibrary(jarDir + "gluegen-rt.jar");
-	JNI.loadLibrary(jarDir + "JOCL-0.1.4-beta1.jar");
-	
-	
+        // TODO: Adapt conditional logic after low level JOCL libs are adapted
+	boolean is64bit = System.getProperty("os.arch", "").indexOf("64") >= 0;
+	if(is64bit)
+        {
+	    if (System.getProperty("os.name", "<unknown>").equals("Linux") ) { JNI.loadLibrary( "JOCL-linux-x86_64" ); }
+	    if (System.getProperty("os.name", "<unknown>").equals("Mac OS X") ) { JNI.loadLibrary( "JOCL-apple-x86_64" ); }
+	    if (System.getProperty("os.name", "<unknown>").equals("Windows") ) { JNI.loadLibrary( "JOCL-windows-x86_64" ); }
+	} else 
+	{ 
+	   if (System.getProperty("os.name", "<unknown>").equals("Windows") ) { JNI.loadLibrary( "JOCL-windows-x86" ); 
+	}
+	JNI.loadLibrary( "jocl" );
+	JNI.loadLibrary( "gluegen-rt" );
+		
 	float[] testImage = (float[]) imp.getPixels();
 	String openCLCodeString = "__kernel void sobel( __global float* input,__global float* output, int width,    int height ){get_global_id(0); int y = get_global_id(1);    int offset = y * width + x;    float p0, p1, p2, p3, p5, p6, p7, p8 = 0;if( x < 1 || y < 1 || x > width - 2 || y > height - 2 ){  output[offset] = 0;}else{ p0 = input[offset - width - 1] ; p1 = input[offset - width] ;p2 = input[offset - width + 1] ;   p3 = input[offset - 1] ; p5 = input[offset + 1] ; p6 = input[offset + width - 1] ; p7 = input[offset + width] ; p8 = input[offset + width + 1] ; float sum1 = p0 + 2*p1 + p2 - p6 - 2*p7 - p8;   float sum2 = p0 + 2*p3 + p6 - p2 - 2*p5 - p8;  output[offset] = sqrt(  sum1*sum1 + sum2*sum2 );}}";
 
@@ -55,10 +56,10 @@ public class SobelLocal implements PlugInFilter {
 	clFloatBufferData = context.createBuffer( data, Mem.READ_WRITE );
 	clFloatBufferDataCopy = context.createFloatBuffer( imp.getHeight()* imp.getWidth(), Mem.READ_ONLY );
 
-	kernel.setArg(0, clFloatBufferDataCopy);
-	kernel.setArg(1, clFloatBufferData);
-	kernel.setArg(2, imp.getWidth());
-	kernel.setArg(3, imp.getHeight());
+	kernel.setArg( 0, clFloatBufferDataCopy );
+	kernel.setArg( 1, clFloatBufferData );
+	kernel.setArg( 2, imp.getWidth() );
+	kernel.setArg( 3, imp.getHeight() );
 	
 	for (int i = 0; i < imp.getHeight() * imp.getWidth(); i++) {
 	    data.put(i, testImage[i]);
