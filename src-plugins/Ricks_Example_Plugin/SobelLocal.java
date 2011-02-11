@@ -21,17 +21,7 @@ public class SobelLocal implements PlugInFilter {
     @Override
 	public void run(ImageProcessor imp) 
     {
-        // TODO: Adapt conditional logic after low level JOCL libs are adapted
-	boolean is64bit = System.getProperty("os.arch", "").indexOf("64") >= 0;
-	if(is64bit)
-        {
-	    if (System.getProperty("os.name", "<unknown>").equals("Linux") ) { JNI.loadLibrary( "JOCL-linux-x86_64" ); }
-	    if (System.getProperty("os.name", "<unknown>").equals("Mac OS X") ) { JNI.loadLibrary( "JOCL-apple-x86_64" ); }
-	    if (System.getProperty("os.name", "<unknown>").equals("Windows") ) { JNI.loadLibrary( "JOCL-windows-x86_64" ); }
-	} else 
-	{ 
-	   if (System.getProperty("os.name", "<unknown>").equals("Windows") ) { JNI.loadLibrary( "JOCL-windows-x86" ); 
-	}
+        JNI.loadLibrary( "JOCL-*" );
 	JNI.loadLibrary( "jocl" );
 	JNI.loadLibrary( "gluegen-rt" );
 		
