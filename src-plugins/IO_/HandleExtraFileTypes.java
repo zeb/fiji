@@ -310,6 +310,11 @@ public class HandleExtraFileTypes extends ImagePlus implements PlugIn {
 		if (name.endsWith(".bs") || name.endsWith(".bsh"))
 			return tryPlugIn("BSH.Refresh_BSH_Scripts", path);
 
+        // Larry Lindsey: open a Reconstruct .ser file
+        // http://synapses.clm.utexas.edu/tools/reconstruct/reconstruct.stm
+        if (name.endsWith(".ser"))
+                return tryPlugIn("reconstructreader.reconstruct.ReconstructReader", path);
+
 		// ****************** MODIFY HERE ******************
 		// do what ever you have to do to recognise your own file type
 		// and then call appropriate plugin using the above as models
