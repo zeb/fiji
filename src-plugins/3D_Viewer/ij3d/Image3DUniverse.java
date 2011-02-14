@@ -1,60 +1,63 @@
 package ij3d;
 
-import ij3d.pointlist.PointListDialog;
-import ij.ImagePlus;
 import ij.IJ;
+import ij.ImagePlus;
+import ij3d.plugin.Viewer3DPluginFinder;
+import ij3d.pointlist.PointListDialog;
+import imagej.plugin.api.PluginEntry;
+import imagej.plugin.gui.ShadowMenu;
+import imagej.plugin.gui.swing.JMenuBarCreator;
 
-import javax.swing.JMenuBar;
-import javax.swing.JMenu;
-import javax.swing.JCheckBoxMenuItem;
-import javax.swing.JMenuItem;
-import javax.swing.SwingUtilities;
-
-import java.awt.GraphicsEnvironment;
-import java.awt.GraphicsDevice;
-import java.awt.Rectangle;
-import java.awt.Menu;
-import java.awt.MenuItem;
-import java.awt.CheckboxMenuItem;
 import java.awt.BorderLayout;
+import java.awt.CheckboxMenuItem;
+import java.awt.GraphicsDevice;
+import java.awt.Menu;
 import java.awt.MenuBar;
-import java.awt.event.*;
-
-import java.util.List;
+import java.awt.MenuItem;
+import java.awt.Rectangle;
+import java.awt.event.ActionListener;
+import java.awt.event.ItemListener;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseMotionAdapter;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
+import java.awt.event.WindowListener;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Hashtable;
 import java.util.Iterator;
-import java.util.Collection;
-import java.util.Enumeration;
-import java.util.LinkedList;
-import java.util.ArrayList;
-import java.util.TreeMap;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
-import customnode.MeshLoader;
+import javax.media.j3d.BranchGroup;
+import javax.media.j3d.Transform3D;
+import javax.swing.JCheckBoxMenuItem;
+import javax.swing.JMenu;
+import javax.swing.JMenuBar;
+import javax.swing.JMenuItem;
+import javax.swing.SwingUtilities;
+import javax.vecmath.AxisAngle4d;
+import javax.vecmath.Color3f;
+import javax.vecmath.Point3d;
+import javax.vecmath.Point3f;
+import javax.vecmath.Vector3d;
+
+import octree.VolumeOctree;
+import view4d.Timeline;
+import view4d.TimelineGUI;
 import customnode.CustomLineMesh;
-import customnode.CustomPointMesh;
-import customnode.CustomQuadMesh;
 import customnode.CustomMesh;
 import customnode.CustomMultiMesh;
-import customnode.CustomMeshNode;
+import customnode.CustomPointMesh;
+import customnode.CustomQuadMesh;
 import customnode.CustomTriangleMesh;
-
-import view4d.TimelineGUI;
-import view4d.Timeline;
-
-import javax.media.j3d.*;
-import javax.vecmath.*;
-
-import java.io.IOException;
-import java.io.File;
-import octree.FilePreparer;
-import octree.VolumeOctree;
-
-import java.util.concurrent.Future;
-import java.util.concurrent.Callable;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.ExecutionException;
+import customnode.MeshLoader;
 
 public class Image3DUniverse extends DefaultAnimatableUniverse {
 
@@ -90,7 +93,7 @@ public class Image3DUniverse extends DefaultAnimatableUniverse {
 				new Hashtable<String, Content>();
 
 	/** A reference to the Image3DMenubar */
-	private Image3DMenubar menubar;
+	private /* Image3DMenubar */ JMenuBar menubar;
 
 	/** A reference to the RegistrationMenubar */
 	private RegistrationMenubar registrationMenubar;
@@ -183,6 +186,17 @@ public class Image3DUniverse extends DefaultAnimatableUniverse {
 		});
 
 		universes.add(this);
+
+		menubar = new Image3DMenubar(this);
+		registrationMenubar = new RegistrationMenubar(this);
+
+		final Viewer3DPluginFinder pluginFinder = new Viewer3DPluginFinder(this);
+		final List<PluginEntry> plugins = new ArrayList<PluginEntry>();
+		pluginFinder.findPlugins(plugins);
+		System.out.println("Found " + plugins.size() + " plugins");
+
+		final ShadowMenu rootMenu = new ShadowMenu(plugins);
+		new JMenuBarCreator().createMenus(rootMenu, menubar);
 	}
 
 	/**
@@ -250,7 +264,7 @@ public class Image3DUniverse extends DefaultAnimatableUniverse {
 			}
 		}
 		win.setVisible(true);
-		menubar.updateMenus();
+//		menubar.updateMenus();
 	}
 
 	public boolean isFullScreen() {
