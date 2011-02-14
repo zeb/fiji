@@ -229,3 +229,5 @@
 /modules/imagej2/ij-common.jar
 /jars/ij-plugin.jar
 /modules/imagej2/ij-plugin.jar
+/jars/ij-plugin-gui-swing.jar
+/modules/imagej2/ij-plugin-gui-swing.jar
