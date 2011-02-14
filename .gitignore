@@ -227,3 +227,5 @@
 /lib/macosx/libJNI_Example.dylib
 /jars/ij-common.jar
 /modules/imagej2/ij-common.jar
+/jars/ij-plugin.jar
+/modules/imagej2/ij-plugin.jar

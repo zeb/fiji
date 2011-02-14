@@ -118,6 +118,7 @@ SUBMODULE_TARGETS=\
 	jars/mpicbg.jar \
 	jars/commons-math.jar \
 	jars/ij-common.jar \
+	jars/ij-plugin.jar \
 	jars/imglib-scripting.jar
 
 PLUGIN_TARGETS=plugins/Jython_Interpreter.jar \
@@ -264,6 +265,8 @@ CLASSPATH(jars/imglib-algorithms.jar)=jars/Jama-1.0.2.jar:jars/imglib.jar:jars/e
 jars/imglib-algorithms.jar <- modules/imglib/
 jars/ij-common.jar <- modules/imagej2/
 CLASSPATH(jars/ij-common.jar)=jars/sezpoz-1.8.jar:jars/slf4j-api-1.6.1.jar
+jars/ij-plugin.jar <- modules/imagej2/
+CLASSPATH(jars/ij-plugin.jar)=jars/ij-common.jar:jars/sezpoz-1.8.jar
 
 jars/clojure.jar <- fiji modules/clojure/
 plugins/loci_tools.jar <- fiji modules/bio-formats/
@@ -559,6 +562,7 @@ precompiled/imglib-io.jar <- jars/imglib-io.jar
 precompiled/imglib-scripting.jar <- jars/imglib-scripting.jar
 precompiled/commons-math.jar <- jars/commons-math.jar
 precompiled/ij-common.jar <- jars/ij-common.jar
+precompiled/ij-plugin.jar <- jars/ij-plugin.jar
 precompiled/* <- plugins/*
 
 precompile[] <- precompile-fiji precompile-fake precompile-submodules
