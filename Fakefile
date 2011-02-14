@@ -545,6 +545,7 @@ precompile-submodules[] <- \
 	precompiled/commons-math.jar \
 	precompiled/imglib-algorithms.jar \
 	precompiled/ij-common.jar \
+	precompiled/ij-plugin.jar \
 
 precompiled/ij.jar <- jars/ij.jar
 precompiled/clojure.jar <- jars/clojure.jar
