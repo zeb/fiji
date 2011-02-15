@@ -211,7 +211,6 @@ public class Image3DUniverse extends DefaultAnimatableUniverse {
 				hideAllLandmarks();
 			}
 		});
-		menubar = new Image3DMenubar(this);
 		registrationMenubar = new RegistrationMenubar(this);
 		setMenubar(menubar);
 
