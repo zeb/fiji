@@ -28,6 +28,7 @@ public class ReconstructReader implements PlugIn
     private final ArrayList<Document> sections;
     private int firstLayerOID;
     private boolean lastStatus;
+    private double preTransPatchHeight;
 
     public ReconstructReader()
     {
@@ -140,6 +141,8 @@ public class ReconstructReader implements PlugIn
             }
 
             Collections.sort(sections, new Utils.ReconstructSectionIndexComparator());
+            preTransPatchHeight = Utils.getReconstructStackHeight(sections);
+            System.out.println("Patch Height: " + preTransPatchHeight);
 
             xmlBuilder.append("<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?>\n");
             appendDTD(xmlBuilder);
@@ -488,31 +491,16 @@ public class ReconstructReader implements PlugIn
     protected void appendPatch(final StringBuilder sb,final Element image)
     {
         Element rTransform = (Element)image.getParentNode();
-        AffineTransform trans = Utils.reconstructTransform(rTransform);
+        AffineTransform trans = Utils.reconstructTransform(rTransform,
+                Double.valueOf(image.getAttribute("mag")), preTransPatchHeight);
         String src = image.getAttribute("src");
         String transString = Utils.transformToString(trans);
         double[] wh = Utils.getReconstructImageWH(image);
-        double[] twh = Utils.getReconstructBoundingBox(wh, trans);
-        double minX = twh[0], maxX = twh[0], minY = twh[1], maxY = twh[1];
-        double boundHeight = twh[1];
-        for (int i = 1; i < 4; ++i)
-        {
-            double x = twh[2 * i];
-            double y = twh[2 * i + 1];
-            if (minX > x)
-                minX = x;
-            if (maxX < x)
-                maxX = x;
-            if (minY > y)
-                minY = y;
-            if (maxY < y)
-                maxY = y;
-        }
 
         sb.append("<t2_patch\n" +
                 "oid=\"").append(nextOID()).append("\"\n" +
-                "width=\"").append(maxX - minX).append("\"\n" +
-                "height=\"").append(maxY - minY).append("\"\n" +
+                "width=\"").append(wh[0]).append("\"\n" +
+                "height=\"").append(wh[1]).append("\"\n" +
                 "transform=\"").append(transString).append("\"\n" +
                 "title=\"").append(src).append("\"\n" +
                 "links=\"\"\n" +

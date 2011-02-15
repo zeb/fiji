@@ -3,7 +3,10 @@ package reconstructreader;
 import org.w3c.dom.*;
 
 import java.awt.geom.AffineTransform;
+import java.awt.geom.NoninvertibleTransformException;
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.List;
 import java.util.StringTokenizer;
 
 public final class Utils {
@@ -12,7 +15,23 @@ public final class Utils {
 
     private Utils(){}
 
-
+    public static double getReconstructStackHeight(List<Document> sections) {
+        double maxImageHeight = 0;
+        for (Document doc : sections)
+        {
+            NodeList images = doc.getElementsByTagName("Image");
+            for (int i = 0; i < images.getLength(); ++i)
+            {
+                Node image = images.item(i);
+                double[] wh = getReconstructImageWH(image);
+                if (wh[1] > maxImageHeight)
+                {
+                    maxImageHeight = wh[1];
+                }
+            }
+        }
+        return maxImageHeight;
+    }
 
 
     public static class ReconstructSectionIndexComparator implements Comparator<Document>
@@ -24,12 +43,14 @@ public final class Utils {
         }
     }
 
-    public static AffineTransform reconstructTransform(final Element trans)
+    public static AffineTransform reconstructTransform(final Element trans, double mag, double k)
     {
         int dim = Integer.valueOf(trans.getAttribute("dim"));
         double[] matrix = new double[6];
+        double[] unFuckedMatrix;
         double[] xcoef = createNodeValueVector(trans.getAttribute("xcoef"));
         double[] ycoef = createNodeValueVector(trans.getAttribute("ycoef"));
+        AffineTransform at;
 
         Utils.nodeValueToVector(trans.getAttribute("xcoef"), xcoef);
         Utils.nodeValueToVector(trans.getAttribute("ycoef"), ycoef);
@@ -44,22 +65,22 @@ public final class Utils {
             case 1:
                 matrix[0] = 1;
                 matrix[3] = 1;
-                matrix[4] = xcoef[0];
-                matrix[5] = ycoef[0];
+                matrix[4] = xcoef[0] / mag;
+                matrix[5] = ycoef[0] / mag;
                 break;
             case 2:
                 matrix[0] = xcoef[1];
                 matrix[3] = ycoef[1];
-                matrix[4] = xcoef[0];
-                matrix[5] = ycoef[0];
+                matrix[4] = xcoef[0] / mag;
+                matrix[5] = ycoef[0] / mag;
                 break;
             case 3:
                 matrix[0] = xcoef[1];
                 matrix[1] = ycoef[1];
                 matrix[2] = xcoef[2];
                 matrix[3] = ycoef[2];
-                matrix[4] = xcoef[0];
-                matrix[5] = ycoef[0];
+                matrix[4] = xcoef[0] / mag;
+                matrix[5] = ycoef[0] / mag;
                 break;
             default:
                 int index = Integer.valueOf(
@@ -69,8 +90,8 @@ public final class Utils {
                 matrix[1] = ycoef[1];
                 matrix[2] = xcoef[2];
                 matrix[3] = ycoef[2];
-                matrix[4] = xcoef[0];
-                matrix[5] = ycoef[0];
+                matrix[4] = xcoef[0] / mag;
+                matrix[5] = ycoef[0] / mag;
                 for (int i = 3; i < 6; ++i)
                 {
                     weird |= xcoef[i] != 0 || ycoef[i] != 0;
@@ -83,7 +104,42 @@ public final class Utils {
                 break;
         }
 
-        return new AffineTransform(matrix);
+        at = new AffineTransform(matrix);
+
+        /*
+        OK, so this turns out to be a pretty gross problem.
+
+        You see, Reconstruct uses an image coordinate system in which the origin is at the
+        bottom-left, whereas TrakEM2 uses on from the top-left. Reconstruct, in addition,
+        stores the transform inverse, in other words, the transform that would convert the
+        registered image into the raw on-disk image.
+
+        So, the code that follows is all to fix this f*&$^&% annoying situation.
+
+        I can't be totally sure that this will work, yet. For instance, I have no idea whether
+        */
+
+        try
+        {
+            at.invert();
+        }
+        catch (NoninvertibleTransformException nite)
+        {
+            System.err.println("Found noninvertible matrix, leaving it the way it is.");
+        }
+
+
+        // x' = m00 x + m01 y + m02
+        // y' = m10 x + m11 y + m12
+        at.getMatrix(matrix);
+        unFuckedMatrix = matrix.clone();
+
+        unFuckedMatrix[1] = -matrix[1]; // m10 = -m10
+        unFuckedMatrix[2] = -matrix[2]; // m11 = -m11
+        unFuckedMatrix[4] = matrix[4] + k * matrix[2]; // m02 = m02 + k m01
+        unFuckedMatrix[5] = 2 * k - matrix[5] - k * matrix[3]; //m12 = k - m12 - k m11
+
+        return new AffineTransform(unFuckedMatrix);
     }
 
     public static String transformToString(AffineTransform trans)
@@ -205,8 +261,8 @@ public final class Utils {
             wh = new double[2];
         }
 
-        wh[0] = points[2];
-        wh[1] = points[5];
+        wh[0] = points[2] + 1;
+        wh[1] = points[5] + 1;
 
         return wh;
     }
