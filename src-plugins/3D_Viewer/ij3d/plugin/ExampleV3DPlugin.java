@@ -20,8 +20,8 @@ public class ExampleV3DPlugin implements Viewer3DPlugin {
 
 	@Override
 	public void run() {
-		System.out.println("universe = " + universe);
-		System.out.println("blabber = " + blabber);
-		JOptionPane.showMessageDialog(null, "Hello 3D Viewer");
+		JOptionPane.showMessageDialog(null, "Hello 3D Viewer!" +
+			"\nuniverse = " + universe +
+			"\nblabber = " + blabber);
 	}
 }
