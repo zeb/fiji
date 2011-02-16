@@ -7,7 +7,8 @@ import imagej.plugin.Plugin;
 import javax.swing.JOptionPane;
 
 @Plugin(
-		menuPath="Help>IJ2 example"
+		menuPath="Help>IJ2 example",
+		type=Viewer3DPlugin.class
 )
 public class ExampleV3DPlugin implements Viewer3DPlugin {
 

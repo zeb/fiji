@@ -191,7 +191,7 @@ public class Image3DUniverse extends DefaultAnimatableUniverse {
 		registrationMenubar = new RegistrationMenubar(this);
 
 		final Viewer3DPluginFinder pluginFinder = new Viewer3DPluginFinder(this);
-		final List<PluginEntry> plugins = new ArrayList<PluginEntry>();
+		final List<PluginEntry<?>> plugins = new ArrayList<PluginEntry<?>>();
 		pluginFinder.findPlugins(plugins);
 		System.out.println("Found " + plugins.size() + " plugins");
 
