@@ -1,5 +1,8 @@
 package ij3d.plugin.transform;
 
+import javax.media.j3d.Transform3D;
+
+import ij3d.Content;
 import ij3d.Image3DUniverse;
 import ij3d.plugin.Viewer3DPlugin;
 import imagej.plugin.Menu;
@@ -19,6 +22,8 @@ public class ResetTransform implements Viewer3DPlugin {
 
 	@Override
 	public void run() {
-		System.out.println("reset transform");
+		Content c = universe.getSelectedOrSingleContent();
+		if(c != null)
+			c.setTransform(new Transform3D());
 	}
 }
