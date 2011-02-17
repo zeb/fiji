@@ -1,7 +1,8 @@
-package ij3d.plugin;
+package ij3d.plugin.help;
 
 import ij.text.TextWindow;
 import ij3d.Image3DUniverse;
+import ij3d.plugin.Viewer3DPlugin;
 import imagej.plugin.Parameter;
 import imagej.plugin.Plugin;
 
