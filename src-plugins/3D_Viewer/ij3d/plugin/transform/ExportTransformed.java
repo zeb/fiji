@@ -30,17 +30,20 @@ public class ExportTransformed implements Viewer3DPlugin {
 		new Thread() {
 			{ setPriority(Thread.NORM_PRIORITY); }
 			public void run() {
-				exportTr(c);
+				ImagePlus imp = createTransformedStack(c);
+				if(imp == null)
+					Utils.error("No greyscale image exists for " + c.getName());
+				else
+					imp.show();
 			}
 		}.start();
 	}
 
-	private void exportTr(Content c) {
+	public static ImagePlus createTransformedStack(Content c) {
 		ImagePlus orig = c.getImage();
-		if(orig == null) {
-			Utils.error("No greyscale image exists for " + c.getName());
-			return;
-		}
+		if(orig == null)
+			return null;
+
 		Transform3D t1 = new Transform3D();
 		c.getLocalTranslate(t1);
 		Transform3D t2 = new Transform3D();
@@ -78,6 +81,6 @@ public class ExportTransformed implements Viewer3DPlugin {
 		out.getImage().setTitle(orig.getTitle() + "_transformed");
 		out.getImage().getProcessor().setColorModel(
 			orig.getProcessor().getColorModel());
-		out.getImage().show();
+		return out.getImage();
 	}
 }
