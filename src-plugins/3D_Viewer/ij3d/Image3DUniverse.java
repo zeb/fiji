@@ -523,6 +523,20 @@ public class Image3DUniverse extends DefaultAnimatableUniverse {
 	}
 
 	/**
+	 * Returns the selected Content; in case no Content is
+	 * selected, but only one Content is present, this Content
+	 * is returned; otherwise, returns null.
+	 */
+	public Content getSelectedOrSingleContent() {
+		Content c = getSelected();
+		if(c != null)
+			return c;
+		if(contents.size() == 1)
+			return (Content)contents.values().iterator().next();
+		return null;
+	}
+
+	/**
 	 * If any Content is selected, deselects it.
 	 */
 	public void clearSelection() {
