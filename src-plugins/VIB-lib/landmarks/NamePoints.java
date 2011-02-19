@@ -20,7 +20,7 @@
 
   In addition, as a special exception, the copyright holders give
   you permission to combine this program with free software programs or
-  libraries that are released under the Apache Public License. 
+  libraries that are released under the Apache Public License.
 
   You should have received a copy of the GNU General Public License
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
@@ -32,11 +32,7 @@ import ij.*;
 import ij.process.*;
 import ij.io.*;
 import ij.gui.*;
-import ij.plugin.*;
-import ij.plugin.filter.*;
-import ij.text.*;
 
-import java.applet.Applet;
 import java.awt.*;
 import java.awt.event.*;
 import java.io.*;
@@ -46,12 +42,10 @@ import java.util.Iterator;
 import java.util.ListIterator;
 import java.util.HashMap;
 import java.util.LinkedList;
-import java.util.regex.*;
 import java.text.DecimalFormat;
 
 import client.ArchiveClient;
 import ij.measure.Calibration;
-import pal.math.MultivariateFunction;
 import stacks.ThreePaneCrop;
 import util.BatchOpener;
 import util.Penalty;
@@ -59,6 +53,7 @@ import vib.FastMatrix;
 import vib.oldregistration.RegistrationAlgorithm;
 import util.OverlayRegistered;
 
+@SuppressWarnings("serial")
 class PointsDialog extends Dialog implements ActionListener, WindowListener {
 
 	Label[] coordinateLabels;
