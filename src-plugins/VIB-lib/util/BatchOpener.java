@@ -11,6 +11,11 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 
+import loci.common.Region;
+import loci.formats.FormatException;
+import loci.plugins.BF;
+import loci.plugins.in.ImporterOptions;
+
 /** This class contains methods I would like to see incorporated into
     HandleExtraFileTypes, or elsewhere.  The main features are:
 
@@ -62,6 +67,42 @@ public class BatchOpener {
 
 		ImageLoaderException(String message) {
 			super(message);
+		}
+	}
+
+	/**
+	 * Returns an array of ImagePlus objects corresponding to all of the
+	 * channels in the image file.  If the file cannot be
+	 * found or there is any other error in opening, null is returned.
+	 * This version of open() uses BioFormats.
+	 *
+	 * @param path   the path of the image file to open
+	 */
+	public static ImagePlus[] openBF(String path) {
+		ImporterOptions options;
+		try {
+			options = new ImporterOptions();
+		} catch( IOException ioe ) {
+			System.err.println("Creating the ImporterOptions object failed:");
+			ioe.printStackTrace();
+			return null;
+		}
+		options.setId(path);
+		//... more API calls to options object to set additional parameters ...
+		try {
+			ImagePlus [] results = BF.openImagePlus(options);
+			if( results.length == 1 && results[0].isComposite() )
+				return BatchOpener.splitChannelsToArray(results[0], true);
+			else
+				return results;
+		} catch( FormatException fe ) {
+			System.err.println("Opening '"+path+"' failed:");
+			fe.printStackTrace();
+			return null;
+		} catch( IOException ioe ) {
+			System.err.println("Opening '"+path+"' failed:");
+			ioe.printStackTrace();
+			return null;
 		}
 	}
 
