@@ -313,7 +313,7 @@ public class HandleExtraFileTypes extends ImagePlus implements PlugIn {
         // Larry Lindsey: open a Reconstruct .ser file
         // http://synapses.clm.utexas.edu/tools/reconstruct/reconstruct.stm
         if (name.endsWith(".ser"))
-                return tryPlugIn("reconstructreader.reconstruct.ReconstructReader", path);
+                return tryPlugIn("reconstructreader.reconstruct.Reconstruct_Reader", path);
 
 		// ****************** MODIFY HERE ******************
 		// do what ever you have to do to recognise your own file type

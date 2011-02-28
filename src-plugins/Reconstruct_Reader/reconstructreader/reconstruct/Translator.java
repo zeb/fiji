@@ -1,16 +1,15 @@
 package reconstructreader.reconstruct;
 
-import ij.IJ;
-import ij.gui.MessageDialog;
 import ini.trakem2.Project;
+import org.w3c.dom.Element;
+import org.w3c.dom.Document;
+import org.w3c.dom.NodeList;
+import org.w3c.dom.Node;
+
 import reconstructreader.Utils;
 
-import ij.io.OpenDialog;
-import ij.plugin.PlugIn;
-
-import javax.xml.parsers.*;
-import org.w3c.dom.*;
-
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
 import java.awt.geom.AffineTransform;
 import java.io.File;
 import java.io.FileWriter;
@@ -18,83 +17,59 @@ import java.io.FilenameFilter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.regex.Pattern;
+import java.util.List;
 
-public class ReconstructReader implements PlugIn
-{
-    private int oid;
-    private String projectName;
+public class Translator {
+
+    private final StringBuilder xmlBuilder;
+
     private Document serDoc;
-    private final ArrayList<Document> sections;
+    private final ArrayList<Document> sectionDocuments;
+    private final ArrayList<ReconstructSection> sections;
+    private final ArrayList<ReconstructAreaList> closedContours;
+    private final ArrayList<ReconstructProfileList> openContours;
+    private final ArrayList<ReconstructPolyLine> zTraces;
+
+    private final String fileName;
+    private final String projectName;
+    private final String unuid;
+    private final String nuid;
+    private final File inputFile;
+
     private int firstLayerOID;
-    private boolean lastStatus;
-    private double preTransPatchHeight;
+    private int currentOID;
 
-    public ReconstructReader()
+    private double[] preTransPatchSize;
+
+    private boolean ready;
+
+
+
+    public Translator(String f)
     {
-        sections = new ArrayList<Document>();
-    }
+        inputFile = new File(f);
+        // Parse out the path
+        final String localFile = inputFile.getName();
+        final File seriesDTD = new File(inputFile.getParent() + "/series.dtd");
+        final File sectionDTD = new File(inputFile.getParent() + "/section.dtd");
 
-    public void run(final String arg) {
-        String fname;
-        String trakEMFile;
-        StringBuilder sb = new StringBuilder();
-
-	lastStatus = false;
-        
-        if (arg.equals(""))
-        {
-        	//fname = "/home/larry/project-files/Volumejosef.ser";
-            OpenDialog od = new OpenDialog("Select Reconstruct ser File", "");
-            fname = od.getDirectory() + od.getFileName();
-        }
-        else
-        {
-            fname = arg;
-        }
-
-        convertReconstruct(fname, sb);
-
-        trakEMFile = fname.toLowerCase().endsWith(".ser") ?
-                fname.substring(0, fname.length() - 4) + ".xml" :
-                fname + ".xml";
-
-        if (lastStatus)
-        {
-            try
-            {
-                FileWriter fw = new FileWriter(
-                        new File(trakEMFile));
-                fw.write(sb.toString());
-                fw.close();
-                Project.openFSProject(trakEMFile);
-            }
-            catch (IOException ioe)
-            {
-                System.err.println("Well, that didn't work.  Tried to write to file " + trakEMFile);
-            }
-        }
-        else
-        {
-            new MessageDialog(IJ.getInstance(), "Error", "Encountered an Error while translating");
-        }
-
-    }
-
-    public StringBuilder convertReconstruct(final String fname, final StringBuilder xmlBuilder) {
-        final File file = new File(fname);
-        final File seriesDTD = new File(file.getParent() + "/series.dtd");
-        final File sectionDTD = new File(file.getParent() + "/section.dtd");
-        final String localFile = file.getName();
-        File[] list;
-
-        sections.clear();
-        oid = -1;
-        firstLayerOID = -1;
+        xmlBuilder = new StringBuilder();
+        sectionDocuments = new ArrayList<Document>();
+        sections = new ArrayList<ReconstructSection>();
+        zTraces = new ArrayList<ReconstructPolyLine>();
+        closedContours = new ArrayList<ReconstructAreaList>();
+        openContours = new ArrayList<ReconstructProfileList>();
 
         projectName = (localFile.endsWith(".ser") || localFile.endsWith(".SER")) ?
                 localFile.substring(0, localFile.length() - 4) : localFile;
+        fileName = f;
+        currentOID = -1;
+        firstLayerOID = -1;
+        nuid = Integer.toString(projectName.hashCode());
+        unuid = Long.toString(System.currentTimeMillis()) + "." + nuid;
 
+        // Make sure that the DTD files exist. Apparently it doesn't matter a
+        // whole lot if they actually contain anything.
         try
         {
             if (!seriesDTD.exists())
@@ -112,79 +87,227 @@ public class ReconstructReader implements PlugIn
                 fw.close();
                 sectionDTD.deleteOnExit();
             }
+
+            ready = true;
         }
         catch (IOException ioe)
         {
             ioe.printStackTrace();
             xmlBuilder.append(ioe.getStackTrace());
-            return xmlBuilder;
+
+            ready = false;
         }
-
-        list = file.getParentFile().listFiles(
-                        new FilenameFilter()
-                        {
-                            public boolean accept(File dir, String name)
-                            {
-                                return Pattern.matches(projectName + ".*[0-9]$", name);
-                            }
-                        }
-                );
-
-        try {
-            DocumentBuilder builder =
-                    DocumentBuilderFactory.newInstance().newDocumentBuilder();
-            serDoc = builder.parse(file);
-
-            for (File f : list)
-            {
-                sections.add(builder.parse(f));
-            }
-
-            Collections.sort(sections, new Utils.ReconstructSectionIndexComparator());
-            preTransPatchHeight = Utils.getReconstructStackHeight(sections);
-            System.out.println("Patch Height: " + preTransPatchHeight);
-
-            xmlBuilder.append("<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?>\n");
-            appendDTD(xmlBuilder);
-            xmlBuilder.append("<trakem2>\n");
-            appendProject(xmlBuilder);
-            appendLayerSet(xmlBuilder);
-            appendDisplay(xmlBuilder);
-            xmlBuilder.append("</trakem2>\n");
-            lastStatus = true;
-        }
-        catch (Exception e) {
-            e.printStackTrace();
-        }
-
-        return xmlBuilder;
     }
+
+    public boolean process()
+    {
+        if (ready)
+        {
+            File[] list;
+
+            sectionDocuments.clear();
+
+            /*
+            Collect all Reconstruct section files.
+            For instance, we might have a series file Reconstruct.ser
+            In this case, projectName should be "Reconstruct" and we want to collect files like
+            Reconstruct.1
+            Reconstruct.2 ...
+            Reconstruct.199
+            Reconstruct.200
+            */
+            list = inputFile.getParentFile().listFiles(
+                    new FilenameFilter()
+                    {
+                        public boolean accept(File dir, String name)
+                        {
+                            return name.matches(projectName + ".*[0-9]$");
+                            //return Pattern.matches(projectName + ".*[0-9]$", name);
+                        }
+                    }
+            );
+
+            try
+            {
+                //Read and parse all of the files (series and sections)
+                DocumentBuilder builder =
+                        DocumentBuilderFactory.newInstance().newDocumentBuilder();
+
+                serDoc = builder.parse(inputFile);
+
+                for (File f : list)
+                {
+                    sectionDocuments.add(builder.parse(f));
+                }
+
+                //Sort section files by index.
+                Collections.sort(sectionDocuments, new Utils.ReconstructSectionIndexComparator());
+
+                //Need the pre-transform stack height in order to translate the Reconstruct
+                //image transforms into TrakEM2 transforms. The coordinate systems are almost
+                //as different as possible, for a 2D euclidean space.
+                preTransPatchSize = Utils.getReconstructStackSize(sectionDocuments);
+
+                /*
+                Reconstruct : TrakEM2
+                Contour (closed) : area_list
+                Contour (open) : profile_list
+                Z-Trace : polyline
+
+                Contours are stores in section files, whereas Z-Traces are stored in the
+                series file.
+
+                area_lists and polylines go in the trakem layer set definition, whereas
+                profiles are stored directly in the layers.
+
+                All of this is to say, that we need to collect all of the contours and ztraces
+                ahead of time, and link them to their respective sections/layers.
+                */
+
+                System.out.println("Collecting stuff");
+
+                assignSectionOIDs(sectionDocuments);
+                collectZTraces(serDoc);
+                collectContours(sectionDocuments);
+
+                xmlBuilder.append("<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?>\n");
+                appendDTD(xmlBuilder);
+                xmlBuilder.append("<trakem2>\n");
+                System.out.println("Appending Project");
+                appendProject(xmlBuilder);
+                System.out.println("Appending LayerSet");
+                appendLayerSet(xmlBuilder);
+                System.out.println("Appending Display");
+                appendDisplay(xmlBuilder);
+                System.out.println("Finished.");
+                xmlBuilder.append("</trakem2>\n");
+                return true;
+            }
+            catch (Exception e)
+            {
+                e.printStackTrace();
+                return false;
+            }
+        }
+        else
+        {
+            return false;
+        }
+    }
+
+    protected void assignSectionOIDs(List<Document> docs)
+    {
+        for (Document d : docs)
+        {
+
+        }
+    }
+
+    protected void collectZTraces(Document serFile)
+    {
+        NodeList zContours = serFile.getElementsByTagName("ZContour");
+
+        for (int i = 0; i < zContours.getLength(); ++i)
+        {
+            zTraces.add(new ReconstructPolyLine((Element)zContours.item(i), this));
+        }
+    }
+
+    protected void collectContours(List<Document> sectionDocs)
+    {
+        for (Document doc : sectionDocs)
+        {
+            NodeList contours = doc.getElementsByTagName("Contour");
+            int index = Integer.valueOf(doc.getDocumentElement().getAttribute("index"));
+            ReconstructSection currSection = new ReconstructSection(index, nextOID(), doc);
+            sections.add(currSection);
+
+            for (int i = 0; i < contours.getLength(); ++i)
+            {
+                Element e = (Element)contours.item(i);
+                if (e.getAttribute("closed").equals("true"))
+                {
+                    if (closedContours.contains(e))
+                    {
+                        Utils.addContour(closedContours, e);
+                    }
+                    else
+                    {
+                        closedContours.add(new ReconstructAreaList(e, this));
+                    }
+                }
+                else
+                {
+                    if (openContours.contains(e))
+                    {
+                        Utils.addContour(openContours, e);
+                    }
+                    else
+                    {
+                        openContours.add(new ReconstructProfileList(e, this));
+                    }
+                }
+            }
+        }
+    }
+
 
     protected String getUNUID()
     {
-        return "1280781963399.1877850213.102743204";
+        /*
+        Use the project name's hash code for the unuid.
+        It is probable that someone may want to convert a project back and
+        forth between Reconstruct and TrakEM2, and it would be kind of a
+        pain to regenerate the mipmaps each time.
+        */
+        return unuid;
     }
 
-    protected String getMipMapFolder(final String unuid)
+    protected String getMipMapFolder()
     {
-        return "trakem2." + unuid + "/trakem2.mipmaps";
+        return "trakem2." + nuid + "/trakem2.mipmaps";
     }
 
     protected void appendDTD(final StringBuilder sb)
     {
         //TODO: something smarter than this.
-        sb.append("<!DOCTYPE trakem2_anything [\n" +
+        sb.append("<!DOCTYPE trakem2_reconstruct [\n" +
                 "\t<!ELEMENT trakem2 (project,t2_layer_set,t2_display)>\n" +
-                "\t<!ELEMENT project (anything)>\n" +
+                "\t<!ELEMENT project (reconstruct)>\n" +
                 "\t<!ATTLIST project id NMTOKEN #REQUIRED>\n" +
                 "\t<!ATTLIST project unuid NMTOKEN #REQUIRED>\n" +
                 "\t<!ATTLIST project title NMTOKEN #REQUIRED>\n" +
                 "\t<!ATTLIST project preprocessor NMTOKEN #REQUIRED>\n" +
                 "\t<!ATTLIST project mipmaps_folder NMTOKEN #REQUIRED>\n" +
                 "\t<!ATTLIST project storage_folder NMTOKEN #REQUIRED>\n" +
-                "\t<!ELEMENT anything EMPTY>\n" +
-                "\t<!ATTLIST anything id NMTOKEN #REQUIRED>\n" +
-                "\t<!ATTLIST anything expanded NMTOKEN #REQUIRED>\n" +
+                "\t<!ELEMENT reconstruct (reconstruct_contour, reconstruct_ztrace, reconstruct_open_trace)>\n" +
+                "\t<!ATTLIST reconstruct id NMTOKEN #REQUIRED>\n" +
+                "\t<!ATTLIST reconstruct expanded NMTOKEN #REQUIRED>\n" +
+                "\t<!ELEMENT reconstruct_contour (area_list)>\n" +
+                "\t<!ATTLIST reconstruct_contour id NMTOKEN #REQUIRED>\n" +
+                "\t<!ATTLIST reconstruct_contour expanded NMTOKEN #REQUIRED>\n" +
+                "\t<!ELEMENT area_list EMPTY>\n" +
+                "\t<!ATTLIST area_list id NMTOKEN #REQUIRED>\n" +
+                "\t<!ATTLIST area_list oid NMTOKEN #REQUIRED>\n" +
+                "\t<!ATTLIST area_list expanded NMTOKEN #REQUIRED>\n" +
+                "\t<!ELEMENT reconstruct_ztrace (polyline)>\n" +
+                "\t<!ATTLIST reconstruct_ztrace id NMTOKEN #REQUIRED>\n" +
+                "\t<!ATTLIST reconstruct_ztrace expanded NMTOKEN #REQUIRED>\n" +
+                "\t<!ELEMENT polyline EMPTY>\n" +
+                "\t<!ATTLIST polyline id NMTOKEN #REQUIRED>\n" +
+                "\t<!ATTLIST polyline oid NMTOKEN #REQUIRED>\n" +
+                "\t<!ATTLIST polyline expanded NMTOKEN #REQUIRED>\n" +
+                "\t<!ELEMENT reconstruct_open_trace (profile_list)>\n" +
+                "\t<!ATTLIST reconstruct_open_trace id NMTOKEN #REQUIRED>\n" +
+                "\t<!ATTLIST reconstruct_open_trace expanded NMTOKEN #REQUIRED>\n" +
+                "\t<!ELEMENT profile_list (profile)>\n" +
+                "\t<!ATTLIST profile_list id NMTOKEN #REQUIRED>\n" +
+                "\t<!ATTLIST profile_list oid NMTOKEN #REQUIRED>\n" +
+                "\t<!ATTLIST profile_list expanded NMTOKEN #REQUIRED>\n" +
+                "\t<!ELEMENT profile EMPTY>\n" +
+                "\t<!ATTLIST profile id NMTOKEN #REQUIRED>\n" +
+                "\t<!ATTLIST profile oid NMTOKEN #REQUIRED>\n" +
+                "\t<!ATTLIST profile expanded NMTOKEN #REQUIRED>\n" +
                 "\t<!ELEMENT t2_layer (t2_patch,t2_label,t2_layer_set,t2_profile)>\n" +
                 "\t<!ATTLIST t2_layer oid NMTOKEN #REQUIRED>\n" +
                 "\t<!ATTLIST t2_layer thickness NMTOKEN #REQUIRED>\n" +
@@ -206,6 +329,8 @@ public class ReconstructReader implements PlugIn
                 "\t<!ATTLIST t2_layer_set rot_z NMTOKEN #REQUIRED>\n" +
                 "\t<!ATTLIST t2_layer_set snapshots_quality NMTOKEN #REQUIRED>\n" +
                 "\t<!ATTLIST t2_layer_set color_cues NMTOKEN #REQUIRED>\n" +
+                "\t<!ATTLIST t2_layer_set area_color_cues NMTOKEN #REQUIRED>\n" +
+                "\t<!ATTLIST t2_layer_set avoid_color_cue_colors NMTOKEN #REQUIRED>\n" +
                 "\t<!ATTLIST t2_layer_set n_layers_color_cue NMTOKEN #REQUIRED>\n" +
                 "\t<!ATTLIST t2_layer_set paint_arrows NMTOKEN #REQUIRED>\n" +
                 "\t<!ATTLIST t2_layer_set paint_edge_confidence_boxes NMTOKEN #REQUIRED>\n" +
@@ -399,6 +524,15 @@ public class ReconstructReader implements PlugIn
                 "\t<!ATTLIST t2_display scroll_step NMTOKEN #REQUIRED>\n" +
                 "\t<!ATTLIST t2_display c_alphas NMTOKEN #REQUIRED>\n" +
                 "\t<!ATTLIST t2_display c_alphas_state NMTOKEN #REQUIRED>\n" +
+                "\t<!ATTLIST t2_display filter_enabled NMTOKEN #REQUIRED>\n" +
+                "\t<!ATTLIST t2_display filter_min_max_enabled NMTOKEN #REQUIRED>\n" +
+                "\t<!ATTLIST t2_display filter_min NMTOKEN #REQUIRED>\n" +
+                "\t<!ATTLIST t2_display filter_max NMTOKEN #REQUIRED>\n" +
+                "\t<!ATTLIST t2_display filter_invert NMTOKEN #REQUIRED>\n" +
+                "\t<!ATTLIST t2_display filter_clahe_enabled NMTOKEN #REQUIRED>\n" +
+                "\t<!ATTLIST t2_display filter_clahe_block_size NMTOKEN #REQUIRED>\n" +
+                "\t<!ATTLIST t2_display filter_clahe_histogram_bins NMTOKEN #REQUIRED>\n" +
+                "\t<!ATTLIST t2_display filter_clahe_max_slope NMTOKEN #REQUIRED>\n" +
                 "\t<!ELEMENT ict_transform EMPTY>\n" +
                 "\t<!ATTLIST ict_transform class CDATA #REQUIRED>\n" +
                 "\t<!ATTLIST ict_transform data CDATA #REQUIRED>\n" +
@@ -407,7 +541,7 @@ public class ReconstructReader implements PlugIn
                 "\t<!ATTLIST iict_transform data CDATA #REQUIRED>\n" +
                 "\t<!ELEMENT ict_transform_list (ict_transform|iict_transform)*>\n" +
                 "\t<!ELEMENT iict_transform_list (iict_transform*)>\n" +
-                "] >\n\n");
+                "] >\n");
     }
 
     protected void appendProject(final StringBuilder sb)
@@ -416,16 +550,22 @@ public class ReconstructReader implements PlugIn
         sb.append("id=\"0\"\n");
         sb.append("title=\"").append(projectName).append("\"\n");
         sb.append("unuid=\"").append(getUNUID()).append("\"\n");
-        sb.append("mipmaps_folder=\"").append(getMipMapFolder(getUNUID())).append("\"\n");
+        sb.append("mipmaps_folder=\"").append(getMipMapFolder()).append("\"\n");
         sb.append("storage_folder=\"\"\n");
         sb.append("mipmaps_format=\"0\"\n");
         sb.append(">\n");
+
+        for (ReconstructAreaList ral : closedContours)
+        {
+            ral.appendProjectXML(sb);
+        }
+
         sb.append("</project>\n");
     }
 
     protected void appendLayerSet(final StringBuilder sb)
     {
-        Node image = sections.get(0).getElementsByTagName("Image").item(0);
+        Node image = sectionDocuments.get(0).getElementsByTagName("Image").item(0);
         double[] layerwh = Utils.getReconstructImageWH(image);
 
         sb.append("<t2_layer_set\n");
@@ -451,7 +591,12 @@ public class ReconstructReader implements PlugIn
 
         appendCalibration(sb);
 
-        for (Document doc : sections)
+        for (ReconstructAreaList ral : closedContours)
+        {
+            ral.appendLayerSetXML(sb, sections);
+        }
+
+        for (Document doc : sectionDocuments)
         {
             appendLayer(sb, doc);
         }
@@ -482,7 +627,7 @@ public class ReconstructReader implements PlugIn
 
         for (int i = 0; i < imageList.getLength(); ++i)
         {
-            appendPatch(sb, (Element)imageList.item(0));
+            appendPatch(sb, (Element)imageList.item(i));
         }
 
         sb.append("</t2_layer>\n");
@@ -492,7 +637,7 @@ public class ReconstructReader implements PlugIn
     {
         Element rTransform = (Element)image.getParentNode();
         AffineTransform trans = Utils.reconstructTransform(rTransform,
-                Double.valueOf(image.getAttribute("mag")), preTransPatchHeight);
+                Double.valueOf(image.getAttribute("mag")), preTransPatchSize[1]);
         String src = image.getAttribute("src");
         String transString = Utils.transformToString(trans);
         double[] wh = Utils.getReconstructImageWH(image);
@@ -517,9 +662,9 @@ public class ReconstructReader implements PlugIn
 
     protected void appendCalibration(final StringBuilder sb)
     {
-        Element image = (Element)sections.get(0).getElementsByTagName("Image").item(0);
+        Element image = (Element) sectionDocuments.get(0).getElementsByTagName("Image").item(0);
         String mag = image.getAttribute("mag");
-        String thickness = sections.get(0).getDocumentElement().getAttribute("thickness");
+        String thickness = sectionDocuments.get(0).getDocumentElement().getAttribute("thickness");
 
         sb.append("<t2_calibration\n" +
                 "pixelWidth=\"").append(mag).append("\"\n" +
@@ -552,9 +697,49 @@ public class ReconstructReader implements PlugIn
                 "/>\n");
     }
 
-    protected int nextOID()
+    public int nextOID()
     {
-        return ++oid;
+        return ++currentOID;
     }
 
+    public int layerIndexToOID(final int index)
+    {
+        for (ReconstructSection sec : sections)
+        {
+            if (sec.getIndex() == index)
+            {
+                return sec.getOID();
+            }
+        }
+        return -1;
+    }
+
+    public double getStackHeight()
+    {
+        return preTransPatchSize[1];
+    }
+
+    public double getStackWidth()
+    {
+        return preTransPatchSize[0];
+    }
+
+
+    public String writeTrakEM2()
+    {
+        final String trakEMFile = inputFile.getParentFile().getAbsolutePath() + "/" + projectName + ".xml";
+
+        try
+        {
+            FileWriter fw = new FileWriter(
+                    new File(trakEMFile));
+            fw.write(xmlBuilder.toString());
+            fw.close();
+            return trakEMFile;
+        }
+        catch (IOException ioe)
+        {
+            return null;
+        }
+    }
 }

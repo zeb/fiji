@@ -1,6 +1,8 @@
 package reconstructreader;
 
 import org.w3c.dom.*;
+import reconstructreader.reconstruct.ContourSet;
+import reconstructreader.reconstruct.ReconstructAreaList;
 
 import java.awt.geom.AffineTransform;
 import java.awt.geom.NoninvertibleTransformException;
@@ -15,8 +17,17 @@ public final class Utils {
 
     private Utils(){}
 
-    public static double getReconstructStackHeight(List<Document> sections) {
+
+    public static int sectionIndex(final Node n)
+    {
+        Document d = n.getOwnerDocument();
+        Element e = d.getDocumentElement();
+        return Integer.valueOf(e.getAttribute("index"));
+    }
+
+    public static double[] getReconstructStackSize(final List<Document> sections) {
         double maxImageHeight = 0;
+        double maxImageWidth = 0;
         for (Document doc : sections)
         {
             NodeList images = doc.getElementsByTagName("Image");
@@ -24,13 +35,17 @@ public final class Utils {
             {
                 Node image = images.item(i);
                 double[] wh = getReconstructImageWH(image);
+                if (wh[0] > maxImageWidth)
+                {
+                    maxImageWidth = wh[0];
+                }
                 if (wh[1] > maxImageHeight)
                 {
                     maxImageHeight = wh[1];
                 }
             }
         }
-        return maxImageHeight;
+        return new double[]{maxImageWidth, maxImageHeight};
     }
 
 
@@ -142,14 +157,14 @@ public final class Utils {
         return new AffineTransform(unFuckedMatrix);
     }
 
-    public static String transformToString(AffineTransform trans)
+    public static String transformToString(final AffineTransform trans)
     {
         double[] mat = new double[6];
         trans.getMatrix(mat);
         return transformToString(mat);
     }
 
-    public static String transformToString(double[] matrix)
+    public static String transformToString(final double[] matrix)
     {
         StringBuilder transSB = new StringBuilder();
         transSB.append("matrix(");
@@ -163,14 +178,16 @@ public final class Utils {
         return transSB.toString();
     }
 
-    public static double[] getReconstructBoundingBox(double[] wh, AffineTransform trans) {
+    public static double[] getReconstructBoundingBox(final double[] wh,
+                                                     final AffineTransform trans) {
         double x = wh[0], y = wh[1];
         double[] xy = new double[]{0, 0, x, 0, x, y, 0, y};
         trans.transform(xy, 0, xy, 0, 4);
         return xy;
     }
 
-    public static Element findElementByAttributeRegex(NodeList list, String name, String regex)
+    public static Element findElementByAttributeRegex(final NodeList list,
+                                                      final String name, final String regex)
     {
         for (int i = 0; i < list.getLength(); ++i)
         {
@@ -188,7 +205,8 @@ public final class Utils {
         return null;
     }
 
-    public static Element findElementByAttribute(NodeList list, String name, String value)
+    public static Element findElementByAttribute(final NodeList list,
+                                                 final String name, final String value)
     {
         for (int i = 0; i < list.getLength(); ++i)
         {
@@ -210,7 +228,8 @@ public final class Utils {
         return new double[tokr.countTokens()];
     }
 
-    public static int nodeValueToVector(String val, double[] matrix)
+    public static int nodeValueToVector(String val,
+                                        final double[] matrix)
     {
         StringTokenizer t;
         int rCount = 0, i = 0;
@@ -226,7 +245,13 @@ public final class Utils {
 
         t = new StringTokenizer(val, DELIM);
 
-        while (t.hasMoreElements() && !t.nextToken().contains(","))
+        String tok = "";
+        while (t.hasMoreElements() && !(tok = t.nextToken()).contains(","))
+        {
+            ++rCount;
+        }
+
+        if (tok.contains(","))
         {
             ++rCount;
         }
@@ -237,16 +262,16 @@ public final class Utils {
         {
             matrix[i++] = Float.valueOf(t.nextToken());
         }
-
         return rCount;
     }
 
-    public static double[] getReconstructImageWH(Node image)
+    public static double[] getReconstructImageWH(final Node image)
     {
         return getReconstructImageWH(image, null);
     }
 
-    public static double[] getReconstructImageWH(Node image, double[] wh)
+    public static double[] getReconstructImageWH(final Node image,
+                                                 double[] wh)
     {
         NodeList imageContourList =
                 ((Element)image.getParentNode()).getElementsByTagName("Contour");
@@ -267,6 +292,38 @@ public final class Utils {
         return wh;
     }
 
+    public static void addContour(final List<? extends ContourSet> contours,
+                                  final Element e)
+    {
+        int i = contours.indexOf(e);
+        ContourSet cs = contours.get(i);
+        cs.addContour(e);
+    }
 
+    public static void selectElementsByIndex(final List<Element> elementList,
+                                             final List<Integer> indexList,
+                                             final List<Element> outputList,
+                                             final int index)
+    {
+        for (int i = 0; i < indexList.size(); ++i)
+        {
+            if (indexList.get(i).equals(index))
+            {
+                outputList.add(elementList.get(i));
+            }
+        }
+    }
+
+    public static void append2DPointXML(final StringBuilder sb, final double[] pts)
+    {
+        String cletter = "M";
+        sb.append(pts[0]).append(cletter).append(" ").append(pts[1]).append(" ");
+        cletter = "L";
+        for (int i = 2; i < pts.length ; i+=2)
+        {
+            sb.append(pts[i]).append(cletter).append(" ").append(pts[i + 1]).append(" ");
+        }
+        sb.append("z");
+    }
 
 }
