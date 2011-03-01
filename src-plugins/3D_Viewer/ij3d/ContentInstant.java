@@ -11,6 +11,9 @@ import ij.ImageStack;
 import ij.io.FileInfo;
 import ij.io.OpenDialog;
 
+import customnode.CustomMeshNode;
+import customnode.CustomMesh;
+
 import vib.PointList;
 import isosurface.MeshGroup;
 import voltex.VoltexGroup;
@@ -20,6 +23,8 @@ import surfaceplot.SurfacePlotGroup;
 import java.util.BitSet;
 
 import java.io.File;
+import java.io.IOException;
+import java.io.PrintStream;
 
 import javax.media.j3d.BranchGroup;
 import javax.media.j3d.Switch;
@@ -337,7 +342,13 @@ public class ContentInstant extends BranchGroup implements UniverseListener, Con
 	}
 
 	public void loadPointList() {
-		points = PointList.load(image);
+		PointList points = PointList.load(image);
+		if (points != null)
+			setPointList(points);
+	}
+
+	public void setPointList(PointList points) {
+		this.points = points;
 		plPanel.setPointList(points);
 		plShape.setPointList(points);
 	}
@@ -351,6 +362,10 @@ public class ContentInstant extends BranchGroup implements UniverseListener, Con
 			n = fi.fileName;
 		}
 		points.save(dir, n);
+	}
+
+	public void savePointList(PrintStream out) throws IOException {
+		points.save(out, false);
 	}
 
 	/**
@@ -378,6 +393,14 @@ public class ContentInstant extends BranchGroup implements UniverseListener, Con
 
 	public void setLandmarkPointSize(float r) {
 		plShape.setRadius(r);
+	}
+
+	public Color3f getLandmarkColor() {
+		return plShape.getColor();
+	}
+
+	public void setLandmarkColor(Color3f color) {
+		plShape.setColor(color);
 	}
 
 	public PointList getPointList() {
@@ -496,6 +519,23 @@ public class ContentInstant extends BranchGroup implements UniverseListener, Con
 
 	public boolean isShaded() {
 		return shaded;
+	}
+
+	public void applySurfaceColors(ImagePlus imp) {
+		if(contentNode == null)
+			return;
+		CustomMesh mesh = null;
+		switch(type) {
+			case SURFACE:
+				mesh = ((MeshGroup)contentNode).getMesh();
+				break;
+			case CUSTOM:
+				mesh = ((CustomMeshNode)contentNode).getMesh();
+				break;
+		}
+		if(mesh == null)
+			return;
+		mesh.loadSurfaceColorsFromImage(imp);
 	}
 
 	public void setColor(Color3f color) {

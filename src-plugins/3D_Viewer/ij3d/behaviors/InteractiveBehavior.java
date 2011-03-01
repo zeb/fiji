@@ -12,6 +12,7 @@ import java.awt.event.KeyEvent;
 import java.awt.AWTEvent;
 
 import ij3d.Content;
+import ij3d.ContentInstant;
 import ij3d.DefaultUniverse;
 import ij3d.ImageCanvas3D;
 import ij3d.Image3DUniverse;
@@ -51,7 +52,7 @@ public class InteractiveBehavior extends Behavior {
 	private static final int CTRL  = InputEvent.CTRL_DOWN_MASK;
 
 	private static final int PICK_POINT_MASK = MouseEvent.BUTTON1_DOWN_MASK;
-	private static final int DELETE_POINT_MASK = InputEvent.SHIFT_DOWN_MASK |
+	private static final int DELETE_POINT_MASK = InputEvent.ALT_DOWN_MASK |
 						MouseEvent.BUTTON1_DOWN_MASK;
 
 	public static final double TWO_RAD = 2 * Math.PI / 180;
@@ -209,13 +210,15 @@ public class InteractiveBehavior extends Behavior {
 		 * HAND tool and the last used tool.
 		 */
 		if (code == KeyEvent.VK_ESCAPE) {
-			if (univ.ui.isHandTool())
+			if(((Image3DUniverse)univ).isFullScreen())
+				((Image3DUniverse)univ).setFullScreen(false);
+			else if (univ.ui.isHandTool())
 				univ.ui.setTool(lastToolID);
 			else {
 				lastToolID = univ.ui.getToolId();
 				univ.ui.setHandTool();
 			}
-			return;
+			return; // consumed
 		}
 
 		Content c = univ.getSelected();
@@ -262,23 +265,28 @@ public class InteractiveBehavior extends Behavior {
 				case KeyEvent.VK_DOWN: viewTransformer.zoom(-1); return;
 			}
 		} else if(c != null && c.getType() == Content.ORTHO && axis != -1) {
-			OrthoGroup og = (OrthoGroup)c.getContent();
-			switch(code) {
-				case KeyEvent.VK_RIGHT:
-				case KeyEvent.VK_UP:
-					og.increase(axis);
-					univ.fireContentChanged(c);
-					return;
-				case KeyEvent.VK_LEFT:
-				case KeyEvent.VK_DOWN:
-					og.decrease(axis);
-					univ.fireContentChanged(c);
-					return;
-				case KeyEvent.VK_SPACE:
-					og.setVisible(axis, !og.isVisible(axis));
-					univ.fireContentChanged(c);
-					return;
+			boolean changed = false;
+			for(ContentInstant ci : c.getInstants().values()) {
+				OrthoGroup og = (OrthoGroup)ci.getContent();
+				switch(code) {
+					case KeyEvent.VK_RIGHT:
+					case KeyEvent.VK_UP:
+						og.increase(axis);
+						changed = true;
+						break;
+					case KeyEvent.VK_LEFT:
+					case KeyEvent.VK_DOWN:
+						og.decrease(axis);
+						changed = true;
+						break;
+					case KeyEvent.VK_SPACE:
+						og.setVisible(axis, !og.isVisible(axis));
+						changed = true;
+						break;
+				}
 			}
+			if(changed)
+				univ.fireContentChanged(c);
 		} else {
 			if(c != null && !c.isLocked())
 				contentTransformer.init(c, 0, 0);
@@ -323,7 +331,7 @@ public class InteractiveBehavior extends Behavior {
 			if (consumed)
 				e.consume();
 			if(!e.isConsumed() && IJ.getInstance() != null)
-				if(code == KeyEvent.VK_L)
+				if(code == KeyEvent.VK_L || code == KeyEvent.VK_ENTER)
 					IJ.getInstance().keyPressed(e);
 		}
 	}
@@ -358,7 +366,7 @@ public class InteractiveBehavior extends Behavior {
 				} if(mask == PICK_POINT_MASK) {
 					picker.addPoint(sel, e);
 					e.consume();
-				} else if(mask == DELETE_POINT_MASK) {
+				} else if((mask & DELETE_POINT_MASK) == DELETE_POINT_MASK) {
 					picker.deletePoint(sel, e);
 					e.consume();
 				}
@@ -395,14 +403,16 @@ public class InteractiveBehavior extends Behavior {
 				axis = VolumeRenderer.Z_AXIS;
 			if(c != null && c.getType() == Content.ORTHO
 								&& axis != -1) {
-				OrthoGroup og = (OrthoGroup)c.getContent();
 				MouseWheelEvent we = (MouseWheelEvent)e;
 				int units = 0;
 				if(we.getScrollType() ==
 					MouseWheelEvent.WHEEL_UNIT_SCROLL)
 					units = we.getUnitsToScroll();
-				if(units > 0) og.increase(axis);
-				else if(units < 0) og.decrease(axis);
+				for(ContentInstant ci : c.getInstants().values()) {
+					OrthoGroup og = (OrthoGroup)ci.getContent();
+					if(units > 0) og.increase(axis);
+					else if(units < 0) og.decrease(axis);
+				}
 				univ.fireContentChanged(c);
 			} else {
 				viewTransformer.wheel_zoom(e);

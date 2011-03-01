@@ -203,7 +203,6 @@ PLUGIN_TARGETS=plugins/Jython_Interpreter.jar \
 	plugins/RandomJ_.jar \
 	plugins/Linear_Kuwahara.jar \
 	plugins/Thread_Killer.jar \
-	plugins/Jython_Scripts.jar \
 	plugins/Samples_.jar \
 	plugins/Lasso_and_Blow_Tool.jar \
 	jars/mij.jar \
@@ -285,7 +284,7 @@ jars/imglib-scripting.jar <- modules/imglib/
 # From source
 libs[] <- jars/test-fiji.jar jars/zs.jar jars/VIB-lib.jar jars/Jama-1.0.2.jar \
 	jars/fiji-scripting.jar jars/fiji-lib.jar jars/jep.jar \
-	jars/pal-optimization.jar jars/Updater_Fix.jar
+	jars/pal-optimization.jar jars/Updater_Fix.jar plugins/JNI_Example.jar \
 
 plugins/Record_Screen.jar <- src-plugins/Record_Screen/ src-plugins/Record_Screen/**/*
 
@@ -345,11 +344,6 @@ CLASSPATH(plugins/Arrow_.jar)=jars/ij.jar:jars/fiji-lib.jar
 CLASSPATH(plugins/TransformJ_.jar)=jars/ij.jar:jars/imagescience.jar
 CLASSPATH(plugins/FeatureJ_.jar)=jars/ij.jar:jars/imagescience.jar
 CLASSPATH(plugins/RandomJ_.jar)=jars/ij.jar:jars/imagescience.jar
-CLASSPATH(plugins/Jython_Scripts.jar)=jars/ij.jar:plugins/Jython_Interpreter.jar:jars/fiji-scripting.jar
-plugins/Jython_Scripts.jar <- \
-	src-plugins/Jython_Scripts/**/*java \
-	src-plugins/Jython_Scripts/scripts/*py \
-	src-plugins/Jython_Scripts/plugins.config
 CLASSPATH(plugins/Auto_Threshold.jar)=jars/ij.jar
 CLASSPATH(plugins/Colocalisation_Analysis.jar)=jars/ij.jar
 CLASSPATH(plugins/Series_Labeler.jar)=jars/ij.jar
@@ -416,7 +410,8 @@ CLASSPATH(plugins/panorama_.jar)=jars/ij.jar:jars/mpicbg.jar:/jars/mpicbg_.jar
 CLASSPATH(jars/weave_jy2java.jar)=plugins/Refresh_Javas.jar:jars/fiji-scripting.jar:jars/Fiji.jar:jars/ij.jar:plugins/Script_Editor.jar
 CLASSPATH(plugins/3D_Blob_Segmentation.jar)=jars/ij.jar:plugins/level_sets.jar:plugins/3D_Viewer.jar:jars/VIB-lib.jar:jars/imglib.jar:$JAVA3D_JARS
 CLASSPATH(plugins/Feature_Detection.jar)=jars/ij.jar:jars/imglib-ij.jar:jars/imglib.jar:jars/imglib-algorithms.jar:jars/Jama-1.0.2.jar
-CLASSPATH(plugins/Reconstruct_Reader.jar)=jars/ij.jar:plugins/TrakEM2_.jar
+LIBS(plugins/JNI_Example.jar)=-lm
+CLASSPATH(plugins/JNI_Example.jar)=jars/ij.jar:jars/fiji-lib.jar
 
 # pre-Java5 generics ;-)
 
@@ -448,21 +443,25 @@ JAVA_LIB_PATH(macosx)=
 
 # The variables CFLAGS, LDFLAGS and LIBS will be used for compiling
 # C and C++ programs.
-COMMONCFLAGS=-Wall -Iincludes \
-	-DJAVA_HOME='"$FIJI_JAVA_HOME_UNEXPANDED"' -DJAVA_LIB_PATH='"$JAVA_LIB_PATH"'
+COMMONCFLAGS=-Wall -Iincludes
 WINOPTS=-mwindows -mno-cygwin -DMINGW32
-CFLAGS(win32)=$COMMONCFLAGS $WINOPTS
-CFLAGS(win64)=$COMMONCFLAGS $WINOPTS
+CFLAGS(win32)=$COMMONCFLAGS $WINOPTS \
+	-DJAVA_HOME='"$FIJI_JAVA_HOME_UNEXPANDED(win32)"' -DJAVA_LIB_PATH='"$JAVA_LIB_PATH(win32)"'
+CFLAGS(win64)=$COMMONCFLAGS $WINOPTS \
+	-DJAVA_HOME='"$FIJI_JAVA_HOME_UNEXPANDED(win64)"' -DJAVA_LIB_PATH='"$JAVA_LIB_PATH(win64)"'
 
 # Include 64-bit architectures only in ./fiji (as opposed to ./fiji-tiger),
 # and only on MacOSX
 MACOPTS(osx10.3)=-I/System/Library/Frameworks/JavaVM.Framework/Headers \
-	-DMACOSX
+	-DMACOSX \
+	-DJAVA_HOME='"$FIJI_JAVA_HOME_UNEXPANDED(macosx)"' -DJAVA_LIB_PATH='"$JAVA_LIB_PATH(macosx)"'
 MACOPTS(osx10.4)=$MACOPTS(osx10.3) -mmacosx-version-min=10.3 -arch i386 -arch ppc
 MACOPTS(osx10.5)=$MACOPTS(osx10.3) -mmacosx-version-min=10.4 -arch i386 -arch x86_64
 
-CFLAGS(linux)=$COMMONCFLAGS -DIPV6_MAYBE_BROKEN -fno-stack-protector
-CFLAGS(linux64)=$COMMONCFLAGS -DIPV6_MAYBE_BROKEN -fno-stack-protector
+CFLAGS(linux)=$COMMONCFLAGS -DIPV6_MAYBE_BROKEN -fno-stack-protector \
+	-DJAVA_HOME='"$FIJI_JAVA_HOME_UNEXPANDED(linux)"' -DJAVA_LIB_PATH='"$JAVA_LIB_PATH(linux)"'
+CFLAGS(linux64)=$COMMONCFLAGS -DIPV6_MAYBE_BROKEN -fno-stack-protector \
+	-DJAVA_HOME='"$FIJI_JAVA_HOME_UNEXPANDED(linux64)"' -DJAVA_LIB_PATH='"$JAVA_LIB_PATH(linux64)"'
 
 LDFLAGS(win32)=$LDFLAGS $WINOPTS
 
@@ -493,11 +492,11 @@ fiji-panther <- fiji.c
 all-cross[] <- cross-win32 cross-win64 cross-linux cross-macosx cross-tiger
 # cross-tiger does not work yet
 
-cross-tiger[bin/cross-compiler.py tiger \
+cross-tiger[bin/cross-compiler.bsh tiger \
 	$CFLAGS(fiji-panther) $LIBS(macosx)] <- fiji.c
-cross-macosx[bin/cross-compiler.py macosx \
+cross-macosx[bin/cross-compiler.bsh macosx \
 	$CFLAGS(fiji-panther) $LIBS(macosx)] <- fiji.c
-cross-*[bin/cross-compiler.py * $CFLAGS(*) $LDFLAGS(*) $LIBS(*)] <- fiji.c
+cross-*[bin/cross-compiler.bsh * $CFLAGS(*) $LDFLAGS(*) $LIBS(*)] <- fiji.c
 
 # Precompiled stuff
 
