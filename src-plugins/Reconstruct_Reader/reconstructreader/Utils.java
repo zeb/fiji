@@ -316,12 +316,12 @@ public final class Utils {
 
     public static void append2DPointXML(final StringBuilder sb, final double[] pts)
     {
-        String cletter = "M";
-        sb.append(pts[0]).append(cletter).append(" ").append(pts[1]).append(" ");
-        cletter = "L";
+        sb.append("M ").append(pts[0]).append(" ").append(pts[1]).append(" ");
+
+        System.out.println("Appending points. Found " + pts.length + " of them");
         for (int i = 2; i < pts.length ; i+=2)
         {
-            sb.append(pts[i]).append(cletter).append(" ").append(pts[i + 1]).append(" ");
+            sb.append(pts[i]).append(" L ").append(pts[i + 1]).append(" ");
         }
         sb.append("z");
     }

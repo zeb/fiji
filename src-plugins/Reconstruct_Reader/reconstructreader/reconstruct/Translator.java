@@ -36,7 +36,6 @@ public class Translator {
     private final String nuid;
     private final File inputFile;
 
-    private int firstLayerOID;
     private int currentOID;
 
     private double[] preTransPatchSize;
@@ -64,7 +63,7 @@ public class Translator {
                 localFile.substring(0, localFile.length() - 4) : localFile;
         fileName = f;
         currentOID = -1;
-        firstLayerOID = -1;
+
         nuid = Integer.toString(projectName.hashCode());
         unuid = Long.toString(System.currentTimeMillis()) + "." + nuid;
 
@@ -166,9 +165,10 @@ public class Translator {
 
                 System.out.println("Collecting stuff");
 
-                assignSectionOIDs(sectionDocuments);
-                collectZTraces(serDoc);
+                //assignSectionOIDs(sectionDocuments);
                 collectContours(sectionDocuments);
+                collectZTraces(serDoc);
+
 
                 xmlBuilder.append("<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?>\n");
                 appendDTD(xmlBuilder);
@@ -195,14 +195,6 @@ public class Translator {
         }
     }
 
-    protected void assignSectionOIDs(List<Document> docs)
-    {
-        for (Document d : docs)
-        {
-
-        }
-    }
-
     protected void collectZTraces(Document serFile)
     {
         NodeList zContours = serFile.getElementsByTagName("ZContour");
@@ -218,8 +210,7 @@ public class Translator {
         for (Document doc : sectionDocs)
         {
             NodeList contours = doc.getElementsByTagName("Contour");
-            int index = Integer.valueOf(doc.getDocumentElement().getAttribute("index"));
-            ReconstructSection currSection = new ReconstructSection(index, nextOID(), doc);
+            ReconstructSection currSection = new ReconstructSection(this, doc);
             sections.add(currSection);
 
             for (int i = 0; i < contours.getLength(); ++i)
@@ -555,10 +546,14 @@ public class Translator {
         sb.append("mipmaps_format=\"0\"\n");
         sb.append(">\n");
 
+        sb.append("<reconstruct id=\"").append(nextOID()).append("\" expanded=\"true\">\n");
+
         for (ReconstructAreaList ral : closedContours)
         {
             ral.appendProjectXML(sb);
         }
+
+        sb.append("</reconstruct>\n");
 
         sb.append("</project>\n");
     }
@@ -596,15 +591,23 @@ public class Translator {
             ral.appendLayerSetXML(sb, sections);
         }
 
+        for (ReconstructSection rs : sections)
+        {
+            rs.appendXML(sb);
+        }
+
+/*
         for (Document doc : sectionDocuments)
         {
             appendLayer(sb, doc);
         }
+*/
 
         sb.append("</t2_layer_set>\n");
 
     }
 
+/*
     protected void appendLayer(final StringBuilder sb, final Document doc)
     {
         String thickness = doc.getDocumentElement().getAttribute("thickness");
@@ -632,33 +635,7 @@ public class Translator {
 
         sb.append("</t2_layer>\n");
     }
-
-    protected void appendPatch(final StringBuilder sb,final Element image)
-    {
-        Element rTransform = (Element)image.getParentNode();
-        AffineTransform trans = Utils.reconstructTransform(rTransform,
-                Double.valueOf(image.getAttribute("mag")), preTransPatchSize[1]);
-        String src = image.getAttribute("src");
-        String transString = Utils.transformToString(trans);
-        double[] wh = Utils.getReconstructImageWH(image);
-
-        sb.append("<t2_patch\n" +
-                "oid=\"").append(nextOID()).append("\"\n" +
-                "width=\"").append(wh[0]).append("\"\n" +
-                "height=\"").append(wh[1]).append("\"\n" +
-                "transform=\"").append(transString).append("\"\n" +
-                "title=\"").append(src).append("\"\n" +
-                "links=\"\"\n" +
-                "type=\"0\"\n" +
-                "file_path=\"").append(src).append("\"\n" +
-                "style=\"fill-opacity:1.0;stroke:#ffff00;\"\n" +
-                "o_width=\"").append((int)wh[0]).append("\"\n" +
-                "o_height=\"").append((int)wh[1]).append("\"\n" +
-                "min=\"0.0\"\n" +
-                "max=\"255.0\"\n" +
-                ">\n" +
-                "</t2_patch>\n");
-    }
+*/
 
     protected void appendCalibration(final StringBuilder sb)
     {
@@ -683,7 +660,7 @@ public class Translator {
     protected void appendDisplay(final StringBuilder sb)
     {
         sb.append("<t2_display id=\"7\"\n" +
-                "layer_id=\"").append(firstLayerOID).append("\"\n" +
+                "layer_id=\"").append(sections.get(0).getOID()).append("\"\n" +
                 "c_alphas=\"-1\"\n" +
                 "c_alphas_state=\"-1\"\n" +
                 "x=\"1276\"\n" +

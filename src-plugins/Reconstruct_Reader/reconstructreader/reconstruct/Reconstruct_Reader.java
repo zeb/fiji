@@ -30,10 +30,11 @@ public class Reconstruct_Reader implements PlugIn
         if (translator.process())
         {
             String projectFileName = translator.writeTrakEM2();
-            if (projectFileName != null)
+            System.out.println(projectFileName);
+            /*if (projectFileName != null)
             {
                 Project.openFSProject(projectFileName);
-            }
+            }*/
         }
         else
         {

@@ -82,8 +82,12 @@ public class ReconstructAreaList implements ContourSet {
                 "style=\"stroke:none;fill-opacity:0.4;fill:#ffff00;\"\n" +
                 ">\n");
 
+        System.out.println("Appending area lists. Got " + sectionList.size() + " sections.");
+        System.out.println("I have " + contourList.size() + " contours.");
+
         for (ReconstructSection sec : sectionList)
         {
+            System.out.println("Adding contours for section " + sec.getIndex());
             int index = sec.getIndex();
             int layerOID = sec.getOID();
             Document doc = sec.getDocument();
@@ -91,6 +95,8 @@ public class ReconstructAreaList implements ContourSet {
             double mag = Double.valueOf(((Element)imageList.item(0)).getAttribute("mag"));
 
             Utils.selectElementsByIndex(contourList, indexList, selectionList, index);
+
+            System.out.println("Selection List has " + selectionList.size() + " Elements");
 
             sb.append("<t2_area layer_id=\"").append(layerOID).append("\">\n");
 
