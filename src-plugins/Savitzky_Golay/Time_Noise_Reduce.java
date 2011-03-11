@@ -26,6 +26,14 @@ public class Time_Noise_Reduce implements PlugInFilter {
    }
 
    public void run(ImageProcessor ip) {
+   	if (imp.isHyperstack()) {
+   		IJ.error("Cannot handle hyperstacks");
+   		return;
+   	}
+	if (imp.getStackSize() < 2) {
+		IJ.error("Need a stack!");
+		return;
+	}
        int WIDTH = 1;
        int ORDER = 0;
        int DERIVATIVE=0;
@@ -49,16 +57,17 @@ public class Time_Noise_Reduce implements PlugInFilter {
 
 
        ImageStack original = imp.getStack();
+       int stackSize = original.getSize();
        ImageStack out = new ImageStack(imp.getWidth(), imp.getHeight());
-       float[][] output = new float[imp.getNSlices()][imp.getWidth()*imp.getHeight()];
-       float[] originals = new float[imp.getNSlices()];
+       float[][] output = new float[stackSize][imp.getWidth()*imp.getHeight()];
+       float[] originals = new float[stackSize];
        float[] px;
 
        //performs a 'z convolution' with px as the kernel
        for(int j = 0; j<imp.getHeight(); j++){
            for(int k = 0; k<imp.getWidth(); k++){
 
-               for(int i = 1; i<=imp.getNSlices(); i++){
+               for(int i = 1; i<=stackSize; i++){
                    originals[i-1] = original.getProcessor(i).getf(k,j);
                }
 
@@ -72,11 +81,12 @@ public class Time_Noise_Reduce implements PlugInFilter {
                }
 
            }
+           IJ.showProgress(j + 1, imp.getHeight());
        }
 
        ImageProcessor improc;
        String[] labels = original.getSliceLabels();
-       for(int i = 0; i<imp.getNSlices(); i++){
+       for(int i = 0; i<stackSize; i++){
            improc = new FloatProcessor(imp.getWidth(), imp.getHeight());
            improc.setPixels(output[i]);
            out.addSlice(labels[i], improc);
