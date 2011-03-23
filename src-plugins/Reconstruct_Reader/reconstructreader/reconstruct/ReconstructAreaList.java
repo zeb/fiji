@@ -102,9 +102,12 @@ public class ReconstructAreaList implements ContourSet {
 
             for (Element contour : selectionList)
             {
+                boolean domainContour = name.startsWith("domain");
+                double zoom = domainContour ? 1.0 : 1.0 / mag;
+                double useMag = domainContour ? mag : 1.0;
                 AffineTransform trans = Utils.reconstructTransform(
                         (Element)contour.getParentNode(),
-                        mag, translator.getStackHeight());
+                        useMag, translator.getStackHeight(), zoom, domainContour);
                 double[] pts = Utils.createNodeValueVector(contour.getAttribute("points"));
                 int nrows = Utils.nodeValueToVector(contour.getAttribute("points"), pts);
                 if (nrows != 2)
@@ -116,6 +119,14 @@ public class ReconstructAreaList implements ContourSet {
 
                 trans.transform(pts, 0, pts, 0, pts.length / 2);
 
+                if (!domainContour)
+                {
+                    for (int i = 1; i < pts.length; i+=2)
+                    {
+                        pts[i] = translator.getStackHeight() - pts[i];
+                    }
+                }
+
                 /*for (int i = 0; i < pts.length; ++i)
                 {
                     pts[i] /= mag;
@@ -124,6 +135,7 @@ public class ReconstructAreaList implements ContourSet {
                 sb.append("<t2_path d=\"");
                 Utils.append2DPointXML(sb, pts);
                 sb.append("\" />\n");
+                sb.append("<!-- zoom = ").append(zoom).append(" -->\n");
 
             }
 

@@ -60,6 +60,16 @@ public final class Utils {
 
     public static AffineTransform reconstructTransform(final Element trans, double mag, double k)
     {
+        return reconstructTransform(trans, mag, k, 1, true);
+    }
+
+    public static AffineTransform reconstructTransform(final Element trans, double mag, double k, double zoom)
+    {
+        return reconstructTransform(trans, mag, k, zoom, false);
+    }
+
+    public static AffineTransform reconstructTransform(final Element trans, double mag, double k, double zoom, boolean doFlip)
+    {
         int dim = Integer.valueOf(trans.getAttribute("dim"));
         double[] matrix = new double[6];
         double[] unFuckedMatrix;
@@ -122,16 +132,14 @@ public final class Utils {
         at = new AffineTransform(matrix);
 
         /*
-        OK, so this turns out to be a pretty gross problem.
-
-        You see, Reconstruct uses an image coordinate system in which the origin is at the
-        bottom-left, whereas TrakEM2 uses on from the top-left. Reconstruct, in addition,
+        Reconstruct uses an image coordinate system in which the origin is at the
+        bottom-left, whereas TrakEM2 uses one from the top-left. Reconstruct, in addition,
         stores the transform inverse, in other words, the transform that would convert the
-        registered image into the raw on-disk image.
+        registered image into the raw on-disk image. Finally, Images in Reconstruct are
+        stored with different scaling from (some) contours. (except the domain contours,
+        which are scaled the same as images).
 
-        So, the code that follows is all to fix this f*&$^&% annoying situation.
-
-        I can't be totally sure that this will work, yet. For instance, I have no idea whether
+        The following bit of code fixes all of this.
         */
 
         try
@@ -149,10 +157,17 @@ public final class Utils {
         at.getMatrix(matrix);
         unFuckedMatrix = matrix.clone();
 
-        unFuckedMatrix[1] = -matrix[1]; // m10 = -m10
-        unFuckedMatrix[2] = -matrix[2]; // m11 = -m11
-        unFuckedMatrix[4] = matrix[4] + k * matrix[2]; // m02 = m02 + k m01
-        unFuckedMatrix[5] = 2 * k - matrix[5] - k * matrix[3]; //m12 = k - m12 - k m11
+        if (doFlip)
+        {
+            unFuckedMatrix[1] = -matrix[1]; // m10 = -m10
+            unFuckedMatrix[2] = -matrix[2]; // m11 = -m11
+            unFuckedMatrix[4] = matrix[4] + k * matrix[2]; // m02 = m02 + k m01
+            unFuckedMatrix[5] = k - matrix[5] - k * matrix[3]; //m12 = k - m12 - k m11
+            //was 2 * k - matrix[5] ...
+        }
+
+        unFuckedMatrix[3] = unFuckedMatrix[3] * zoom;
+        unFuckedMatrix[0] = unFuckedMatrix[0] * zoom;
 
         return new AffineTransform(unFuckedMatrix);
     }
@@ -321,7 +336,7 @@ public final class Utils {
         System.out.println("Appending points. Found " + pts.length + " of them");
         for (int i = 2; i < pts.length ; i+=2)
         {
-            sb.append(pts[i]).append(" L ").append(pts[i + 1]).append(" ");
+            sb.append("L ").append(pts[i]).append(" ").append(pts[i + 1]).append(" ");
         }
         sb.append("z");
     }
