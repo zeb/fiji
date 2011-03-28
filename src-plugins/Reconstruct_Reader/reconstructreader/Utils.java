@@ -307,12 +307,17 @@ public final class Utils {
         return wh;
     }
 
-    public static void addContour(final List<? extends ContourSet> contours,
-                                  final Element e)
+    public static <T extends ContourSet> T findContourByName(final List<T> contours,
+                                    final String name)
     {
-        int i = contours.indexOf(e);
-        ContourSet cs = contours.get(i);
-        cs.addContour(e);
+        for (T t : contours)
+        {
+            if (t.getName().equals(name))
+            {
+                return t;
+            }
+        }
+        return null;
     }
 
     public static void selectElementsByIndex(final List<Element> elementList,

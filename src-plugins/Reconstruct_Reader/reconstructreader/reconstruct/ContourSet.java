@@ -6,4 +6,6 @@ public interface ContourSet {
 
     public void addContour(final Element e);
 
+    public String getName();
+
 }

@@ -121,7 +121,6 @@ public class Translator {
                         public boolean accept(File dir, String name)
                         {
                             return name.matches(projectName + ".*[0-9]$");
-                            //return Pattern.matches(projectName + ".*[0-9]$", name);
                         }
                     }
             );
@@ -163,23 +162,15 @@ public class Translator {
                 ahead of time, and link them to their respective sections/layers.
                 */
 
-                System.out.println("Collecting stuff");
-
-                //assignSectionOIDs(sectionDocuments);
                 collectContours(sectionDocuments);
                 collectZTraces(serDoc);
-
 
                 xmlBuilder.append("<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?>\n");
                 appendDTD(xmlBuilder);
                 xmlBuilder.append("<trakem2>\n");
-                System.out.println("Appending Project");
                 appendProject(xmlBuilder);
-                System.out.println("Appending LayerSet");
                 appendLayerSet(xmlBuilder);
-                System.out.println("Appending Display");
                 appendDisplay(xmlBuilder);
-                System.out.println("Finished.");
                 xmlBuilder.append("</trakem2>\n");
                 return true;
             }
@@ -218,24 +209,28 @@ public class Translator {
                 Element e = (Element)contours.item(i);
                 if (e.getAttribute("closed").equals("true"))
                 {
-                    if (closedContours.contains(e))
+                    ReconstructAreaList areaList = Utils.findContourByName(closedContours,
+                            e.getAttribute("name"));
+                    if (areaList == null)
                     {
-                        Utils.addContour(closedContours, e);
+                        closedContours.add(new ReconstructAreaList(e, this));
                     }
                     else
                     {
-                        closedContours.add(new ReconstructAreaList(e, this));
+                        areaList.addContour(e);
                     }
                 }
                 else
                 {
-                    if (openContours.contains(e))
+                    ReconstructProfileList profileList = Utils.findContourByName(openContours,
+                            e.getAttribute("name"));
+                    if (profileList == null)
                     {
-                        Utils.addContour(openContours, e);
+                        openContours.add(new ReconstructProfileList(e, this));
                     }
                     else
                     {
-                        openContours.add(new ReconstructProfileList(e, this));
+                        profileList.addContour(e);
                     }
                 }
             }
@@ -245,12 +240,6 @@ public class Translator {
 
     protected String getUNUID()
     {
-        /*
-        Use the project name's hash code for the unuid.
-        It is probable that someone may want to convert a project back and
-        forth between Reconstruct and TrakEM2, and it would be kind of a
-        pain to regenerate the mipmaps each time.
-        */
         return unuid;
     }
 
@@ -578,6 +567,8 @@ public class Translator {
         sb.append("snapshots_quality=\"true\"\n");
         sb.append("snapshots_mode=\"Full\"\n");
         sb.append("color_cues=\"false\"\n");
+        sb.append("area_color_cues=\"false\"\n");
+        sb.append("avoid_color_cue_colors=\"false\"\n");
         sb.append("n_layers_color_cue=\"-1\"\n");
         sb.append("paint_arrows=\"true\"\n");
         sb.append("paint_edge_confidence_boxes=\"true\"\n");

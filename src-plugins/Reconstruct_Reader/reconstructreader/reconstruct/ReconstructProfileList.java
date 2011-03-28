@@ -15,6 +15,11 @@ public class ReconstructProfileList implements ContourSet
         oid = translator.nextOID();
     }
 
+    public String getName()
+    {
+        return name;
+    }
+
     public void addContour(final Element e) {
 
     }

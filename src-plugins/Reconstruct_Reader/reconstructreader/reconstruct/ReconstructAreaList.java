@@ -34,8 +34,14 @@ public class ReconstructAreaList implements ContourSet {
         indexList.add(Utils.sectionIndex(e));
     }
 
+    public String getName()
+    {
+        return name;
+    }
+
     public boolean equals(final Object o)
     {
+        System.out.println("area list .equals called");
         if (o instanceof ReconstructAreaList)
         {
             ReconstructAreaList ral = (ReconstructAreaList)o;
@@ -124,15 +130,9 @@ public class ReconstructAreaList implements ContourSet {
                     }
                 }
 
-                /*for (int i = 0; i < pts.length; ++i)
-                {
-                    pts[i] /= mag;
-                }*/
-
                 sb.append("<t2_path d=\"");
                 Utils.append2DPointXML(sb, pts);
                 sb.append("\" />\n");
-                sb.append("<!-- zoom = ").append(zoom).append(" -->\n");
 
             }
 
