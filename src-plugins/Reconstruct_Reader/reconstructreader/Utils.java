@@ -341,4 +341,21 @@ public final class Utils {
         sb.append("z");
     }
 
+    public static String hexColor(String inColor)
+    {
+        String hex = "";
+        double[] colorTriad = new double[3];
+        nodeValueToVector(inColor, colorTriad);
+        for (int i = 0; i < 3; ++i)
+        {
+            String simplexHex = Integer.toHexString((int)(colorTriad[i]) * 255);
+            if (simplexHex.length() < 2)
+            {
+                simplexHex = "0" + simplexHex;
+            }
+            hex = hex + simplexHex;
+        }
+        return hex;
+    }
+
 }

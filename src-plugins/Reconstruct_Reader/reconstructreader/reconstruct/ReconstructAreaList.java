@@ -66,9 +66,10 @@ public class ReconstructAreaList implements ContourSet {
                 .append("\"/>\n</reconstruct_contour>\n");
     }
 
-    public void appendLayerSetXML(final StringBuilder sb, List<ReconstructSection> sectionList)
+    public void appendLayerSetXML(final StringBuilder sb, final List<ReconstructSection> sectionList)
     {
         final ArrayList<Element> selectionList = new ArrayList<Element>();
+        String fillColorHex = Utils.hexColor(contourList.get(0).getAttribute("fill"));
 
         sb.append("<t2_area_list\n" +
                 "oid=\"").append(oid).append("\"\n" +
@@ -79,15 +80,12 @@ public class ReconstructAreaList implements ContourSet {
                 "links=\"\"\n" +
                 "layer_set_id=\"0\"\n" +
                 "fill_paint=\"true\"\n" +
-                "style=\"stroke:none;fill-opacity:0.4;fill:#ffff00;\"\n" +
+                "style=\"stroke:none;fill-opacity:0.4;fill:#")
+                .append(fillColorHex).append(";\"\n" +
                 ">\n");
-
-        System.out.println("Appending area lists. Got " + sectionList.size() + " sections.");
-        System.out.println("I have " + contourList.size() + " contours.");
 
         for (ReconstructSection sec : sectionList)
         {
-            System.out.println("Adding contours for section " + sec.getIndex());
             int index = sec.getIndex();
             int layerOID = sec.getOID();
             Document doc = sec.getDocument();
@@ -96,20 +94,19 @@ public class ReconstructAreaList implements ContourSet {
 
             Utils.selectElementsByIndex(contourList, indexList, selectionList, index);
 
-            System.out.println("Selection List has " + selectionList.size() + " Elements");
-
             sb.append("<t2_area layer_id=\"").append(layerOID).append("\">\n");
 
             for (Element contour : selectionList)
             {
-                boolean domainContour = name.startsWith("domain");
-                double zoom = domainContour ? 1.0 : 1.0 / mag;
-                double useMag = domainContour ? mag : 1.0;
+                boolean isDomainContour = name.startsWith("domain");
+                double zoom = isDomainContour ? 1.0 : 1.0 / mag;
+                double useMag = isDomainContour ? mag : 1.0;
                 AffineTransform trans = Utils.reconstructTransform(
                         (Element)contour.getParentNode(),
-                        useMag, translator.getStackHeight(), zoom, domainContour);
+                        useMag, translator.getStackHeight(), zoom, isDomainContour);
                 double[] pts = Utils.createNodeValueVector(contour.getAttribute("points"));
                 int nrows = Utils.nodeValueToVector(contour.getAttribute("points"), pts);
+
                 if (nrows != 2)
                 {
                     System.err.println("Nrows should have been 2, instead it was " + nrows
@@ -119,7 +116,7 @@ public class ReconstructAreaList implements ContourSet {
 
                 trans.transform(pts, 0, pts, 0, pts.length / 2);
 
-                if (!domainContour)
+                if (!isDomainContour)
                 {
                     for (int i = 1; i < pts.length; i+=2)
                     {

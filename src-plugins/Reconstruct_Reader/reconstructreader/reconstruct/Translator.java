@@ -577,7 +577,7 @@ public class Translator {
         sb.append("rot_z=\"0.0\"\n");
         sb.append("snapshots_quality=\"true\"\n");
         sb.append("snapshots_mode=\"Full\"\n");
-        sb.append("color_cues=\"true\"\n");
+        sb.append("color_cues=\"false\"\n");
         sb.append("n_layers_color_cue=\"-1\"\n");
         sb.append("paint_arrows=\"true\"\n");
         sb.append("paint_edge_confidence_boxes=\"true\"\n");
@@ -596,46 +596,9 @@ public class Translator {
             rs.appendXML(sb);
         }
 
-/*
-        for (Document doc : sectionDocuments)
-        {
-            appendLayer(sb, doc);
-        }
-*/
-
         sb.append("</t2_layer_set>\n");
 
     }
-
-/*
-    protected void appendLayer(final StringBuilder sb, final Document doc)
-    {
-        String thickness = doc.getDocumentElement().getAttribute("thickness");
-        int index = Integer.valueOf(doc.getDocumentElement().getAttribute("index"));
-        int oid = nextOID();
-        float thicknessFloat = Float.valueOf(thickness);
-        NodeList imageList = doc.getElementsByTagName("Image");
-
-        if (firstLayerOID < 0)
-        {
-            firstLayerOID = oid;
-        }
-
-        sb.append("<t2_layer oid=\"")
-                .append(oid).append("\"\n" +
-                "thickness=\"").append(thickness).append("\"\n" +
-                "z=\"").append(thicknessFloat * (float)index).append("\"\n" +
-                "title=\"\"\n" +
-                ">\n");
-
-        for (int i = 0; i < imageList.getLength(); ++i)
-        {
-            appendPatch(sb, (Element)imageList.item(i));
-        }
-
-        sb.append("</t2_layer>\n");
-    }
-*/
 
     protected void appendCalibration(final StringBuilder sb)
     {
