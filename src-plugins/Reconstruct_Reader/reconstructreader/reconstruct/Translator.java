@@ -1,6 +1,5 @@
 package reconstructreader.reconstruct;
 
-import ini.trakem2.Project;
 import org.w3c.dom.Element;
 import org.w3c.dom.Document;
 import org.w3c.dom.NodeList;
@@ -10,7 +9,6 @@ import reconstructreader.Utils;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
-import java.awt.geom.AffineTransform;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.FilenameFilter;
@@ -30,7 +28,7 @@ public class Translator {
     private final ArrayList<ReconstructProfileList> openContours;
     private final ArrayList<ReconstructPolyLine> zTraces;
 
-    private final String fileName;
+    //private final String fileName;
     private final String projectName;
     private final String unuid;
     private final String nuid;
@@ -61,7 +59,7 @@ public class Translator {
 
         projectName = (localFile.endsWith(".ser") || localFile.endsWith(".SER")) ?
                 localFile.substring(0, localFile.length() - 4) : localFile;
-        fileName = f;
+        //fileName = f;
         currentOID = -1;
 
         nuid = Integer.toString(projectName.hashCode());
@@ -213,11 +211,11 @@ public class Translator {
                             e.getAttribute("name"));
                     if (areaList == null)
                     {
-                        closedContours.add(new ReconstructAreaList(e, this));
+                        closedContours.add(new ReconstructAreaList(e, this, currSection));
                     }
                     else
                     {
-                        areaList.addContour(e);
+                        areaList.addContour(e, currSection);
                     }
                 }
                 else
@@ -226,11 +224,11 @@ public class Translator {
                             e.getAttribute("name"));
                     if (profileList == null)
                     {
-                        openContours.add(new ReconstructProfileList(e, this));
+                        openContours.add(new ReconstructProfileList(e, this, currSection));
                     }
                     else
                     {
-                        profileList.addContour(e);
+                        profileList.addContour(e, currSection);
                     }
                 }
             }
@@ -536,6 +534,11 @@ public class Translator {
         sb.append(">\n");
 
         sb.append("<reconstruct id=\"").append(nextOID()).append("\" expanded=\"true\">\n");
+
+        for (ReconstructProfileList rpl : openContours)
+        {
+            rpl.appendProjectXML(sb);
+        }
 
         for (ReconstructAreaList ral : closedContours)
         {

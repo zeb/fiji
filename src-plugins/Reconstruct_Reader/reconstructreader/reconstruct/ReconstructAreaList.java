@@ -7,9 +7,7 @@ import reconstructreader.Utils;
 
 import java.awt.geom.AffineTransform;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Vector;
 
 
 public class ReconstructAreaList implements ContourSet {
@@ -21,7 +19,7 @@ public class ReconstructAreaList implements ContourSet {
     private final ArrayList<Integer> indexList;
     private final Translator translator;
 
-    public ReconstructAreaList(final Element e, final Translator t)
+    public ReconstructAreaList(final Element e, final Translator t, final ReconstructSection rs)
     {
         translator = t;
         name = e.getAttribute("name");
@@ -31,7 +29,7 @@ public class ReconstructAreaList implements ContourSet {
         contourList = new ArrayList<Element>();
         indexList = new ArrayList<Integer>();
         contourList.add(e);
-        indexList.add(Utils.sectionIndex(e));
+        indexList.add(rs.getIndex());
     }
 
     public String getName()
@@ -58,10 +56,10 @@ public class ReconstructAreaList implements ContourSet {
         }
     }
 
-    public void addContour(final Element e)
+    public void addContour(final Element e, ReconstructSection sec)
     {
         contourList.add(e);
-        indexList.add(Utils.sectionIndex(e));
+        indexList.add(sec.getIndex());
     }
 
     public void appendProjectXML(final StringBuilder sb)
@@ -94,9 +92,6 @@ public class ReconstructAreaList implements ContourSet {
         {
             int index = sec.getIndex();
             int layerOID = sec.getOID();
-            Document doc = sec.getDocument();
-            NodeList imageList = doc.getElementsByTagName("Image");
-            double mag = Double.valueOf(((Element)imageList.item(0)).getAttribute("mag"));
 
             Utils.selectElementsByIndex(contourList, indexList, selectionList, index);
 
@@ -104,34 +99,9 @@ public class ReconstructAreaList implements ContourSet {
 
             for (Element contour : selectionList)
             {
-                boolean isDomainContour = name.startsWith("domain");
-                double zoom = isDomainContour ? 1.0 : 1.0 / mag;
-                double useMag = isDomainContour ? mag : 1.0;
-                AffineTransform trans = Utils.reconstructTransform(
-                        (Element)contour.getParentNode(),
-                        useMag, translator.getStackHeight(), zoom, isDomainContour);
-                double[] pts = Utils.createNodeValueVector(contour.getAttribute("points"));
-                int nrows = Utils.nodeValueToVector(contour.getAttribute("points"), pts);
-
-                if (nrows != 2)
-                {
-                    System.err.println("Nrows should have been 2, instead it was " + nrows
-                            + ", therefore, we're boned");
-                    System.err.println("Points text: " + contour.getAttribute("points"));
-                }
-
-                trans.transform(pts, 0, pts, 0, pts.length / 2);
-
-                if (!isDomainContour)
-                {
-                    for (int i = 1; i < pts.length; i+=2)
-                    {
-                        pts[i] = translator.getStackHeight() - pts[i];
-                    }
-                }
-
+                double[] pts = Utils.getTransformedPoints(contour, translator.getStackHeight());
                 sb.append("<t2_path d=\"");
-                Utils.append2DPointXML(sb, pts);
+                Utils.appendClosedPathXML(sb, pts);
                 sb.append("\" />\n");
 
             }

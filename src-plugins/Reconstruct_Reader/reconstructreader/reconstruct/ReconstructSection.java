@@ -6,12 +6,14 @@ import org.w3c.dom.NodeList;
 import reconstructreader.Utils;
 
 import java.awt.geom.AffineTransform;
+import java.util.ArrayList;
 
 public class ReconstructSection {
 
     private final int index, oid;
     private final Document doc;
     private final Translator translator;
+    private final ArrayList<ReconstructProfile> profiles;
 
     public ReconstructSection(Translator t, final Document d)
     {
@@ -20,6 +22,7 @@ public class ReconstructSection {
         index = Integer.valueOf(d.getDocumentElement().getAttribute("index"));
         oid = t.nextOID();
         doc = d;
+        profiles = new ArrayList<ReconstructProfile>();
     }
 
     public int getOID()
@@ -35,6 +38,11 @@ public class ReconstructSection {
     public Document getDocument()
     {
         return doc;
+    }
+
+    public void addProfile(ReconstructProfile rp)
+    {
+        profiles.add(rp);
     }
 
     public void appendXML(StringBuilder sb)
@@ -54,6 +62,11 @@ public class ReconstructSection {
         for (int i = 0; i < imageList.getLength(); ++i)
         {
             appendPatch(sb, (Element)imageList.item(i));
+        }
+
+        for (ReconstructProfile profile : profiles)
+        {
+            profile.appendXML(sb);
         }
 
         sb.append("</t2_layer>\n");

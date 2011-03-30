@@ -310,11 +310,14 @@ public final class Utils {
     public static <T extends ContourSet> T findContourByName(final List<T> contours,
                                     final String name)
     {
-        for (T t : contours)
+        if (name != null)
         {
-            if (t.getName().equals(name))
+            for (T t : contours)
             {
-                return t;
+                if (t.getName().equals(name))
+                {
+                    return t;
+                }
             }
         }
         return null;
@@ -334,7 +337,7 @@ public final class Utils {
         }
     }
 
-    public static void append2DPointXML(final StringBuilder sb, final double[] pts)
+    public static void appendClosedPathXML(final StringBuilder sb, final double[] pts)
     {
         sb.append("M ").append(pts[0]).append(" ").append(pts[1]).append(" ");
 
@@ -344,6 +347,18 @@ public final class Utils {
             sb.append("L ").append(pts[i]).append(" ").append(pts[i + 1]).append(" ");
         }
         sb.append("z");
+    }
+
+    public static void appendOpenPathXML(final StringBuilder sb, final double[] pts)
+    {
+        sb.append("M ").append(pts[0]).append(",").append(pts[1]).append(" ");
+
+        for (int i = 2; i < pts.length ; i+=2)
+        {
+            sb.append("C ").append(pts[i-2]).append(",").append(pts[i - 1]).append(" ")
+                .append(pts[i]).append(",").append(pts[i + 1]).append(" ")
+                .append(pts[i]).append(",").append(pts[i + 1]);
+        }
     }
 
     public static String hexColor(String inColor)
@@ -363,4 +378,70 @@ public final class Utils {
         return hex;
     }
 
+    public static double getMag(final Node n)
+    {
+         return Double.valueOf(((Element)n.getOwnerDocument().
+                 getElementsByTagName("Image").item(0)).getAttribute("mag"));
+    }
+
+    public static double[] getTransformedPoints(Element contour, double stackHeight)
+    {
+        //I admit that this code is really really ugly.
+
+        //Get the magnification.
+        double mag = getMag(contour);
+        //So-called "domain" contours are treated differently, wrt mag and flipping....
+        boolean isDomainContour = contour.getAttribute("name").startsWith("domain");
+        //Mag and zoom are different. Sigh.
+        double zoom = isDomainContour ? 1.0 : 1.0 / mag;
+        double useMag = isDomainContour ? mag : 1.0;
+        //Create the affine transform to take care of the transform.
+        AffineTransform trans = Utils.reconstructTransform(
+                (Element)contour.getParentNode(),
+                useMag, stackHeight, zoom, isDomainContour);
+        //Now, we grab the points from the XML.
+        double[] pts = Utils.createNodeValueVector(contour.getAttribute("points"));
+        int nrows = Utils.nodeValueToVector(contour.getAttribute("points"), pts);
+
+        //If we got a different number of rows than expected, yell about it, but don't die.
+        if (nrows != 2)
+        {
+            System.err.println("Nrows should have been 2, instead it was " + nrows
+                    + ", therefore, we're boned");
+            System.err.println("Points text: " + contour.getAttribute("points"));
+        }
+
+        //Apply the transform (I hope I hope I hope this worked out right).
+        trans.transform(pts, 0, pts, 0, pts.length / 2);
+
+        //Flip it vertically, as long as it isn't a domain contour.
+        if (!isDomainContour)
+        {
+            for (int i = 1; i < pts.length; i+=2)
+            {
+                pts[i] = stackHeight - pts[i];
+            }
+        }
+        return pts;
+    }
+
+    public static double[] getPathExtent(double[] pts)
+    {
+        //assume path is interleaved in 2D
+        double[] wh = new double[2];
+        wh[0] = 0;
+        wh[1] = 0;
+        for (int i = 0; i < pts.length; i+=2)
+        {
+            if (pts[i] > wh[0])
+            {
+                wh[0] = pts[i];
+            }
+            if (pts[i + 1] > wh[1])
+            {
+                wh[1] = pts[i + 1];
+            }
+        }
+        return wh;
+    }
 }
