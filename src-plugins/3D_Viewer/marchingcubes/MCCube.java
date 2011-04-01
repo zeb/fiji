@@ -179,6 +179,49 @@ public final class MCCube {
 
 	/**
 	 * Create a list of triangles from the specified image data and the
+	 * given isovalue. Creates potentially an open surface, if the
+	 * object touches the image's border.
+	 * @param volume
+	 * @param thresh
+	 * @return
+	 */
+	public static final List<Point3f> getTrianglesWithoutZeroPadding(Volume volume, int thresh) {
+		List<Point3f> tri = new ArrayList<Point3f>();
+		final Carrier car = new Carrier();
+		car.w = volume.xDim;
+		car.h = volume.yDim;
+		car.d = volume.zDim;
+		car.threshold = thresh + 0.5f;
+		car.volume = volume;
+
+		if (volume instanceof ImgLibVolume && ((ImgLibVolume)volume).getImage().getContainer() instanceof ShapeList) {
+			getShapeListImageTriangles((ImgLibVolume)volume, car, tri);
+		} else {
+			MCCube cube = new MCCube();
+			for(int z = 0; z < car.d - 1; z++){
+				for(int x = 0; x < car.w - 1; x++){
+					for(int y = 0; y < car.h - 1; y++){
+						cube.init(x, y, z);
+						cube.computeEdges(car);
+						cube.getTriangles(tri, car);
+					}
+				}
+				IJ.showProgress(z, car.d - 2);
+			}
+		}
+
+		// convert pixel coordinates
+		for(int i = 0; i < tri.size(); i++) {
+			Point3f p = (Point3f)tri.get(i);
+			p.x = (float) (p.x * volume.pw + volume.minCoord.x);
+			p.y = (float) (p.y * volume.ph + volume.minCoord.y);
+			p.z = (float) (p.z * volume.pd + volume.minCoord.z);
+		}
+		return tri;
+	}
+
+	/**
+	 * Create a list of triangles from the specified image data and the
 	 * given isovalue.
 	 * @param volume
 	 * @param thresh
