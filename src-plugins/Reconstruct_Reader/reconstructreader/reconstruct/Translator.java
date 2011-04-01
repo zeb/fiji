@@ -26,7 +26,7 @@ public class Translator {
     private final ArrayList<ReconstructSection> sections;
     private final ArrayList<ReconstructAreaList> closedContours;
     private final ArrayList<ReconstructProfileList> openContours;
-    private final ArrayList<ReconstructPolyLine> zTraces;
+    private final ArrayList<ReconstructZTrace> zTraces;
 
     //private final String fileName;
     private final String projectName;
@@ -35,6 +35,8 @@ public class Translator {
     private final File inputFile;
 
     private int currentOID;
+
+    private final int layerSetOID;
 
     private double[] preTransPatchSize;
 
@@ -53,7 +55,7 @@ public class Translator {
         xmlBuilder = new StringBuilder();
         sectionDocuments = new ArrayList<Document>();
         sections = new ArrayList<ReconstructSection>();
-        zTraces = new ArrayList<ReconstructPolyLine>();
+        zTraces = new ArrayList<ReconstructZTrace>();
         closedContours = new ArrayList<ReconstructAreaList>();
         openContours = new ArrayList<ReconstructProfileList>();
 
@@ -64,6 +66,8 @@ public class Translator {
 
         nuid = Integer.toString(projectName.hashCode());
         unuid = Long.toString(System.currentTimeMillis()) + "." + nuid;
+
+        layerSetOID = nextOID();
 
         // Make sure that the DTD files exist. Apparently it doesn't matter a
         // whole lot if they actually contain anything.
@@ -94,6 +98,11 @@ public class Translator {
 
             ready = false;
         }
+    }
+
+    public int getLayerSetOID()
+    {
+        return layerSetOID;
     }
 
     public boolean process()
@@ -190,7 +199,16 @@ public class Translator {
 
         for (int i = 0; i < zContours.getLength(); ++i)
         {
-            zTraces.add(new ReconstructPolyLine((Element)zContours.item(i), this));
+            Element e = (Element)zContours.item(i);
+            ReconstructZTrace zTrace = Utils.findContourByName(zTraces, e.getAttribute("name"));
+            if (zTrace == null)
+            {
+                zTraces.add(new ReconstructZTrace(e, this));
+            }
+            else
+            {
+                zTrace.addContour(e, null);
+            }
         }
     }
 
@@ -545,6 +563,11 @@ public class Translator {
             ral.appendProjectXML(sb);
         }
 
+        for (ReconstructZTrace rzt : zTraces)
+        {
+            rzt.appendProjectXML(sb);
+        }
+
         sb.append("</reconstruct>\n");
 
         sb.append("</project>\n");
@@ -556,7 +579,7 @@ public class Translator {
         double[] layerwh = Utils.getReconstructImageWH(image);
 
         sb.append("<t2_layer_set\n");
-        sb.append("oid=\"").append(nextOID()).append("\"\n");
+        sb.append("oid=\"").append(layerSetOID).append("\"\n");
         sb.append("width=\"20.0\"\n");
         sb.append("height=\"20.0\"\n");
         sb.append("transform=\"matrix(1.0,0.0,0.0,1.0,0.0,0.0)\"\n");
@@ -583,6 +606,11 @@ public class Translator {
         for (ReconstructAreaList ral : closedContours)
         {
             ral.appendLayerSetXML(sb, sections);
+        }
+
+        for (ReconstructZTrace rzt : zTraces)
+        {
+            rzt.appendXML(sb);
         }
 
         for (ReconstructSection rs : sections)
@@ -675,5 +703,10 @@ public class Translator {
         {
             return null;
         }
+    }
+
+    public double getMag()
+    {
+        return Utils.getMag(sectionDocuments.get(0).getDocumentElement());
     }
 }

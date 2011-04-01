@@ -2,11 +2,9 @@ package reconstructreader;
 
 import org.w3c.dom.*;
 import reconstructreader.reconstruct.ContourSet;
-import reconstructreader.reconstruct.ReconstructAreaList;
 
 import java.awt.geom.AffineTransform;
 import java.awt.geom.NoninvertibleTransformException;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.StringTokenizer;
@@ -337,19 +335,24 @@ public final class Utils {
         }
     }
 
-    public static void appendClosedPathXML(final StringBuilder sb, final double[] pts)
+    public static void appendOpenPathXML(final StringBuilder sb, final double[] pts)
     {
-        sb.append("M ").append(pts[0]).append(" ").append(pts[1]).append(" ");
+        sb.append("M ").append(pts[0]).append(",").append(pts[1]).append(" ");
 
         System.out.println("Appending points. Found " + pts.length + " of them");
         for (int i = 2; i < pts.length ; i+=2)
         {
-            sb.append("L ").append(pts[i]).append(" ").append(pts[i + 1]).append(" ");
+            sb.append("L ").append(pts[i]).append(",").append(pts[i + 1]).append(" ");
         }
+    }
+
+    public static void appendClosedPathXML(final StringBuilder sb, final double[] pts)
+    {
+        appendOpenPathXML(sb, pts);
         sb.append("z");
     }
 
-    public static void appendOpenPathXML(final StringBuilder sb, final double[] pts)
+    public static void appendBezierPathXML(final StringBuilder sb, final double[] pts)
     {
         sb.append("M ").append(pts[0]).append(",").append(pts[1]).append(" ");
 
@@ -397,7 +400,7 @@ public final class Utils {
         double useMag = isDomainContour ? mag : 1.0;
         //Create the affine transform to take care of the transform.
         AffineTransform trans = Utils.reconstructTransform(
-                (Element)contour.getParentNode(),
+                (Element) contour.getParentNode(),
                 useMag, stackHeight, zoom, isDomainContour);
         //Now, we grab the points from the XML.
         double[] pts = Utils.createNodeValueVector(contour.getAttribute("points"));
