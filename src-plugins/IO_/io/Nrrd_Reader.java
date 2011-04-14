@@ -165,6 +165,33 @@ public class Nrrd_Reader extends ImagePlus implements PlugIn
 		fi.fileFormat = FileInfo.RAW;
 		fi.nImages = 1;
 
+		// For NRRD, the RGB components are stored in an additional dimension which is
+		// always the first one. As a consequence, the other dimensions are shifted by
+		// one compared to another non RGB image.
+		// Because the "kinds" tag, where the RGB information is stored, can be after
+		// some tags where we need to know if the is an RGB image or not, we have to
+		// found if the image is rgb before actually parsing the header.
+		boolean isRGB = false;
+		int rgbShift = 0;
+		while(true) {
+			thisLine=input.readLine();
+			if(thisLine==null || thisLine.equals("")) {
+				break;
+			}
+			if(thisLine.indexOf("#")==0) continue; // ignore comments
+			noteType=getFieldPart(thisLine,0).toLowerCase(); // case irrelevant
+			if (noteType.equals("kinds")) {
+				String firstNoteValue=getSubField(thisLine,0);
+				if(firstNoteValue.equals("RGB-color")) {
+					isRGB = true;
+					rgbShift = 1;
+				}
+				break;
+			}
+		}
+		// go back to the begining of the header
+		input.seek(0);
+
 		// parse the header file, until reach an empty line//	boolean keepReading=true;
 		while(true) {
 			thisLine=input.readLine();
@@ -223,13 +250,13 @@ public class Nrrd_Reader extends ImagePlus implements PlugIn
 			}
 
 			if (noteType.equals("dimension")) {
-				fi.dimension=Integer.valueOf(noteValue).intValue();
-				if(fi.dimension>3) throw new IOException("Nrrd_Reader: Dimension>3 not yet implemented!");
+				fi.dimension=Integer.valueOf(noteValue).intValue()-rgbShift;
+				if((!isRGB && fi.dimension>3) ||(isRGB && fi.dimension>4)) throw new IOException("Nrrd_Reader: Dimension>3 not yet implemented!");
 			}
 			if (noteType.equals("sizes")) {
 				fi.sizes=new int[fi.dimension];
 				for(int i=0;i<fi.dimension;i++) {
-					fi.sizes[i]=Integer.valueOf(getSubField(thisLine,i)).intValue();
+					fi.sizes[i]=Integer.valueOf(getSubField(thisLine,i+rgbShift)).intValue();
 					if(i==0) fi.width=fi.sizes[0];
 					if(i==1) fi.height=fi.sizes[1];
 					if(i==2) fi.nImages=fi.sizes[2];
@@ -242,7 +269,7 @@ public class Nrrd_Reader extends ImagePlus implements PlugIn
 				double[] spacings=new double[fi.dimension];
 				for(int i=0;i<fi.dimension;i++) {
 					// TOFIX - this order of allocations is not a given!
-					spacings[i]=Double.valueOf(getSubField(thisLine,i)).doubleValue();
+					spacings[i]=Double.valueOf(getSubField(thisLine,i+rgbShift)).doubleValue();
 					if(i==0) spatialCal.pixelWidth=spacings[0];
 					if(i==1) spatialCal.pixelHeight=spacings[1];
 					if(i==2) spatialCal.pixelDepth=spacings[2];
@@ -250,6 +277,7 @@ public class Nrrd_Reader extends ImagePlus implements PlugIn
 			}
 			
 			if(noteType.equals("space dimension")){
+				// TODO what is the behavior of this field with RGB images?
 				fi.spaceDims=Integer.valueOf(noteValue).intValue();
 				// TODO Add support for different image and space dimensions
 				if(fi.spaceDims!=fi.dimension) throw new IOException
@@ -267,7 +295,7 @@ public class Nrrd_Reader extends ImagePlus implements PlugIn
 
 				// There should be fi.dimension entries in space directions
 				for(int i=0,dim=0;i<fi.dimension;i++){
-					double[] vec=getVector(noteValue, i);
+					double[] vec=getVector(noteValue, i+rgbShift);
 					// ... but only spaceDim non-null vectors
 					if(vec==null) continue;  
 					for(int j=0;j<fi.spaceDims;j++){
@@ -285,6 +313,7 @@ public class Nrrd_Reader extends ImagePlus implements PlugIn
 			if (noteType.equals("centers") || noteType.equals("centerings")) {
 				fi.centers=new String[fi.dimension];
 				for(int i=0;i<fi.dimension;i++) {
+					// TODO what is the behavior with rgb images?
 					// TOFIX - this order of allocations is not a given!
 					fi.centers[i]=getSubField(thisLine,i);
 				}
@@ -303,7 +332,16 @@ public class Nrrd_Reader extends ImagePlus implements PlugIn
 				}
 			}
 			if (noteType.equals("type")) {
-				if (uint8Types.indexOf(noteValuelc)>=0) {
+				if (isRGB) {
+					if (uint8Types.indexOf(noteValuelc)>=0) {
+						fi.fileType=FileInfo.RGB;
+					} else if (uint16Types.indexOf(noteValuelc)>=0) {
+						fi.fileType=FileInfo.RGB48;
+					} else {
+						throw new IOException("Unimplemented RGB data type ="+noteValue);
+					}
+				}
+				else if (uint8Types.indexOf(noteValuelc)>=0) {
 					fi.fileType=FileInfo.GRAY8;
 				} else if(uint16Types.indexOf(noteValuelc)>=0) {
 					fi.fileType=FileInfo.GRAY16_UNSIGNED;
