@@ -1,4 +1,4 @@
-package fiji.plugin.imgflow;
+package fiji.plugin.flowmate;
 
 import java.util.Vector;
 import java.util.concurrent.atomic.AtomicInteger;

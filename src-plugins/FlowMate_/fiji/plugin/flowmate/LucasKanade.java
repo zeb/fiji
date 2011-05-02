@@ -1,4 +1,4 @@
-package fiji.plugin.imgflow;
+package fiji.plugin.flowmate;
 
 import java.awt.Color;
 import java.util.ArrayList;

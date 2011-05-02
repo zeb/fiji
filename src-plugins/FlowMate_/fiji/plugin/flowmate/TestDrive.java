@@ -1,4 +1,4 @@
-package fiji.plugin.imgflow;
+package fiji.plugin.flowmate;
 
 import ij.IJ;
 import ij.ImageJ;
