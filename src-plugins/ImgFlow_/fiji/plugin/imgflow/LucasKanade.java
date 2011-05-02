@@ -3,6 +3,8 @@ package fiji.plugin.imgflow;
 import java.awt.Color;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Vector;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import mpicbg.imglib.algorithm.MultiThreadedBenchmarkAlgorithm;
 import mpicbg.imglib.container.planar.PlanarContainerFactory;
@@ -11,7 +13,8 @@ import mpicbg.imglib.cursor.LocalizableCursor;
 import mpicbg.imglib.cursor.special.RegionOfInterestCursor;
 import mpicbg.imglib.image.Image;
 import mpicbg.imglib.image.ImageFactory;
-import mpicbg.imglib.image.display.imagej.ImageJFunctions;
+import mpicbg.imglib.multithreading.Chunk;
+import mpicbg.imglib.multithreading.SimpleMultiThreading;
 import mpicbg.imglib.outofbounds.OutOfBoundsStrategyFactory;
 import mpicbg.imglib.outofbounds.OutOfBoundsStrategyMirrorFactory;
 import mpicbg.imglib.type.numeric.RGBALegacyType;
@@ -29,6 +32,10 @@ public class LucasKanade extends MultiThreadedBenchmarkAlgorithm {
 	private Image<FloatType> uy;
 	private Image<FloatType> lambda1;
 	private Image<FloatType> lambda2;
+	
+	// ROI
+	private int[] offset = new int[] { -1, -1, 0};
+	private final int[] size   = new int[] { 3, 3 , 1};
 
 	/*
 	 * CONSTRUCTOR
@@ -158,8 +165,49 @@ public class LucasKanade extends MultiThreadedBenchmarkAlgorithm {
 		final long startTime = System.currentTimeMillis();
 
 		boolean returnValue = false;
-		if (derivatives.size() == 3) 
-			returnValue  = process2D();
+		if (derivatives.size() == 3)   {
+			
+			// Prepare result holders
+			final Image<FloatType> Ix = derivatives.get(0);
+			ux = Ix.createNewImage();
+			uy = Ix.createNewImage();
+			lambda1 = Ix.createNewImage();
+			lambda2 = Ix.createNewImage();
+			ux.setName("Vx");
+			uy.setName("Vy");
+			lambda1.setName("Lambda1");
+			lambda2.setName("Lambda2");
+			
+			// Prepare for multi-threading
+			final long imageSize = Ix.getNumPixels();
+			final Vector<Chunk> threadChunks = SimpleMultiThreading.divideIntoChunks( imageSize, numThreads );
+			final AtomicInteger ai = new AtomicInteger(0);					
+			final Thread[] threads = SimpleMultiThreading.newThreads( numThreads );
+			
+			for (int ithread = 0; ithread < threads.length; ++ithread) {
+				
+				// Build Thread array
+				threads[ithread] = new Thread(new Runnable() {
+
+					public void run() {
+
+						// Thread ID
+						final int myNumber = ai.getAndIncrement();
+
+						// Get chunk of pixels to process
+						final Chunk myChunk = threadChunks.get( myNumber );
+
+						process2D(myChunk.getStartPosition(), myChunk.getLoopSize() );
+
+
+					}
+
+				});
+			}
+			
+			SimpleMultiThreading.startAndJoin(threads);
+						
+		}
 		
 		processingTime = System.currentTimeMillis() - startTime;
 		return returnValue;
@@ -184,7 +232,7 @@ public class LucasKanade extends MultiThreadedBenchmarkAlgorithm {
 	 * PRIVATE METHODS
 	 */
 	
-	private boolean process2D() {
+	private boolean process2D(final long startPos, final long loopSize) {
 		
 		final Image<FloatType> Ix = derivatives.get(0);
 		final Image<FloatType> Iy = derivatives.get(1);
@@ -192,31 +240,19 @@ public class LucasKanade extends MultiThreadedBenchmarkAlgorithm {
 		final LocalizableByDimCursor<FloatType> cx = Ix.createLocalizableByDimCursor(factory);
 		final LocalizableByDimCursor<FloatType> cy = Iy.createLocalizableByDimCursor(factory);
 		final LocalizableByDimCursor<FloatType> ct = It.createLocalizableByDimCursor(factory);
-		
-		// Result holder
-		ux = Ix.createNewImage();
-		uy = Ix.createNewImage();
-		lambda1 = Ix.createNewImage();
-		lambda2 = Ix.createNewImage();
-		ux.setName("Vx");
-		uy.setName("Vy");
-		lambda1.setName("Lambda1");
-		lambda2.setName("Lambda2");
-		
 		final LocalizableCursor<FloatType> cux = ux.createLocalizableCursor();
 		LocalizableByDimCursor<FloatType> cuy = uy.createLocalizableByDimCursor();
 		LocalizableByDimCursor<FloatType> cl1 = lambda1.createLocalizableByDimCursor();
 		LocalizableByDimCursor<FloatType> cl2 = lambda2.createLocalizableByDimCursor();
-		
-		// ROI
-		int[] offset = new int[] { -1, -1, 0};
-		final int[] size   = new int[] { 3, 3 , 1};
-		
 		RegionOfInterestCursor<FloatType> lct = ct.createRegionOfInterestCursor(offset, size);
 		final int[] position = cux.createPositionArray();
 		final int[] offsetPos = lct.createPositionArray();
 		
-		while (cux.hasNext()) {
+		// Forward cursors to beginning of the chunk
+		cux.fwd(startPos); // the other are slave to this position
+		
+		// Do as many pixels as wanted by this thread
+		 for ( long j = 0; j < loopSize; ++j ) {
 			
 			// Move cursors to next pixel
 			cux.fwd();
@@ -292,7 +328,6 @@ public class LucasKanade extends MultiThreadedBenchmarkAlgorithm {
 		cx.close();
 		cy.close();
 		ct.close();
-		
 		
 		return true;
 	}

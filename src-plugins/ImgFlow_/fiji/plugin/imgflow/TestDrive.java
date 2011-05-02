@@ -65,8 +65,6 @@ public class TestDrive {
 //			ImageJFunctions.copyToImagePlus(eigenvalue).show();
 //		}
 		
-		
-		
 		Image<RGBALegacyType> flow = LucasKanade.convertToFlowImage(opticFlow.get(0), opticFlow.get(1));
 		ImageJFunctions.copyToImagePlus(flow).show();
 		
