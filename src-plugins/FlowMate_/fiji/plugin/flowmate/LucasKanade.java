@@ -199,7 +199,6 @@ public class LucasKanade extends MultiThreadedBenchmarkAlgorithm {
 
 						process2D(myChunk.getStartPosition(), myChunk.getLoopSize() );
 
-
 					}
 
 				});
