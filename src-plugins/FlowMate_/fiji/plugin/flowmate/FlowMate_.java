@@ -57,10 +57,12 @@ public class FlowMate_<T extends RealType<T>>   implements PlugIn {
 		//			ImageJFunctions.copyToImagePlus(eigenvalue).show();
 		//		}
 
-		Image<RGBALegacyType> flow = LucasKanade.convertToFlowImage(opticFlow.get(0), opticFlow.get(1));
+		
+		
+		Image<RGBALegacyType> flow = OpticFlowUtils.createColorFlowImage(opticFlow.get(0), opticFlow.get(1));
 		ImageJFunctions.copyToImagePlus(flow).show();
 
-		Image<RGBALegacyType> indicator = LucasKanade.createIndicatorImage(256);
+		Image<RGBALegacyType> indicator = OpticFlowUtils.createIndicatorImage(64);
 		ImageJFunctions.copyToImagePlus(indicator).show();
 
 	}

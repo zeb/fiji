@@ -19,7 +19,7 @@ public class TestDrive {
 	
 	
 //	private static final File TEST_FILE = new File(TestDrive.class.getResource("flow.tif").getFile());
-	private static final File TEST_FILE = new File("/Users/tinevez/Desktop/Data/Stack.tif");
+	private static final File TEST_FILE = new File("/Users/tinevez/Desktop/Data/Stack-1.tif");
 
 	public static <T extends RealType<T>> void  main(String[] args) {
 		
@@ -65,10 +65,14 @@ public class TestDrive {
 //			ImageJFunctions.copyToImagePlus(eigenvalue).show();
 //		}
 		
-		Image<RGBALegacyType> flow = LucasKanade.convertToFlowImage(opticFlow.get(0), opticFlow.get(1));
+		List<Image<FloatType>> polar = OpticFlowUtils.convertToPolar(opticFlow.get(0), opticFlow.get(1));
+		for (Image<FloatType> polCoord : polar) 
+			ImageJFunctions.copyToImagePlus(polCoord).show();
+		
+		Image<RGBALegacyType> flow = OpticFlowUtils.createColorFlowImage(opticFlow.get(0), opticFlow.get(1));
 		ImageJFunctions.copyToImagePlus(flow).show();
 		
-		Image<RGBALegacyType> indicator = LucasKanade.createIndicatorImage(256);
+		Image<RGBALegacyType> indicator = OpticFlowUtils.createIndicatorImage(64);
 		ImageJFunctions.copyToImagePlus(indicator).show();
 		
 	}

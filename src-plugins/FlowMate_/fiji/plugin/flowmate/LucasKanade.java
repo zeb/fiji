@@ -1,24 +1,19 @@
 package fiji.plugin.flowmate;
 
-import java.awt.Color;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Vector;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import mpicbg.imglib.algorithm.MultiThreadedBenchmarkAlgorithm;
-import mpicbg.imglib.container.planar.PlanarContainerFactory;
 import mpicbg.imglib.cursor.LocalizableByDimCursor;
 import mpicbg.imglib.cursor.LocalizableCursor;
 import mpicbg.imglib.cursor.special.RegionOfInterestCursor;
 import mpicbg.imglib.image.Image;
-import mpicbg.imglib.image.ImageFactory;
 import mpicbg.imglib.multithreading.Chunk;
 import mpicbg.imglib.multithreading.SimpleMultiThreading;
 import mpicbg.imglib.outofbounds.OutOfBoundsStrategyFactory;
 import mpicbg.imglib.outofbounds.OutOfBoundsStrategyMirrorFactory;
-import mpicbg.imglib.type.numeric.RGBALegacyType;
-import mpicbg.imglib.type.numeric.RealType;
 import mpicbg.imglib.type.numeric.real.FloatType;
 
 public class LucasKanade extends MultiThreadedBenchmarkAlgorithm {
@@ -44,104 +39,6 @@ public class LucasKanade extends MultiThreadedBenchmarkAlgorithm {
 	public LucasKanade(List<Image<FloatType>> derivatives) {
 		this.derivatives = derivatives;
 	}	
-	
-	/*
-	 * STATIC METHODS
-	 */
-	
-	public static <T extends RealType<T>> Image<RGBALegacyType> convertToFlowImage(final Image<T> vx, final Image<T> vy) {
-		LocalizableByDimCursor<T> cx = vx.createLocalizableByDimCursor();
-		LocalizableByDimCursor<T> cy = vy.createLocalizableByDimCursor();
-		
-		
-		ImageFactory<FloatType> floatFactory = new ImageFactory<FloatType>(new FloatType(), vx.getContainerFactory());
-		Image<FloatType> norm 	= floatFactory.createImage(vx.getDimensions());
-		Image<FloatType> theta 	= floatFactory.createImage(vx.getDimensions());
-		LocalizableCursor<FloatType> cnorm = norm.createLocalizableCursor();
-		LocalizableByDimCursor<FloatType> ctheta = theta.createLocalizableByDimCursor();
-		
-		float ux, uy, fnorm, ftheta;
-		float maxNorm = Float.NEGATIVE_INFINITY;
-		while (cnorm.hasNext()) {
-			cnorm.fwd();
-			cx.setPosition(cnorm);
-			cy.setPosition(cnorm);
-			ctheta.setPosition(cnorm);
-			
-			ux = cx.getType().getRealFloat(); 
-			uy = cy.getType().getRealFloat(); 
-			
-			fnorm = (float) Math.sqrt(ux*ux+uy*uy);
-			ftheta = (float) Math.atan2(uy, ux);
-			cnorm.getType().set(fnorm);
-			ctheta.getType().set(ftheta);
-			if (fnorm > maxNorm)
-				maxNorm = fnorm;
-		}
-		cx.close();
-		cy.close();
-		cnorm.reset();
-		ctheta.reset();
-		
-		ImageFactory<RGBALegacyType> rgbFactory = new ImageFactory<RGBALegacyType>(new RGBALegacyType(), vx.getContainerFactory());
-		Image<RGBALegacyType> flowImage = rgbFactory.createImage(vx.getDimensions());
-		flowImage.setName("Flow color");
-		LocalizableByDimCursor<RGBALegacyType> cf = flowImage.createLocalizableByDimCursor();
-		
-		float hue, brightness;
-		int color;
-		while (cnorm.hasNext()) {
-			cnorm.fwd();
-			ctheta.setPosition(cnorm);
-			cf.setPosition(cnorm);
-			
-			brightness 	= cnorm.getType().get() / maxNorm;
-			hue 		= (float) ((ctheta.getType().get() + Math.PI) / (2*Math.PI));
-			color = Color.HSBtoRGB(hue, 1.0f, brightness);
-			
-			cf.getType().set(color);
-		}
-		cnorm.close();
-		ctheta.close();
-		cf.close();
-		
-		return flowImage;		
-	}
-
-	
-	public static Image<RGBALegacyType> createIndicatorImage(int size) { 
-		ImageFactory<RGBALegacyType> rgbFactory = new ImageFactory<RGBALegacyType>(new RGBALegacyType(), new PlanarContainerFactory());
-		Image<RGBALegacyType> indicatorImage = rgbFactory.createImage(new int[] { size, size } );
-		indicatorImage.setName("Flow indicator");
-		LocalizableCursor<RGBALegacyType> cf = indicatorImage.createLocalizableCursor();
-		
-		int[] position = cf.createPositionArray();
-		double norm, theta;
-		float hue, brightness;
-		int color;
-		final float maxNorm = size / 2;
-		while (cf.hasNext()) {
-			
-			cf.fwd();
-			cf.getPosition(position);
-			
-			norm = Math.sqrt( (position[0]-size/2)*(position[0]-size/2) + (position[1]-size/2)*(position[1]-size/2));
-			if (norm > maxNorm)
-				continue;
-			theta = Math.atan2(position[1]-size/2, position[0]-size/2);
-			
-			brightness 	= (float) (norm / maxNorm);
-			hue 		= (float) ((theta + Math.PI) / (2*Math.PI));
-			color = Color.HSBtoRGB(hue, 1.0f, brightness);
-			
-			cf.getType().set(color);
-		}
-		cf.close();
-		return indicatorImage;
-	}
-	
-	
-	
 	
 	/*
 	 * PUBLIC METHODS
