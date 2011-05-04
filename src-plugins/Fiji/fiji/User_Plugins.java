@@ -146,7 +146,7 @@ public class User_Plugins implements PlugIn {
 			return;
 		runPlugIn("Refresh Javas");
 		String[] languages = {
-			"Jython", "JRuby", "Clojure", "BSH", "Javascript"
+			"Jython", "JRuby", "Clojure", "BSH", "Javascript", "Jacl"
 		};
 		for (int i = 0; i < languages.length; i++)
 			runPlugIn("Refresh " + languages[i] + " Scripts");
