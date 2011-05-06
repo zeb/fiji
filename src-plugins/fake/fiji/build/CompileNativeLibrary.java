@@ -153,6 +153,12 @@ public class CompileNativeLibrary extends Rule {
 		addFlags(arguments);
 		try {
 			javah(jarFile, arguments);
+			// give Windows some time to release the files
+			if (hostPlatform.startsWith("win")) try {
+				Thread.sleep(750);
+			} catch (InterruptedException e) {
+				/* do nothing */
+			}
 		} catch (IOException e) {
 			throwException("Could not run JavaH", e);
 		}
