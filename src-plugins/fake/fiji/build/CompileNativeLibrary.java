@@ -203,6 +203,7 @@ public class CompileNativeLibrary extends Rule {
 			arguments.add("x86_64");
 			arguments.add("-bundle");
 			arguments.add("-dynamic");
+			arguments.add("-Wl,-macosx_version_min,10.5");
 			arguments.add("-Wl,-rpath,$ORIGIN/");
 		}
 
