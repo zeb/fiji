@@ -1,5 +1,6 @@
 package fiji.plugin.flowmate;
 
+import fiji.plugin.flowmate.util.OpticFlowUtils;
 import ij.IJ;
 import ij.ImageJ;
 import ij.ImagePlus;
@@ -19,7 +20,7 @@ public class TestDrive {
 	
 	
 //	private static final File TEST_FILE = new File(TestDrive.class.getResource("flow.tif").getFile());
-	private static final File TEST_FILE = new File("/Users/tinevez/Desktop/Data/Stack-1.tif");
+	private static final File TEST_FILE = new File("/Users/tinevez/Desktop/Data/square_smooth.tif");
 
 	public static <T extends RealType<T>> void  main(String[] args) {
 		
@@ -33,7 +34,7 @@ public class TestDrive {
 		for (int i = 0; i < img.getNumDimensions(); i++) 
 			System.out.println(" - for dim "+i+", size is "+img.getDimension(i));
 
-		SimoncelliDerivation<T> filter = new SimoncelliDerivation<T>(img);
+		SimoncelliDerivation<T> filter = new SimoncelliDerivation<T>(img, 5);
 		
 		ArrayList<Image<FloatType>> derivatives = new  ArrayList<Image<FloatType>>(img.getNumDimensions()); 
 		for (int i = 0; i < img.getNumDimensions(); i++) {
@@ -59,7 +60,7 @@ public class TestDrive {
 //		for (Image<FloatType> speedComponent : opticFlow) {
 //			ImageJFunctions.copyToImagePlus(speedComponent).show();
 //		}
-		
+//		
 //		List<Image<FloatType>> eigenvalues= opticFlowAlgo.getEigenvalues();
 //		for (Image<FloatType> eigenvalue : eigenvalues) {
 //			ImageJFunctions.copyToImagePlus(eigenvalue).show();

@@ -3,6 +3,8 @@ package fiji.plugin.flowmate;
 import java.util.ArrayList;
 import java.util.List;
 
+import fiji.plugin.flowmate.util.OpticFlowUtils;
+
 import mpicbg.imglib.image.Image;
 import mpicbg.imglib.image.display.imagej.ImageJFunctions;
 import mpicbg.imglib.type.numeric.RGBALegacyType;
@@ -25,7 +27,7 @@ public class FlowMate_<T extends RealType<T>>   implements PlugIn {
 		for (int i = 0; i < img.getNumDimensions(); i++) 
 			System.out.println(" - for dim "+i+", size is "+img.getDimension(i));
 
-		SimoncelliDerivation<T> filter = new SimoncelliDerivation<T>(img);
+		SimoncelliDerivation<T> filter = new SimoncelliDerivation<T>(img, 5);
 
 		ArrayList<Image<FloatType>> derivatives = new  ArrayList<Image<FloatType>>(img.getNumDimensions()); 
 		for (int i = 0; i < img.getNumDimensions(); i++) {

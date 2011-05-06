@@ -19,7 +19,6 @@ import mpicbg.imglib.type.numeric.real.FloatType;
 public class LucasKanade extends MultiThreadedBenchmarkAlgorithm {
 
 	private static final String BASE_ERROR_MESSAGE = "LucasKanade: ";
-	private static final float EPSILON = 1e-6f; // Let's be conservative...
 	private static final double THRESHOLD = 1;
 	private List<Image<FloatType>> derivatives;
 	private OutOfBoundsStrategyFactory<FloatType> factory= new OutOfBoundsStrategyMirrorFactory<FloatType>();
@@ -31,6 +30,11 @@ public class LucasKanade extends MultiThreadedBenchmarkAlgorithm {
 	// ROI
 	private int[] offset = new int[] { -1, -1, 0};
 	private final int[] size   = new int[] { 3, 3 , 1};
+	/** 
+	 * If true, we will accept normal velocities when the LK matrix is rank deficient. If false, 
+	 * we will reject it.
+	 */
+	private boolean acceptNormals = true;
 
 	/*
 	 * CONSTRUCTOR
@@ -164,7 +168,7 @@ public class LucasKanade extends MultiThreadedBenchmarkAlgorithm {
 			float B1 = 0;
 			float B2 = 0;
 			float det;
-			FloatType tx, ty, tt;
+			float tx, ty, tt;
 			
 			cux.getPosition(position);
 			lct.reset(positionOffset(position, offsetPos, offset));
@@ -174,25 +178,20 @@ public class LucasKanade extends MultiThreadedBenchmarkAlgorithm {
 				cy.setPosition(ct);
 				ct.setPosition(ct);
 
-				tx = cx.getType();
-				ty = cy.getType();
-				tt = ct.getType();
+				tx = cx.getType().get();
+				ty = cy.getType().get();
+				tt = ct.getType().get();
 				
-				M11 += tx.get() * tx.get(); 
-				M22 += ty.get() * ty.get(); 
-				M12 += tx.get() * ty.get();
-				B1  += - tx.get() * tt.get();
-				B2  += - ty.get() * tt.get();
+				M11 += 1/9f * tx * tx;
+				M22 += 1/9f * ty * ty; 
+				M12 += 1/9f * tx * ty;
+				B1  += - 1/9f * tx * tt;
+				B2  += - 1/9f * ty * tt;
 			}
 			lct.close();
 			
 			// Determinant
 			det = M11 * M22 - M12 * M12;
-			if (Math.abs(det) < EPSILON) {
-				cux.getType().set(Float.NaN);
-				cuy.getType().set(Float.NaN);
-				continue;
-			}
 			
 			// Inverse matrix
 			float Minv11 = M22 / det;
@@ -200,19 +199,31 @@ public class LucasKanade extends MultiThreadedBenchmarkAlgorithm {
 			float Minv22 = M11 / det;
 			
 			// Eigenvalues
-			double l2 = (M11+M22)/2 + Math.sqrt(((M11+M22)*(M11+M22))/4 - det);
-			double l1 = (M11+M22)/2 - Math.sqrt(((M11+M22)*(M11+M22))/4 - det);
+			double T = M11+M22;
+			double l2 = T/2 + Math.sqrt(T*T/4 - det); // The large eigenvalue
+			double l1 = T/2 - Math.sqrt(T*T/4 - det); // The small eigenvalue
 			cl1.getType().set((float) l1);
 			cl2.getType().set((float) l2);
 			
 			// Threshold
 			float vx, vy;
-			if (l1  > THRESHOLD) {
-				vx = Minv11 * B1 + Minv12 * B2;
-				vy = Minv12 * B1 + Minv22 * B2;
-			} else {
-				vx = Float.NaN;
-				vy = Float.NaN;
+			vx = Minv11 * B1 + Minv12 * B2;
+			vy = Minv12 * B1 + Minv22 * B2;
+			if (l1  < THRESHOLD) { // We do not accept the full velocity
+				if (acceptNormals  && l2 > THRESHOLD) {
+					// We take the raw normal velocity, by projecting on the large eigenvector
+					double e2x = l2 - M22; // eigenvector for eigenvalue 2 (the big one)
+					double e2y = M12;
+					double e2normSquare = e2x*e2x+e2y*e2y;
+					double ux = (vx * e2x + vy * e2y) * e2x / e2normSquare;
+					double uy = (vx * e2x + vy * e2y) * e2y / e2normSquare;
+					vx = (float) ux;
+					vy = (float) uy;
+				} else {
+					// We reject all -> no flow
+					vx = Float.NaN;
+					vy = Float.NaN;
+				}
 			}
 			
 			cux.getType().set(vx);

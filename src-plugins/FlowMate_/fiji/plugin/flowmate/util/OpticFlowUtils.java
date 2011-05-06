@@ -1,10 +1,11 @@
-package fiji.plugin.flowmate;
+package fiji.plugin.flowmate.util;
 
 import java.awt.Color;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Vector;
 import java.util.concurrent.atomic.AtomicInteger;
+
 
 import mpicbg.imglib.container.planar.PlanarContainerFactory;
 import mpicbg.imglib.cursor.LocalizableByDimCursor;
