@@ -10,7 +10,6 @@ import fiji.ffmpeg.AVUTIL;
 
 public class FFMPEG extends JNALibraryLoader {
 	protected static AVUTIL AVUTIL;
-	protected static AVCORE AVCORE;
 	protected static AVDEVICE AVDEVICE;
 	protected static AVCODEC AVCODEC;
 	protected static AVFORMAT AVFORMAT;
@@ -23,8 +22,6 @@ public class FFMPEG extends JNALibraryLoader {
 		try {
 			AVUTIL = (AVUTIL)loadLibrary("avutil",
 				AVUTIL.LIBAVUTIL_VERSION_MAJOR, AVUTIL.class);
-			AVCORE = (AVCORE)loadLibrary("avcore",
-				AVCORE.LIBAVCORE_VERSION_MAJOR, AVCORE.class);
 			AVDEVICE = (AVDEVICE)loadLibrary("avdevice",
 				AVDEVICE.LIBAVDEVICE_VERSION_MAJOR, AVDEVICE.class);
 			AVCODEC = (AVCODEC)loadLibrary("avcodec",

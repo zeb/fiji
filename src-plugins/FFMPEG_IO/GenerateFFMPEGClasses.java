@@ -190,9 +190,9 @@ public class GenerateFFMPEGClasses {
 	Pattern staticVariablePattern =
 		compile("^static (TYPE) *(IDENT)( *\\[[^\\]]*\\])*( *=.*)?; *$");
 	Pattern functionPattern =
-		compile("^(?:extern )?(TYPE) *(IDENT)\\((void|((PARAMTYPE *(?:PARAMNAME)?, *)*PARAMTYPE *(?:PARAMNAME)?)?)\\) *(?:av_const *)?(?:av_malloc_attrib av_alloc_size\\(\\d+\\) *)?;$");
+		compile("^(?:extern )?(?:attribute_deprecated )?(TYPE) *(IDENT)\\((void|((PARAMTYPE *(?:PARAMNAME)?, *)*PARAMTYPE *(?:PARAMNAME)?)?)\\) *(?:av_const *)?(?:av_malloc_attrib av_alloc_size\\(\\d+\\) *)?;$");
 	Pattern callbackPattern =
-		compile("^?(TYPE) *\\(\\*(IDENT)\\)\\((void|((PARAMTYPE *(?:PARAMNAME)?, *)*PARAMTYPE *(?:PARAMNAME)?)?)\\) *;$");
+		compile("^?(?:attribute_deprecated )?(TYPE) *\\(\\*(IDENT)\\)\\((void|((PARAMTYPE *(?:PARAMNAME)?, *)*PARAMTYPE *(?:PARAMNAME)?)?)\\) *;$");
 	Pattern motionValTablePattern = 
 		compile("^?(TYPE) *\\(\\*(IDENT)((?:\\[[^\\]]*\\])*)\\) *((?:\\[[^\\]]*\\])*);$");
 	Pattern parameterPattern =
@@ -212,7 +212,7 @@ public class GenerateFFMPEGClasses {
 	Pattern bitFieldPattern =
 		compile("^(?:unsigned )?int (IDENT):(\\d+);$");
 	Pattern structEndPattern =
-		compile("^\\} *(IDENT)? *(?: DECLARE_ALIGNED\\([^\\)], *(IDENT)*\\) *)?(?:attribute_deprecated *)?;$");
+		compile("^ *\\} *(IDENT)? *(?: DECLARE_ALIGNED\\([^\\)], *(IDENT)*\\) *)?(?:attribute_deprecated *)?;$");
 	Pattern privateStructs =
 		compile("^(?:struct )?(SwsContext|AVSHA|AVAES|ReSampleContext|AVResampleContext|AVMetadata"
 			+ "|AVMetadataConv|ByteIOContext|URLContext)$");
@@ -476,6 +476,7 @@ if (level == 0 && bitFieldBitCount > 0) throw new RuntimeException("Bit fields n
 		if (matcher == null)
 			return null;
 		String name = matcher.group(1);
+System.err.println("matched " + name + " in " + line);
 		StringBuffer constants = new StringBuffer();
 		StringBuffer buf = new StringBuffer();
 		flushBitField(buf);
@@ -887,7 +888,7 @@ if (level == 0 && bitFieldBitCount > 0) throw new RuntimeException("Bit fields n
 
 		GenerateFFMPEGClasses generator = new GenerateFFMPEGClasses();
 
-		for (String lib : new String[] { "avutil", "avcore", "avdevice", "swscale", /* "avfilter", */ "avcodec", "avformat" }) {
+		for (String lib : new String[] { "avutil", "avdevice", "swscale", /* "avfilter", */ "avcodec", "avformat" }) {
 			generator.currentLib = lib.toUpperCase();
 			try {
 				generator.handleHeaders(ffmpegDir + "lib" + lib, generator.currentLib, "fiji.ffmpeg", outDir);
