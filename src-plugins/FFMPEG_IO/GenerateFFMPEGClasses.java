@@ -493,6 +493,7 @@ System.err.println("matched " + name + " in " + line);
 			}
 
 			if ((matcher = match(structEndPattern, line)) != null) {
+System.err.println("matched end: " + matcher.group(1) + ", " + matcher.group(2) + ": " + line);
 				flushBitField(buf);
 				if (matcher.group(1) != null)
 					name = matcher.group(1);
