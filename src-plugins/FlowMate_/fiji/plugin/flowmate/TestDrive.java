@@ -4,6 +4,7 @@ import fiji.plugin.flowmate.util.OpticFlowUtils;
 import ij.IJ;
 import ij.ImageJ;
 import ij.ImagePlus;
+import ij.gui.Plot;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -20,7 +21,7 @@ public class TestDrive {
 	
 	
 //	private static final File TEST_FILE = new File(TestDrive.class.getResource("flow.tif").getFile());
-	private static final File TEST_FILE = new File("/Users/tinevez/Desktop/Data/square_smooth.tif");
+	private static final File TEST_FILE = new File("/Users/tinevez/Desktop/Amibes/IL-8 3 nM uni-1_01.tif");
 
 	public static <T extends RealType<T>> void  main(String[] args) {
 		
@@ -66,15 +67,32 @@ public class TestDrive {
 //			ImageJFunctions.copyToImagePlus(eigenvalue).show();
 //		}
 		
-		List<Image<FloatType>> polar = OpticFlowUtils.convertToPolar(opticFlow.get(0), opticFlow.get(1));
-		for (Image<FloatType> polCoord : polar) 
-			ImageJFunctions.copyToImagePlus(polCoord).show();
+//		List<Image<FloatType>> polar = OpticFlowUtils.convertToPolar(opticFlow.get(0), opticFlow.get(1));
+//		for (Image<FloatType> polCoord : polar) 
+//			ImageJFunctions.copyToImagePlus(polCoord).show();
 		
 		Image<RGBALegacyType> flow = OpticFlowUtils.createColorFlowImage(opticFlow.get(0), opticFlow.get(1));
 		ImageJFunctions.copyToImagePlus(flow).show();
 		
-		Image<RGBALegacyType> indicator = OpticFlowUtils.createIndicatorImage(64);
-		ImageJFunctions.copyToImagePlus(indicator).show();
+//		Image<RGBALegacyType> indicator = OpticFlowUtils.createIndicatorImage(64);
+//		ImageJFunctions.copyToImagePlus(indicator).show();
+		
+		NormSquareSummer summer = new NormSquareSummer(opticFlow.get(0), opticFlow.get(1));
+		summer.checkInput();
+		summer.process();
+		System.out.println("Summing norm done in "+summer.getProcessingTime()+" ms.");
+		
+		float[] normSquare = summer.getSquareNorm();
+		int[] count = summer.getCount();
+		float[] meanSpeedSquare = new float[normSquare.length];
+		float[] time = new float[normSquare.length];
+		for (int i = 0; i < meanSpeedSquare.length; i++) { 
+			meanSpeedSquare[i] = normSquare[i] / count[i];
+			time[i] = i;
+		}
+		
+		Plot plot = new Plot("Mean velocity squared", "Frame", "Velocity squared", time, meanSpeedSquare);
+		plot.show();
 		
 	}
 	
