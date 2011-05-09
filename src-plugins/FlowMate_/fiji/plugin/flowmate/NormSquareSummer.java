@@ -12,17 +12,15 @@ public class NormSquareSummer extends MultiThreadedBenchmarkAlgorithm {
 	
 	private static final String BASE_ERROR_MESSAGE = "NormSquare: ";
 	
-	
 	private Image<FloatType> X;
 	private Image<FloatType> Y;
-
-
 	private float[] sum;
 	private int[] count;
 	
 	public NormSquareSummer(final Image<FloatType> X, final Image<FloatType> Y) {
 		this.X = X;
 		this.Y = Y;
+		setNumThreads();
 	}
 		
 	@Override
@@ -58,18 +56,19 @@ public class NormSquareSummer extends MultiThreadedBenchmarkAlgorithm {
 		count = new int[X.getDimension(2)];
 		sum = new float[X.getDimension(2)];
 		
-		// Create one thread per frame. A lot, but let us try
+		final Thread[] threads = SimpleMultiThreading.newThreads( numThreads );
 		final int nSlices = X.getDimension(2); // 2D case: time is 3rd dimension, which is nbr 2 
-		final Thread[] threads = SimpleMultiThreading.newThreads( nSlices );
-		
 		final AtomicInteger ai = new AtomicInteger(0);					
     	for (int ithread = 0; ithread < threads.length; ++ithread) {
 
     		// Build Thread array
     		threads[ithread] = new Thread(new Runnable() {
     			public void run() {
-    				final int currentSlice = ai.getAndIncrement();
-    				processOneSlice(currentSlice);
+    				int currentSlice = ai.getAndIncrement(); 
+    				while (currentSlice < nSlices) {
+    					processOneSlice(currentSlice);
+    					currentSlice = ai.getAndIncrement();
+    				}
     			}
     		});
     	}
