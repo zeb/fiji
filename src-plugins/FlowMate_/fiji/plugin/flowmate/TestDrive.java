@@ -1,11 +1,14 @@
 package fiji.plugin.flowmate;
 
+import fiji.plugin.flowmate.analysis.NormSquareSummer;
+import fiji.plugin.flowmate.analysis.PeakDetector;
 import fiji.plugin.flowmate.util.OpticFlowUtils;
 import ij.IJ;
 import ij.ImageJ;
 import ij.ImagePlus;
 import ij.gui.Plot;
 
+import java.awt.Color;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
@@ -91,7 +94,20 @@ public class TestDrive {
 			time[i] = i;
 		}
 		
+		PeakDetector detector = new PeakDetector(meanSpeedSquare);
+		int[] peakLocations = detector.process(5, 1);
+		float[] peakTime = new float[peakLocations.length];
+		float[] peakVal = new float[peakLocations.length];
+		for (int i = 0; i < peakLocations.length; i++) {
+			peakTime[i] = time[peakLocations[i]];
+			peakVal[i] = meanSpeedSquare[peakLocations[i]];
+			System.out.println("At t="+peakTime[i] +" - Val = "+peakVal[i]);
+		}
+		
 		Plot plot = new Plot("Mean velocity squared", "Frame", "Velocity squared", time, meanSpeedSquare);
+		plot.draw();
+		plot.setColor(Color.red);
+		plot.addPoints(peakTime, peakVal, 0);
 		plot.show();
 		
 	}

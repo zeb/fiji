@@ -1,4 +1,4 @@
-package fiji.plugin.flowmate;
+package fiji.plugin.flowmate.analysis;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
