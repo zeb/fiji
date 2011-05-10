@@ -1,4 +1,4 @@
-package fiji.plugin.flowmate;
+package fiji.plugin.flowmate.opticflow;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -19,6 +19,12 @@ import mpicbg.imglib.type.numeric.real.FloatType;
 public class LucasKanade extends MultiThreadedBenchmarkAlgorithm {
 
 	private static final String BASE_ERROR_MESSAGE = "LucasKanade: ";
+	/** Default window size: 2D 3x3. */
+	private static final int[] DEFAULT_WINDOW_SIZE = new int[] {3, 3, 1}; 
+	/** Default window coeffs: flat average. */ 
+	private static final float[] DEFAULT_WINDOW_COEFFS = new float[] { 1/9f, 1/9f, 1/9f, 1/9f, 1/9f, 1/9f, 1/9f, 1/9f, 1/9f };
+	
+	
 	private static final double THRESHOLD = 1;
 	private List<Image<FloatType>> derivatives;
 	private OutOfBoundsStrategyFactory<FloatType> factory= new OutOfBoundsStrategyMirrorFactory<FloatType>();
@@ -26,15 +32,18 @@ public class LucasKanade extends MultiThreadedBenchmarkAlgorithm {
 	private Image<FloatType> uy;
 	private Image<FloatType> lambda1;
 	private Image<FloatType> lambda2;
-	
-	// ROI
-	private int[] offset = new int[] { -1, -1, 0};
-	private final int[] size   = new int[] { 3, 3 , 1};
 	/** 
 	 * If true, we will accept normal velocities when the LK matrix is rank deficient. If false, 
 	 * we will reject it.
 	 */
 	private boolean acceptNormals = true;
+	
+	// ROI
+
+	/** The window size, defined for each dimension. */
+	private int [] windowSize = DEFAULT_WINDOW_SIZE;
+	/** The window coefficients, organized in a linear array. */
+	private float[] windowCoeffs = DEFAULT_WINDOW_COEFFS;
 
 	/*
 	 * CONSTRUCTOR
@@ -58,6 +67,14 @@ public class LucasKanade extends MultiThreadedBenchmarkAlgorithm {
 			errorMessage = BASE_ERROR_MESSAGE + "Need at least 2 derivatives, one over space, one over time, got "+derivatives.size()+".";
 			return false;
 		}
+		int ncoeffs = windowSize[0];
+		for (int i = 1; i < windowSize.length; i++) 
+			ncoeffs = ncoeffs * windowSize[i];
+		if (ncoeffs != windowCoeffs.length) {
+			errorMessage = BASE_ERROR_MESSAGE + "Window coefficient number does not match window size. Expecting "+ncoeffs+", got "+windowCoeffs.length+".";
+			return false;
+		}
+		
 		return true;
 	}
 
@@ -127,6 +144,17 @@ public class LucasKanade extends MultiThreadedBenchmarkAlgorithm {
 		return eigenValues;
 	}
 	
+	/**
+	 * Set the Lucas and Kanade window value and size.
+	 * @param coeffs  the value of each coefficient in the window, in a linear array. The float array length
+	 * must match the size set in the <code>size</code> parameter.
+	 * @param size  the size of the window for each dimension.
+	 */
+	public void setWindow(final float[] coeffs, final int[] size) {
+		this.windowCoeffs = coeffs;
+		this.windowSize = size;
+	}
+	
 	
 	/*
 	 * PRIVATE METHODS
@@ -144,7 +172,13 @@ public class LucasKanade extends MultiThreadedBenchmarkAlgorithm {
 		LocalizableByDimCursor<FloatType> cuy = uy.createLocalizableByDimCursor();
 		LocalizableByDimCursor<FloatType> cl1 = lambda1.createLocalizableByDimCursor();
 		LocalizableByDimCursor<FloatType> cl2 = lambda2.createLocalizableByDimCursor();
-		RegionOfInterestCursor<FloatType> lct = ct.createRegionOfInterestCursor(offset, size);
+		
+		int[] offset = new int[windowSize.length];
+		for (int i = 0; i < offset.length; i++) 
+			offset[i] = (windowSize[i]-1) / 2;
+		float coeff;
+		
+		RegionOfInterestCursor<FloatType> lct = ct.createRegionOfInterestCursor(offset, windowSize);
 		final int[] position = cux.createPositionArray();
 		final int[] offsetPos = lct.createPositionArray();
 		
@@ -182,11 +216,22 @@ public class LucasKanade extends MultiThreadedBenchmarkAlgorithm {
 				ty = cy.getType().get();
 				tt = ct.getType().get();
 				
-				M11 += 1/9f * tx * tx;
-				M22 += 1/9f * ty * ty; 
-				M12 += 1/9f * tx * ty;
-				B1  += - 1/9f * tx * tt;
-				B2  += - 1/9f * ty * tt;
+				int index = 0;
+				int factor;
+				for (int i = 0; i < offsetPos.length; i++) {
+					factor = 1;
+					for (int k = 0; k < i; k++) {
+						factor = factor * windowSize[k];
+					}
+					index = index + factor * lct.getPosition(i);
+				}
+				coeff = windowCoeffs[index];
+				
+				M11 += coeff * tx * tx;
+				M22 += coeff * ty * ty; 
+				M12 += coeff * tx * ty;
+				B1  += - coeff * tx * tt;
+				B2  += - coeff * ty * tt;
 			}
 			lct.close();
 			
@@ -244,15 +289,25 @@ public class LucasKanade extends MultiThreadedBenchmarkAlgorithm {
 	/**
 	 * Offsets the given position to reflect the origin of the patch being in its center, rather
 	 * than at the top-left corner as is usually the case.
+	 * <p>
+	 * For instance 
+	 * <pre>
+	 * 	positionOffset({14, 25, 36}, {0, 0, 0}, {-1, -1, 0});
+	 * </pre>
+	 * will return the array
+	 * <pre>
+	 * 	{13, 24, 36}
+	 * </pre>
 	 * @param position the position to be offset
-	 * @param offsetPosition an int array to contain the newly offset position coordinates
-	 * @return offsetPosition, for convenience.
+	 * @param target an int array to contain the newly offset position coordinates
+	 * @param origin  an int array containing the quantity to offset each dimension
+	 * @return target, for convenience.
 	 */
-	private static final int[] positionOffset(final int[] position, final int[] offsetPosition, final int[] originOffset)	{
+	private static final int[] positionOffset(final int[] position, final int[] target, final int[] origin)	{
 			
 		for (int i = 0; i < position.length; ++i)
-			offsetPosition[i] = position[i] - originOffset[i];
-		return offsetPosition;
+			target[i] = position[i] - origin[i];
+		return target;
 	}
 
 }

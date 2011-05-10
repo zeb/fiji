@@ -2,7 +2,9 @@ package fiji.plugin.flowmate;
 
 import fiji.plugin.flowmate.analysis.NormSquareSummer;
 import fiji.plugin.flowmate.analysis.PeakDetector;
+import fiji.plugin.flowmate.opticflow.LucasKanade;
 import fiji.plugin.flowmate.util.OpticFlowUtils;
+import fiji.plugin.flowmate.util.Windows;
 import ij.IJ;
 import ij.ImageJ;
 import ij.ImagePlus;
@@ -12,6 +14,7 @@ import java.awt.Color;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+
 
 import mpicbg.imglib.image.Image;
 import mpicbg.imglib.image.display.imagej.ImageJFunctions;
@@ -48,14 +51,19 @@ public class TestDrive {
 			Image<FloatType> output = filter.getResult();
 			derivatives.add(output);
 		}
-		System.out.println("Filtering done in "+filter.getProcessingTime()+" ms.");
+		System.out.println("Computing derivatives done in "+filter.getProcessingTime()+" ms.");
 
 //		for (Image<FloatType> derivative : derivatives) {
 //			ImageJFunctions.copyToImagePlus(derivative).show();
 //		}
 				
 		// Optic flow
+		float[] gaussWindow = Windows.getGaussianWindow();
+		int[] windowSize = {7, 7, 1};
+		
 		LucasKanade opticFlowAlgo = new LucasKanade(derivatives);
+//		opticFlowAlgo.setNumThreads(1);
+		opticFlowAlgo.setWindow(gaussWindow, windowSize);
 		opticFlowAlgo.checkInput();
 		opticFlowAlgo.process();
 		List<Image<FloatType>> opticFlow = opticFlowAlgo.getResults();
@@ -77,8 +85,8 @@ public class TestDrive {
 		Image<RGBALegacyType> flow = OpticFlowUtils.createColorFlowImage(opticFlow.get(0), opticFlow.get(1));
 		ImageJFunctions.copyToImagePlus(flow).show();
 		
-//		Image<RGBALegacyType> indicator = OpticFlowUtils.createIndicatorImage(64);
-//		ImageJFunctions.copyToImagePlus(indicator).show();
+		Image<RGBALegacyType> indicator = OpticFlowUtils.createIndicatorImage(64);
+		ImageJFunctions.copyToImagePlus(indicator).show();
 		
 		NormSquareSummer summer = new NormSquareSummer(opticFlow.get(0), opticFlow.get(1));
 		summer.checkInput();

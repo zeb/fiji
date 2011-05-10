@@ -3,6 +3,8 @@ package fiji.plugin.flowmate;
 import java.util.ArrayList;
 import java.util.List;
 
+
+import fiji.plugin.flowmate.opticflow.LucasKanade;
 import fiji.plugin.flowmate.util.OpticFlowUtils;
 
 import mpicbg.imglib.image.Image;
