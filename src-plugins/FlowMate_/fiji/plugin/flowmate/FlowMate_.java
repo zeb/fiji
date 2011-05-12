@@ -1,9 +1,12 @@
 package fiji.plugin.flowmate;
 
+import java.awt.Color;
 import java.util.ArrayList;
 import java.util.List;
 
 
+import fiji.plugin.flowmate.analysis.NormSquareSummer;
+import fiji.plugin.flowmate.analysis.PeakDetector;
 import fiji.plugin.flowmate.opticflow.LucasKanade;
 import fiji.plugin.flowmate.util.OpticFlowUtils;
 
@@ -12,8 +15,10 @@ import mpicbg.imglib.image.display.imagej.ImageJFunctions;
 import mpicbg.imglib.type.numeric.RGBALegacyType;
 import mpicbg.imglib.type.numeric.RealType;
 import mpicbg.imglib.type.numeric.real.FloatType;
+import ij.IJ;
 import ij.ImagePlus;
 import ij.WindowManager;
+import ij.gui.Plot;
 import ij.plugin.PlugIn;
 
 public class FlowMate_<T extends RealType<T>>   implements PlugIn {
@@ -25,9 +30,9 @@ public class FlowMate_<T extends RealType<T>>   implements PlugIn {
 
 		Image<T> img = ImageJFunctions.wrap(imp);
 
-		System.out.println("Number of dimension: "+img.getNumDimensions());
+		IJ.log("Number of dimension: "+img.getNumDimensions());
 		for (int i = 0; i < img.getNumDimensions(); i++) 
-			System.out.println(" - for dim "+i+", size is "+img.getDimension(i));
+			IJ.log(" - for dim "+i+", size is "+img.getDimension(i));
 
 		SimoncelliDerivation<T> filter = new SimoncelliDerivation<T>(img, 5);
 
@@ -39,7 +44,7 @@ public class FlowMate_<T extends RealType<T>>   implements PlugIn {
 			Image<FloatType> output = filter.getResult();
 			derivatives.add(output);
 		}
-		System.out.println("Filtering done in "+filter.getProcessingTime()+" ms.");
+		IJ.log("Computing derivatives done in "+filter.getProcessingTime()+" ms.");
 
 		//		for (Image<FloatType> derivative : derivatives) {
 		//			ImageJFunctions.copyToImagePlus(derivative).show();
@@ -50,7 +55,7 @@ public class FlowMate_<T extends RealType<T>>   implements PlugIn {
 		opticFlowAlgo.checkInput();
 		opticFlowAlgo.process();
 		List<Image<FloatType>> opticFlow = opticFlowAlgo.getResults();
-		System.out.println("Computing flow done in "+opticFlowAlgo.getProcessingTime()+" ms.");
+		IJ.log("Computing flow done in "+opticFlowAlgo.getProcessingTime()+" ms.");
 
 		//		for (Image<FloatType> speedComponent : opticFlow) {
 		//			ImageJFunctions.copyToImagePlus(speedComponent).show();
@@ -69,6 +74,38 @@ public class FlowMate_<T extends RealType<T>>   implements PlugIn {
 		Image<RGBALegacyType> indicator = OpticFlowUtils.createIndicatorImage(64);
 		ImageJFunctions.copyToImagePlus(indicator).show();
 
+		// Analysis
+		NormSquareSummer summer = new NormSquareSummer(opticFlow.get(0), opticFlow.get(1));
+		summer.checkInput();
+		summer.process();
+		IJ.log("Summing norm done in "+summer.getProcessingTime()+" ms.");
+		
+		float[] normSquare = summer.getSquareNorm();
+		int[] count = summer.getCount();
+		float[] meanSpeedSquare = new float[normSquare.length];
+		float[] time = new float[normSquare.length];
+		for (int i = 0; i < meanSpeedSquare.length; i++) { 
+			meanSpeedSquare[i] = normSquare[i] / count[i];
+			time[i] = i;
+		}
+		
+		IJ.log("Peak detection:");
+		PeakDetector detector = new PeakDetector(meanSpeedSquare);
+		int[] peakLocations = detector.process(5, 1);
+		float[] peakTime = new float[peakLocations.length];
+		float[] peakVal = new float[peakLocations.length];
+		for (int i = 0; i < peakLocations.length; i++) {
+			peakTime[i] = time[peakLocations[i]];
+			peakVal[i] = meanSpeedSquare[peakLocations[i]];
+			IJ.log("At t="+peakTime[i] +" - Val = "+peakVal[i]);
+		}
+		
+
+		Plot plot = new Plot("Mean velocity squared", "Frame", "Velocity squared", time, meanSpeedSquare);
+		plot.draw();
+		plot.setColor(Color.red);
+		plot.addPoints(peakTime, peakVal, 0);
+		plot.show();
 	}
 
 }
