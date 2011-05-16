@@ -59,6 +59,7 @@ Name					File					Author(s)						Contact								License
 * jzlib 				jzlib-1.0.7.jar 			ymnk 							jzlib@jcraft.com 						BSD-like http://www.jcraft.com/jzlib/LICENSE.txt
 * Kalman Stack Filter			contained in Stack_Manipulation.jar	Christopher Philip Mauer				-								BSD-like
 * Kuwahara Filter			Kuwahara_Filter.jar			Wayne Rasband						http://imagej.nih.gov/ij/plugins/kuwahara.html			PD
+* MetroloJ				metroloj_.jar				Cedric Matthews and Fabrice Cordelières			fabrice.cordelieres@gmail.com					GPL
 * Multi Kymograph			Multi_Kymograph.jar			Jens Rietdorf & Arne Seitz				http://www.embl.de/eamnet/html/body_kymograph.html		BSD
 * Linear Kuwahara			Linear_Kuwahara.jar			Christian Tischer													GPL
 * LOCI 					loci_tools.jar				Melissa Linkert, Curtis Rueden et al. 			ctrueden@wisc.edu 						GPL		
