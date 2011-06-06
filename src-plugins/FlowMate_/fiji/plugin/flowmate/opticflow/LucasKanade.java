@@ -25,7 +25,6 @@ public class LucasKanade extends MultiThreadedBenchmarkAlgorithm {
 	private static final float[] DEFAULT_WINDOW_COEFFS = new float[] { 1/9f, 1/9f, 1/9f, 1/9f, 1/9f, 1/9f, 1/9f, 1/9f, 1/9f };
 	
 	
-	private static final double THRESHOLD = 1;
 	private List<Image<FloatType>> derivatives;
 	private OutOfBoundsStrategyFactory<FloatType> factory= new OutOfBoundsStrategyMirrorFactory<FloatType>();
 	private Image<FloatType> ux;
@@ -44,6 +43,7 @@ public class LucasKanade extends MultiThreadedBenchmarkAlgorithm {
 	private int [] windowSize = DEFAULT_WINDOW_SIZE;
 	/** The window coefficients, organized in a linear array. */
 	private float[] windowCoeffs = DEFAULT_WINDOW_COEFFS;
+	private double threshold;
 
 	/*
 	 * CONSTRUCTOR
@@ -254,8 +254,8 @@ public class LucasKanade extends MultiThreadedBenchmarkAlgorithm {
 			float vx, vy;
 			vx = Minv11 * B1 + Minv12 * B2;
 			vy = Minv12 * B1 + Minv22 * B2;
-			if (l1  < THRESHOLD) { // We do not accept the full velocity
-				if (acceptNormals  && l2 > THRESHOLD) {
+			if (l1  < threshold) { // We do not accept the full velocity
+				if (acceptNormals  && l2 > threshold) {
 					// We take the raw normal velocity, by projecting on the large eigenvector
 					double e2x = l2 - M22; // eigenvector for eigenvalue 2 (the big one)
 					double e2y = M12;
@@ -308,6 +308,11 @@ public class LucasKanade extends MultiThreadedBenchmarkAlgorithm {
 		for (int i = 0; i < position.length; ++i)
 			target[i] = position[i] - origin[i];
 		return target;
+	}
+
+	public void setThreshold(double threshold) {
+		this.threshold = threshold;
+		
 	}
 
 }

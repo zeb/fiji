@@ -132,8 +132,8 @@ public class NormSquareSummer extends MultiThreadedBenchmarkAlgorithm {
 			cy.setPosition(i, 0);
 			
 			for (int j = 0; j < X.getDimension(1); j++) {
-				cx.setPosition(i, 1);
-				cy.setPosition(i, 1);
+				cx.setPosition(j, 1);
+				cy.setPosition(j, 1);
 
 				fx = cx.getType().get();
 				fy = cy.getType().get();

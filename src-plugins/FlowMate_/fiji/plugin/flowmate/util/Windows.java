@@ -2,6 +2,22 @@ package fiji.plugin.flowmate.util;
 
 public class Windows {
 
+	public static final float[] getFlat3x3Window() {
+		return new float[] {
+				1/9f, 1/9f, 1/9f, 1/9f, 1/9f, 1/9f, 1/9f, 1/9f, 1/9f	
+		};
+	}
+
+	public static final float[] getFlat5x5Window() {
+		return new float[] {
+				1/25f, 1/25f, 1/25f, 1/25f, 1/25f,   
+				1/25f, 1/25f, 1/25f, 1/25f, 1/25f,   
+				1/25f, 1/25f, 1/25f, 1/25f, 1/25f,   
+				1/25f, 1/25f, 1/25f, 1/25f, 1/25f,   
+				1/25f, 1/25f, 1/25f, 1/25f, 1/25f
+		};
+	}
+
 	
 	public static final float[] getGaussianWindow() {
 		return new float[] {
