@@ -1,5 +1,7 @@
 package fiji.plugin.flowmate;
 
+import ij.gui.Roi;
+
 import java.util.Vector;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -135,12 +137,17 @@ public class SimoncelliDerivation<A extends RealType<A>> implements OutputAlgori
 	private int support;
 	/** Temporary holder needed to share data between threads. */
 	private Image<FloatType> source;
+	private Roi roi;
 
 
-	
 	public SimoncelliDerivation(Image<A> image, final int kernelSize) {
+		this(image, kernelSize, null);
+	}
+	
+	public SimoncelliDerivation(Image<A> image, final int kernelSize, final Roi roi) {
 		this.image = image;
 		this.support = kernelSize;
+		this.roi = roi;
 		ImageConverter<A, FloatType> converter = new ImageConverter<A, FloatType>(
 				image, 
 				new ImageFactory<FloatType>(new FloatType(), new ImagePlusContainerFactory()), 
@@ -268,13 +275,18 @@ public class SimoncelliDerivation<A extends RealType<A>> implements OutputAlgori
         for ( long j = 0; j < loopSize; ++j ) {
         	outputIterator.fwd();			                			                	
 
-        	// set the sum to zero
+        	// Get the current positon in the output image
+        	outputIterator.getPosition( to );
+
+			// Check if current location is within the ROI. If not, pass.
+			if (roi != null && !roi.contains(to[0], to[1])) 
+				continue;
+        	
+        	// Set the sum to zero
         	sum.setZero();
         	
         	// We move filtersize/2 of the convolved pixel in the input image
         	
-        	// get the current positon in the output image
-    		outputIterator.getPosition( to );
     		
     		// position in the input image is filtersize/2 to the left
     		to[ dim ] -= iteratorPosition;

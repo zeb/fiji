@@ -39,6 +39,7 @@ public class FlowMate_<T extends RealType<T>>   implements PlugIn {
 			return;
 				
 		ImagePlus imp = WindowManager.getCurrentImage();
+		ImagePlus originalImp = imp;
 		Roi roi = imp.getRoi();
 		if (null != roi)
 			imp = new Duplicator().run(imp);
@@ -49,7 +50,7 @@ public class FlowMate_<T extends RealType<T>>   implements PlugIn {
 		for (int i = 0; i < img.getNumDimensions(); i++) 
 			IJ.log(" - for dim "+i+", size is "+img.getDimension(i));
 
-		SimoncelliDerivation<T> filter = new SimoncelliDerivation<T>(img, 5);
+		SimoncelliDerivation<T> filter = new SimoncelliDerivation<T>(img, 5, roi);
 
 		ArrayList<Image<FloatType>> derivatives = new  ArrayList<Image<FloatType>>(img.getNumDimensions()); 
 		for (int i = 0; i < img.getNumDimensions(); i++) {
@@ -66,7 +67,7 @@ public class FlowMate_<T extends RealType<T>>   implements PlugIn {
 		//		}
 
 		// Optic flow
-		LucasKanade opticFlowAlgo = new LucasKanade(derivatives);
+		LucasKanade opticFlowAlgo = new LucasKanade(derivatives, roi);
 		opticFlowAlgo.setThreshold(threshold);
 		opticFlowAlgo.setWindow(Windows.getFlat5x5Window(), new int[] {5, 5, 1});
 		opticFlowAlgo.checkInput();
@@ -128,7 +129,7 @@ public class FlowMate_<T extends RealType<T>>   implements PlugIn {
 		
 		ResultsTable mainTable = ResultsTable.getResultsTable();
 		float npeaksPerFrame = (float) npeaks / img.getDimension(2); // DIRTY
-		String rowName = imp.getShortTitle();
+		String rowName = originalImp.getShortTitle();
 		if (null != roi)
 			rowName += "-"+roi.getName();
 		mainTable.incrementCounter();

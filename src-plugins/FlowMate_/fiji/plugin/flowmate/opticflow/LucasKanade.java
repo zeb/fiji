@@ -1,5 +1,7 @@
 package fiji.plugin.flowmate.opticflow;
 
+import ij.gui.Roi;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Vector;
@@ -44,14 +46,21 @@ public class LucasKanade extends MultiThreadedBenchmarkAlgorithm {
 	/** The window coefficients, organized in a linear array. */
 	private float[] windowCoeffs = DEFAULT_WINDOW_COEFFS;
 	private double threshold;
+	private Roi roi;
 
 	/*
 	 * CONSTRUCTOR
 	 */
 	
 	public LucasKanade(List<Image<FloatType>> derivatives) {
-		this.derivatives = derivatives;
+		this(derivatives, null);
 	}	
+
+	public LucasKanade(List<Image<FloatType>> derivatives, Roi roi) {
+		this.derivatives = derivatives;
+		this.roi = roi;
+	}	
+
 	
 	/*
 	 * PUBLIC METHODS
@@ -187,14 +196,22 @@ public class LucasKanade extends MultiThreadedBenchmarkAlgorithm {
 		
 		// Do as many pixels as wanted by this thread
 		 for ( long j = 0; j < loopSize; ++j ) {
-			
-			// Move cursors to next pixel
+
+			 // Move cursors to next pixel
 			cux.fwd();
 			cuy.setPosition(cux);
 			ct.setPosition(cux);
 			cl1.setPosition(cux);
 			cl2.setPosition(cux);
 			
+			// Check if current location is within the ROI. If not, pass.
+			cux.getPosition(position);
+			if (roi != null && !roi.contains(position[0], position[1])) {
+				cux.getType().set(Float.NaN);
+				cuy.getType().set(Float.NaN);
+				continue;
+			}
+
 			// Gather neighborhood data
 			float M11 = 0;
 			float M12 = 0;
@@ -204,7 +221,6 @@ public class LucasKanade extends MultiThreadedBenchmarkAlgorithm {
 			float det;
 			float tx, ty, tt;
 			
-			cux.getPosition(position);
 			lct.reset(positionOffset(position, offsetPos, offset));
 			while (lct.hasNext()) {
 				lct.fwd();
