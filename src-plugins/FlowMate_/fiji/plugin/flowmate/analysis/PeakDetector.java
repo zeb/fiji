@@ -2,6 +2,9 @@ package fiji.plugin.flowmate.analysis;
 
 import java.util.ArrayList;
 
+import mpicbg.imglib.algorithm.Algorithm;
+import mpicbg.imglib.algorithm.Benchmark;
+
 /**
  * A standard peak detector in time series.
  * <p>
@@ -18,15 +21,21 @@ import java.util.ArrayList;
  * </pre>
  * @author Jean-Yves Tinevez <jeanyves.tinevez@gmail.com> May 10, 2011
  */
-public class PeakDetector {
+public class PeakDetector implements Benchmark, Algorithm {
 
 	private float[] T;
+	private int[] peakArray;
+	private int windowSize;
+	private float stringency;
+	private long processingTime;
 
 	/**
 	 * Create a peak detector for the given time series.
 	 */
-	public PeakDetector(final float[] timeSeries) {
+	public PeakDetector(final float[] timeSeries, int windowSize, float stringency) {
 		this.T = timeSeries; 
+		this.windowSize = windowSize;
+		this.stringency = stringency;
 	}
 	
 	/**
@@ -39,7 +48,10 @@ public class PeakDetector {
 	 * @return an int array, with one element by retained peak, containing the index of 
 	 * the peak in the time series array.
 	 */
-	public int[] process(final int windowSize, final float stringency) {
+	@Override
+	public boolean process() {
+		
+		long start = System.currentTimeMillis();
 		
 		// Compute peak function values
 		float[] S = new float[T.length];
@@ -100,11 +112,32 @@ public class PeakDetector {
 	    peakLocations.removeAll(toPrune);
 	    
 	    // Convert to int[]
-	    int[] peakArray = new int[peakLocations.size()];
+	    peakArray = new int[peakLocations.size()];
 	    for (int i = 0; i < peakArray.length; i++) {
 			peakArray[i] = peakLocations.get(i);
 		}
-	    return peakArray;
+	    
+	    processingTime = System.currentTimeMillis() - start;
+	    return true;
+	}
+	
+	public int[] getResults() {
+		return peakArray;
+	}
+
+	@Override
+	public boolean checkInput() {
+		return true;
+	}
+
+	@Override
+	public String getErrorMessage() {
+		return null;
+	}
+
+	@Override
+	public long getProcessingTime() {
+		return processingTime;
 	}
 	
 	

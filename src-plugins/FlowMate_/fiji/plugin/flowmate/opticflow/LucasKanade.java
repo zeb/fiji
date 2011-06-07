@@ -47,6 +47,7 @@ public class LucasKanade extends MultiThreadedBenchmarkAlgorithm {
 	private float[] windowCoeffs = DEFAULT_WINDOW_COEFFS;
 	private double threshold;
 	private Roi roi;
+	private boolean computeAccuracy;
 
 	/*
 	 * CONSTRUCTOR
@@ -98,12 +99,14 @@ public class LucasKanade extends MultiThreadedBenchmarkAlgorithm {
 			final Image<FloatType> Ix = derivatives.get(0);
 			ux = Ix.createNewImage();
 			uy = Ix.createNewImage();
-			lambda1 = Ix.createNewImage();
-			lambda2 = Ix.createNewImage();
 			ux.setName("Vx");
 			uy.setName("Vy");
-			lambda1.setName("Lambda1");
-			lambda2.setName("Lambda2");
+			if (computeAccuracy) {
+				lambda1 = Ix.createNewImage();
+				lambda2 = Ix.createNewImage();
+				lambda1.setName("Lambda1");
+				lambda2.setName("Lambda2");
+			}
 			
 			// Prepare for multi-threading
 			final long imageSize = Ix.getNumPixels();
@@ -146,11 +149,11 @@ public class LucasKanade extends MultiThreadedBenchmarkAlgorithm {
 		return results;
 	}
 	
-	public List<Image<FloatType>> getEigenvalues() {
-		List<Image<FloatType>> eigenValues = new ArrayList<Image<FloatType>>(derivatives.get(0).getNumDimensions()-1);
-		eigenValues.add(lambda1);
-		eigenValues.add(lambda2);
-		return eigenValues;
+	public Image<FloatType> getAccuracyImage() {
+		if (acceptNormals)
+			return lambda2;
+		else
+			return lambda1;
 	}
 	
 	/**
@@ -179,8 +182,12 @@ public class LucasKanade extends MultiThreadedBenchmarkAlgorithm {
 		final LocalizableByDimCursor<FloatType> ct = It.createLocalizableByDimCursor(factory);
 		final LocalizableCursor<FloatType> cux = ux.createLocalizableCursor();
 		LocalizableByDimCursor<FloatType> cuy = uy.createLocalizableByDimCursor();
-		LocalizableByDimCursor<FloatType> cl1 = lambda1.createLocalizableByDimCursor();
-		LocalizableByDimCursor<FloatType> cl2 = lambda2.createLocalizableByDimCursor();
+		LocalizableByDimCursor<FloatType> cl1 = null;
+		LocalizableByDimCursor<FloatType> cl2 = null;
+		if (computeAccuracy) {
+			cl1 = lambda1.createLocalizableByDimCursor();
+			cl2 = lambda2.createLocalizableByDimCursor();
+		}
 		
 		int[] offset = new int[windowSize.length];
 		for (int i = 0; i < offset.length; i++) 
@@ -201,8 +208,10 @@ public class LucasKanade extends MultiThreadedBenchmarkAlgorithm {
 			cux.fwd();
 			cuy.setPosition(cux);
 			ct.setPosition(cux);
-			cl1.setPosition(cux);
-			cl2.setPosition(cux);
+			if (computeAccuracy) {
+				cl1.setPosition(cux);
+				cl2.setPosition(cux);
+			}
 			
 			// Check if current location is within the ROI. If not, pass.
 			cux.getPosition(position);
@@ -263,8 +272,10 @@ public class LucasKanade extends MultiThreadedBenchmarkAlgorithm {
 			double T = M11+M22;
 			double l2 = T/2 + Math.sqrt(T*T/4 - det); // The large eigenvalue
 			double l1 = T/2 - Math.sqrt(T*T/4 - det); // The small eigenvalue
-			cl1.getType().set((float) l1);
-			cl2.getType().set((float) l2);
+			if (computeAccuracy) {
+				cl1.getType().set((float) l1);
+				cl2.getType().set((float) l2);
+			}
 			
 			// Threshold
 			float vx, vy;
@@ -296,6 +307,10 @@ public class LucasKanade extends MultiThreadedBenchmarkAlgorithm {
 		cx.close();
 		cy.close();
 		ct.close();
+		if (computeAccuracy) {
+			cl1.close();
+			cl2.close();		
+		}
 		
 		return true;
 	}
@@ -329,6 +344,10 @@ public class LucasKanade extends MultiThreadedBenchmarkAlgorithm {
 	public void setThreshold(double threshold) {
 		this.threshold = threshold;
 		
+	}
+
+	public void setComputeAccuracy(boolean computeAccuracy) {
+		this.computeAccuracy = computeAccuracy;
 	}
 
 }

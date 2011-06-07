@@ -1,5 +1,12 @@
 package fiji.plugin.flowmate.util;
 
+import ij.ImagePlus;
+import ij.gui.NewImage;
+import ij.gui.Roi;
+import ij.plugin.Duplicator;
+import ij.plugin.filter.ThresholdToSelection;
+import ij.process.ImageProcessor;
+
 import java.awt.Color;
 import java.util.ArrayList;
 import java.util.List;
@@ -25,6 +32,43 @@ import mpicbg.imglib.type.numeric.real.FloatType;
  */
 public class OpticFlowUtils {
 
+	public static ImagePlus getCentralSlices(final ImagePlus source, int size) {
+		int middleFrame = source.getImageStackSize() / 2;
+		int firstFrame = middleFrame - size/2;
+		int lastFrame = middleFrame + size/2;
+		ImagePlus tmp = new Duplicator().run(source, firstFrame, lastFrame);
+		tmp.setTitle(source.getTitle());
+		return tmp;
+	}
+	
+	public static void cropToCentralSlice(ImagePlus source) {
+		int centralSlice = source.getStackSize() / 2;
+		ImagePlus tmp = new Duplicator().run(source, centralSlice, centralSlice);
+		tmp.setTitle(source.getTitle());
+		source.setStack(tmp.getImageStack());
+	}
+	
+	
+	/**
+	 * Return a new roi, from the original roi, enlarged by a given number of pixels. 
+	 * However, the new roi will have the same bounding box as the original, and will
+	 * not be enlarged out of the bounding box.
+	 * The new roi will be positioned at x=0, y=0.  
+	 */
+	public static Roi enlargeRoi(final Roi roi, final int size) {
+		Roi shiftedRoi = (Roi) roi.clone();
+		shiftedRoi.setLocation(0, 0);
+		ImagePlus tmp = NewImage.createByteImage("Mask", roi.getBounds().width, roi.getBounds().height, 1, NewImage.FILL_BLACK);
+		ImageProcessor ip = tmp.getProcessor();
+		ip.setValue(255);
+		ip.fill(roi);
+		for (int i = 0; i < size; i++)
+			ip.erode();
+		ip.setThreshold(100, 256, 0);
+		Roi largeRoi = new ThresholdToSelection().convert(ip);
+		return largeRoi;
+	}
+	
 	
 	/**
 	 * Create a RGB image representing the flow amplitude and direction encoded by color. 
