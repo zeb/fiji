@@ -235,7 +235,7 @@ replacement_files =  {
     'jars/jzlib-1.0.7.jar' : ( '/usr/share/java/jzlib.jar', ),
     'jars/postgresql-8.2-506.jdbc3.jar' : ( '/usr/share/java/postgresql.jar', ),
     'jars/javassist.jar' : ( '/usr/share/java/javassist.jar', ),
-    'jars/commons-math.jar' : ( '/usr/share/java/commons-math.jar', )
+    'jars/commons-math.jar' : ( '/usr/share/java/commons-math.jar', ),
     '$TOOLS_JAR' : ('/usr/lib/jvm/java-6-openjdk/lib/tools.jar', ),
     '$JAVA3D_JARS' : ('/usr/share/java/j3dcore.jar', '/usr/share/java/vecmath.jar', '/usr/share/java/j3dutils.jar', )
 }
