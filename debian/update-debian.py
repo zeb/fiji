@@ -700,8 +700,6 @@ if options.clean:
                 continue
             if re.search("(^\s*jars|precompiled)/commons-math.jar",line):
                 continue
-            if re.search("(^\s*jars|precompiled)/jna.jar",line):
-                continue
             if re.search("(^\s*jars|precompiled)/jsch-0.1.44.jar",line):
                 continue
             if re.search("(^\s*jars|precompiled)/junit-4.5.jar",line):
