@@ -28,7 +28,7 @@ import mpicbg.imglib.type.numeric.real.FloatType;
 public class FlowMate_  implements PlugIn {
 
 	private static final String VERSION_STRING = "alpha-6/6/11";
-	private static final String PEAK_NUMBER_COLUMN_NAME = "Peaks per frame";
+	static final String PEAK_NUMBER_COLUMN_NAME = "Peaks per frame";
 	
 	private static final double  DEFAULT_THRESHOLD = 1;
 	private static final boolean DEFAULT_COMPUTE_ACCURACY_IMAGE = false;
@@ -36,30 +36,97 @@ public class FlowMate_  implements PlugIn {
 	private static final boolean DEFAULT_DISPLAY_COLOR_WHEEL = false;
 	private static final boolean DEFAULT_DISPLAY_COLOR_FLOW = true;
 	private static final boolean DEFAULT_DISPLAY_FLOW_IMAGES = false;
-	private static final boolean  DEFAULT_DISPLAY_PEAKS = true;
+	private static final boolean DEFAULT_DISPLAY_PEAKS = true;
+
+	private double  threshold;
+	private boolean computeAccuracyImage;
+	private boolean computeOnlyCentralFrame;
+	private boolean displayColorWheel;
+	private boolean computeColorFlowImage;
+	private boolean computeFlowImages;
+	private boolean displayPeaks;
+	private boolean verbose = true;
+	private ArrayList<Image<FloatType>> derivatives;
+	private ImagePlus colorFlow;
+	private ImagePlus accuracyImage;
+	private ArrayList<ImagePlus> velocityField;
+	private Plot plot;
+	private ArrayList<float[]> meanSquareFlow;
+	private ArrayList<float[]> peakLocation;
+
 	
 	/*
 	 * STATIC FIELDS (to remember between plugin launches). 
 	 */
 	
-	private static double threshold = DEFAULT_THRESHOLD;
-	private static boolean displayAccuracyImage = DEFAULT_COMPUTE_ACCURACY_IMAGE;
-	private static boolean computeOnlyCentralFrame = DEFAULT_COMPUTE_CENTRAL_FRAME_ONLY;
-	private static boolean displayColorWheel = DEFAULT_DISPLAY_COLOR_WHEEL;
-	private static boolean displayColorFlowImage = DEFAULT_DISPLAY_COLOR_FLOW;
-	private static boolean displayFlowImages = DEFAULT_DISPLAY_FLOW_IMAGES;
-	private static boolean displayPeaks = DEFAULT_DISPLAY_PEAKS;
+	private static double  thresholdSettings = DEFAULT_THRESHOLD;
+	private static boolean computeAccuracyImageSettings = DEFAULT_COMPUTE_ACCURACY_IMAGE;
+	private static boolean computeOnlyCentralFrameSettings = DEFAULT_COMPUTE_CENTRAL_FRAME_ONLY;
+	private static boolean displayColorWheelSettings = DEFAULT_DISPLAY_COLOR_WHEEL;
+	private static boolean computeColorFlowImageSettings = DEFAULT_DISPLAY_COLOR_FLOW;
+	private static boolean computeFlowImagesSettings = DEFAULT_DISPLAY_FLOW_IMAGES;
+	private static boolean displayPeaksSettings = DEFAULT_DISPLAY_PEAKS;
 	
 
-	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Override
 	public void run(String arg) {
 		
 		if (!launchDialog())
 			return;
-				
-		ImagePlus imp = WindowManager.getCurrentImage();
 		
+		// Copy static configured fields to instance fields
+		threshold = thresholdSettings;
+		computeAccuracyImage = computeAccuracyImageSettings;
+		computeColorFlowImage = computeColorFlowImageSettings;
+		displayColorWheel = displayColorWheelSettings;
+		computeFlowImages = computeFlowImagesSettings;
+		displayPeaks = displayPeaksSettings;
+		computeOnlyCentralFrame = computeOnlyCentralFrameSettings;
+	
+		ImagePlus imp = WindowManager.getCurrentImage();
+		float npeaksPerFrame = process(imp);
+		
+		String rowName = imp.getShortTitle();
+		Roi roi = imp.getRoi();
+		if (null != roi) {
+			String roiName = roi.getName() == null ? "roi" : roi.getName();
+			rowName += "-"+roiName;
+		}
+		ResultsTable mainTable = ResultsTable.getResultsTable();
+		mainTable.incrementCounter();
+		mainTable.addLabel(rowName);
+		mainTable.addValue(PEAK_NUMBER_COLUMN_NAME, npeaksPerFrame);
+		mainTable.show("Results");
+		
+		IJ.log(String.format("Found a peak frequency of %.2e peaks/frame", npeaksPerFrame));
+
+		if (computeColorFlowImage)
+			colorFlow.show();
+		
+		if (computeFlowImages) {
+			for (ImagePlus tmp : velocityField)
+				tmp.show();
+		}
+		
+		if (displayPeaks) 
+			plot.show();
+
+		if (computeAccuracyImage)
+			accuracyImage.show();
+		
+		if (displayColorWheel) {
+			Image<RGBALegacyType> indicator = OpticFlowUtils.createIndicatorImage(64);
+			ImagePlus colorWheel = ImageJFunctions.copyToImagePlus(indicator);
+			colorWheel.show();
+		}
+
+	}
+		
+		
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+	public float process(final ImagePlus source) {
+		
+		ImagePlus imp = source;
 		if (computeOnlyCentralFrame)
 			imp = OpticFlowUtils.getCentralSlices(imp, 5);
 		
@@ -71,9 +138,15 @@ public class FlowMate_  implements PlugIn {
 			roi.setLocation(0, 0); // Move it to the top left corner, in the new image.
 		}
 		
-		if (!computeOnlyCentralFrame) {
+		String rowName = originalImp.getShortTitle();
+		if (null != roi) {
+			String roiName = roi.getName() == null ? "roi" : roi.getName();
+			rowName += "-"+roiName;
+		}
+		
+		if (!computeOnlyCentralFrame && verbose) {
 			IJ.log("__");
-			IJ.log("FlowMate for "+imp.getShortTitle());
+			IJ.log("FlowMate for "+rowName);
 		}
 		
 		Image<? extends RealType> img = ImageJFunctions.wrap(imp);
@@ -83,7 +156,7 @@ public class FlowMate_  implements PlugIn {
 			largeRoi = OpticFlowUtils.enlargeRoi(roi, 5);
 		SimoncelliDerivation<? extends RealType> filter = new SimoncelliDerivation(img, 5, largeRoi);
 
-		ArrayList<Image<FloatType>> derivatives = new  ArrayList<Image<FloatType>>(img.getNumDimensions()); 
+		derivatives = new  ArrayList<Image<FloatType>>(img.getNumDimensions()); 
 		for (int i = 0; i < img.getNumDimensions(); i++) {
 			filter.setDerivationDimension(i);
 			filter.checkInput();
@@ -91,58 +164,52 @@ public class FlowMate_  implements PlugIn {
 			Image<FloatType> output = filter.getResult();
 			derivatives.add(output);
 		}
-		if (!computeOnlyCentralFrame)
+		if (!computeOnlyCentralFrame && verbose)
 			IJ.log("Computation of derivatives done in "+filter.getProcessingTime()/1000+" s.");
 
 		// Optic flow
 		LucasKanade opticFlowAlgo = new LucasKanade(derivatives, roi);
 		opticFlowAlgo.setThreshold(threshold);
-		opticFlowAlgo.setComputeAccuracy(displayAccuracyImage);
+		opticFlowAlgo.setComputeAccuracy(computeAccuracyImage);
 		opticFlowAlgo.setWindow(Windows.getFlat5x5Window(), new int[] {5, 5, 1});
 		opticFlowAlgo.checkInput();
 		opticFlowAlgo.process();
 		List<Image<FloatType>> opticFlow = opticFlowAlgo.getResults();
-		if (!computeOnlyCentralFrame)
+		if (!computeOnlyCentralFrame && verbose)
 			IJ.log("Computation of optic flow done in "+opticFlowAlgo.getProcessingTime()/1000+" s.");
 
 		// Display outputs
 
-		if (displayColorFlowImage) {
+		if (computeColorFlowImage) {
 			Image<RGBALegacyType> flow = OpticFlowUtils.createColorFlowImage(opticFlow.get(0), opticFlow.get(1));
-			ImagePlus colorFlow = ImageJFunctions.copyToImagePlus(flow);
+			colorFlow = ImageJFunctions.copyToImagePlus(flow);
 			if (computeOnlyCentralFrame)
 				OpticFlowUtils.cropToCentralSlice(colorFlow);
-			colorFlow.show();
+			colorFlow.setTitle(colorFlow.getTitle()+" - "+rowName);
 		}
 
 		
-		if (displayAccuracyImage) {
+		if (computeAccuracyImage) {
 			Image<FloatType> accuracy = opticFlowAlgo.getAccuracyImage();
-			ImagePlus accuracyImage = ImageJFunctions.copyToImagePlus(accuracy);
+			accuracyImage = ImageJFunctions.copyToImagePlus(accuracy);
 			if (computeOnlyCentralFrame)
 				OpticFlowUtils.cropToCentralSlice(accuracyImage);
 			accuracyImage.getProcessor().resetMinAndMax();
-			accuracyImage.show();
+			accuracyImage.setTitle(accuracyImage.getTitle()+" - "+rowName);
 		}
 
-		if (displayFlowImages) {
+		if (computeFlowImages) {
 			for (Image<FloatType> speedComponent : opticFlow) {
 				ImagePlus speedComp = ImageJFunctions.copyToImagePlus(speedComponent);
 				if (computeOnlyCentralFrame)
 					OpticFlowUtils.cropToCentralSlice(speedComp);
 				speedComp.setSlice(speedComp.getStackSize()/2);
 				speedComp.getProcessor().resetMinAndMax();
-				speedComp.show();
+				speedComp.setTitle(speedComp.getTitle()+" - "+rowName);
+				velocityField = new ArrayList<ImagePlus>(opticFlow.size());
+				velocityField.add(speedComp);
 			}
 		}
-
-		if (displayColorWheel) {
-			Image<RGBALegacyType> indicator = OpticFlowUtils.createIndicatorImage(64);
-			ImageJFunctions.copyToImagePlus(indicator).show();
-		}
-		
-		if (computeOnlyCentralFrame)
-			return; // No need to go further then
 
 		// Analysis
 		NormSquareSummer summer = new NormSquareSummer(opticFlow.get(0), opticFlow.get(1));
@@ -158,6 +225,9 @@ public class FlowMate_  implements PlugIn {
 			meanSpeedSquare[i] = normSquare[i] / count[i];
 			time[i] = i;
 		}
+		meanSquareFlow = new ArrayList<float[]>(2);
+		meanSquareFlow.add(time);
+		meanSquareFlow.add(meanSpeedSquare);
 		
 		PeakDetector detector = new PeakDetector(meanSpeedSquare, 5, 1);
 		detector.process();
@@ -169,62 +239,108 @@ public class FlowMate_  implements PlugIn {
 			peakTime[i] = time[peakLocations[i]];
 			peakVal[i] = meanSpeedSquare[peakLocations[i]];
 		}
-		IJ.log("Peak detection done in "+detector.getProcessingTime()/1000+" s.");
+		peakLocation = new ArrayList<float[]>(2);
+		peakLocation.add(peakTime);
+		peakLocation.add(peakVal);
+		
+		if (verbose)
+			IJ.log("Peak detection done in "+detector.getProcessingTime()/1000+" s.");
 
 		if (displayPeaks) {
-			Plot plot = new Plot("Mean velocity squared", "Frame", "Velocity squared", time, meanSpeedSquare);
+			plot = new Plot("Mean velocity squared for "+rowName, "Frame", "Velocity squared", time, meanSpeedSquare);
 			plot.draw();
 			plot.setColor(Color.red);
 			plot.addPoints(peakTime, peakVal, 0);
-			plot.show();
 		}
 		
-		ResultsTable mainTable = ResultsTable.getResultsTable();
-		float npeaksPerFrame = (float) npeaks / img.getDimension(2); // DIRTY
-		String rowName = originalImp.getShortTitle();
-		if (null != roi) {
-			String roiName = roi.getName() == null ? "roi" : roi.getName();
-			rowName += "-"+roiName;
-		}
-		mainTable.incrementCounter();
-		mainTable.addLabel(rowName);
-		mainTable.addValue(PEAK_NUMBER_COLUMN_NAME, npeaksPerFrame);
-		mainTable.show("Results");
+		return (float) npeaks / time.length; // DIRTY
 		
-		IJ.log(String.format("Found a peak frequency of %.2e peaks/frame", npeaksPerFrame));
-
 	}
 
-	private boolean launchDialog() {
+	private static boolean launchDialog() {
 		
 		GenericDialog dialog = new GenericDialog("FlowMate v. "+VERSION_STRING);
 		dialog.addMessage("Set threshold in flow accuracy");
-		dialog.addNumericField("Threshold", threshold, 5);
-		dialog.addCheckbox("Display flow color image", displayColorFlowImage);
-		dialog.addCheckbox("Display peaks analysis", displayPeaks);
-		dialog.addCheckbox("Display color wheel", displayColorWheel);
+		dialog.addNumericField("Threshold", thresholdSettings, 5);
+		dialog.addCheckbox("Display flow color image", computeColorFlowImageSettings);
+		dialog.addCheckbox("Display peaks analysis", displayPeaksSettings);
+		dialog.addCheckbox("Display color wheel", displayColorWheelSettings);
 		dialog.addMessage("Display the Vx and Vy flow images");
-		dialog.addCheckbox("Display flow images", displayFlowImages);
-		dialog.addMessage("Compute and display accuracy image\n(on which threshold will be applied)");
-		dialog.addCheckbox("Compute accuracy image", displayAccuracyImage);
+		dialog.addCheckbox("Display flow images", computeFlowImagesSettings);
+		dialog.addMessage("Compute and compute accuracy image\n(on which threshold will be applied)");
+		dialog.addCheckbox("Compute accuracy image", computeAccuracyImageSettings);
 		dialog.addMessage("Do calculation only for the central frame\n(useful to quickly determine threshold)");
-		dialog.addCheckbox("Compute only central frame", computeOnlyCentralFrame);
+		dialog.addCheckbox("Compute only central frame", computeOnlyCentralFrameSettings);
 		
 		dialog.showDialog();
 		
 		if (dialog.wasCanceled())
 			return false;
 		
-		threshold = dialog.getNextNumber();
-		displayColorFlowImage = dialog.getNextBoolean();
-		displayPeaks = dialog.getNextBoolean();
-		displayColorWheel = dialog.getNextBoolean();		
-		displayFlowImages = dialog.getNextBoolean();
-		displayAccuracyImage = dialog.getNextBoolean();
-		computeOnlyCentralFrame = dialog.getNextBoolean();
+		thresholdSettings = dialog.getNextNumber();
+		computeColorFlowImageSettings = dialog.getNextBoolean();
+		displayPeaksSettings = dialog.getNextBoolean();
+		displayColorWheelSettings = dialog.getNextBoolean();		
+		computeFlowImagesSettings = dialog.getNextBoolean();
+		computeAccuracyImageSettings = dialog.getNextBoolean();
+		computeOnlyCentralFrameSettings = dialog.getNextBoolean();
 		return true;
-		
-		
+	}
+
+	public void setThreshold(double threshold) {
+		this.threshold = threshold;
+	}
+
+	public void setComputeAccuracyImage(boolean computeAccuracyImage) {
+		this.computeAccuracyImage = computeAccuracyImage;
 	}
 	
+	public ImagePlus getAccuracyImage() {
+		return this.accuracyImage;
+	}
+
+	public void setComputeOnlyCentralFrame(boolean computeOnlyCentralFrame) {
+		this.computeOnlyCentralFrame = computeOnlyCentralFrame;
+	}
+
+	public void setDisplayColorWheel(boolean displayColorWheel) {
+		this.displayColorWheel = displayColorWheel;
+	}
+
+	public void setComputeColorFlowImage(boolean computeColorFlowImage) {
+		this.computeColorFlowImage = computeColorFlowImage;
+	}
+	
+	public ImagePlus getColorFlowImage() {
+		return this.colorFlow;
+	}
+
+	public void setComputeFlowImages(boolean computeFlowImages) {
+		this.computeFlowImages = computeFlowImages;
+	}
+
+	public List<ImagePlus> getFlowImage() {
+		return velocityField;
+	}
+
+	public void setDisplayPeaks(boolean displayPeaks) {
+		this.displayPeaks = displayPeaks;
+	}
+	
+	public Plot getPeaks() {
+		return this.plot;
+	}
+
+	public void setVerbose(boolean verbose) {
+		this.verbose = verbose;
+	}
+
+	public List<float[]> getFlowMeanSquare() {
+		return this.meanSquareFlow;
+	}
+	
+	public List<float[]> getPeakLocation() {
+		return this.peakLocation;
+	}
+
 }

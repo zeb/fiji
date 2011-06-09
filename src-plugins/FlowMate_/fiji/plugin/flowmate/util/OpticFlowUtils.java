@@ -66,6 +66,8 @@ public class OpticFlowUtils {
 			ip.erode();
 		ip.setThreshold(100, 256, 0);
 		Roi largeRoi = new ThresholdToSelection().convert(ip);
+		tmp.changes = false;
+		tmp.close();
 		return largeRoi;
 	}
 	

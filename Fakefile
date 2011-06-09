@@ -355,7 +355,7 @@ CLASSPATH(plugins/register_virtual_stack_slices.jar)=jars/ij.jar:plugins/TrakEM2
 CLASSPATH(plugins/registration_3d.jar)=jars/ij.jar:jars/edu_mines_jtk.jar
 CLASSPATH(plugins/Siox_Segmentation.jar)=jars/ij.jar:jars/fiji-lib.jar
 CLASSPATH(plugins/Image_Expression_Parser.jar)=jars/ij.jar:jars/jep.jar:jars/imglib.jar:jars/junit-4.5.jar:jars/imglib-algorithms.jar:jars/imglib-ij.jar
-CLASSPATH(plugins/FlowMate_.jar)=jars/ij.jar:jars/imglib.jar:jars/imglib-algorithms.jar:jars/imglib-ij.jar
+CLASSPATH(plugins/FlowMate_.jar)=plugins/loci_tools.jar:jars/ij.jar:jars/imglib.jar:jars/imglib-algorithms.jar:jars/imglib-ij.jar
 
 CLASSPATH(plugins/Algorithm_Launcher.jar)=jars/ij.jar:jars/imglib.jar:jars/imglib-ij.jar
 plugins/Algorithm_Launcher.jar <- \
