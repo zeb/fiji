@@ -6,11 +6,16 @@ import ij.gui.Roi;
 import ij.measure.ResultsTable;
 import ij.plugin.PlugIn;
 import ij.plugin.frame.RoiManager;
+import ij.text.TextPanel;
+import ij.text.TextWindow;
 
+import java.awt.Font;
 import java.io.File;
 import java.io.FilenameFilter;
 import java.io.IOException;
+import java.util.Date;
 import java.util.Hashtable;
+import java.util.List;
 
 import loci.formats.FormatException;
 import loci.formats.ImageReader;
@@ -23,39 +28,62 @@ public class Batch_Flow_Mate implements PlugIn {
 	@Override
 	public void run(String arg) {
 
-		// Instantiate plugin
+		// Instantiate and configure plugin
 		FlowMate_ flowMate = new FlowMate_();
-		double threshold = 2000;
-		flowMate.setThreshold(threshold);
-		flowMate.setComputeColorFlowImage(true);
-		flowMate.setDisplayPeaks(true);
+		if (!FlowMate_.showDialog())
+			return;
+		flowMate.assignParameters();
+		flowMate.setVerbose(false);
 		
+		// Create Log window
+		TextWindow logWindow = new TextWindow("Log for Batch FlowMate_", "", 600, 500);
+		TextPanel log = logWindow.getTextPanel();
+		log.setFont(new Font("Monospaced", Font.PLAIN, 11), true);
+		
+		// Get ref to ROI manager
 		RoiManager roiManager = new RoiManager();
 		ResultsTable mainTable = ResultsTable.getResultsTable();
 		mainTable.show("Results");
 
+		// Call for file folder
 		String rootFolderName = IJ.getDirectory("Select raw files folder");
 		File rootFolder = new File(rootFolderName);
 		
-		IJ.log("Parsing folder "+rootFolder.getName());
+		// Say Hi!
+		log.append("____________________________________");
+		log.append("Batch FlowMate - starting");
+		log.append(new Date().toString());
+		log.append("with: "+flowMate);
+		log.append("__");
+		log.append("Parsing folder "+rootFolder.getName());
+
+		// Create save folder
+		File saveFolder = new File(rootFolder, "Results");
+		if (!saveFolder.exists() && !saveFolder.mkdir()) {
+			log.append("!! Could not create the results folder in "+saveFolder);
+			log.append("!! Aborting.");
+			return;
+		}
+		log.append("Saving in "+saveFolder);			
 		
+		// Get files
 		FilenameFilter lifFilesFilter = new FilenameFilter() {			
 			@Override
 			public boolean accept(File dir, String name) {
 				return name.endsWith(".lif");
 			}
 		};
-		
 		File[] files = rootFolder.listFiles(lifFilesFilter);
-		
-		IJ.log("Found "+files.length+" lif files");
-		
+		log.append("Found "+files.length+" lif files");
+		log.append("__");
+
+		// Loop over files
 		for(File file : files) {
 			
 			if (file.isDirectory())
 				continue;
-			
-			IJ.log("Opening file "+file.getName());
+			log.append("|");
+			log.append("+- Opening file "+file.getName());
 			
 			ImageReader reader = new ImageReader();
 			try {
@@ -67,12 +95,14 @@ public class Batch_Flow_Mate implements PlugIn {
 			}
 			
 			int nseries = reader.getSeriesCount();
-			IJ.log("Found "+nseries+" series in file");
+			log.append("|  Found "+nseries+" series in file");
 			
+			// Loop over series
 			for (int i = 0; i < nseries; i++) {
 				final int seriesIndex = i + 1;
 
-				IJ.log("Reading series number "+seriesIndex);
+				log.append("|  |");
+				log.append("|  +- Reading series number "+seriesIndex+" of "+nseries);
 
 				ImporterOptions options = null;
 				try {
@@ -129,71 +159,110 @@ public class Batch_Flow_Mate implements PlugIn {
 					}
 				}
 				if (null == roiFile) {
-					IJ.log("Roi file not found for file "+file.getName()+" series "+seriesIndex+", skipping");
+					log.append("      Roi file not found for file "+file.getName()+" series "+seriesIndex+", skipping");
 				} else {
-					
-					
+										
 					// Empty roi manager
-					IJ.log("Emptying ROI manager");
 					roiManager.getROIs().clear();
 					roiManager.getList().removeAll();
 
 					// Loading zip file
-					IJ.log("Loading roi file "+roiFile.getName());
+					log.append("|  |  Loading roi file "+roiFile.getName());
 					roiManager.runCommand("Open", roiFile.getAbsolutePath());
-					
-					IJ.log("Found "+roiManager.getCount()+" ROIs in file");
+
+					log.append("|  |  Found "+roiManager.getCount()+" ROIs in file");
 					@SuppressWarnings("rawtypes")
 					Hashtable rois = roiManager.getROIs();
 					
+					int nRois = rois.size();
+					int roiIndex = 0;
 					for (Object obj : rois.values()) {
 						Roi roi = (Roi) obj;
+						roiIndex++;
 						
-						IJ.log("Analyzing for roi "+roi.getName());
+						log.append("|  |  |");
+						log.append("|  |  +- Analyzing for roi "+roi.getName()+", "+roiIndex+" of "+nRois);
 						imp.setRoi(roi);
 						
 						String rowName = imp.getShortTitle();
+						rowName += "-Series_"+seriesIndex;
 						if (null != roi) {
-							String roiName = roi.getName() == null ? "roi" : roi.getName();
-							rowName += "-"+roiName;
+							if (nRois > 1) {
+								String roiName = roi.getName() == null ? "-Roi" : roi.getName();
+								rowName += "-"+roiName;
+							} else {
+								rowName += "-Roi";
+							}
 						}
 						
 						float npeaksPerFrame = flowMate.process(imp);
 
-						ImagePlus colorFlowImp = flowMate.getColorFlowImage();
-						IJ.save(colorFlowImp, rootFolderName+rowName+"-flow.tif");
-						colorFlowImp.changes = false;
-						colorFlowImp.close();
+						// Save extra data
 						
-						ImagePlus plotImp = flowMate.getPeaks().getImagePlus();
-						IJ.save(plotImp, rootFolderName+rowName+"-peaks.tif");
-						plotImp.changes = false;
-						plotImp.close();
+						if (flowMate.isComputeColorFlowImage()) {
+							ImagePlus colorFlowImp = flowMate.getColorFlowImage();
+							IJ.save(colorFlowImp, saveFolder+File.separator+rowName+"-Flow.tif");
+							colorFlowImp.changes = false;
+							colorFlowImp.close();
+						}
+						
+						if (flowMate.isDisplayPeaks()) {
+							ImagePlus plotImp = flowMate.getPeaks().getImagePlus();
+							IJ.save(plotImp, saveFolder+File.separator+rowName+"-Peaks.png");
+							plotImp.changes = false;
+							plotImp.close();
+						}
+						
+						if (flowMate.isComputeAccuracyImage()) {
+							ImagePlus accImp = flowMate.getAccuracyImage();
+							IJ.save(accImp, saveFolder+File.separator+rowName+"-Accuracy.tif");
+							accImp.changes = false;
+							accImp.close();
+						}
 
+						if (flowMate.isComputeFlowImages()) {
+							List<ImagePlus> flowImps = flowMate.getFlowImage();
+							for (int j = 0; j < flowImps.size(); j++) {
+								ImagePlus flowImp = flowImps.get(j);
+								String fileName = saveFolder+File.separator+rowName+"-Flow-"+(char)('X'+j)+".tif";
+								IJ.save(flowImp, fileName);
+								flowImp.changes = false;
+								flowImp.close();
+							}
+						}
+						
 						mainTable.incrementCounter();
 						mainTable.addLabel(rowName);
 						mainTable.addValue(FlowMate_.PEAK_NUMBER_COLUMN_NAME, npeaksPerFrame);
 						mainTable.show("Results");
 						
-						IJ.log("______________________________");
-						
+						log.append("|  |  |  Done "+new Date().toString());
+
 					} // Loop over Rois
 					
 				} // If we have Rois 
-
+				
+				for (ImagePlus tmp : imps) { 
+					tmp.changes = false;
+					tmp.close();
+				}
 				
 			} // Loop over series
-					
 			
+		} // Loop over files
+
+		try {
+			log.append("Saving results table in "+(saveFolder+File.separator+"Results.xls"));
+			mainTable.saveAs(saveFolder+"Results.xls");
+		} catch (IOException e) {
+			e.printStackTrace();
 		}
 		
-		
-		
+		log.append("Batch FlowMate - finishing");
+		log.append(new Date().toString());
+		log.append("____________________________________");
 
 	}
-	
-	
-	
 	
 	
 	public static void main(String[] args) {

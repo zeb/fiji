@@ -27,7 +27,7 @@ import mpicbg.imglib.type.numeric.real.FloatType;
 
 public class FlowMate_  implements PlugIn {
 
-	private static final String VERSION_STRING = "alpha-6/6/11";
+	private static final String VERSION_STRING = "alpha-10/6/11";
 	static final String PEAK_NUMBER_COLUMN_NAME = "Peaks per frame";
 	
 	private static final double  DEFAULT_THRESHOLD = 1;
@@ -68,13 +68,10 @@ public class FlowMate_  implements PlugIn {
 	private static boolean displayPeaksSettings = DEFAULT_DISPLAY_PEAKS;
 	
 
-	@Override
-	public void run(String arg) {
-		
-		if (!launchDialog())
-			return;
-		
-		// Copy static configured fields to instance fields
+	/**
+	 *  Copy static configured fields to instance fields
+	 */
+	public void assignParameters() {
 		threshold = thresholdSettings;
 		computeAccuracyImage = computeAccuracyImageSettings;
 		computeColorFlowImage = computeColorFlowImageSettings;
@@ -82,6 +79,15 @@ public class FlowMate_  implements PlugIn {
 		computeFlowImages = computeFlowImagesSettings;
 		displayPeaks = displayPeaksSettings;
 		computeOnlyCentralFrame = computeOnlyCentralFrameSettings;
+	}
+	
+	@Override
+	public void run(String arg) {
+		
+		if (!showDialog())
+			return;
+		
+		assignParameters();
 	
 		ImagePlus imp = WindowManager.getCurrentImage();
 		float npeaksPerFrame = process(imp);
@@ -89,7 +95,7 @@ public class FlowMate_  implements PlugIn {
 		String rowName = imp.getShortTitle();
 		Roi roi = imp.getRoi();
 		if (null != roi) {
-			String roiName = roi.getName() == null ? "roi" : roi.getName();
+			String roiName = roi.getName() == null ? "Roi" : roi.getName();
 			rowName += "-"+roiName;
 		}
 		ResultsTable mainTable = ResultsTable.getResultsTable();
@@ -199,6 +205,7 @@ public class FlowMate_  implements PlugIn {
 		}
 
 		if (computeFlowImages) {
+			velocityField = new ArrayList<ImagePlus>(opticFlow.size());
 			for (Image<FloatType> speedComponent : opticFlow) {
 				ImagePlus speedComp = ImageJFunctions.copyToImagePlus(speedComponent);
 				if (computeOnlyCentralFrame)
@@ -206,7 +213,6 @@ public class FlowMate_  implements PlugIn {
 				speedComp.setSlice(speedComp.getStackSize()/2);
 				speedComp.getProcessor().resetMinAndMax();
 				speedComp.setTitle(speedComp.getTitle()+" - "+rowName);
-				velocityField = new ArrayList<ImagePlus>(opticFlow.size());
 				velocityField.add(speedComp);
 			}
 		}
@@ -215,6 +221,7 @@ public class FlowMate_  implements PlugIn {
 		NormSquareSummer summer = new NormSquareSummer(opticFlow.get(0), opticFlow.get(1));
 		summer.checkInput();
 		summer.process();
+		if (verbose)
 			IJ.log("Summation of velocity norm done in "+summer.getProcessingTime()/1000+" s.");
 		
 		float[] normSquare = summer.getSquareNorm();
@@ -257,7 +264,7 @@ public class FlowMate_  implements PlugIn {
 		
 	}
 
-	private static boolean launchDialog() {
+	public static boolean showDialog() {
 		
 		GenericDialog dialog = new GenericDialog("FlowMate v. "+VERSION_STRING);
 		dialog.addMessage("Set threshold in flow accuracy");
@@ -287,60 +294,58 @@ public class FlowMate_  implements PlugIn {
 		return true;
 	}
 
-	public void setThreshold(double threshold) {
-		this.threshold = threshold;
-	}
-
-	public void setComputeAccuracyImage(boolean computeAccuracyImage) {
-		this.computeAccuracyImage = computeAccuracyImage;
-	}
-	
-	public ImagePlus getAccuracyImage() {
-		return this.accuracyImage;
-	}
-
-	public void setComputeOnlyCentralFrame(boolean computeOnlyCentralFrame) {
-		this.computeOnlyCentralFrame = computeOnlyCentralFrame;
-	}
-
-	public void setDisplayColorWheel(boolean displayColorWheel) {
-		this.displayColorWheel = displayColorWheel;
-	}
-
-	public void setComputeColorFlowImage(boolean computeColorFlowImage) {
-		this.computeColorFlowImage = computeColorFlowImage;
+	@Override
+	public String toString() {
+		String str = super.toString();
+		str +="\nSettings:";
+		str +="\n  Treshold:                   "+threshold;
+		str +="\n  Compute color flow image:   "+computeColorFlowImage;
+		str +="\n  Compute flow images:        "+computeFlowImages;
+		str +="\n  Compute accuracy image:     "+computeAccuracyImage;
+		str +="\n  Compute only central frame: "+computeOnlyCentralFrame;
+		str +="\n  Display peaks amalysis:     "+displayPeaks;
+		str +="\n  Display color wheel:        "+displayColorWheel;
+		return str;
 	}
 	
-	public ImagePlus getColorFlowImage() {
-		return this.colorFlow;
-	}
-
-	public void setComputeFlowImages(boolean computeFlowImages) {
-		this.computeFlowImages = computeFlowImages;
-	}
-
-	public List<ImagePlus> getFlowImage() {
-		return velocityField;
-	}
-
-	public void setDisplayPeaks(boolean displayPeaks) {
-		this.displayPeaks = displayPeaks;
-	}
+	/*
+	 * GETTER / SETTERS
+	 */
 	
-	public Plot getPeaks() {
-		return this.plot;
-	}
+	public void setThreshold(double threshold) { this.threshold = threshold; }
+	public double getThreshold() {return this.threshold; }
 
-	public void setVerbose(boolean verbose) {
-		this.verbose = verbose;
-	}
-
-	public List<float[]> getFlowMeanSquare() {
-		return this.meanSquareFlow;
-	}
+	public void setComputeAccuracyImage(boolean computeAccuracyImage) { this.computeAccuracyImage = computeAccuracyImage; }
+	public boolean isComputeAccuracyImage() { return this.computeAccuracyImage; }
 	
-	public List<float[]> getPeakLocation() {
-		return this.peakLocation;
-	}
+	public ImagePlus getAccuracyImage() { return this.accuracyImage; }
+
+	public void setComputeOnlyCentralFrame(boolean computeOnlyCentralFrame) { this.computeOnlyCentralFrame = computeOnlyCentralFrame; }
+	public boolean isComputeOnlyCentralFrame() { return this.computeOnlyCentralFrame; }
+
+	public void setDisplayColorWheel(boolean displayColorWheel) { this.displayColorWheel = displayColorWheel; }
+
+	public void setComputeColorFlowImage(boolean computeColorFlowImage) { this.computeColorFlowImage = computeColorFlowImage; }
+	public boolean isComputeColorFlowImage() { return this.computeColorFlowImage; }
+	
+	public ImagePlus getColorFlowImage() { return this.colorFlow; }
+
+	public void setComputeFlowImages(boolean computeFlowImages) { this.computeFlowImages = computeFlowImages; }
+	public boolean isComputeFlowImages() { return this.computeFlowImages; }
+
+	public List<ImagePlus> getFlowImage() { return velocityField; }
+
+	public void setDisplayPeaks(boolean displayPeaks) { this.displayPeaks = displayPeaks; }
+	public boolean isDisplayPeaks() { return this.displayPeaks; }
+	
+	
+	public Plot getPeaks() { return this.plot; }
+
+	public void setVerbose(boolean verbose) { this.verbose = verbose; }
+	public boolean isVerbose() { return this.verbose; }
+
+	public List<float[]> getFlowMeanSquare() { return this.meanSquareFlow; }
+	
+	public List<float[]> getPeakLocation() { return this.peakLocation; }
 
 }
