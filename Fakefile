@@ -219,6 +219,7 @@ PLUGIN_TARGETS=plugins/Jython_Interpreter.jar \
 	plugins/Multi_Kymograph.jar \
 	jars/biiImageJ3DViewer.jar \
 	plugins/ij-plugins_toolkit.jar \
+	plugins/gebiss_.jar \
 
 all <- fiji $SUBMODULE_TARGETS $PLUGIN_TARGETS
 
@@ -460,6 +461,7 @@ CLASSPATH(plugins/Action_Bar.jar)=jars/ij.jar
 CLASSPATH(plugins/Multi_Kymograph.jar)=jars/ij.jar
 CLASSPATH(jars/biiImageJ3DViewer.jar)=jars/ij.jar:jars/junit-4.5.jar:jars/Jama-1.0.2.jar:$JAVA3D_JARS
 CLASSPATH(plugins/ij-plugins_toolkit.jar)=jars/ij.jar:jars/commons-logging.jar:jars/binding-2.0.6.jar:jars/commons-beanutils-core-1.7.0.jar:jars/commons-logging-1.1.1.jar
+CLASSPATH(plugins/gebiss_.jar)=jars/ij.jar:jars/biiImageJ3DViewer.jar:plugins/ij-plugins_toolkit.jar
 
 # pre-Java5 generics ;-)
 
