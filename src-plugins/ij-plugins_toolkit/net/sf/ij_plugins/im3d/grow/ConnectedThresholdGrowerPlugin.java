@@ -42,6 +42,7 @@ public class ConnectedThresholdGrowerPlugin implements PlugIn {
     private static Point3DInt seedPoint = new Point3DInt(0, 0, 0);
     private static int valueMin;
     private static int valueMax;
+    protected static ImagePlus region;
 
     /**
      * Main processing method for the net.sf.ij_plugins.im3d.grow.ConnectedThresholdGrowerPlugin
@@ -74,7 +75,12 @@ public class ConnectedThresholdGrowerPlugin implements PlugIn {
         ctf.setValueMax(valueMax);
         ImageStack out = ctf.run(imp.getStack(), seedPoint);
 
-        new ImagePlus("Region", out).show();
+        region = new ImagePlus("Region", out);
+        region.show();
+    }
+
+    public static ImagePlus getRegion() {
+        return region;
     }
 
     /**
