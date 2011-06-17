@@ -217,6 +217,7 @@ PLUGIN_TARGETS=plugins/Jython_Interpreter.jar \
 	plugins/Kuwahara_Filter.jar \
 	plugins/Action_Bar.jar \
 	plugins/Multi_Kymograph.jar \
+	jars/biiImageJ3DViewer.jar \
 
 all <- fiji $SUBMODULE_TARGETS $PLUGIN_TARGETS
 
@@ -456,6 +457,7 @@ CLASSPATH(plugins/JNI_Example.jar)=jars/ij.jar:jars/fiji-lib.jar
 CLASSPATH(plugins/Kuwahara_Filter.jar)=jars/ij.jar
 CLASSPATH(plugins/Action_Bar.jar)=jars/ij.jar
 CLASSPATH(plugins/Multi_Kymograph.jar)=jars/ij.jar
+CLASSPATH(jars/biiImageJ3DViewer.jar)=jars/ij.jar:jars/junit-4.5.jar:jars/Jama-1.0.2.jar:$JAVA3D_JARS
 
 # pre-Java5 generics ;-)
 
