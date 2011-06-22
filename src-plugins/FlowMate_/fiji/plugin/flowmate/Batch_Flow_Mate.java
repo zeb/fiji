@@ -70,11 +70,11 @@ public class Batch_Flow_Mate implements PlugIn {
 		FilenameFilter lifFilesFilter = new FilenameFilter() {			
 			@Override
 			public boolean accept(File dir, String name) {
-				return name.endsWith(".lif");
+				return name.endsWith(".lif") || name.endsWith(".tif");
 			}
 		};
 		File[] files = rootFolder.listFiles(lifFilesFilter);
-		log.append("Found "+files.length+" lif files");
+		log.append("Found "+files.length+" suitable image files");
 		log.append("__");
 
 		// Loop over files
@@ -94,6 +94,11 @@ public class Batch_Flow_Mate implements PlugIn {
 				e.printStackTrace();
 			}
 			
+			int nchannels = reader.getSizeC();
+			if (nchannels > 1) {
+				log.append("|  +- Found "+nchannels+" in file. Expected only 1, skipping.");
+				continue;
+			}
 			int nseries = reader.getSeriesCount();
 			log.append("|  Found "+nseries+" series in file");
 			
