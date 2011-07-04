@@ -185,7 +185,7 @@ public class TrackMateFrame extends javax.swing.JFrame implements ActionListener
 
 		case TRACKER_CHOICE_KEY:
 			if (null == trackerChoicePanel)
-				trackerChoicePanel = new EnumChooserPanel<TrackerType>(TrackerType.SIMPLE_LAP_TRACKER, "tracker");
+				trackerChoicePanel = new EnumChooserPanel<TrackerType>(TrackerType.types, TrackerType.SIMPLE_LAP_TRACKER, "tracker");
 			panel = trackerChoicePanel;
 			break;
 

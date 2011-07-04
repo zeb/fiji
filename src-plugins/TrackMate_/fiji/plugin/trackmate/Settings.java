@@ -77,15 +77,7 @@ public class Settings {
 	 * Return a new {@link SpotTracker} as selected in this settings object, initialized for the given model.
 	 */
 	public SpotTracker getSpotTracker(TrackMateModel model) {
-		switch(trackerType) {
-		case LAP_TRACKER:
-		case SIMPLE_LAP_TRACKER:
-			return new LAPTracker(model.getFilteredSpots(), model.getSettings().trackerSettings);
-		case FAST_LAPT:
-		case SIMPLE_FAST_LAPT:
-			return new FastLAPTracker(model.getFilteredSpots(), model.getSettings().trackerSettings);
-		}
-		return null;
+		return trackerType.getSpotTracker(model);
 	}
 	
 	/**

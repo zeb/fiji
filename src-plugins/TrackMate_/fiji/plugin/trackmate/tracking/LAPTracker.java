@@ -656,12 +656,8 @@ public class LAPTracker implements SpotTracker {
 
 	}
 
-
-
-
 	@Override
 	public void setLogger(Logger logger) {
 		this.logger = logger;
 	}
 }
-

@@ -20,7 +20,7 @@ import fiji.plugin.trackmate.segmentation.SegmenterType;
 /**
  * A panel to let the user choose what displayer he wants to use.
  */
-public class EnumChooserPanel <K extends Enum<K> & InfoTextable> extends ActionListenablePanel {
+public class EnumChooserPanel <K extends InfoTextable> extends ActionListenablePanel {
 	
 	private static final long serialVersionUID = -2349025481368788479L;
 	protected JLabel jLabelHeader;
@@ -41,14 +41,17 @@ public class EnumChooserPanel <K extends Enum<K> & InfoTextable> extends ActionL
 	/*
 	 * CONSTRUCTOR
 	 */
-	
-	public EnumChooserPanel(K defaultChoice, String typeName) {
+	public EnumChooserPanel(K[] choices, K defaultChoice, String typeName) {
 		super();
 		this.typeName = typeName;
-		this.types = defaultChoice.getDeclaringClass().getEnumConstants();
+		this.types = choices;
 		initGUI(defaultChoice);
 	}
-	
+
+	public<L extends Enum<L> & InfoTextable> EnumChooserPanel(L defaultChoice, String typeName) {
+		this((K[])defaultChoice.getDeclaringClass().getEnumConstants(), (K)defaultChoice, typeName);
+	}
+
 	/*
 	 * PUBLIC METHODS
 	 */
@@ -76,12 +79,16 @@ public class EnumChooserPanel <K extends Enum<K> & InfoTextable> extends ActionL
 			}
 			{
 				String[] names = new String[types.length];
-				for (int i = 0; i < types.length; i++) 
+				int selected = 0;
+				for (int i = 0; i < types.length; i++) {
 					names[i] = types[i].toString();
+					if (names[i].equals(types[i]))
+						selected = i;
+				}
 				ComboBoxModel jComboBoxDisplayerChoiceModel = new DefaultComboBoxModel(names);
 				jComboBoxChoice = new JComboBox();
 				jComboBoxChoice.setModel(jComboBoxDisplayerChoiceModel);
-				jComboBoxChoice.setSelectedIndex(defaultChoice.ordinal());
+				jComboBoxChoice.setSelectedIndex(selected);
 				this.add(jComboBoxChoice);
 				jComboBoxChoice.setFont(FONT);
 				jComboBoxChoice.setBounds(12, 48, 270, 27);

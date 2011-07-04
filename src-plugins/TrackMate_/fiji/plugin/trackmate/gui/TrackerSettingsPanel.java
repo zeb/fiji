@@ -27,15 +27,7 @@ public abstract class TrackerSettingsPanel extends ActionListenablePanel {
 			trackerSettings.spaceUnits = settings.spaceUnits;
 			trackerSettings.timeUnits = settings.timeUnits;
 		}
-		switch (trackerType) {
-		case LAP_TRACKER:
-		case FAST_LAPT:
-			return new LAPTrackerSettingsPanel(trackerSettings);
-		case SIMPLE_LAP_TRACKER:
-		case SIMPLE_FAST_LAPT:
-			return new SimpleLAPTrackerSettingsPanel(trackerSettings);
-		}
-		return null;
+		return trackerType.createPanel(trackerSettings);
 	}
 	
 
