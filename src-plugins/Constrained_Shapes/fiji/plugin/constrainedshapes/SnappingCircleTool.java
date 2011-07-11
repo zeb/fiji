@@ -23,7 +23,7 @@ import java.awt.geom.Point2D;
 import pal.math.MinimiserMonitor;
 import pal.math.MultivariateFunction;
 
-public class SnappingCircleTool extends AbstractTool implements PlugIn, MouseListener, MouseMotionListener {
+public class SnappingCircleTool extends AbstractTool implements MouseListener, MouseMotionListener {
 
 	protected CircleRoi roi;
 	protected InteractionStatus status;
