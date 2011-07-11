@@ -105,48 +105,6 @@ public class SnappingEllipseTool extends AbstractTool implements MouseListener, 
 		public void updateProgress(double progress) {}
 	}
 
-
-	/*
-	 * RUN METHOD
-	 */
-
-	public void run(String arg) {
-		savedRoiColor = Roi.getColor();
-		// Initialize snapper
-		ImagePlus imp = WindowManager.getCurrentImage();
-		snapper = new Snapper(imp);
-		if (imp != null) {
-			Roi currentRoi = imp.getRoi();
-
-			if (arg.equalsIgnoreCase("test")) {
-				final int w = imp.getWidth();
-				final int h = imp.getHeight();
-				final int a = Math.min(w, h)/4;
-				final int b = a/2;
-				final int x = w/2;
-				final int y = h/2;
-				EllipseShape el = new EllipseShape(x, y, a, b, 0);
-				roi = new EllipseRoi(el);
-				status = InteractionStatus.FREE;
-				imp.setRoi(roi);
-
-			} else {
-
-				if ( (currentRoi != null) && (currentRoi instanceof EllipseRoi) ) {
-					roi = (EllipseRoi) currentRoi;
-					status = InteractionStatus.FREE;
-				} else {
-					roi = new EllipseRoi();
-					status = InteractionStatus.CREATING;
-				}
-			}
-			snapper.fitter = new ShapeFitter(roi.shape);
-			snapper.fitter.setFunction(ParameterizedShape.EvalFunction.MEAN);
-			snapper.fitter.setMonitor(snapper);
-		}
-		super.run(arg);
-	}
-
 	/*
 	 * MOUSE METHODS
 	 */
