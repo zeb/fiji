@@ -80,6 +80,7 @@ public class Two_Circle_Fitter implements PlugIn, ActionListener, MinimiserMonit
 					break;
 				} else {
 					IJ.error("Please specify a Two-Circle Roi.");
+					return;
 				}
 			}
 		} catch (InterruptedException e) {
