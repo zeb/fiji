@@ -26,8 +26,6 @@ import pal.math.MinimiserMonitor;
 import pal.math.MultivariateFunction;
 
 public class SnappingEllipseTool extends AbstractTool implements MouseListener, MouseMotionListener, PlugIn {
-
-	protected EllipseRoi roi;
 	protected InteractionStatus status;
 	protected Point2D startDrag;
 	protected Snapper snapper;
@@ -119,7 +117,6 @@ public class SnappingEllipseTool extends AbstractTool implements MouseListener, 
 			imp.setRoi(newRoi);
 			return newRoi;
 		} else {
-			status = InteractionStatus.FREE;
 			return (EllipseRoi)roi;
 		}
 	}
@@ -128,17 +125,18 @@ public class SnappingEllipseTool extends AbstractTool implements MouseListener, 
 	@Override
 	public void mousePressed(MouseEvent e) {
 		ImagePlus imp = getImagePlus(e);
-		ImageCanvas canvas = imp.getCanvas();
-		final double x = canvas.offScreenXD(e.getX());
-		final double y = canvas.offScreenYD(e.getY());
+		final double x = getOffscreenXDouble(e);
+		final double y = getOffscreenYDouble(e);
 		final Point2D p = new Point2D.Double(x, y);
 
 		EllipseRoi roi = getRoi(imp, true);
-		ClickLocation cl = roi.getClickLocation(p);
+		ClickLocation cl = roi.getClickLocation(new Point2D.Double(e.getX(), e.getY()));
 
 		// Tune fitter
-		snapper.fitter.setShape(roi.shape);
-		snapper.fitter.setImageProcessor(imp.getProcessor());
+		if (snapper != null) {
+			snapper.interrupt();
+			snapper = null;
+		}
 
 		if (cl == ClickLocation.OUTSIDE ) {
 			if ( status == InteractionStatus.CREATING ) {
@@ -157,6 +155,10 @@ public class SnappingEllipseTool extends AbstractTool implements MouseListener, 
 
 	@Override
 	public void mouseDragged(MouseEvent e) {
+		ImagePlus imp = getImagePlus(e);
+		EllipseRoi roi = getRoi(imp, false);
+		if (roi == null)
+			return;
 		final double[] params = roi.shape.getParameters();
 		final double xc  = params[0];
 		final double yc  = params[1];
@@ -199,31 +201,28 @@ public class SnappingEllipseTool extends AbstractTool implements MouseListener, 
 		roi.shape.upperBounds[2] = a + range;
 		roi.shape.upperBounds[3] = b + range;
 		roi.shape.upperBounds[4] = phi + Math.PI/8;
-		snapper.fitter.setNPoints((int) roi.shape.getCircumference());
 
 		startDrag = p;
-		getImagePlus(e).setRoi(roi);
+		imp.setRoi(roi);
 		IJ.showStatus(roi.shape.toString());
 	}
 
 	@Override
-	public void mouseClicked(MouseEvent e) {
+	public void mouseReleased(MouseEvent e) {
 		ImagePlus imp = getImagePlus(e);
 		EllipseRoi roi = getRoi(imp, false);
-		if (roi == null) return;
-		ClickLocation cl = roi.getClickLocation(e.getPoint());
-		if (cl == ClickLocation.OUTSIDE ) {
-			imp.killRoi();
-			roi = new EllipseRoi();
-			status = InteractionStatus.CREATING;
-		}
-	}
-
-	@Override
-	public void mouseReleased(MouseEvent e) {
+		if (roi == null)
+			return;
+		snapper = new Snapper(imp);
+		snapper.fitter = new ShapeFitter(roi.shape);
+		snapper.fitter.setShape(roi.shape);
+		snapper.fitter.setImageProcessor(imp.getProcessor());
+		snapper.fitter.setNPoints((int) roi.shape.getCircumference());
 		snapper.snap();
 	}
 
+	@Override
+	public void mouseClicked(MouseEvent e) {}
 	@Override
 	public void mouseMoved(MouseEvent e) {}
 	@Override
