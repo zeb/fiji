@@ -1,50 +1,49 @@
 package fiji.plugin.constrainedshapes;
 
+import fiji.plugin.constrainedshapes.CircleRoi.ClickLocation;
+
+import fiji.tool.AbstractTool;
+
 import ij.IJ;
 import ij.ImagePlus;
-import ij.WindowManager;
+
 import ij.gui.ImageCanvas;
-import ij.gui.ImageWindow;
 import ij.gui.Roi;
+
 import ij.plugin.PlugIn;
 
 import java.awt.Color;
-import java.awt.event.MouseEvent;
-import java.awt.geom.Point2D;
 
-import fiji.plugin.constrainedshapes.CircleRoi.ClickLocation;
-import fiji.util.AbstractTool;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
+import java.awt.event.MouseMotionListener;
+
+import java.awt.geom.Point2D;
 
 import pal.math.MinimiserMonitor;
 import pal.math.MultivariateFunction;
 
-public class SnappingCircleTool extends AbstractTool implements PlugIn {
+public class SnappingCircleTool extends AbstractTool implements PlugIn, MouseListener, MouseMotionListener {
 
-	/*
-	 * FIELDS
-	 */
-	
-	private ImagePlus imp;
-	private ImageCanvas canvas;
-	private CircleRoi roi;
-	private InteractionStatus status;
-	private Point2D startDrag;
-	private Snapper snapper;
-	private Color savedRoiColor;
+	protected CircleRoi roi;
+	protected InteractionStatus status;
+	protected Point2D startDrag;
+	protected Snapper snapper;
+	protected Color savedRoiColor;
 
 	/*
 	 * ENUM
 	 */
-	
+
 	public static enum InteractionStatus {
 		FREE,
 		MOVING,
 		RESIZING,
 		CREATING;
 	}
-	
+
 	/*
-	 * INNER CLASS
+	 * INNER CLASSES
 	 */
 
 	protected class StopOptimizer extends RuntimeException {}
@@ -56,18 +55,20 @@ public class SnappingCircleTool extends AbstractTool implements PlugIn {
 	 * so that it will display the shape as it is optimized (the interface requires that
 	 * the monitor is on the same thread that of the optimizer).
 	 * <p>
-	 * It is derived from a helper class Albert Cardona did for the Dynamic_Reslice plugin. 
-	 * 
+	 * It is derived from a helper class Albert Cardona did for the Dynamic_Reslice plugin.
+	 *
 	 */
 	private class Snapper extends Thread implements MinimiserMonitor {
 		protected ShapeFitter fitter;
+		protected ImagePlus imp;
 
 		// Constructor autostarts thread
-		protected Snapper(ShapeFitter fitter) {
+		protected Snapper(ShapeFitter fitter, ImagePlus imp) {
 			super("Circle snapper");
 			setPriority(Thread.NORM_PRIORITY);
 			this.fitter = fitter;
 			fitter.setMonitor(this);
+			this.imp = imp;
 		}
 
 		public void run() {
@@ -81,13 +82,14 @@ public class SnappingCircleTool extends AbstractTool implements PlugIn {
 				imp.draw();
 			}
 		}
-		
+
 
 		/*
 		 * MINIMIZERMONITOR METHODS
 		 */
-		
 
+
+		@Override
 		public synchronized void newMinimum(double value, double[] parameterValues,
 				MultivariateFunction beingOptimized) {
 			if (isInterrupted())
@@ -95,9 +97,10 @@ public class SnappingCircleTool extends AbstractTool implements PlugIn {
 			imp.draw();
 		}
 
+		@Override
 		public void updateProgress(double progress) { }
 	}
-	
+
 	/*
 	 * RUN METHOD
 	 */
@@ -105,24 +108,23 @@ public class SnappingCircleTool extends AbstractTool implements PlugIn {
 		savedRoiColor = Roi.getColor();
 		super.run(arg);
 	}
-	
-	
-	
+
 	/*
 	 * MOUSE METHODS
 	 */
-	
+
 	@Override
-	protected void handleMousePress(MouseEvent e) {
-		if (!getImageAndRoi())
+	public void mousePressed(MouseEvent e) {
+		if (!getImageAndRoi(getImagePlus(e)))
 			return;
-		
+
+		ImageCanvas canvas = getImageCanvas(e);
 		final double x = canvas.offScreenXD(e.getX());
 		final double y = canvas.offScreenYD(e.getY());
 		final Point2D p = new Point2D.Double(x, y);
 		ClickLocation cl = roi.getClickLocation(p);
 		if (cl ==ClickLocation.OUTSIDE ) {
-			if (status == InteractionStatus.CREATING) { 
+			if (status == InteractionStatus.CREATING) {
 				roi.shape.setCenter(p);
 			}
 		} else {
@@ -130,47 +132,12 @@ public class SnappingCircleTool extends AbstractTool implements PlugIn {
 		}
 		startDrag = p;
 	}
-	
-	@Override
-	protected void handleMouseDrag(MouseEvent e) {
-		if (roi == null)
-			return;
-		final double x = canvas.offScreenXD(e.getX());
-		final double y = canvas.offScreenYD(e.getY());
-		final Point2D p = new Point2D.Double(x, y);
-		final double[] params = roi.shape.getParameters();
-		
-		switch (status) {
-		case MOVING:
-			params[0] += x-startDrag.getX();
-			params[1] += y-startDrag.getY();
-			break;
-		case RESIZING:
-		case CREATING:
-			params[2] = roi.shape.getCenter().distance(p);			
-			break;
-		}
-		
-		// Tune fitter
-		final double r = roi.shape.getRadius();
-		roi.shape.lowerBounds[0] = p.getX() - r;
-		roi.shape.lowerBounds[1] = p.getY() - r;
-		roi.shape.lowerBounds[2] = 0.5 * r;
-		roi.shape.upperBounds[0] = p.getX() + r;
-		roi.shape.upperBounds[1] = p.getY() + r;
-		roi.shape.upperBounds[2] = 1.5 * r;
 
-		startDrag = p;
-		imp.setRoi(roi);
-		IJ.showStatus(roi.shape.toString());
-	}
-
-	protected boolean getImageAndRoi() {
+	protected boolean getImageAndRoi(ImagePlus imp) {
 		roi = null;
-		imp = WindowManager.getCurrentImage();
 		if (imp == null)
 			return false;
-		canvas = imp.getCanvas();
+		ImageCanvas canvas = imp.getCanvas();
 
 		Roi currentRoi = imp.getRoi();
 		if ( (currentRoi != null) && (currentRoi instanceof CircleRoi) ) {
@@ -184,8 +151,9 @@ public class SnappingCircleTool extends AbstractTool implements PlugIn {
 	}
 
 	@Override
-	protected void handleMouseClick(MouseEvent e) {
-		if (!getImageAndRoi())
+	public void mouseClicked(MouseEvent e) {
+		ImagePlus imp = getImagePlus(e);
+		if (!getImageAndRoi(imp))
 			return;
 		ClickLocation cl = roi.getClickLocation(e.getPoint());
 		if (cl == ClickLocation.OUTSIDE ) {
@@ -194,9 +162,9 @@ public class SnappingCircleTool extends AbstractTool implements PlugIn {
 			status = InteractionStatus.CREATING;
 		}
 	}
-	
+
 	@Override
-	protected void handleMouseRelease(MouseEvent e) {
+	public void mouseReleased(MouseEvent e) {
 		if (roi == null)
 			return;
 
@@ -208,19 +176,62 @@ public class SnappingCircleTool extends AbstractTool implements PlugIn {
 			} catch (InterruptedException exception) { /* ignore */ }
 		}
 
-		snapper = new Snapper(new ShapeFitter(roi.shape));
+		ImagePlus imp = getImagePlus(e);
+		snapper = new Snapper(new ShapeFitter(roi.shape), imp);
 		snapper.fitter.setFunction(ParameterizedShape.EvalFunction.MEAN);
 		snapper.fitter.setImageProcessor(imp.getProcessor());
 		snapper.fitter.setNPoints((int) roi.getLength());
 		snapper.fitter.setMonitor(snapper);
-		canvas = imp.getCanvas();
 		snapper.start();
 	}
-	
+
+	@Override
+	public void mouseEntered(MouseEvent e) {}
+	@Override
+	public void mouseExited(MouseEvent e) {}
+
+	@Override
+	public void mouseDragged(MouseEvent e) {
+		if (roi == null)
+			return;
+		ImageCanvas canvas = getImageCanvas(e);
+		final double x = canvas.offScreenXD(e.getX());
+		final double y = canvas.offScreenYD(e.getY());
+		final Point2D p = new Point2D.Double(x, y);
+		final double[] params = roi.shape.getParameters();
+
+		switch (status) {
+		case MOVING:
+			params[0] += x-startDrag.getX();
+			params[1] += y-startDrag.getY();
+			break;
+		case RESIZING:
+		case CREATING:
+			params[2] = roi.shape.getCenter().distance(p);
+			break;
+		}
+
+		// Tune fitter
+		final double r = roi.shape.getRadius();
+		roi.shape.lowerBounds[0] = p.getX() - r;
+		roi.shape.lowerBounds[1] = p.getY() - r;
+		roi.shape.lowerBounds[2] = 0.5 * r;
+		roi.shape.upperBounds[0] = p.getX() + r;
+		roi.shape.upperBounds[1] = p.getY() + r;
+		roi.shape.upperBounds[2] = 1.5 * r;
+
+		startDrag = p;
+		getImagePlus(e).setRoi(roi);
+		IJ.showStatus(roi.shape.toString());
+	}
+
+	@Override
+	public void mouseMoved(MouseEvent e) {}
+
 	/*
 	 * ABSTRACTTOOL METHODS
 	 */
-	
+
 	@Override
 	public String getToolIcon() {
 		return "C900DbdDcdDceDddDdeDdfDedDeeDfdC03fD26D27D28D29D2aD34D35D36D3aD3bD3cD44D4c" +
@@ -229,21 +240,8 @@ public class SnappingCircleTool extends AbstractTool implements PlugIn {
 				"Dc2Dd2Dd3Dd4Dd8Dd9DdaDe4De5De6De7De8";
 	}
 
-
-
 	@Override
-	public String getToolName() {		
+	public String getToolName() {
 		return "Snapping Circle Shape";
 	}
-
-	@Override
-	public boolean hasOptionDialog() {
-		return false;
-	}
-
-	@Override
-	public void showOptionDialog() {}
-
-
-
 }
