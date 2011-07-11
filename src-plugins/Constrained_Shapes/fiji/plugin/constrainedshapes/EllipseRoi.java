@@ -106,7 +106,7 @@ public class EllipseRoi extends ShapeRoi {
 	}
 
 	public EllipseRoi(EllipseShape shape) {
-		super(1, 1, new Ellipse2D.Float(0, 0, 1, 1)); // but we don't care
+		super(1, 1, shape); // but we don't care
 		this.shape = shape;
 	}
 
