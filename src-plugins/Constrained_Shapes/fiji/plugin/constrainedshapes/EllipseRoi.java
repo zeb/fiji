@@ -171,7 +171,10 @@ public class EllipseRoi extends ShapeRoi {
 
 	@Override
 	public Rectangle getBounds() {
-		return shape.getBounds();
+		Rectangle bounds = shape.getBounds();
+		if (bounds.width == 0 && bounds.height == 0)
+			bounds.width = 1; // force ImagePlus to accept this ROI
+		return bounds;
 	}
 
 	@Override
