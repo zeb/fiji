@@ -31,11 +31,6 @@ public class TwoCircleTool extends AbstractTool implements MouseListener, MouseM
 	 */
 	public static enum InteractionStatus { FREE, MOVING_ROI, MOVING_C1, MOVING_C2, RESIZING_C1, RESIZING_C2, CREATING_C1, CREATING_C2 };
 
-
-	/*
-	 * RUN METHOD
-	 */
-
 	public void run(String arg) {
 		ImagePlus imp = WindowManager.getCurrentImage();
 		if (imp != null) {
@@ -105,7 +100,6 @@ public class TwoCircleTool extends AbstractTool implements MouseListener, MouseM
 			imp.setRoi(newRoi);
 			return newRoi;
 		} else {
-			status = InteractionStatus.FREE;
 			return (TwoCircleRoi)roi;
 		}
 	}
@@ -176,7 +170,8 @@ public class TwoCircleTool extends AbstractTool implements MouseListener, MouseM
 		}
 		startDrag = p;
 		roi = new TwoCircleRoi(shape);
-		getImagePlus(e).setRoi(roi);
+		ImagePlus imp = getImagePlus(e);
+		imp.setRoi(roi);
 		IJ.showStatus(shape.toString());
 	}
 
@@ -198,19 +193,7 @@ public class TwoCircleTool extends AbstractTool implements MouseListener, MouseM
 	}
 
 	@Override
-	public void mouseClicked(MouseEvent e) {
-		ImagePlus imp = getImagePlus(e);
-		TwoCircleRoi roi = getRoi(imp, false);
-		if (roi == null) return;
-		ClickLocation cl = roi.getClickLocation(e.getPoint());
-		if (cl == ClickLocation.OUTSIDE ) {
-			imp.killRoi();
-			roi = new TwoCircleRoi();
-			previousStatus = InteractionStatus.FREE;
-			status = InteractionStatus.CREATING_C1;
-		}
-	}
-
+	public void mouseClicked(MouseEvent e) { }
 	@Override
 	public void mouseMoved(MouseEvent e) { }
 	@Override
