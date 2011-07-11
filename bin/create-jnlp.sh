@@ -2,25 +2,27 @@
 
 # <property
 #    name="jnlp"
-#    value="http://pacific.mpi-cbg.de/webstart/fiji/plugins/VIB_.jar"/>
-
-RELATIVE_PATH="webstart/fiji"
-FIJIPATH="/var/www/$RELATIVE_PATH"
-CODEBASE="http://pacific.mpi-cbg.de/$RELATIVE_PATH"
-JNLP_NAME="Fiji.jnlp"
-EXCLUDES="plugins/Fiji_Updater.jar"
+#    value="http://fiji.sc/webstart/fiji/plugins/VIB_.jar"/>
 
 mode=current
+RELATIVE_PATH="webstart/fiji"
+JNLP_NAME="../Fiji.jnlp"
 case "$1" in
 --updater)
 	mode=updater
+	RELATIVE_PATH="webstart/fiji-stable"
+	JNLP_NAME="../Fiji-stable.jnlp"
 	;;
 esac
+
+FIJIPATH="/var/www/$RELATIVE_PATH"
+CODEBASE="http://fiji.sc/$RELATIVE_PATH"
+EXCLUDES="plugins/Fiji_Updater.jar"
 
 plugins=
 jars=
 files=
-outpath="$FIJIPATH/../$JNLP_NAME"
+outpath="$FIJIPATH/$JNLP_NAME"
 
 test -d $FIJIPATH ||
 mkdir -p $FIJIPATH ||
@@ -42,7 +44,7 @@ for jar in $(case "$mode" in
 		find plugins jars -name \*.jar
 		;;
 	updater)
-		./fiji --jar plugins/Fiji_Updater.jar --list-current |
+		./fiji --update list-current |
 		grep -e '^plugins/' -e '^jars/' |
 		sed -n -e 's|^|/var/www/update/|' -e '/\.jar-/p'
 		;;
@@ -83,14 +85,14 @@ zip -9r configs.jar plugins.config class.map
 files="$files configs.jar"
 plugins="$plugins $CODEBASE/configs.jar"
 
-test -e ImageJA/.jarsignerrc && (
-	cd ImageJA &&
+test -e modules/ImageJA/.git/jarsignerrc && (
+	cd modules/ImageJA &&
 	for jar in $files
 	do
 		set_target $jar &&
 		if test $jar = ${jar#/}
 		then
-			jar=../$jar
+			jar=../../$jar
 		fi &&
 		if test -f $FIJIPATH/$target &&
 			test ! $jar -nt $FIJIPATH/$target
@@ -103,7 +105,7 @@ test -e ImageJA/.jarsignerrc && (
 			;;
 		esac &&
 		echo "Signing $target..." &&
-		jarsigner -signedjar $FIJIPATH/$target $(cat .jarsignerrc) \
+		jarsigner -signedjar $FIJIPATH/$target $(cat .git/jarsignerrc) \
 			$jar dscho || break
 	done
 ) || {
@@ -123,9 +125,9 @@ cat > $outpath << EOF
     <information>
 	<title>Fiji via Web Start</title>
 	<vendor>Fiji development team</vendor>
-	<homepage href="http://pacific.mpi-cbg.de/wiki/index.php/Main_Page"/>
+	<homepage href="http://fiji.sc/wiki/index.php/Main_Page"/>
 	<description>ImageJ based image processing platform</description>
-	<icon href="http://pacific.mpi-cbg.de/fiji.png"/>
+	<icon href="http://fiji.sc/fiji.png"/>
 	<offline-allowed/>
       </information>
 

@@ -182,7 +182,7 @@ public class Stitch_Image_Collection implements PlugIn
 			computePhaseCorrelations(overlappingTiles, handleRGB);
 			
 			// compute the model
-			newImageInformationList = optimize(overlappingTiles);
+			newImageInformationList = optimize( overlappingTiles, imageInformationList.get( 0 ) );
 			
 			if(newImageInformationList == null)
 				return null;
@@ -238,11 +238,17 @@ public class Stitch_Image_Collection implements PlugIn
 	        out.println("# Define the image coordinates");
 
 	        for ( ImageInformation iI : imageInformationList )
-	        {	        		        	
+	        {
+	        	String name = iI.imageName;
+	        	
+	        	// if it is a multiseries file add a funny string at the end that marks it
+	        	if ( iI.seriesNumber >= 0 )
+	        		name = name + "(((" + iI.seriesNumber + ")))";
+	        	
 		        if (dim == 3)
-	    			out.println(iI.imageName + "; ; (" + iI.position[0] + ", " + iI.position[1] + ", " + iI.position[2] + ")");
+	    			out.println( name + "; ; (" + iI.position[0] + ", " + iI.position[1] + ", " + iI.position[2] + ")");
 	    		else
-	    			out.println(iI.imageName + "; ; (" + iI.position[0] + ", " + iI.position[1] + ")");
+	    			out.println( name + "; ; (" + iI.position[0] + ", " + iI.position[1] + ")");
 	        }
 
 			out.close();
@@ -325,7 +331,7 @@ public class Stitch_Image_Collection implements PlugIn
 				final ImagePlus imp;
 				
 				if (iI.imp == null)
-					imp = CommonFunctions.loadImage("", iI.imageName, rgbOrder);
+					imp = CommonFunctions.loadImage("", iI.imageName, iI.seriesNumber, rgbOrder);
 				else
 					imp = iI.imp;
 
@@ -489,7 +495,7 @@ public class Stitch_Image_Collection implements PlugIn
 	        for (ImageInformation iI : imageInformationList)
 	        {
 				if (iI.imp == null)
-					iI.tmp = CommonFunctions.loadImage("", iI.imageName, rgbOrder);
+					iI.tmp = CommonFunctions.loadImage("", iI.imageName, iI.seriesNumber, rgbOrder);
 				else
 					iI.tmp = iI.imp;		
 				
@@ -873,6 +879,11 @@ public class Stitch_Image_Collection implements PlugIn
 		return min;
 	}
 
+	final private static int round( final float value )
+	{
+		return (int)( value + (0.5f * Math.signum( value ) ) );
+	}	
+
 	final private static int getImagesAtCoordinate(final ArrayList<ImageInformation> imageInformationList, final ImageInformation indices[], final int[] pos)
 	{
 		int num = 0;
@@ -882,7 +893,7 @@ public class Stitch_Image_Collection implements PlugIn
 			// check if pixel is inside the image
 			boolean isInside = true;
 			for (int dim = 0; dim < iI.dim && isInside; dim++)
-				if ( !(pos[dim] >= Math.round(iI.position[dim]) && pos[dim] < Math.round(iI.position[dim] + iI.size[dim]) ) )
+				if ( !(pos[dim] >= round(iI.position[dim]) && pos[dim] < round(iI.position[dim] + iI.size[dim]) ) )
 					isInside = false;
 			
 			if (isInside)
@@ -968,7 +979,7 @@ public class Stitch_Image_Collection implements PlugIn
 		return max;
 	}
 	
-	private ArrayList<ImageInformation> optimize(final ArrayList<OverlapProperties> overlappingTiles)
+	private ArrayList<ImageInformation> optimize(final ArrayList<OverlapProperties> overlappingTiles, final ImageInformation firstImage)
 	{
 		boolean redo;
 		TileConfiguration tc;
@@ -1013,10 +1024,19 @@ public class Stitch_Image_Collection implements PlugIn
 			}
 			IJ.log("Tile size: " + tiles.size());
 			
-			if(tiles.size() == 0)
+			if( tiles.size() == 0 )
 			{
-				IJ.error("No correlated tiles found!");
-				return null;
+				IJ.log("Error: No correlated tiles found, setting the first tile to (0,0,0).");
+				
+				for ( int d = 0; d < firstImage.position.length; ++d )
+					firstImage.position[ d ] = 0;
+				
+				ArrayList<ImageInformation> imageInformationList = new ArrayList<ImageInformation>();
+				imageInformationList.add( firstImage );
+				
+				IJ.log(" image information list size =" + imageInformationList.size());
+				
+				return imageInformationList;
 			}						
 			
 			// trash everything but the largest graph			
@@ -1140,7 +1160,7 @@ public class Stitch_Image_Collection implements PlugIn
 
 			if (o.i1.imp == null)
 			{
-				imp1 = CommonFunctions.loadImage("", o.i1.imageName, rgbOrder);
+				imp1 = CommonFunctions.loadImage("", o.i1.imageName, o.i1.seriesNumber, rgbOrder);
 				o.i1.closeAtEnd = true;
 			}
 			else
@@ -1148,7 +1168,7 @@ public class Stitch_Image_Collection implements PlugIn
 
 			if (o.i2.imp == null)
 			{
-				imp2 = CommonFunctions.loadImage("", o.i2.imageName, rgbOrder);
+				imp2 = CommonFunctions.loadImage("", o.i2.imageName, o.i2.seriesNumber, rgbOrder);
 				o.i2.closeAtEnd = true;
 			}
 			else
@@ -1287,7 +1307,7 @@ public class Stitch_Image_Collection implements PlugIn
 		{
 			if (iI.imp == null)
 			{
-				iI.imp = CommonFunctions.loadImage("", iI.imageName, rgbOrder);
+				iI.imp = CommonFunctions.loadImage("", iI.imageName, iI.seriesNumber, rgbOrder);
 				iI.closeAtEnd = true;
 			}
 			else
@@ -1532,6 +1552,18 @@ public class Stitch_Image_Collection implements PlugIn
 							imageInformation = new ImageInformation(dim, imageInformationList.size(), new TranslationModel2D());
 						
 						imageInformation.imageName = imageName;
+						
+						if ( imageInformation.imageName.contains( "(((" ) && imageInformation.imageName.contains( ")))" ) )
+						{
+							// it is a multiseries file
+							int index1 = imageInformation.imageName.indexOf( "(((" );
+							int index2 = imageInformation.imageName.indexOf( ")))" );
+							
+							String seriesString = imageInformation.imageName.substring( index1 + 3, index2 );
+							imageInformation.seriesNumber = Integer.parseInt( seriesString );
+							imageInformation.imageName = imageInformation.imageName.substring( 0, index1 );
+						}
+						
 						if (imp.length() > 0)
 							imageInformation.imp = WindowManager.getImage(imp);
 						else

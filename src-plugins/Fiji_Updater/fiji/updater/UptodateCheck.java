@@ -1,5 +1,8 @@
 package fiji.updater;
 
+import fiji.updater.logic.PluginCollection;
+import fiji.updater.logic.PluginCollection.UpdateSite;
+
 import fiji.updater.util.Util;
 
 import ij.IJ;
@@ -10,6 +13,7 @@ import ij.macro.Interpreter;
 import ij.plugin.PlugIn;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 
 import java.net.HttpURLConnection;
 import java.net.InetAddress;
@@ -24,22 +28,29 @@ import java.util.Enumeration;
 import javax.swing.JOptionPane;
 
 public class UptodateCheck implements PlugIn {
-	long localLastModified;
 	final static String latestReminderKey = "fiji.updater.latestNag";
 	final static long reminderInterval = 86400 * 7; // one week
 
 	public void run(String arg) {
-		if ("quick".equals(arg))
+		Util.useSystemProxies();
+		if ("quick".equals(arg)) {
+			// "quick" is used on startup; don't produce an error in the Debian packaged version
+			if (Updater.isDebian())
+				return;
 			checkOrShowDialog();
-		else if ("verbose".equals(arg)) {
-			String result = checkOrShowDialog();
-			if (result != null)
-				JOptionPane.showMessageDialog(IJ.getInstance(),
-					result, "Up-to-date check",
-					JOptionPane.INFORMATION_MESSAGE);
+		} else {
+			if (Updater.errorIfDebian())
+				return;
+			if ("verbose".equals(arg)) {
+				String result = checkOrShowDialog();
+				if (result != null)
+					JOptionPane.showMessageDialog(IJ.getInstance(),
+						result, "Up-to-date check",
+						JOptionPane.INFORMATION_MESSAGE);
+			}
+			else if ("config".equals(arg) && !isBatchMode())
+				config();
 		}
-		else if ("config".equals(arg) && !isBatchMode())
-			config();
 	}
 
 	public String checkOrShowDialog() {
@@ -50,24 +61,50 @@ public class UptodateCheck implements PlugIn {
 	}
 
 	public String check() {
+		if (neverRemind())
+			return "You wanted never to be reminded.";
 		if (shouldRemindLater())
 			return "You wanted to be reminded later.";
 		if (isBatchMode())
 			return "No check will be performed in batch mode";
 		if (!canWrite())
-			return "Your Fiji is read-onyl!";
+			return "Your Fiji is read-only!";
 		if (!haveNetworkConnection())
 			return "No network connection available!";
-		localLastModified = getLocalLastModified();
-		if (isDbXmlGzUpToDate(localLastModified)) {
-			setLatestNag(-1);
-			return "Up-to-date";
+		PluginCollection plugins = new PluginCollection();
+		try {
+			try {
+				plugins.read();
+			}
+			catch (FileNotFoundException e) { /* ignore */ }
+			for (String name : plugins.getUpdateSiteNames()) {
+				UpdateSite updateSite = plugins.getUpdateSite(name);
+				long lastModified = getLastModified(updateSite.url + Updater.XML_COMPRESSED);
+				if (lastModified < 0)
+					continue; // assume network is down
+				if (!updateSite.isLastModified(lastModified))
+					return null;
+			}
 		}
-		return null;
+		catch (FileNotFoundException e) { /* ignore */ }
+		catch (Exception e) {
+			IJ.handleException(e);
+			return null;
+		}
+		setLatestNag(-1);
+		return "Up-to-date";
 	}
 
 	public static long now() {
 		return new Date().getTime() / 1000;
+	}
+
+	public boolean neverRemind() {
+		String latestNag = Prefs.get(latestReminderKey, null);
+		if (latestNag == null || latestNag.equals(""))
+			return false;
+		long time = Long.parseLong(latestNag);
+		return time == Long.MAX_VALUE;
 	}
 
 	public boolean shouldRemindLater() {
@@ -78,6 +115,8 @@ public class UptodateCheck implements PlugIn {
 	}
 
 	public boolean isBatchMode() {
+		if (Updater.hidden)
+			return false;
 		return IJ.getInstance() == null || !IJ.getInstance().isVisible()
 			|| Interpreter.isBatchMode();
 	}
@@ -91,11 +130,6 @@ public class UptodateCheck implements PlugIn {
 		if (bang > 0)
 			url = url.substring(0, bang);
 		return new File(url).canWrite();
-	}
-
-	public static long getLocalLastModified() {
-		File dbXmlGz = new File(Util.prefix(Updater.XML_COMPRESSED));
-		return dbXmlGz.exists() ? dbXmlGz.lastModified() : 0;
 	}
 
 	public static boolean haveNetworkConnection() {
@@ -114,20 +148,19 @@ public class UptodateCheck implements PlugIn {
 		return false;
 	}
 
-	public static boolean isDbXmlGzUpToDate(long local) {
+	public static long getLastModified(String url) {
 		try {
-			URLConnection connection = new URL(Updater.MAIN_URL
-				+ Updater.XML_COMPRESSED).openConnection();
+			URLConnection connection = new URL(url).openConnection();
 			if (connection instanceof HttpURLConnection)
 				((HttpURLConnection)connection)
 					.setRequestMethod("HEAD");
 			connection.setUseCaches(false);
 			long lastModified = connection.getLastModified();
 			connection.getInputStream().close();
-			return lastModified == local;
+			return lastModified;
 		} catch (Exception e) {
 			// assume no network; so let's pretend everything's ok.
-			return true;
+			return -1;
 		}
 	}
 
@@ -138,9 +171,6 @@ public class UptodateCheck implements PlugIn {
 			"Remind me later"
 		};
 		switch (JOptionPane.showOptionDialog(IJ.getInstance(),
-				localLastModified == 0 ?
-				"You have not checked for updates yet.\n"
-				+ "Would you like to check now?" :
 				"There are updates available.\n"
 				+ "Do you want to start the Fiji Updater now?",
 				"Up-to-date check",

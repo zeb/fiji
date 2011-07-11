@@ -9,12 +9,17 @@ dbPath = getProperty('fiji.dir') + '/db.xml.gz'
 
 def getTimestamp(plugin, checksum):
 	from fiji.updater.logic import PluginCollection, XMLFileReader
-	if PluginCollection.getInstance().size() == 0:
-		from java.io import FileInputStream
-		from java.util.zip import GZIPInputStream
-		print 'Reading db.xml.gz'
-		XMLFileReader(GZIPInputStream(FileInputStream(dbPath)), 0)
-	plugin = PluginCollection.getInstance().getPlugin(plugin)
+	plugins = PluginCollection()
+	from java.io import FileInputStream
+	from java.util.zip import GZIPInputStream
+	print 'Reading db.xml.gz'
+	XMLFileReader(plugins).read(None, GZIPInputStream(FileInputStream(dbPath)), 0)
+	if plugin.startswith('precompiled/'):
+		plugin = plugin[12:]
+	plugin = plugins.getPlugin(plugin)
+	if plugin == None:
+		print 'Could not find plugin', plugin, 'in db.xml.gz'
+		return None
 	if plugin.current != None and checksum == plugin.current.checksum:
 		return plugin.current.timestamp
 	for version in plugin.previous.keySet():

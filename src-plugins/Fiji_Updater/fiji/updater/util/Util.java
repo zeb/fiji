@@ -159,16 +159,16 @@ public class Util {
 		return toHex(digest.digest());
 	}
 
-	private static class JarEntryComparator implements Comparator {
-		public int compare(Object o1, Object o2) {
-			String name1 = ((JarEntry)o1).getName();
-			String name2 = ((JarEntry)o2).getName();
+	private static class JarEntryComparator implements Comparator<JarEntry> {
+		public int compare(JarEntry entry1, JarEntry entry2) {
+			String name1 = entry1.getName();
+			String name2 = entry2.getName();
 			return name1.compareTo(name2);
 		}
 
-		public boolean equals(Object o1, Object o2) {
-			String name1 = ((JarEntry)o1).getName();
-			String name2 = ((JarEntry)o2).getName();
+		public boolean equals(JarEntry entry1, JarEntry entry2) {
+			String name1 = entry1.getName();
+			String name2 = entry2.getName();
 			return name1.equals(name2);
 		}
 	}
@@ -201,6 +201,21 @@ public class Util {
 			format.format(month) + format.format(day) +
 			format.format(hour) + format.format(minute) +
 			format.format(second);
+	}
+
+	public static long timestamp2millis(long timestamp) {
+		return timestamp2millis("" + timestamp);
+	}
+
+	public static long timestamp2millis(String timestamp) {
+		Calendar calendar = Calendar.getInstance();
+		calendar.set(Integer.parseInt(timestamp.substring(0, 4)),
+			Integer.parseInt(timestamp.substring(4, 6)) - 1,
+			Integer.parseInt(timestamp.substring(6, 8)),
+			Integer.parseInt(timestamp.substring(8, 10)),
+			Integer.parseInt(timestamp.substring(10, 12)),
+			Integer.parseInt(timestamp.substring(12, 14)));
+		return calendar.getTimeInMillis();
 	}
 
 	public static long getFilesize(String filename) {
@@ -238,7 +253,7 @@ public class Util {
 
 	public static boolean isLauncher(String filename) {
 		return Arrays.binarySearch(launchers,
-				stripPrefix(filename, fijiRoot)) >= 0;
+				stripPrefix(stripPrefix(filename, fijiRoot), "precompiled/")) >= 0;
 	}
 
 	public static String[] getLaunchers() {
@@ -257,5 +272,9 @@ public class Util {
 			builder.append((builder.length() > 0 ? ", " : "")
 				+ object.toString());
 		return builder.toString();
+	}
+
+	public static void useSystemProxies() {
+		System.setProperty("java.net.useSystemProxies", "true");
 	}
 }

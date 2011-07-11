@@ -6,10 +6,16 @@ import javax.vecmath.Point3f;
 import ij.IJ;
 import ij3d.Volume;
 
+import java.awt.Polygon;
+import java.awt.Rectangle;
+import java.awt.Shape;
+import java.awt.geom.Area;
+import java.awt.geom.PathIterator;
+import java.util.HashMap;
+import mpicbg.imglib.container.shapelist.ShapeList;
+import ij3d.ImgLibVolume;
+
 public final class MCCube {
-	// default size of the cubes
-	public static float SIZE = 1.0f;
-	
 	// vertexes
 	private Point3f[] v;
 
@@ -36,13 +42,13 @@ public final class MCCube {
 	 */
 	public void init(int x, int y, int z){
 		v[0].set(x,     y,     z);
-		v[1].set(x+SIZE,y,     z);
-		v[2].set(x+SIZE,y-SIZE,z);
-		v[3].set(x,     y-SIZE,z);
-		v[4].set(x,     y,     z+SIZE);
-		v[5].set(x+SIZE,y,     z+SIZE);
-		v[6].set(x+SIZE,y-SIZE,z+SIZE);
-		v[7].set(x,     y-SIZE,z+SIZE);
+		v[1].set(x + 1, y,     z);
+		v[2].set(x + 1, y + 1, z);
+		v[3].set(x,     y + 1, z);
+		v[4].set(x,     y,     z + 1);
+		v[5].set(x + 1, y,     z + 1);
+		v[6].set(x + 1, y + 1, z + 1);
+		v[7].set(x,     y + 1, z + 1);
 	} 
 	
 	/**
@@ -67,7 +73,6 @@ public final class MCCube {
 
 		float t = (car.threshold - i1) / (float) (i2 - i1);
 		if (t >= 0 && t <= 1) {
-			t = Math.max(0.01f, Math.min(0.99f, t));
 			// v1 + t*(v2-v1)
 			result.set(v2);
 			result.sub(v1);
@@ -125,6 +130,7 @@ public final class MCCube {
 	private void getTriangles(List<Point3f> list, final Carrier car){
 		int cn = caseNumber(car);
 		boolean directTable = !(isAmbigous(cn));
+		directTable = true;
 
 		// address in the table
 		int offset = directTable ? cn*15 : (255-cn)*15;
@@ -161,7 +167,7 @@ public final class MCCube {
 	private static final class Carrier {
 		int w, h, d;
 		Volume volume;
-		int threshold;
+		float threshold;
 
 		final int intensity(final Point3f p) {
 			if(p.x < 0 || p.y < 0 || p.z < 0
@@ -184,23 +190,26 @@ public final class MCCube {
 		car.w = volume.xDim;
 		car.h = volume.yDim;
 		car.d = volume.zDim;
-		car.threshold = thresh;
+		car.threshold = thresh + 0.5f;
 		car.volume = volume;
-		int SIZE = 1;
-		MCCube.SIZE = SIZE;
-		MCCube cube = new MCCube();
-		for(int z = -1; z < car.d+1; z+=SIZE){
-			for(int x = -1; x < car.w+1; x+=SIZE){
-				for(int y = -SIZE; y < car.h+2; y+=SIZE){
-					cube.init(x, y, z);
-					cube.computeEdges(car);
-					cube.getTriangles(tri, car);
+
+		if (volume instanceof ImgLibVolume && ((ImgLibVolume)volume).getImage().getContainer() instanceof ShapeList) {
+			getShapeListImageTriangles((ImgLibVolume)volume, car, tri);
+		} else {
+			MCCube cube = new MCCube();
+			for(int z = -1; z < car.d+1; z+=1){
+				for(int x = -1; x < car.w+1; x+=1){
+					for(int y = -1; y < car.h+1; y+=1){
+						cube.init(x, y, z);
+						cube.computeEdges(car);
+						cube.getTriangles(tri, car);
+					}
 				}
+				IJ.showProgress(z, car.d-2);
 			}
-			IJ.showProgress(z, car.d-2);
 		}
 
-		// convert pixel coordinates 
+		// convert pixel coordinates
 		for(int i = 0; i < tri.size(); i++) {
 			Point3f p = (Point3f)tri.get(i);
 			p.x = (float) (p.x * volume.pw + volume.minCoord.x);
@@ -208,6 +217,85 @@ public final class MCCube {
 			p.z = (float) (p.z * volume.pd + volume.minCoord.z);
 		}	
 		return tri;
+	}
+
+	/** Identical to getTriangles, but iterates only the minimal necessary bounding box, by asking the shapes objects. */
+	private static final void getShapeListImageTriangles(final ImgLibVolume volume, final Carrier car, final List<Point3f> tri) {
+		final ShapeList sli = (ShapeList) volume.getImage().getContainer();
+		final ArrayList<ArrayList<Shape>> shapeLists = sli.getShapeLists();
+		final Area[] sectionAreas = new Area[shapeLists.size()];
+		// Create one Area for each section, composed of the addition of all Shape instances
+		{
+			int next = -1;
+			for (final ArrayList<Shape> shapeList : shapeLists) {
+				next++;
+				if (shapeList.isEmpty()) {
+					continue;
+				}
+				final Area a = new Area(shapeList.get(0));
+				for (int i=1; i<shapeList.size(); i++) {
+					a.add(new Area(shapeList.get(i)));
+				}
+				sectionAreas[next] = a;
+			}
+		}
+		// Fuse Area instances for previous and next sections
+		final Area[] scanAreas = new Area[sectionAreas.length];
+		for (int i=0; i<sectionAreas.length; i++) {
+			if (null == sectionAreas[i]) continue;
+			final Area a = new Area(sectionAreas[i]);
+			if (i-1 < 0 || null == sectionAreas[i-1]) {}
+			else a.add(sectionAreas[i-1]);
+			if (i+1 > sectionAreas.length -1 || null == sectionAreas[i+1]) {}
+			else a.add(sectionAreas[i+1]);
+			scanAreas[i] = a;
+		}
+		// Collect the bounds of all subareas in each scanArea:
+		final HashMap<Integer,ArrayList<Rectangle>> sectionBounds = new HashMap<Integer,ArrayList<Rectangle>>();
+		for (int i=0; i<scanAreas.length; i++) {
+			if (null == scanAreas[i]) continue;
+			final ArrayList<Rectangle> bs = new ArrayList<Rectangle>();
+			Polygon pol = new Polygon();
+			final float[] coords = new float[6];
+			for (final PathIterator pit = scanAreas[i].getPathIterator(null); !pit.isDone(); pit.next()) {
+				switch (pit.currentSegment(coords)) {
+					case PathIterator.SEG_MOVETO:
+					case PathIterator.SEG_LINETO:
+						pol.addPoint((int)coords[0], (int)coords[1]);
+						break;
+					case PathIterator.SEG_CLOSE:
+						bs.add(pol.getBounds());
+						pol = new Polygon();
+						break;
+					default:
+						System.out.println("WARNING: unhandled seg type.");
+						break;
+				}
+			}
+			sectionBounds.put(i, bs);
+		}
+
+		// Add Z paddings on top and bottom
+		sectionBounds.put(-1, sectionBounds.get(0));
+		sectionBounds.put(car.d, sectionBounds.get(car.d-1));
+
+		// Scan only relevant areas:
+		final MCCube cube = new MCCube();
+		for (int z = -1; z < car.d + 1; z += 1) {
+			final ArrayList<Rectangle> bs = sectionBounds.get(z);
+			if (null == bs || bs.isEmpty()) continue;
+			for (final Rectangle bounds : bs) {
+				for (int x = bounds.x -1; x < bounds.x + bounds.width +2; x+=1) {
+					for (int y = bounds.y -1; y < bounds.y + bounds.height +2; y+=1) {
+						cube.init(x, y, z);
+						cube.computeEdges(car);
+						cube.getTriangles(tri, car);
+					}
+				}
+			}
+
+			IJ.showProgress(z, car.d-2);
+		}
 	}
 
 	protected static final int ambigous[] = {

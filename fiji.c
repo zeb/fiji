@@ -1,3 +1,15 @@
+/*
+ * This is the Fiji launcher, a small native program to handle the
+ * startup of Java and Fiji.
+ *
+ * Copyright 2007-2011 Johannes Schindelin, Mark Longair, Albert Cardona
+ * Benjamin Schmid, Erwin Frise and Gregory Jefferis
+ *
+ * The source is distributed under the GPLv2 or later.
+ *
+ * Clarification: the license of the Fiji launcher has no effect on
+ * the Java Runtime, ImageJ or any plugins, since they are not derivatives.
+ */
 #define _BSD_SOURCE
 #include <stdlib.h>
 #include "jni.h"
@@ -7,19 +19,41 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <fcntl.h>
 #include <unistd.h>
 #include <errno.h>
+
+#ifdef __GNUC__
+#define MAYBE_UNUSED __attribute__ ((unused))
+#else
+#define MAYBE_UNUSED
+#endif
 
 #ifdef MACOSX
 #include <stdlib.h>
 #include <pthread.h>
 #include <CoreFoundation/CoreFoundation.h>
+#include <ApplicationServices/ApplicationServices.h>
 
 struct string;
 static void append_icon_path(struct string *str);
 static void set_path_to_JVM(void);
 static int get_fiji_bundle_variable(const char *key, struct string *value);
 #endif
+
+static const char *get_platform(void)
+{
+#ifdef MACOSX
+	return "macosx";
+#endif
+#ifdef WIN32
+	return sizeof(void *) < 8 ? "win32" : "win64";
+#endif
+#ifdef __linux__
+	return sizeof(void *) < 8 ? "linux32" : "linux64";
+#endif
+	return NULL;
+}
 
 #ifdef WIN32
 #include <io.h>
@@ -31,6 +65,13 @@ static void open_win_console();
 /* TODO: use dup2() and freopen() and a thread to handle the output */
 #else
 #define PATH_SEP ":"
+#ifndef O_BINARY
+#define O_BINARY 0
+#endif
+#endif
+
+#ifdef __linux__
+#include "glibc-compat.h"
 #endif
 
 static void error(const char *fmt, ...)
@@ -179,16 +220,30 @@ static void string_append(struct string *string, const char *append)
 	string->length += len;
 }
 
+static int path_list_contains(const char *list, const char *path)
+{
+	size_t len = strlen(path);
+	const char *p = list;
+	while (p && *p) {
+		if (!strncmp(p, path, len) &&
+				(p[len] == PATH_SEP[0] || !p[len]))
+			return 1;
+		p = strchr(p, PATH_SEP[0]);
+		if (!p)
+			break;
+		p++;
+	}
+	return 0;
+}
+
 static void string_append_path_list(struct string *string, const char *append)
 {
-	int len = strlen(append);
+	if (!append || path_list_contains(string->buffer, append))
+		return;
 
 	if (string->length)
 		string_append(string, PATH_SEP);
-
-	string_ensure_alloc(string, string->length + len + 1);
-	memcpy(string->buffer + string->length, append, len + 1);
-	string->length += len;
+	string_append(string, append);
 }
 
 static void string_append_at_most(struct string *string, const char *append, int length)
@@ -201,6 +256,7 @@ static void string_append_at_most(struct string *string, const char *append, int
 	string_ensure_alloc(string, string->length + len);
 	memcpy(string->buffer + string->length, append, len + 1);
 	string->length += len;
+	string->buffer[string->length] = '\0';
 }
 
 static int number_length(unsigned long number, long base)
@@ -366,6 +422,31 @@ static void string_replace(struct string *string, char from, char to)
 			string->buffer[j] = to;
 }
 
+__attribute__((unused))
+static int string_read_file(struct string *string, const char *path) {
+	FILE *file = fopen(path, "rb");
+	char buffer[1024];
+	int result = 0;
+
+	if (!file) {
+		error("Could not open %s", path);
+		return -1;
+	}
+
+	for (;;) {
+		size_t count = fread(buffer, 1, sizeof(buffer), file);
+		string_ensure_alloc(string, string->length + count);
+		memcpy(string->buffer + string->length, buffer, count);
+		string->length += count;
+		if (count < sizeof(buffer))
+			break;
+	}
+	if (ferror(file) < 0)
+		result = -1;
+	fclose(file);
+	return result;
+}
+
 /*
  * If set, overrides the environment variable JAVA_HOME, which in turn
  * overrides relative_java_home.
@@ -500,11 +581,30 @@ size_t get_memory_size(int available_only)
 				host_info.wire_count) * (size_t)page_size);
 }
 #elif defined(linux)
+static size_t get_kB(struct string *string, const char *key)
+{
+	const char *p = strstr(string->buffer, key);
+	if (!p)
+		return 0;
+	while (*p && *p != ' ')
+		p++;
+	return (size_t)strtoul(p, NULL, 10);
+}
+
 size_t get_memory_size(int available_only)
 {
-	ssize_t page_size = sysconf(_SC_PAGESIZE);
-	ssize_t available_pages = sysconf(available_only ?
-			_SC_AVPHYS_PAGES : _SC_PHYS_PAGES);
+	ssize_t page_size, available_pages;
+	/* Avoid overallocation */
+	if (!available_only) {
+		struct string *string = string_init(32);
+		if (!string_read_file(string, "/proc/meminfo"))
+			return 1024 * (get_kB(string, "MemFree:")
+				+ get_kB(string, "Buffers:")
+				+ get_kB(string, "Cached:"));
+	}
+	page_size = sysconf(_SC_PAGESIZE);
+	available_pages = sysconf(available_only ?
+		_SC_AVPHYS_PAGES : _SC_PHYS_PAGES);
 	return page_size < 0 || available_pages < 0 ?
 		0 : (size_t)page_size * (size_t)available_pages;
 }
@@ -574,6 +674,9 @@ static int is_ipv6_broken(void)
 	return 0;
 #else
 	int sock = socket(AF_INET6, SOCK_STREAM, 0);
+	static const struct in6_addr in6addr_loopback = {
+		{ { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1 } }
+	};
 	struct sockaddr_in6 address = {
 		AF_INET6, 57294 + 7, 0, in6addr_loopback, 0
 	};
@@ -629,6 +732,15 @@ static int is_ipv6_broken(void)
 #define JNI_CREATEVM "JNI_CreateJavaVM"
 #endif
 
+static int is_slash(char c)
+{
+#ifdef WIN32
+	if (c == '\\')
+		return 1;
+#endif
+	return c == '/';
+}
+
 const char *fiji_dir;
 
 static const char *fiji_path(const char *relative_path)
@@ -638,9 +750,11 @@ static const char *fiji_path(const char *relative_path)
 
 	counter = ((counter + 1) % (sizeof(string) / sizeof(string[0])));
 	if (!string[counter])
-		string[counter] = string_initf("%s/%s", fiji_dir, relative_path);
+		string[counter] = string_initf("%s%s%s", fiji_dir,
+			is_slash(*relative_path) ? "" : "/", relative_path);
 	else
-		string_setf(string[counter], "%s/%s", fiji_dir, relative_path);
+		string_setf(string[counter], "%s%s%s", fiji_dir,
+			is_slash(*relative_path) ? "" : "/", relative_path);
 	return string[counter]->buffer;
 }
 
@@ -651,20 +765,42 @@ const char *main_class;
 int run_precompiled = 0;
 
 static int dir_exists(const char *directory);
+static int is_native_library(const char *path);
+static int file_exists(const char *path);
+
+__attribute__((unused))
+static const char *get_java_home_env(void)
+{
+	const char *env = getenv("JAVA_HOME");
+	if (env) {
+		if (dir_exists(env)) {
+			struct string* libjvm =
+				string_initf("%s/%s", env, library_path);
+			if (!file_exists(libjvm->buffer)) {
+				string_set_length(libjvm, 0);
+				string_addf(libjvm, "%s/jre/%s", env, library_path);
+			}
+			if (file_exists(libjvm->buffer) &&
+					!is_native_library(libjvm->buffer)) {
+				error("Ignoring JAVA_HOME (wrong arch): %s",
+					env);
+				env = NULL;
+			}
+			string_release(libjvm);
+			if (env)
+				return env;
+		}
+		else
+			error("Ignoring invalid JAVA_HOME: %s", env);
+		unsetenv("JAVA_HOME");
+	}
+	return NULL;
+}
 
 static const char *get_java_home(void)
 {
 	if (absolute_java_home)
 		return absolute_java_home;
-	const char *env = getenv("JAVA_HOME");
-	if (env) {
-		if (dir_exists(env))
-			return env;
-		else {
-			error("Ignoring invalid JAVA_HOME: %s", env);
-			unsetenv("JAVA_HOME");
-		}
-	}
 	return fiji_path(relative_java_home);
 }
 
@@ -711,10 +847,14 @@ const char *last_slash(const char *path)
 	return slash;
 }
 
+#ifndef PATH_MAX
+#define PATH_MAX 1024
+#endif
+
 static const char *make_absolute_path(const char *path)
 {
 	static char bufs[2][PATH_MAX + 1], *buf = bufs[0];
-	char cwd[1024] = "";
+	char cwd[PATH_MAX] = "";
 #ifndef WIN32
 	static char *next_buf = bufs[1];
 	int buf_index = 1, len;
@@ -792,6 +932,11 @@ static int is_absolute_path(const char *path)
 static int file_exists(const char *path)
 {
 	return !access(path, R_OK);
+}
+
+static inline int prefixcmp(const char *string, const char *prefix)
+{
+	return strncmp(string, prefix, strlen(prefix));
 }
 
 static inline int suffixcmp(const char *string, int len, const char *suffix)
@@ -876,21 +1021,68 @@ static struct string *get_parent_directory(const char *path)
 	return string_initf("%.*s", (int)(slash - path), path);
 }
 
-__attribute__((unused))
-static int path_list_contains(const char *list, const char *path)
+static int find_file(struct string *search_root, int max_depth, const char *file, struct string *result);
+
+/* Splash screen */
+
+static int no_splash;
+static void (*SplashClose)(void);
+
+struct string *get_splashscreen_lib_path(void)
 {
-	size_t len = strlen(path);
-	const char *p = list;
-	while (p && *p) {
-		if (!strncmp(p, path, len) &&
-				(p[len] == PATH_SEP[0] || !p[len]))
-			return 1;
-		p = strchr(p, PATH_SEP[0]);
-		if (!p)
-			break;
-		p++;
+#if defined(WIN32)
+	return string_initf("%s/bin/splashscreen.dll", get_jre_home());
+#elif defined(__linux__)
+	return string_initf("%s/lib/%s/libsplashscreen.so", get_jre_home(), sizeof(void *) == 8 ? "amd64" : "i386");
+#elif defined(MACOSX)
+	struct string *search_root = string_initf("/System/Library/Java/JavaVirtualMachines");
+	struct string *result = string_init(32);
+	if (!find_file(search_root, 4, "libsplashscreen.jnilib", result)) {
+		string_release(result);
+		result = NULL;
 	}
-	return 0;
+	string_release(search_root);
+	return result;
+#else
+	return NULL;
+#endif
+}
+
+/* So far, only Windows and MacOSX support splash with alpha, Linux does not */
+#if defined(WIN32) || defined(MACOSX)
+#define SPLASH_PATH "images/icon.png"
+#else
+#define SPLASH_PATH "images/icon-flat.png"
+#endif
+
+static void show_splash(void)
+{
+	const char *image_path = fiji_path(SPLASH_PATH);
+	struct string *lib_path = get_splashscreen_lib_path();
+	void *splashscreen;
+	int (*SplashInit)(void);
+	int (*SplashLoadFile)(const char *path);
+	int (*SplashSetFileJarName)(const char *file_path, const char *jar_path);
+
+	if (no_splash || !lib_path)
+		return;
+	splashscreen = dlopen(lib_path->buffer, RTLD_LAZY);
+	if (!splashscreen) {
+		string_release(lib_path);
+		return;
+	}
+	SplashInit = dlsym(splashscreen, "SplashInit");
+	SplashLoadFile = dlsym(splashscreen, "SplashLoadFile");
+	SplashSetFileJarName = dlsym(splashscreen, "SplashSetFileJarName");
+	SplashClose = dlsym(splashscreen, "SplashClose");
+	if (!SplashInit || !SplashLoadFile || !SplashSetFileJarName || !SplashClose)
+		return;
+
+	SplashInit();
+	SplashLoadFile(image_path);
+	SplashSetFileJarName(image_path, fiji_path("jars/Fiji.jar"));
+
+	string_release(lib_path);
 }
 
 /*
@@ -1169,49 +1361,122 @@ static int dir_exists(const char *path)
 	return 0;
 }
 
+static int mkdir_recursively(struct string *buffer)
+{
+	int slash = buffer->length - 1, save_length;
+	char save_char;
+	while (slash > 0 && !is_slash(buffer->buffer[slash]))
+		slash--;
+	while (slash > 0 && is_slash(buffer->buffer[slash - 1]))
+		slash--;
+	if (slash <= 0)
+		return -1;
+	save_char = buffer->buffer[slash];
+	save_length = buffer->length;
+	buffer->buffer[slash] = '\0';
+	buffer->length = slash;
+	if (!dir_exists(buffer->buffer)) {
+		int result = mkdir_recursively(buffer);
+		if (result)
+			return result;
+	}
+	buffer->buffer[slash] = save_char;
+	buffer->length = save_length;
+	return mkdir(buffer->buffer, 0777);
+}
+
+/*
+   Ensures that a directory exists in the manner of "mkdir -p", creating
+   components with file mode 777 (& umask) where they do not exist.
+   Returns 0 on success, or the return code of mkdir in the case of
+   failure.
+*/
 static int mkdir_p(const char *path)
 {
-	const char *slash;
+	int result;
 	struct string *buffer;
 	if (dir_exists(path))
 		return 0;
 
 	buffer = string_copy(path);
-	for (;;) {
-		int result;
-		slash = last_slash(buffer->buffer);
-		if (!slash)
-			return -1;
-		string_set_length(buffer, slash - buffer->buffer);
-		result = mkdir(buffer->buffer, 0777);
-		if (result)
-			return result;
+	result = mkdir_recursively(buffer);
+	string_release(buffer);
+	return result;
+}
+
+__attribute__((unused))
+static int find_file(struct string *search_root, int max_depth, const char *file, struct string *result)
+{
+	int len = search_root->length;
+	DIR *directory;
+	struct dirent *entry;
+
+	string_add_char(search_root, '/');
+
+	string_append(search_root, file);
+	if (file_exists(search_root->buffer)) {
+		string_set(result, search_root->buffer);
+		string_set_length(search_root, len);
+		return 1;
 	}
+
+	if (max_depth <= 0)
+		return 0;
+
+	string_set_length(search_root, len);
+	directory = opendir(search_root->buffer);
+	if (!directory)
+		return 0;
+	string_add_char(search_root, '/');
+	while (NULL != (entry = readdir(directory))) {
+		if (entry->d_name[0] == '.')
+			continue;
+		string_append(search_root, entry->d_name);
+		if (dir_exists(search_root->buffer))
+			if (find_file(search_root, max_depth - 1, file, result)) {
+				string_set_length(search_root, len);
+				closedir(directory);
+				return 1;
+			}
+		string_set_length(search_root, len + 1);
+	}
+	closedir(directory);
+	string_set_length(search_root, len);
 	return 0;
+}
+
+static void detect_library_path(struct string *library_path, struct string *directory)
+{
+	int original_length = directory->length;
+	char found = 0;
+	DIR *dir = opendir(directory->buffer);
+	struct dirent *entry;
+
+	if (!dir)
+		return;
+
+	while ((entry = readdir(dir))) {
+		if (entry->d_name[0] == '.')
+			continue;
+		string_addf(directory, "/%s", entry->d_name);
+		if (dir_exists(directory->buffer))
+			detect_library_path(library_path, directory);
+		else if (!found && is_native_library(directory->buffer)) {
+			string_set_length(directory, original_length);
+			string_append_path_list(library_path, directory->buffer);
+			found = 1;
+			continue;
+		}
+		string_set_length(directory, original_length);
+	}
+	closedir(dir);
 }
 
 static void add_java_home_to_path(void)
 {
-	const char *java_home = absolute_java_home;
+	const char *java_home = get_java_home();
 	struct string *new_path = string_init(32), *buffer;
 	const char *env;
-
-	if (!java_home) {
-		const char *env = getenv("JAVA_HOME");
-		if (env)
-			java_home = env;
-		else {
-			int len;
-			java_home = fiji_path(relative_java_home);
-			len = strlen(java_home);
-			if (len > 4 && !strcmp(java_home + len - 4,
-						"/jre"))
-				java_home = xstrndup(java_home, len - 4);
-			else
-				java_home = xstrdup(java_home);
-			absolute_java_home = java_home;
-		}
-	}
 
 	buffer = string_initf("%s/bin", java_home);
 	if (dir_exists(buffer->buffer))
@@ -1252,6 +1517,7 @@ int build_classpath_for_string(struct string *result, struct string *jar_directo
 			len = jar_directory->length;
 			string_addf(jar_directory, "/%s", filename);
 			if (build_classpath_for_string(result, jar_directory, 1)) {
+				closedir(directory);
 				string_set_length(jar_directory, len);
 				return 1;
 			}
@@ -1259,6 +1525,7 @@ int build_classpath_for_string(struct string *result, struct string *jar_directo
 		}
 
 	}
+	closedir(directory);
 	return 0;
 }
 
@@ -1457,6 +1724,37 @@ static void add_options(struct options *options, const char *cmd_line, int for_i
 	string_release(current);
 }
 
+/*
+ * If passing -Xmx=99999999g -Xmx=37m to Java, the former still triggers an
+ * error. So let's keep only the last, so that the command line can override
+ * invalid settings in jvm.cfg.
+ */
+static void keep_only_one_memory_option(struct string_array *options)
+{
+	int index_Xmx = -1, index_Xms = -1, index_Xmn = -1;
+	int i, j;
+
+	for (i = options->nr - 1; i >= 0; i--)
+		if (index_Xmx < 0 && !prefixcmp(options->list[i], "-Xmx"))
+			index_Xmx = i;
+		else if (index_Xms < 0 && !prefixcmp(options->list[i], "-Xms"))
+			index_Xms = i;
+		else if (index_Xmn < 0 && !prefixcmp(options->list[i], "-Xmn"))
+			index_Xmn = i;
+
+	for (i = j = 0; i < options->nr; i++)
+		if ((i < index_Xmx && !prefixcmp(options->list[i], "-Xmx")) ||
+				(i < index_Xms && !prefixcmp(options->list[i], "-Xms")) ||
+				(i < index_Xmn && !prefixcmp(options->list[i], "-Xmn")))
+			continue;
+		else {
+			if (i > j)
+				options->list[j] = options->list[i];
+			j++;
+		}
+	options->nr = j;
+}
+
 __attribute__((unused))
 static void read_file_as_string(const char *file_name, struct string *contents)
 {
@@ -1524,11 +1822,20 @@ static char *quote_win32(char *option)
 }
 #endif
 
+static const char *get_java_command(void)
+{
+#ifdef WIN32
+	if (!console_opened)
+		return "javaw";
+#endif
+	return "java";
+}
+
 static void show_commandline(struct options *options)
 {
 	int j;
 
-	printf("java");
+	printf("%s", get_java_command());
 	for (j = 0; j < options->java_options.nr; j++) {
 		struct string *quoted = quote_if_necessary(options->java_options.list[j]);
 		printf(" %s", quoted->buffer);
@@ -1694,6 +2001,12 @@ static void __attribute__((__noreturn__)) usage(void)
 		"--default-gc\n"
 		"\tdo not use advanced garbage collector settings by default\n"
 		"\t(-Xincgc -XX:PermSize=128m)\n"
+		"--gc-g1\n"
+		"\tuse the G1 garbage collector\n"
+		"--debug-gc\n"
+		"\tshow debug info about the garbage collector on stderr\n"
+		"--no-splash\n"
+		"\tsuppress showing a splash screen upon startup\n"
 		"\n"
 		"Options for ImageJ:\n"
 		"--allow-multiple\n"
@@ -1704,10 +2017,12 @@ static void __attribute__((__noreturn__)) usage(void)
 		"\trun <plugin> in ImageJ, optionally with arguments\n"
 		"--compile-and-run <path-to-.java-file>\n"
 		"\tcompile and run <plugin> in ImageJ\n"
-		"--edit <file>\n"
+		"--edit [<file>...]\n"
 		"\tedit the given file in the script editor\n"
 		"\n"
 		"Options to run programs other than ImageJ:\n"
+		"--update\n"
+		"\tstart the command-line version of the Fiji updater\n"
 		"--jdb\n"
 		"\tstart in JDB, the Java debugger\n"
 		"--jython\n"
@@ -1734,6 +2049,8 @@ static void __attribute__((__noreturn__)) usage(void)
 		"\tstart JavaC, the Java Compiler, instead of ImageJ\n"
 		"--ant\n"
 		"\trun Apache Ant\n"
+		"--javah\n"
+		"\tstart javah instead of ImageJ\n"
 		"--javap\n"
 		"\tstart javap instead of ImageJ\n"
 		"--javadoc\n"
@@ -1801,7 +2118,7 @@ static void try_with_less_memory(size_t memory_size)
 	new_argv[0] = dos_path(new_argv[0]);
 	for (i = 0; i < j; i++)
 		new_argv[i] = quote_win32(new_argv[i]);
-	execve(new_argv[0], (const char * const *)new_argv, NULL);
+	execve(new_argv[0], (char * const *)new_argv, NULL);
 #else
 	execve(new_argv[0], new_argv, NULL);
 #endif
@@ -1846,9 +2163,11 @@ static int start_ij(void)
 	struct string *default_arguments = string_init(32);
 	struct string *arg = string_init(32);
 	struct string *plugin_path = string_init(32);
+	struct string *java_library_path = string_init(32);
+	struct string *library_base_path;
 	int dashdash = 0;
 	int allow_multiple = 0, skip_build_classpath = 0;
-	int jdb = 0, add_class_path_option = 0, advanced_gc = 1;
+	int jdb = 0, add_class_path_option = 0, advanced_gc = 1, debug_gc = 0;
 	size_t memory_size = 0;
 	int count = 1, i;
 
@@ -1864,6 +2183,32 @@ static int start_ij(void)
 			file_is_newer(fiji_path("fiji.c"), fiji_path("fiji" EXE_EXTENSION)) &&
 			!is_building("fiji"))
 		error("Warning: your Fiji executable is not up-to-date");
+
+#ifdef linux
+	string_append_path_list(java_library_path, getenv("LD_LIBRARY_PATH"));
+#endif
+#ifdef MACOSX
+	string_append_path_list(java_library_path, getenv("DYLD_LIBRARY_PATH"));
+#endif
+
+	if (get_platform() != NULL) {
+		struct string *buffer = string_initf("%s/%s", fiji_path("lib"), get_platform());
+		string_append_path_list(java_library_path, buffer->buffer);
+		string_release(buffer);
+	}
+
+	library_base_path = string_copy(fiji_path("lib"));
+	detect_library_path(java_library_path, library_base_path);
+	string_release(library_base_path);
+
+#ifdef WIN32
+	if (java_library_path->length) {
+		struct string *new_path = string_initf("%s%s%s",
+			getenv("PATH"), PATH_SEP, java_library_path->buffer);
+		setenv("PATH", new_path->buffer, 1);
+		string_release(new_path);
+	}
+#endif
 
 	memset(&options, 0, sizeof(options));
 
@@ -1903,6 +2248,9 @@ static int start_ij(void)
 #else
 	read_file_as_string(fiji_path("jvm.cfg"), jvm_options);
 #endif
+
+	if (jvm_options->length)
+		add_options(&options, jvm_options->buffer, 0);
 
 	for (i = 1; i < main_argc; i++)
 		if (!strcmp(main_argv[i], "--") && !dashdash)
@@ -1947,10 +2295,14 @@ static int start_ij(void)
 			add_option_string(&options, buffer, 1);
 			headless_argc++;
 		}
+		else if (i == main_argc - 1 && !strcmp(main_argv[i], "--edit")) {
+			add_option(&options, "-eval", 1);
+			add_option(&options, "run(\"Script Editor\");", 1);
+		}
 		else if (handle_one_option(&i, "--edit", arg))
 			for (;;) {
 				add_option(&options, "-eval", 1);
-				string_setf(buffer, "run(\"Script Editor\", \"%s\");", make_absolute_path(arg->buffer));
+				string_setf(buffer, "run(\"Script Editor\", \"%s\");", *arg->buffer && strncmp(arg->buffer, "class:", 6) ? make_absolute_path(arg->buffer) : arg->buffer);
 				add_option_string(&options, buffer, 1);
 				if (i + 1 >= main_argc)
 					break;
@@ -1969,8 +2321,11 @@ static int start_ij(void)
 		else if (!strcmp(main_argv[i], "--jython")) {
 			main_class = "org.python.util.jython";
 			/* When running on Debian / Ubuntu we depend on the
-			   external version of jython, so add its jar: */
-			string_append_path_list(class_path, "/usr/share/java/jython.jar");
+			   external version of jython, so add its jar.
+			   Since that .jar does not contain the Lib/ folder,
+			   let's add that jar only if we do not have our own. */
+			if (!file_exists(fiji_path("jars/jython.jar")))
+				string_append_path_list(class_path, "/usr/share/java/jython.jar");
 		}
 		else if (!strcmp(main_argv[i], "--jruby"))
 			main_class = "org.jruby.Main";
@@ -1994,6 +2349,10 @@ static int start_ij(void)
 			string_addf_path_list(class_path, "%s", arg->buffer);
 			main_class = "fiji.JarLauncher";
 			add_option_string(&options, arg, 1);
+		}
+		else if (!strcmp(main_argv[i], "--update")) {
+			string_append_path_list(class_path, fiji_path("plugins/Fiji_Updater.jar"));
+			main_class = "fiji.updater.Main";
 		}
 		else if (handle_one_option(&i, "--class-path", arg) ||
 				handle_one_option(&i, "--classpath", arg) ||
@@ -2033,6 +2392,7 @@ static int start_ij(void)
 			main_class = "fiji.build.Fake";
 		}
 		else if (!strcmp(main_argv[i], "--javac") ||
+				!strcmp(main_argv[i], "--javah") ||
 				!strcmp(main_argv[i], "--javap") ||
 				!strcmp(main_argv[i], "--javadoc")) {
 			add_class_path_option = 1;
@@ -2049,6 +2409,8 @@ static int start_ij(void)
 			string_addf_path_list(class_path, "%s/../lib/tools.jar", get_jre_home());
 			if (!strcmp(main_argv[i], "--javac"))
 				main_class = "com.sun.tools.javac.Main";
+			else if (!strcmp(main_argv[i], "--javah"))
+				main_class = "com.sun.tools.javah.Main";
 			else if (!strcmp(main_argv[i], "--javap"))
 				main_class = "sun.tools.javap.Main";
 			else if (!strcmp(main_argv[i], "--javadoc"))
@@ -2064,6 +2426,7 @@ static int start_ij(void)
 			string_append_path_list(class_path, "/usr/share/java/ant.jar");
 			string_append_path_list(class_path, "/usr/share/java/ant-launcher.jar");
 			string_append_path_list(class_path, "/usr/share/java/ant-nodeps.jar");
+			string_append_path_list(class_path, "/usr/share/java/ant-junit.jar");
 		}
 		else if (!strcmp(main_argv[i], "--retrotranslator") ||
 				!strcmp(main_argv[i], "--retro"))
@@ -2080,6 +2443,13 @@ static int start_ij(void)
 		}
 		else if (!strcmp("--default-gc", main_argv[i]))
 			advanced_gc = 0;
+		else if (!strcmp("--gc-g1", main_argv[i]) ||
+				!strcmp("--g1", main_argv[i]))
+			advanced_gc = 2;
+		else if (!strcmp("--debug-gc", main_argv[i]))
+			debug_gc = 1;
+		else if (!strcmp("--no-splash", main_argv[i]))
+			no_splash = 1;
 		else if (!strcmp("--help", main_argv[i]) ||
 				!strcmp("-h", main_argv[i]))
 			usage();
@@ -2090,7 +2460,7 @@ static int start_ij(void)
 
 	if (!headless &&
 #ifdef MACOSX
-			!getenv("SECURITYSESSIONID") && !getenv("DISPLAY")
+			!CGSessionCopyCurrentDictionary()
 #elif defined(__linux__)
 			!getenv("DISPLAY")
 #else
@@ -2131,14 +2501,27 @@ static int start_ij(void)
 	if (is_ipv6_broken())
 		add_option(&options, "-Djava.net.preferIPv4Stack=true", 0);
 
-	if (advanced_gc) {
+	if (advanced_gc == 1) {
 		add_option(&options, "-Xincgc", 0);
 		add_option(&options, "-XX:PermSize=128m", 0);
 	}
+	else if (advanced_gc == 2) {
+		add_option(&options, "-XX:PermSize=128m", 0);
+		add_option(&options, "-XX:+UseCompressedOops", 0);
+		add_option(&options, "-XX:+UnlockExperimentalVMOptions", 0);
+		add_option(&options, "-XX:+UseG1GC", 0);
+		add_option(&options, "-XX:+G1ParallelRSetUpdatingEnabled", 0);
+		add_option(&options, "-XX:+G1ParallelRSetScanningEnabled", 0);
+		add_option(&options, "-XX:NewRatio=5", 0);
+	}
+
+	if (debug_gc)
+		add_option(&options, "-verbose:gc", 0);
 
 	if (!main_class) {
-		const char *first = main_argv[1];
-		int len = main_argc > 1 ? strlen(first) : 0;
+		int index = dashdash ? dashdash : 1;
+		const char *first = main_argv[index];
+		int len = main_argc > index ? strlen(first) : 0;
 
 		if (len > 1 && !strncmp(first, "--", 2))
 			len = 0;
@@ -2170,6 +2553,12 @@ static int start_ij(void)
 	if (retrotranslator && build_classpath(class_path, fiji_path("retro"), 0))
 		return 1;
 
+	if (!headless && is_default_main_class(main_class))
+		show_splash();
+
+	/* Handle update/ */
+	update_all_files();
+
 	/* set up class path */
 	if (skip_build_classpath) {
 		/* strip trailing ":" */
@@ -2182,7 +2571,6 @@ static int start_ij(void)
 			string_append_path_list(class_path, fiji_path("misc/headless.jar"));
 
 		if (is_default_main_class(main_class)) {
-			update_all_files();
 			string_append_path_list(class_path, fiji_path("jars/Fiji.jar"));
 			string_append_path_list(class_path, fiji_path("jars/ij.jar"));
 		}
@@ -2197,8 +2585,6 @@ static int start_ij(void)
 		add_option_string(&options, buffer, 0);
 	}
 
-	if (jvm_options->length)
-		add_options(&options, jvm_options->buffer, 0);
 	if (default_arguments->length)
 		add_options(&options, default_arguments->buffer, 1);
 
@@ -2225,8 +2611,6 @@ static int start_ij(void)
 		else
 			add_option(&options, "-port7", 1);
 		add_option(&options, "-Dsun.java.command=Fiji", 0);
-
-		update_all_files();
 	}
 
 	/* handle "--headless script.ijm" gracefully */
@@ -2257,8 +2641,14 @@ static int start_ij(void)
 		"fiji.dir", fiji_dir,
 		"fiji.defaultLibPath", JAVA_LIB_PATH,
 		"fiji.executable", main_argv0,
+		"java.library.path", java_library_path->buffer,
+#ifdef WIN32
+		"sun.java2d.noddraw", "true",
+#endif
 		NULL
 	};
+
+	keep_only_one_memory_option(&options.java_options);
 
 	if (options.debug) {
 		for (i = 0; properties[i]; i += 2) {
@@ -2286,8 +2676,10 @@ static int start_ij(void)
 			die("Out of memory!");
 		}
 		if (result) {
-			if (result != 2)
+			if (result != 2) {
 				error("Warning: falling back to System JVM");
+				unsetenv("JAVA_HOME");
+			}
 			env = NULL;
 		} else {
 			string_setf(buffer, "-Djava.home=%s", get_java_home());
@@ -2319,6 +2711,8 @@ static int start_ij(void)
 		args = prepare_ij_options(env, &options.ij_options);
 		(*env)->CallStaticVoidMethodA(env, instance,
 				method, (jvalue *)&args);
+		if (SplashClose)
+			SplashClose();
 		if ((*vm)->DetachCurrentThread(vm))
 			error("Could not detach current thread");
 		/* This does not return until ImageJ exits */
@@ -2352,15 +2746,17 @@ static int start_ij(void)
 		add_option_copy(&options, main_class, 0);
 		append_string_array(&options.java_options, &options.ij_options);
 		append_string(&options.java_options, NULL);
-		prepend_string(&options.java_options, "java");
+		prepend_string(&options.java_options, strdup(get_java_command()));
 
-		string_set(buffer, "java");
+		string_set(buffer, get_java_command());
 		java_home_env = getenv("JAVA_HOME");
 		if (java_home_env && strlen(java_home_env) > 0) {
 			error("Found that JAVA_HOME was: '%s'", java_home_env);
-			string_setf(buffer, "%s/bin/java", java_home_env);
+			string_setf(buffer, "%s/bin/%s", java_home_env, get_java_command());
 		}
 		options.java_options.list[0] = buffer->buffer;
+		if (SplashClose)
+			SplashClose();
 #ifndef WIN32
 		if (execvp(buffer->buffer, options.java_options.list))
 			error("Could not launch system-wide Java (%s)", strerror(errno));
@@ -2372,7 +2768,7 @@ static int start_ij(void)
 		for (i = 0; i < options.java_options.nr - 1; i++)
 			options.java_options.list[i] =
 				quote_win32(options.java_options.list[i]);
-		execvp(buffer->buffer, (const char * const *)options.java_options.list);
+		execvp(buffer->buffer, (char * const *)options.java_options.list);
 		char message[16384];
 		int off = sprintf(message, "Error: '%s' while executing\n\n",
 				strerror(errno));
@@ -2404,6 +2800,51 @@ static void append_icon_path(struct string *str)
 #include <sys/param.h>
 #include <string.h>
 
+static struct string *convert_cfstring(CFStringRef ref, struct string *buffer)
+{
+	string_ensure_alloc(buffer, (int)CFStringGetLength(ref) * 6);
+	if (!CFStringGetCString((CFStringRef)ref, buffer->buffer, buffer->alloc, kCFStringEncodingUTF8))
+		string_set_length(buffer, 0);
+	else
+		buffer->length = strlen(buffer->buffer);
+	return buffer;
+}
+
+static struct string *resolve_alias(CFDataRef ref, struct string *buffer)
+{
+	if (!ref)
+		string_set_length(buffer, 0);
+	else {
+		CFRange range = { 0, CFDataGetLength(ref) };
+		if (range.length <= 0) {
+			string_set_length(buffer, 0);
+			return buffer;
+		}
+		AliasHandle alias = (AliasHandle)NewHandle(range.length);
+		CFDataGetBytes(ref, range, (void *)*alias);
+
+		string_ensure_alloc(buffer, 1024);
+		FSRef fs;
+		Boolean changed;
+		if (FSResolveAlias(NULL, alias, &fs, &changed) == noErr)
+			FSRefMakePath(&fs, (unsigned char *)buffer->buffer, buffer->alloc);
+		else {
+			CFStringRef string;
+			if (FSCopyAliasInfo(alias, NULL, NULL, &string, NULL, NULL) == noErr) {
+				convert_cfstring(string, buffer);
+				CFRelease(string);
+			}
+			else
+				string_set_length(buffer, 0);
+		}
+		buffer->length = strlen(buffer->buffer);
+
+		DisposeHandle((Handle)alias);
+	}
+
+	return buffer;
+}
+
 static int is_intel(void)
 {
 	int mib[2] = { CTL_HW, HW_MACHINE };
@@ -2412,7 +2853,78 @@ static int is_intel(void)
 
 	if (sysctl(mib, 2, result, &len, NULL, 0) < 0)
 		return 0;
-	return !strcmp(result, "i386");
+	return !strcmp(result, "i386") || !strncmp(result, "x86", 3);
+}
+
+static int force_32_bit_mode(const char *argv0)
+{
+	int result = 0;
+	struct string *buffer = string_initf("%s/%s", getenv("HOME"),
+		"Library/Preferences/com.apple.LaunchServices.plist");
+	if (!buffer)
+		return 0;
+
+	CFURLRef launchServicesURL =
+		CFURLCreateFromFileSystemRepresentation(kCFAllocatorDefault,
+		(unsigned char *)buffer->buffer, buffer->length, 0);
+	if (!launchServicesURL)
+		goto release_buffer;
+
+	CFDataRef data;
+	SInt32 errorCode;
+	if (!CFURLCreateDataAndPropertiesFromResource(kCFAllocatorDefault,
+			launchServicesURL, &data, NULL, NULL, &errorCode))
+		goto release_url;
+
+	CFDictionaryRef dict;
+	CFStringRef errorString;
+	dict = (CFDictionaryRef)CFPropertyListCreateFromXMLData(kCFAllocatorDefault,
+		data, kCFPropertyListImmutable, &errorString);
+	if (!dict || errorString)
+		goto release_data;
+
+
+	CFDictionaryRef arch64 = (CFDictionaryRef)CFDictionaryGetValue(dict,
+		CFSTR("LSArchitecturesForX86_64"));
+	if (!arch64)
+		goto release_dict;
+
+	CFArrayRef app = (CFArrayRef)CFDictionaryGetValue(arch64, CFSTR("org.fiji"));
+	if (!app)
+		goto release_dict;
+
+	struct string *fiji_dir = string_copy(!strrchr(argv0, '/') ?
+		find_in_path(argv0) : make_absolute_path(argv0));
+	char *slash = strrchr(fiji_dir->buffer, '/');
+	if (!slash)
+		goto release_fiji_dir;
+	string_set_length(fiji_dir, slash - fiji_dir->buffer);
+	const char *suffix = "/Contents/MacOS";
+	if (!suffixcmp(fiji_dir->buffer, fiji_dir->length, suffix))
+		string_set_length(fiji_dir, fiji_dir->length - strlen(suffix));
+
+	int i, count = (int)CFArrayGetCount(app);
+	for (i = 0; i < count; i += 2) {
+		convert_cfstring((CFStringRef)CFArrayGetValueAtIndex(app, i + 1), buffer);
+		if (strcmp(buffer->buffer, "i386"))
+			continue;
+		resolve_alias((CFDataRef)CFArrayGetValueAtIndex(app, i), buffer);
+		if (!strcmp(buffer->buffer, fiji_dir->buffer)) {
+			result = 1;
+			break;
+		}
+	}
+release_fiji_dir:
+	string_release(fiji_dir);
+release_dict:
+	CFRelease(dict);
+release_data:
+	CFRelease(data);
+release_url:
+	CFRelease(launchServicesURL);
+release_buffer:
+	string_release(buffer);
+	return result;
 }
 
 static void set_path_to_JVM(void)
@@ -2465,6 +2977,7 @@ static void set_path_to_JVM(void)
 	}
 
 	if (!TargetJavaVM) {
+		retrotranslator = 1;
 		targetJVM = CFSTR("1.5");
 		TargetJavaVM =
 		CFURLCreateCopyAppendingPathComponent(kCFAllocatorDefault,
@@ -2560,9 +3073,12 @@ static int get_fiji_bundle_variable(const char *key, struct string *value)
 	if (!propertyString)
 		return -5;
 
+	const char *c_string = CFStringGetCStringPtr(propertyString, kCFStringEncodingMacRoman);
+	if (!c_string)
+		return -6;
+
 	string_set_length(value, 0);
-	string_append(value, CFStringGetCStringPtr(propertyString,
-			kCFStringEncodingMacRoman));
+	string_append(value, c_string);
 
 	return 0;
 }
@@ -2645,7 +3161,7 @@ static int is_leopard(void)
 	return is_osrelease(9);
 }
 
-static int is_tiger(void)
+static MAYBE_UNUSED int is_tiger(void)
 {
 	return is_osrelease(8);
 }
@@ -2654,13 +3170,14 @@ static int launch_32bit_on_tiger(int argc, char **argv)
 {
 	const char *match, *replace;
 
+	if (force_32_bit_mode(argv[0]))
+		return 0;
+
 	if (is_intel() && is_leopard()) {
 		match = "-tiger";
 		replace = "-macosx";
 	}
 	else { /* Tiger */
-		if (!is_tiger())
-			retrotranslator = 1;
 		match = "-macosx";
 		replace = "-tiger";
 		if (sizeof(void *) < 8)
@@ -2684,6 +3201,123 @@ static int launch_32bit_on_tiger(int argc, char **argv)
 }
 #endif
 
+/* check whether there a file is a native library */
+
+static int read_exactly(int fd, unsigned char *buffer, int size)
+{
+	while (size > 0) {
+		int count = read(fd, buffer, size);
+		if (count < 0)
+			return 0;
+		if (count == 0)
+			/* short file */
+			return 1;
+		buffer += count;
+		size -= count;
+	}
+	return 1;
+}
+
+/* returns bit-width (32, 64), or 0 if it is not a .dll */
+static int MAYBE_UNUSED is_dll(const char *path)
+{
+	int in;
+	unsigned char buffer[0x40];
+	unsigned char *p;
+	off_t offset;
+
+	if (suffixcmp(path, strlen(path), ".dll"))
+		return 0;
+
+	if ((in = open(path, O_RDONLY | O_BINARY)) < 0)
+		return 0;
+
+	if (!read_exactly(in, buffer, sizeof(buffer)) ||
+			buffer[0] != 'M' || buffer[1] != 'Z') {
+		close(in);
+		return 0;
+	}
+
+	p = (unsigned char *)(buffer + 0x3c);
+	offset = p[0] | (p[1] << 8) | (p[2] << 16) | (p[2] << 24);
+	lseek(in, offset, SEEK_SET);
+	if (!read_exactly(in, buffer, 0x20) ||
+			buffer[0] != 'P' || buffer[1] != 'E' ||
+			buffer[2] != '\0' || buffer[3] != '\0') {
+		close(in);
+		return 0;
+	}
+
+	close(in);
+	if (buffer[0x17] & 0x20)
+		return (buffer[0x17] & 0x1) ? 32 : 64;
+	return 0;
+}
+
+static int MAYBE_UNUSED is_elf(const char *path)
+{
+	int in;
+	unsigned char buffer[0x40];
+
+	if (suffixcmp(path, strlen(path), ".so"))
+		return 0;
+
+	if ((in = open(path, O_RDONLY | O_BINARY)) < 0)
+		return 0;
+
+	if (!read_exactly(in, buffer, sizeof(buffer))) {
+		close(in);
+		return 0;
+	}
+
+	close(in);
+	if (buffer[0] == '\x7f' && buffer[1] == 'E' && buffer[2] == 'L' &&
+			buffer[3] == 'F')
+		return buffer[4] * 32;
+	return 0;
+}
+
+static int MAYBE_UNUSED is_dylib(const char *path)
+{
+	int in;
+	unsigned char buffer[0x40];
+
+	if (suffixcmp(path, strlen(path), ".dylib") &&
+			suffixcmp(path, strlen(path), ".jnilib"))
+		return 0;
+
+	if ((in = open(path, O_RDONLY | O_BINARY)) < 0)
+		return 0;
+
+	if (!read_exactly(in, buffer, sizeof(buffer))) {
+		close(in);
+		return 0;
+	}
+
+	close(in);
+	if (buffer[0] == 0xca && buffer[1] == 0xfe && buffer[2] == 0xba &&
+			buffer[3] == 0xbe && buffer[4] == 0x00 &&
+			buffer[5] == 0x00 && buffer[6] == 0x00 &&
+			(buffer[7] >= 1 && buffer[7] < 20))
+		return 32 | 64; /* might be a fat one, containing both */
+	return 0;
+}
+
+static int is_native_library(const char *path)
+{
+#ifdef MACOSX
+	return is_dylib(path);
+#else
+	return
+#ifdef WIN32
+		is_dll(path)
+#else
+		is_elf(path)
+#endif
+		== sizeof(char *) * 8;
+#endif
+}
+
 static void find_newest(struct string *relative_path, int max_depth, const char *file, struct string *result)
 {
 	int len = relative_path->length;
@@ -2693,7 +3327,7 @@ static void find_newest(struct string *relative_path, int max_depth, const char 
 	string_add_char(relative_path, '/');
 
 	string_append(relative_path, file);
-	if (file_exists(fiji_path(relative_path->buffer))) {
+	if (file_exists(fiji_path(relative_path->buffer)) && is_native_library(fiji_path(relative_path->buffer))) {
 		string_set_length(relative_path, len);
 		if (!result->length || file_is_newer(fiji_path(relative_path->buffer), fiji_path(result->buffer)))
 			string_set(result, relative_path->buffer);
@@ -2711,10 +3345,11 @@ static void find_newest(struct string *relative_path, int max_depth, const char 
 		if (entry->d_name[0] == '.')
 			continue;
 		string_append(relative_path, entry->d_name);
-		if (dir_exists(relative_path->buffer))
+		if (dir_exists(fiji_path(relative_path->buffer)))
 			find_newest(relative_path, max_depth - 1, file, result);
 		string_set_length(relative_path, len + 1);
 	}
+	closedir(directory);
 	string_set_length(relative_path, len);
 }
 

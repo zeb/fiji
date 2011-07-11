@@ -51,14 +51,19 @@ public class Recent_Commands implements ActionListener, CommandListener, KeyList
 		if ("install".equals(arg))
 			install();
 		else
-			runInteractively();
+			new Thread() {
+				public void run() {
+					runInteractively();
+				}
+			}.start();
 	}
 
 	public void install() {
 		Executer.addCommandListener(this);
-		Menus.installPlugin(getClass().getName(),
-			Menus.SHORTCUTS_MENU, "*recent commands", "9",
-			IJ.getInstance());
+		if (IJ.getInstance() != null)
+			Menus.installPlugin(getClass().getName(),
+				Menus.SHORTCUTS_MENU, "*recent commands", "9",
+				IJ.getInstance());
 	}
 
 	JDialog dialog;

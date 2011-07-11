@@ -1,36 +1,33 @@
 package vib.segment;
 
+import amira.AmiraParameters;
+
 import ij.IJ;
 import ij.ImagePlus;
+
 import ij.gui.ColorChooser;
 import ij.gui.GenericDialog;
 
 import java.awt.AWTEvent;
 import java.awt.Canvas;
+import java.awt.CheckboxMenuItem;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.Graphics;
-import java.awt.Label;
-import java.awt.CheckboxMenuItem;
 import java.awt.MenuItem;
 import java.awt.Point;
 import java.awt.PopupMenu;
 import java.awt.ScrollPane;
-import java.awt.event.ItemListener;
-import java.awt.event.ItemEvent;
+
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.ItemEvent;
+import java.awt.event.ItemListener;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
-import java.util.Iterator;
 
-import javax.naming.OperationNotSupportedException;
-
-import amira.AmiraParameters;
-
-public class MaterialList extends ScrollPane implements ActionListener,
-					ItemListener {
+public class MaterialList extends ScrollPane implements ActionListener, ItemListener {
 	PopupMenu popup;
 
 	ImagePlus labels;
@@ -73,7 +70,7 @@ public class MaterialList extends ScrollPane implements ActionListener,
 		return list.selectedIndex;
 	}
 
-	private void select(int index) {
+	public void select(int index) {
 		list.selectedIndex = index;
 	}
 
@@ -102,13 +99,13 @@ public class MaterialList extends ScrollPane implements ActionListener,
 
 	public void createPopup() {
 		popup = new PopupMenu("");
-		add = new MenuItem("Add Material");
+		add = new MenuItem("Add Label");
 		popup.add(add);
-		remove = new MenuItem("Remove Material");
+		remove = new MenuItem("Remove Label");
 		// FIXME: there's no point in adding this option since
 		// it just creates a RuntimeException at the moment.
 		// popup.add(remove);
-		rename = new MenuItem("Rename Material");
+		rename = new MenuItem("Rename Label");
 		popup.add(rename);
 		color = new MenuItem("Change Color");
 		popup.add(color);
@@ -137,6 +134,8 @@ public class MaterialList extends ScrollPane implements ActionListener,
 			list.invalidate();
 			list.repaint();
 		}
+		if (locked.length > 1)
+			select(1);
 	}
 
 	public void setMaterials(String materials) {
@@ -151,7 +150,7 @@ public class MaterialList extends ScrollPane implements ActionListener,
 	public void addMaterial() {
 		int num = getItemCount();
 		num++;
-		params.addMaterial("Material" + num, 1,0,0); // TODO change color
+		params.addMaterial("Label" + num, 1,0,0); // TODO change color
 		params.setParameters(labels);
 		boolean[] newlocked = new boolean[num];
 		System.arraycopy(locked, 0, newlocked, 0, locked.length);
@@ -164,11 +163,18 @@ public class MaterialList extends ScrollPane implements ActionListener,
 	public void delMaterial() {
 		int selected = getSelectedIndex();
 		if (selected < 1) {
-			IJ.error("Cannot delete first material!");
+			IJ.error("Cannot delete first label!");
 			return;
 		}
 		throw new RuntimeException("delete not yet implemented");
 		// not forget to delete entry in locked-array
+	}
+
+	public void renameMaterial(String newName) {
+		newName = newName.replace(' ', '_');
+		params.editMaterial(currentMaterialID(), newName, -1, -1, -1);
+		params.setParameters(labels);
+		list.repaint();
 	}
 
 	private void renameMaterial() {
@@ -177,10 +183,22 @@ public class MaterialList extends ScrollPane implements ActionListener,
 		gd.showDialog();
 		if (gd.wasCanceled())
 			return;
-		
-		params.editMaterial(currentMaterialID(), gd.getNextString(),-1,-1,-1);
+		String newName = gd.getNextString();
+		if (newName.indexOf(' ') >= 0) {
+			newName = newName.replace(' ', '_');
+			IJ.showMessage("Names cannot contain spaces; using '" + newName + "' instead!");
+		}
+		renameMaterial(newName);
+	}
+
+	public void setColor(int r, int g, int b) {
+		params.editMaterial(currentMaterialID(), null,
+				r / 255.0, g / 255.0, b / 255.0);
 		params.setParameters(labels);
+		labels.updateAndDraw();
 		list.repaint();
+		if (cc != null)
+			cc.setLabels(labels);
 	}
 
 	private void setColor() {
@@ -191,16 +209,9 @@ public class MaterialList extends ScrollPane implements ActionListener,
 		String name = params.getMaterialName(id) + " Color";
 		ColorChooser chooser = new ColorChooser(name, current, false);
 		Color changed = chooser.getColor();
-		if (changed != null) {
-			params.editMaterial(id, null, changed.getRed() / 255.0,
-					changed.getGreen() / 255.0,
-					changed.getBlue() / 255.0);
-			params.setParameters(labels);
-			labels.updateAndDraw();
-			list.repaint();
-			if (cc != null)
-				cc.setLabels(labels);
-		}
+		if (changed != null)
+			setColor(changed.getRed(), changed.getGreen(),
+					changed.getBlue());
 	}
 
 	public void actionPerformed(ActionEvent e) {

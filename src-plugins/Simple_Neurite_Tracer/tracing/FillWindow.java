@@ -1,6 +1,6 @@
 /* -*- mode: java; c-basic-offset: 8; indent-tabs-mode: t; tab-width: 8 -*- */
 
-/* Copyright 2006, 2007, 2008, 2009 Mark Longair */
+/* Copyright 2006, 2007, 2008, 2009, 2010, 2011 Mark Longair */
 
 /*
   This file is part of the ImageJ plugin "Simple Neurite Tracer".
@@ -19,7 +19,7 @@
 
   In addition, as a special exception, the copyright holders give
   you permission to combine this program with free software programs or
-  libraries that are released under the Apache Public License. 
+  libraries that are released under the Apache Public License.
 
   You should have received a copy of the GNU General Public License
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
@@ -33,13 +33,7 @@ import ij.io.*;
 import javax.swing.*;
 
 import java.awt.BorderLayout;
-
-import javax.swing.tree.DefaultMutableTreeNode;
-import javax.swing.tree.DefaultTreeModel;
-import javax.swing.tree.MutableTreeNode;
-import javax.swing.tree.TreeNode;
-import javax.swing.tree.TreePath;
-import javax.swing.tree.TreeModel;
+import java.awt.FlowLayout;
 
 import java.awt.event.ActionListener;
 import java.awt.event.ActionEvent;
@@ -50,51 +44,53 @@ import java.awt.GridBagConstraints;
 import java.awt.Insets;
 
 import java.util.HashSet;
-import java.util.Iterator;
 
+import java.io.File;
+import java.io.IOException;
+
+@SuppressWarnings("serial")
 public class FillWindow extends JFrame implements PathAndFillListener, ActionListener, ItemListener, FillerProgressCallback {
 
-	SimpleNeuriteTracer plugin;
-	PathAndFillManager pathAndFillManager;
+	protected SimpleNeuriteTracer plugin;
+	protected PathAndFillManager pathAndFillManager;
 
 	public FillWindow(PathAndFillManager pathAndFillManager, SimpleNeuriteTracer plugin) {
 		this( pathAndFillManager, plugin, 200, 60 );
 	}
 
-	JScrollPane scrollPane;
+	protected JScrollPane scrollPane;
 
-	JList fillList;
-	DefaultListModel listModel;
+	protected JList fillList;
+	protected DefaultListModel listModel;
 
-	JButton deleteFills;
-	JButton reloadFill;
+	protected JButton deleteFills;
+	protected JButton reloadFill;
 
-	JPanel fillControlPanel;
+	protected JPanel fillControlPanel;
 
-	JLabel fillStatus;
+	protected JLabel fillStatus;
 
-	float maxThresholdValue = 0;
+	protected float maxThresholdValue = 0;
 
-	JTextField thresholdField;
-	JLabel maxThreshold;
-	JButton setThreshold;
-	JButton setMaxThreshold;
+	protected JTextField thresholdField;
+	protected JLabel maxThreshold;
+	protected JButton setThreshold;
+	protected JButton setMaxThreshold;
 
-	JButton view3D;
-	JCheckBox maskNotReal;
-	JCheckBox transparent;
+	protected JButton view3D;
+	protected JCheckBox maskNotReal;
+	protected JCheckBox transparent;
 
-	boolean currentlyFilling = true;
-	JButton pauseOrRestartFilling;
+	protected boolean currentlyFilling = true;
+	protected JButton pauseOrRestartFilling;
 
-	JButton saveFill;
-	JButton discardFill;
+	protected JButton saveFill;
+	protected JButton discardFill;
 
-	public void setControlsEnabled( boolean enable ) {
-
-	}
+	protected JButton exportAsCSV;
 
 	public void setEnabledWhileFilling( ) {
+		assert SwingUtilities.isEventDispatchThread();
 		fillList.setEnabled(false);
 		deleteFills.setEnabled(false);
 		reloadFill.setEnabled(false);
@@ -112,6 +108,7 @@ public class FillWindow extends JFrame implements PathAndFillListener, ActionLis
 	}
 
 	public void setEnabledWhileNotFilling( ) {
+		assert SwingUtilities.isEventDispatchThread();
 		fillList.setEnabled(true);
 		deleteFills.setEnabled(true);
 		reloadFill.setEnabled(true);
@@ -129,6 +126,7 @@ public class FillWindow extends JFrame implements PathAndFillListener, ActionLis
 	}
 
 	public void setEnabledNone( ) {
+		assert SwingUtilities.isEventDispatchThread();
 		fillList.setEnabled(false);
 		deleteFills.setEnabled(false);
 		reloadFill.setEnabled(false);
@@ -147,14 +145,18 @@ public class FillWindow extends JFrame implements PathAndFillListener, ActionLis
 
 	public FillWindow(PathAndFillManager pathAndFillManager, SimpleNeuriteTracer plugin, int x, int y) {
 		super("All Fills");
+		assert SwingUtilities.isEventDispatchThread();
+
+		new ClarifyingKeyListener().addKeyAndContainerListenerRecursively(this);
+
 		this.plugin = plugin;
-		this.pathAndFillManager = pathAndFillManager;		
+		this.pathAndFillManager = pathAndFillManager;
 		setBounds(x,y,400,400);
 
 		setLayout(new GridBagLayout());
 
 		GridBagConstraints c = new GridBagConstraints();
-		
+
 		listModel = new DefaultListModel();
 		fillList = new JList(listModel);
 
@@ -165,9 +167,13 @@ public class FillWindow extends JFrame implements PathAndFillListener, ActionLis
 		c.gridy = 0;
 		c.insets = new Insets( 8, 8, 1, 8 );
 		c.weightx = 1;
-		c.fill = GridBagConstraints.HORIZONTAL;
+		c.weighty = 1;
+		c.fill = GridBagConstraints.BOTH;
 
 		add( scrollPane, c );
+
+		c.weightx = 0;
+		c.weighty = 0;
 
 		{
 			JPanel fillListCommandsPanel = new JPanel();
@@ -199,7 +205,6 @@ public class FillWindow extends JFrame implements PathAndFillListener, ActionLis
 			cf.gridx = 0;
 			cf.gridy = 0;
 			cf.gridwidth = 4;
-			cf.weightx = 1;
 			cf.anchor = GridBagConstraints.LINE_START;
 			cf.fill = GridBagConstraints.HORIZONTAL;
 			fillStatus = new JLabel("(Not filling at the moment.)");
@@ -209,7 +214,6 @@ public class FillWindow extends JFrame implements PathAndFillListener, ActionLis
 			thresholdField.addActionListener(this);
 			cf.gridx = 0;
 			cf.gridy = 1;
-			cf.weightx = 0;
 			cf.gridwidth = 2;
 			cf.fill = GridBagConstraints.NONE;
 			fillingOptionsPanel.add(thresholdField,cf);
@@ -260,55 +264,69 @@ public class FillWindow extends JFrame implements PathAndFillListener, ActionLis
 			cf.anchor = GridBagConstraints.LINE_START;
 			fillingOptionsPanel.add(transparent,cf);
 
+			c.gridx = 0;
+			++ c.gridy;
+			c.insets = new Insets( 8, 8, 8, 8 );
+			c.fill = GridBagConstraints.NONE;
+			c.anchor = GridBagConstraints.LINE_START;
+			add(fillingOptionsPanel,c);
+
+
 			{
 				fillControlPanel = new JPanel();
-				fillControlPanel.setLayout(new BorderLayout());
+				fillControlPanel.setLayout(new FlowLayout());
 
 				pauseOrRestartFilling = new JButton("Pause");
 				currentlyFilling = true;
 				pauseOrRestartFilling.addActionListener(this);
-				fillControlPanel.add(pauseOrRestartFilling,BorderLayout.WEST);
+				fillControlPanel.add(pauseOrRestartFilling);
 
 				saveFill = new JButton("Save Fill");
 				saveFill.addActionListener(this);
-				fillControlPanel.add(saveFill,BorderLayout.CENTER);
+				fillControlPanel.add(saveFill);
 
 				discardFill = new JButton("Cancel Fill");
 				discardFill.addActionListener(this);
-				fillControlPanel.add(discardFill,BorderLayout.EAST);
+				fillControlPanel.add(discardFill);
 
-				cf.gridx = 0;
-				cf.gridy = 6;
-				cf.gridwidth = 3;
-				cf.fill = GridBagConstraints.HORIZONTAL;
-				cf.anchor = GridBagConstraints.LINE_START;
+				c.gridx = 0;
+				++ c.gridy;
+				c.fill = GridBagConstraints.HORIZONTAL;
+				c.anchor = GridBagConstraints.CENTER;
 
-				fillingOptionsPanel.add(fillControlPanel,cf);
+				add(fillControlPanel,c);
 			}
 
-			c.gridx = 0;
 			++ c.gridy;
-			c.insets = new Insets( 8, 8, 8, 8 );
-			add(fillingOptionsPanel,c);
+			c.fill = GridBagConstraints.NONE;
+			exportAsCSV = new JButton("Export as CSV");
+			exportAsCSV.addActionListener(this);
+			add(exportAsCSV,c);
 		}
-
-		deleteFills.addActionListener(this);
-		reloadFill.addActionListener(this);
 	}
 
+	@Override
 	public void setPathList( String [] pathList, Path justAdded, boolean expandAll ) { }
 
-	public void setFillList( String [] newList ) {
-		listModel.removeAllElements();
-		for( int i = 0; i < newList.length; ++i )
-			listModel.addElement( newList[i] );
+	@Override
+	public void setFillList( final String [] newList ) {
+		SwingUtilities.invokeLater(new Runnable() {
+			public void run() {
+				listModel.removeAllElements();
+				for( int i = 0; i < newList.length; ++i )
+					listModel.addElement( newList[i] );
+			}
+		});
 	}
 
-	public void setSelectedPaths( HashSet selectedPathSet, Object source ) {
-		
+	@Override
+	public void setSelectedPaths( HashSet<Path> selectedPathSet, Object source ) {
+		// This dialog doesn't deal with paths, so ignore this.
 	}
 
+	@Override
 	public void actionPerformed(ActionEvent ae) {
+		assert SwingUtilities.isEventDispatchThread();
 
 		Object source = ae.getSource();
 
@@ -335,7 +353,7 @@ public class FillWindow extends JFrame implements PathAndFillListener, ActionLis
 
 			plugin.setFillThreshold( maxThresholdValue );
 
-		} else if( source == setThreshold ) {
+		} else if( source == setThreshold || source == thresholdField ) {
 
 			try {
 				double t = Double.parseDouble( thresholdField.getText() );
@@ -365,53 +383,102 @@ public class FillWindow extends JFrame implements PathAndFillListener, ActionLis
 
 			plugin.viewFillIn3D( ! maskNotReal.isSelected() );
 
+		} else if( source == exportAsCSV ) {
+
+			SaveDialog sd = new SaveDialog("Export fill summary as...",
+						       "fills",
+						       ".csv");
+
+			if(sd.getFileName()==null) {
+				return;
+			}
+
+			File saveFile = new File( sd.getDirectory(),
+						  sd.getFileName() );
+			if ((saveFile!=null)&&saveFile.exists()) {
+				if (!IJ.showMessageWithCancel(
+					    "Export data...", "The file "+
+					    saveFile.getAbsolutePath()+" already exists.\n"+
+					    "Do you want to replace it?"))
+					return;
+			}
+
+			IJ.showStatus("Exporting CSV data to "+saveFile.getAbsolutePath());
+
+			try {
+				pathAndFillManager.exportFillsAsCSV( saveFile );
+
+			} catch( IOException ioe) {
+				IJ.error("Saving to "+saveFile.getAbsolutePath()+" failed");
+				return;
+			}
+
 		} else {
 			IJ.error("BUG: FillWindow received an event from an unknown source");
 		}
 
 	}
 
+	@Override
 	public void itemStateChanged(ItemEvent ie) {
+		assert SwingUtilities.isEventDispatchThread();
 		if( ie.getSource() == transparent )
 			plugin.setFillTransparent( transparent.isSelected() );
 	}
 
-	public void thresholdChanged( double f ) {
-		thresholdField.setText(""+f);
+	public void thresholdChanged( final double f ) {
+		SwingUtilities.invokeLater(new Runnable() {
+			public void run() {
+				assert SwingUtilities.isEventDispatchThread();
+				thresholdField.setText(""+f);
+			}
+		});
 	}
 
-	public void maximumDistanceCompletelyExplored( SearchThread source, float f ) {
-		maxThreshold.setText("("+f+")");
-		maxThresholdValue = f;
+	@Override
+	public void maximumDistanceCompletelyExplored( SearchThread source, final float f ) {
+		SwingUtilities.invokeLater(new Runnable() {
+			public void run() {
+				maxThreshold.setText("("+f+")");
+				maxThresholdValue = f;
+			}
+		});
 	}
 
+	@Override
 	public void pointsInSearch( SearchThread source, int inOpen, int inClosed ) {
 		// Do nothing...
 	}
-	
+
+	@Override
 	public void finished( SearchThread source, boolean success ) {
 		// Do nothing...
 	}
-	
-	public void threadStatus( SearchThread source, int currentStatus ) {
-		switch(currentStatus) {
-		case FillerThread.STOPPING:
-			pauseOrRestartFilling.setLabel("Stopped");
-			pauseOrRestartFilling.setEnabled(false);
-			saveFill.setEnabled(false);
-			
-			break;
-		case FillerThread.PAUSED:
-			pauseOrRestartFilling.setLabel("Continue");
-			saveFill.setEnabled(true);
-			break;
-		case FillerThread.RUNNING:
-			pauseOrRestartFilling.setLabel("Pause");
-			saveFill.setEnabled(false);
-			break;
-		}
-		fillControlPanel.doLayout();
+
+	@Override
+	public void threadStatus( SearchThread source, final int currentStatus ) {
+		SwingUtilities.invokeLater(new Runnable() {
+			public void run() {
+				switch(currentStatus) {
+				case FillerThread.STOPPING:
+					pauseOrRestartFilling.setText("Stopped");
+					pauseOrRestartFilling.setEnabled(false);
+					saveFill.setEnabled(false);
+
+					break;
+				case FillerThread.PAUSED:
+					pauseOrRestartFilling.setText("Continue");
+					saveFill.setEnabled(true);
+					break;
+				case FillerThread.RUNNING:
+					pauseOrRestartFilling.setText("Pause");
+					saveFill.setEnabled(false);
+					break;
+				}
+				fillControlPanel.doLayout();
+			}
+		});
 	}
-	
+
 
 }

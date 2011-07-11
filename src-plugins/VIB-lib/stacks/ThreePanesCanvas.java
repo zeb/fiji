@@ -93,6 +93,8 @@ public class ThreePanesCanvas extends ImageCanvas {
 
 	public void mouseMoved(MouseEvent e) {
 
+		super.mouseMoved(e);
+
 		double off_screen_x = offScreenX(e.getX());
 		double off_screen_y = offScreenY(e.getY());
 
@@ -101,6 +103,22 @@ public class ThreePanesCanvas extends ImageCanvas {
 		owner.mouseMovedTo( (int)off_screen_x, (int)off_screen_y, plane, shift_key_down );
 	}
 
+	public void realZoom( boolean in, int x, int y ) {
+		if( in )
+			super.zoomIn(screenX(x),screenY(y));
+		else
+			super.zoomOut(screenX(x),screenY(y));
+	}
+
+	@Override
+	public void zoomIn( int sx, int sy ) {
+		owner.zoom( true, (int)offScreenX(sx), (int)offScreenY(sy), plane );
+	}
+
+	@Override
+	public void zoomOut( int sx, int sy ) {
+		owner.zoom( false, (int)offScreenX(sx), (int)offScreenY(sy), plane );
+	}
 
 	// ------------------------------------------------------------------------
 

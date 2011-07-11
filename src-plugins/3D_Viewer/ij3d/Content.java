@@ -1,7 +1,20 @@
 package ij3d;
 
+import ij.IJ;
+
 import ij3d.pointlist.PointListDialog;
 import ij.ImagePlus;
+
+import ij.io.FileInfo;
+import ij.io.OpenDialog;
+import ij.io.SaveDialog;
+
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.PrintStream;
 
 import vib.PointList;
 
@@ -11,19 +24,27 @@ import javax.media.j3d.Transform3D;
 import javax.media.j3d.TransformGroup;
 import javax.media.j3d.View;
 
+import javax.vecmath.Vector3f;
 import javax.vecmath.Color3f;
 import javax.vecmath.Point3d;
 
 import java.util.TreeMap;
 import java.util.HashMap;
 
-public class Content extends BranchGroup implements UniverseListener, ContentConstants {
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+public class Content extends BranchGroup implements UniverseListener, ContentConstants, AxisConstants {
 
 	private HashMap<Integer, Integer> timepointToSwitchIndex;
 	private TreeMap<Integer, ContentInstant> contents;
 	private int currentTimePoint;
 	private Switch contentSwitch;
+	private boolean showAllTimepoints = false;
 	private final String name;
+	private boolean showPointList = false;
+
+	private final boolean swapTimelapseData;
 
 	public Content(String name) {
 		this(name, 0);
@@ -31,6 +52,7 @@ public class Content extends BranchGroup implements UniverseListener, ContentCon
 
 	public Content(String name, int tp) {
 		this.name = name;
+		this.swapTimelapseData = false;
 		setCapability(BranchGroup.ALLOW_DETACH);
 		setCapability(BranchGroup.ENABLE_PICK_REPORTING);
 		timepointToSwitchIndex = new HashMap<Integer, Integer>();
@@ -41,22 +63,30 @@ public class Content extends BranchGroup implements UniverseListener, ContentCon
 		timepointToSwitchIndex.put(tp, 0);
 		contentSwitch = new Switch();
 		contentSwitch.setCapability(Switch.ALLOW_SWITCH_WRITE);
+		contentSwitch.setCapability(Switch.ALLOW_CHILDREN_WRITE);
+		contentSwitch.setCapability(Switch.ALLOW_CHILDREN_EXTEND);
 		contentSwitch.addChild(ci);
 		addChild(contentSwitch);
 	}
 
 	public Content(String name, TreeMap<Integer, ContentInstant> contents) {
+		this(name, contents, false);
+	}
+
+	public Content(String name, TreeMap<Integer, ContentInstant> contents, boolean swapTimelapseData) {
 		this.name = name;
+		this.swapTimelapseData = swapTimelapseData;
 		setCapability(BranchGroup.ALLOW_DETACH);
 		setCapability(BranchGroup.ENABLE_PICK_REPORTING);
 		this.contents = contents;
 		timepointToSwitchIndex = new HashMap<Integer, Integer>();
 		contentSwitch = new Switch();
 		contentSwitch.setCapability(Switch.ALLOW_SWITCH_WRITE);
+		contentSwitch.setCapability(Switch.ALLOW_CHILDREN_WRITE);
+		contentSwitch.setCapability(Switch.ALLOW_CHILDREN_EXTEND);
 		for(int i : contents.keySet()) {
 			ContentInstant c = contents.get(i);
 			c.timepoint = i;
-			c.name = name + "_#" + i;
 			timepointToSwitchIndex.put(i, contentSwitch.numChildren());
 			contentSwitch.addChild(c);
 		}
@@ -64,9 +94,8 @@ public class Content extends BranchGroup implements UniverseListener, ContentCon
 	}
 
 	// replace if timepoint is already present
-	public void addInstant(ContentInstant ci, int timepoint) {
-		ci.timepoint = timepoint;
-		ci.name = name + "_#" + timepoint;
+	public void addInstant(ContentInstant ci) {
+		int timepoint = ci.timepoint;
 		contents.put(timepoint, ci);
 		if(!contents.containsKey(timepoint)) {
 			timepointToSwitchIndex.put(timepoint, contentSwitch.numChildren());
@@ -105,12 +134,52 @@ public class Content extends BranchGroup implements UniverseListener, ContentCon
 	}
 
 	public void showTimepoint(int tp) {
+		showTimepoint(tp, false);
+	}
+
+	public void showTimepoint(int tp, boolean force) {
+		if(tp == currentTimePoint && !force)
+			return;
+		ContentInstant old = getCurrent();
+		if(old != null && !showAllTimepoints) {
+			if(swapTimelapseData)
+				old.swapDisplayedData();
+			if (!showAllTimepoints) {
+				ContentInstant next = contents.get(tp);
+				if (next != null)
+					next.showPointList(showPointList);
+			}
+			getCurrent().showPointList(false);
+		}
 		currentTimePoint = tp;
+		if(showAllTimepoints)
+			return;
+		ContentInstant next = getCurrent();
+		if(next != null && swapTimelapseData)
+				next.restoreDisplayedData();
+
 		Integer idx = timepointToSwitchIndex.get(tp);
 		if(idx == null)
 			contentSwitch.setWhichChild(Switch.CHILD_NONE);
 		else
 			contentSwitch.setWhichChild(idx);
+	}
+
+	public void setShowAllTimepoints(boolean b) {
+		this.showAllTimepoints = b;
+		if(b) {
+			contentSwitch.setWhichChild(Switch.CHILD_ALL);
+			return;
+		}
+		Integer idx = timepointToSwitchIndex.get(currentTimePoint);
+		if(idx == null)
+			contentSwitch.setWhichChild(Switch.CHILD_NONE);
+		else
+			contentSwitch.setWhichChild(idx);
+	}
+
+	public boolean getShowAllTimepoints() {
+		return showAllTimepoints;
 	}
 
 	public int getNumberOfInstants() {
@@ -119,23 +188,6 @@ public class Content extends BranchGroup implements UniverseListener, ContentCon
 
 	public boolean isVisibleAt(int tp) {
 		return contents.containsKey(tp);
-	}
-
-	public void startAt(int timepoint) {
-		TreeMap<Integer, ContentInstant> copy =
-			new TreeMap<Integer, ContentInstant>(contents);
-		contents.clear();
-		timepointToSwitchIndex.clear();
-		contentSwitch.removeAllChildren();
-		for(Integer i : copy.keySet()) {
-			ContentInstant c = copy.get(i);
-			c.timepoint = timepoint;
-			c.name = name + "_#" + timepoint;
-			timepointToSwitchIndex.put(timepoint, contentSwitch.numChildren());
-			contents.put(timepoint, c);
-			contentSwitch.addChild(c);
-			timepoint++;
-		}
 	}
 
 	public int getStartTime() {
@@ -207,18 +259,105 @@ public class Content extends BranchGroup implements UniverseListener, ContentCon
 	}
 
 	public void showPointList(boolean b) {
-		for(ContentInstant c : contents.values())
-			c.showPointList(b);
+		getCurrent().showPointList(b);
+		this.showPointList = b;
 	}
 
-	// TODO only for current point, makes this sense?
+	protected final static Pattern startFramePattern =
+		Pattern.compile("(?s)(?m).*?^(# frame:? (\\d+)\n).*");
+
 	public void loadPointList() {
-		getCurrent().loadPointList();
+		String dir = null, fileName = null;
+		ImagePlus image = contents.firstEntry().getValue().image;
+		if (image != null) {
+			FileInfo fi = image.getFileInfo();
+			dir = fi.directory;
+			fileName = fi.fileName + ".points";
+		}
+		OpenDialog od = new OpenDialog("Open points annotation file", dir, fileName);
+		if (od.getFileName() == null)
+			return;
+
+		File file = new File(od.getDirectory(), od.getFileName());
+		try {
+			String fileContents = readFile(new FileInputStream(file));
+			Matcher matcher = startFramePattern.matcher(fileContents);
+			if (matcher.matches()) {
+				// empty point lists
+				for (Integer frame : contents.keySet())
+					contents.get(frame).setPointList(new PointList());
+				while (matcher.matches()) {
+					int frame = Integer.parseInt(matcher.group(2));
+					fileContents = fileContents.substring(matcher.end(1));
+					matcher = startFramePattern.matcher(fileContents);
+					ContentInstant ci = contents.get(frame);
+					if (ci == null)
+						continue;
+					String pointsForFrame = matcher.matches() ?
+						fileContents.substring(0, matcher.start(1)) : fileContents;
+					PointList points = PointList.parseString(pointsForFrame);
+					if (points != null)
+						ci.setPointList(points);
+				}
+			}
+			else {
+				// fall back to old-style one-per-frame point lists
+				PointList points = PointList.parseString(fileContents);
+				if (points != null)
+					getCurrent().setPointList(points);
+			}
+			showPointList(true);
+		}
+		catch (IOException e) {
+			IJ.error("Could not read point list from " + file);
+		}
 	}
 
-	// TODO only for current point, makes this sense?
+	String readFile(InputStream in) throws IOException {
+		ByteArrayOutputStream out = new ByteArrayOutputStream();
+		byte[] buffer = new byte[1024];
+		for (;;) {
+			int count = in.read(buffer);
+			if (count < 0)
+				break;
+			out.write(buffer, 0, count);
+		}
+		in.close();
+		out.close();
+		return out.toString("UTF-8");
+	}
+
 	public void savePointList() {
-		getCurrent().savePointList();
+		String dir = OpenDialog.getDefaultDirectory();
+		String fileName = getName();
+		ImagePlus image = contents.firstEntry().getValue().image;
+		if (image != null) {
+			FileInfo fi = image.getFileInfo();
+			dir = fi.directory;
+			fileName = fi.fileName;
+		}
+		SaveDialog sd = new SaveDialog("Save points annotation file as...",
+			dir, fileName, ".points");
+		if (sd.getFileName() == null)
+			return;
+
+		File file = new File(sd.getDirectory(), sd.getFileName());
+		if (file.exists() && !IJ.showMessageWithCancel("File exists", "Overwrite " + file + "?"))
+			return;
+		try {
+			PrintStream out = new PrintStream(file);
+			for (Integer frame : contents.keySet()) {
+				ContentInstant ci = contents.get(frame);
+				if (ci.getPointList().size() != 0) {
+					out.println("# frame " + frame);
+					ci.savePointList(out);
+				}
+			}
+			out.close();
+		}
+		catch (IOException e) {
+			IJ.error("Could not save points to " + file);
+		}
 	}
 
 	/**
@@ -245,6 +384,15 @@ public class Content extends BranchGroup implements UniverseListener, ContentCon
 	public void setLandmarkPointSize(float r) {
 		for(ContentInstant c : contents.values())
 			c.setLandmarkPointSize(r);
+	}
+
+	public Color3f getLandmarkColor() {
+		return getCurrent().getLandmarkColor();
+	}
+
+	public void setLandmarkColor(Color3f color) {
+		for(ContentInstant c : contents.values())
+			c.setLandmarkColor(color);
 	}
 
 	public PointList getPointList() {
@@ -282,6 +430,22 @@ public class Content extends BranchGroup implements UniverseListener, ContentCon
 			c.applyTransform(transform);
 	}
 
+	public void applyRotation(int axis, double degree) {
+		Transform3D t = new Transform3D();
+		switch(axis) {
+			case X_AXIS: t.rotX(deg2rad(degree)); break;
+			case Y_AXIS: t.rotY(deg2rad(degree)); break;
+			case Z_AXIS: t.rotZ(deg2rad(degree)); break;
+		}
+		applyTransform(t);
+	}
+
+	public void applyTranslation(float dx, float dy, float dz) {
+		Transform3D t = new Transform3D();
+		t.setTranslation(new Vector3f(dx, dy, dz));
+		applyTransform(t);
+	}
+
 	public void setTransform(double[] matrix) {
 		setTransform(new Transform3D(matrix));
 	}
@@ -289,6 +453,26 @@ public class Content extends BranchGroup implements UniverseListener, ContentCon
 	public void setTransform(Transform3D transform) {
 		for(ContentInstant c : contents.values())
 			c.setTransform(transform);
+	}
+
+	public void setRotation(int axis, double degree) {
+		Transform3D t = new Transform3D();
+		switch(axis) {
+			case X_AXIS: t.rotX(deg2rad(degree)); break;
+			case Y_AXIS: t.rotY(deg2rad(degree)); break;
+			case Z_AXIS: t.rotZ(deg2rad(degree)); break;
+		}
+		setTransform(t);
+	}
+
+	public void setTranslation(float dx, float dy, float dz) {
+		Transform3D t = new Transform3D();
+		t.setTranslation(new Vector3f(dx, dy, dz));
+		setTransform(t);
+	}
+
+	private double deg2rad(double deg) {
+		return deg * Math.PI / 180.0;
 	}
 
 	/* ************************************************************
@@ -301,6 +485,11 @@ public class Content extends BranchGroup implements UniverseListener, ContentCon
 			c.setChannels(channels);
 	}
 
+	public void setLUT(int[] r, int[] g, int[] b, int[] a) {
+		for(ContentInstant c : contents.values())
+			c.setLUT(r, g, b, a);
+	}
+
 	public void setThreshold(int th) {
 		for(ContentInstant c : contents.values())
 			c.setThreshold(th);
@@ -309,6 +498,16 @@ public class Content extends BranchGroup implements UniverseListener, ContentCon
 	public void setShaded(boolean b) {
 		for(ContentInstant c : contents.values())
 			c.setShaded(b);
+	}
+
+	public void setSaturatedVolumeRendering(boolean b) {
+		for(ContentInstant c : contents.values())
+			c.setSaturatedVolumeRendering(b);
+	}
+
+	public void applySurfaceColors(ImagePlus img) {
+		for(ContentInstant c : contents.values())
+			c.applySurfaceColors(img);
 	}
 
 	public void setColor(Color3f color) {
@@ -423,12 +622,32 @@ public class Content extends BranchGroup implements UniverseListener, ContentCon
 		return getCurrent().getChannels();
 	}
 
+	public void getRedLUT(int[] l) {
+		getCurrent().getRedLUT(l);
+	}
+
+	public void getGreenLUT(int[] l) {
+		getCurrent().getGreenLUT(l);
+	}
+
+	public void getBlueLUT(int[] l) {
+		getCurrent().getBlueLUT(l);
+	}
+
+	public void getAlphaLUT(int[] l) {
+		getCurrent().getAlphaLUT(l);
+	}
+
 	public Color3f getColor() {
 		return getCurrent().getColor();
 	}
 
 	public boolean isShaded() {
 		return getCurrent().isShaded();
+	}
+
+	public boolean isSaturatedVolumeRendering() {
+		return getCurrent().isSaturatedVolumeRendering();
 	}
 
 	public int getThreshold() {

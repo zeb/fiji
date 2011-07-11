@@ -1,6 +1,6 @@
 /* -*- mode: java; c-basic-offset: 8; indent-tabs-mode: t; tab-width: 8 -*- */
 
-/* Copyright 2006, 2007, 2008, 2009 Mark Longair */
+/* Copyright 2006, 2007, 2008, 2009, 2010, 2011 Mark Longair */
 
 /*
   This file is part of the ImageJ plugin "Simple Neurite Tracer".
@@ -19,7 +19,7 @@
 
   In addition, as a special exception, the copyright holders give
   you permission to combine this program with free software programs or
-  libraries that are released under the Apache Public License. 
+  libraries that are released under the Apache Public License.
 
   You should have received a copy of the GNU General Public License
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
@@ -48,11 +48,8 @@ import ij3d.MeshMaker;
 import javax.vecmath.Color3f;
 import javax.vecmath.Point3f;
 
-import javax.swing.tree.DefaultMutableTreeNode;
-
 import java.util.ArrayList;
 import java.util.Set;
-import java.util.Iterator;
 import java.util.HashSet;
 import java.util.Arrays;
 import java.util.List;
@@ -60,13 +57,12 @@ import java.util.List;
 /* This class represents a list of points, and has methods for drawing
  * them onto ThreePanes-style image canvases. */
 
-public class Path implements Comparable {
+public class Path implements Comparable<Path> {
 
-	public int compareTo(Object o) {
-		Path casted = (Path)o;
-		if( id == casted.id )
+	public int compareTo(Path o) {
+		if( id == o.id )
 			return 0;
-		if( id < casted.id )
+		if( id < o.id )
 			return -1;
 		else
 			return 1;
@@ -162,19 +158,14 @@ public class Path implements Comparable {
 	public void setChildren( Set<Path> pathsLeft ) {
 		// Set the children of this path in a breadth first fashion:
 		children.clear();
-		Iterator<Path> ci = somehowJoins.iterator();
-		while( ci.hasNext() ) {
-			Path c = ci.next();
+		for( Path c : somehowJoins ) {
 			if( pathsLeft.contains(c) ) {
 				children.add(c);
 				pathsLeft.remove(c);
 			}
 		}
-		ci = children.iterator();
-		while( ci.hasNext() ) {
-			Path c = ci.next();
+		for( Path c : children )
 			c.setChildren( pathsLeft );
-		}
 	}
 
 /*
@@ -236,9 +227,7 @@ public class Path implements Comparable {
 		   from other's somehowJoins and other from this's
 		   somehowJoins.
 		*/
-		Iterator<Path> i = somehowJoins.iterator();
-		while( i.hasNext() ) {
-			Path other = i.next();
+		for( Path other : somehowJoins ) {
 			if( other.startJoins != null && other.startJoins == this ) {
 				other.startJoins = null;
 				other.startJoinsPoint = null;
@@ -620,9 +609,7 @@ public class Path implements Comparable {
 	}
 
 	void unsetPrimaryForConnected( HashSet<Path> pathsExplored ) {
-		Iterator<Path> i = somehowJoins.iterator();
-		while( i.hasNext() ) {
-			Path p = i.next();
+		for( Path p : somehowJoins ) {
 			if( pathsExplored.contains(p) )
 				continue;
 			p.setPrimary(false);
@@ -656,14 +643,7 @@ public class Path implements Comparable {
 		drawPathAsPoints( canvas, g, c, plane, 0, -1 );
 	}
 
-	/* FIXME: Should draw lines between points now, not just points... */
-
 	public void drawPathAsPoints( TracerCanvas canvas, Graphics g, java.awt.Color c, int plane, int slice, int either_side ) {
-
-		/* This is slightly ugly because we have to use
-		   InteractiveTracerCanvas.myScreenX and .myScreenY to
-		   find whether to actually draw on the Graphics in
-		   case we're zoomed. */
 
 		/* In addition, if this is a start or end point we
 		   want to represent that with a circle or a square
@@ -671,9 +651,10 @@ public class Path implements Comparable {
 
 		g.setColor( c );
 
-		int pixel_size = (int)canvas.getMagnification();
-		if( pixel_size < 1 )
-			pixel_size = 1;
+		double magnification = canvas.getMagnification();
+		int pixel_size = magnification < 1 ? 1 : (int)magnification;
+		if( magnification >= 4 )
+			pixel_size = (int) (magnification / 2);
 
 		int spotExtra = pixel_size;
 		int spotDiameter = pixel_size * 3;
@@ -684,124 +665,135 @@ public class Path implements Comparable {
 		Path realStartJoins = fittedVersionOf == null ? startJoins : fittedVersionOf.startJoins;
 		Path realEndJoins = fittedVersionOf == null ? endJoins : fittedVersionOf.endJoins;
 
-		switch( plane ) {
+		int startIndexOfLastDrawnLine = -1;
 
-		case ThreePanes.XY_PLANE:
-		{
-			for( int i = 0; i < points; ++i ) {
-				if( (either_side >= 0) && (Math.abs(getZUnscaled(i) - slice) > either_side) )
-					continue;
+		for( int i = 0; i < points; ++i ) {
 
-				int x = canvas.myScreenXD(getXUnscaledDouble(i));
-				int y = canvas.myScreenYD(getYUnscaledDouble(i));
+			int x = Integer.MIN_VALUE;
+			int y = Integer.MIN_VALUE;
+			int previous_x_on_screen = Integer.MIN_VALUE;
+			int previous_y_on_screen = Integer.MIN_VALUE;
+			int next_x_on_screen = Integer.MIN_VALUE;
+			int next_y_on_screen = Integer.MIN_VALUE;
+			boolean notFirstPoint = i > 0;
+			boolean notLastPoint = i < points - 1;
+			int slice_of_point = Integer.MIN_VALUE;
 
-				if( drawDiameter ) {
-					// Cross the tangents with a unit z vector:
-					double n_x = 0;
-					double n_y = 0;
-					double n_z = 1;
-
-					double t_x = tangents_x[i];
-					double t_y = tangents_y[i];
-					double t_z = tangents_z[i];
-
-					double cross_x = n_y * t_z - n_z * t_y;
-					double cross_y = n_z * t_x - n_x * t_z;
-					double cross_z = n_x * t_y - n_y * t_x;
-
-					double sizeInPlane = Math.sqrt( cross_x * cross_x + cross_y * cross_y );
-					double normalized_cross_x = cross_x / sizeInPlane;
-					double normalized_cross_y = cross_y / sizeInPlane;
-
-					// g.setColor( Color.RED );
-
-					double left_x = precise_x_positions[i] + normalized_cross_x * radiuses[i];
-					double left_y = precise_y_positions[i] + normalized_cross_y * radiuses[i];
-
-					double right_x = precise_x_positions[i] - normalized_cross_x * radiuses[i];
-					double right_y = precise_y_positions[i] - normalized_cross_y * radiuses[i];
-
-					int left_x_on_screen = canvas.myScreenXD(left_x/x_spacing);
-					int left_y_on_screen = canvas.myScreenYD(left_y/y_spacing);
-
-					int right_x_on_screen = canvas.myScreenXD(right_x/x_spacing);
-					int right_y_on_screen = canvas.myScreenYD(right_y/y_spacing);
-
-					int x_on_screen = canvas.myScreenXD( precise_x_positions[i]/x_spacing );
-					int y_on_screen = canvas.myScreenYD( precise_y_positions[i]/y_spacing );
-
-					g.drawLine( x_on_screen, y_on_screen, left_x_on_screen, left_y_on_screen );
-					g.drawLine( x_on_screen, y_on_screen, right_x_on_screen, right_y_on_screen );
-
-					g.setColor( c );
+			switch( plane ) {
+			case ThreePanes.XY_PLANE:
+				x = canvas.myScreenXD(getXUnscaledDouble(i));
+				y = canvas.myScreenYD(getYUnscaledDouble(i));
+				if( notFirstPoint ) {
+					previous_x_on_screen = canvas.myScreenXD( precise_x_positions[i-1]/x_spacing );
+					previous_y_on_screen = canvas.myScreenYD( precise_y_positions[i-1]/y_spacing );
 				}
+				if( notLastPoint ) {
+					next_x_on_screen = canvas.myScreenXD( precise_x_positions[i+1]/x_spacing );
+					next_y_on_screen = canvas.myScreenYD( precise_y_positions[i+1]/y_spacing );
+				}
+				slice_of_point = getZUnscaled(i);
+				break;
+			case ThreePanes.XZ_PLANE:
+				x = canvas.myScreenXD(getXUnscaledDouble(i));
+				y = canvas.myScreenYD(getZUnscaledDouble(i));
+				if( notFirstPoint ) {
+					previous_x_on_screen = canvas.myScreenXD( precise_x_positions[i-1]/x_spacing );
+					previous_y_on_screen = canvas.myScreenYD( precise_z_positions[i-1]/z_spacing );
+				}
+				if( notLastPoint ) {
+					next_x_on_screen = canvas.myScreenXD( precise_x_positions[i+1]/x_spacing );
+					next_y_on_screen = canvas.myScreenYD( precise_z_positions[i+1]/z_spacing );
+				}
+				slice_of_point = getYUnscaled(i);
+				break;
+			case ThreePanes.ZY_PLANE:
+				x = canvas.myScreenXD(getZUnscaledDouble(i));
+				y = canvas.myScreenYD(getYUnscaledDouble(i));
+				if( notFirstPoint ) {
+					previous_x_on_screen = canvas.myScreenXD( precise_z_positions[i-1]/z_spacing );
+					previous_y_on_screen = canvas.myScreenYD( precise_y_positions[i-1]/y_spacing );
+				}
+				if( notLastPoint ) {
+					next_x_on_screen = canvas.myScreenXD( precise_z_positions[i+1]/z_spacing );
+					next_y_on_screen = canvas.myScreenYD( precise_y_positions[i+1]/y_spacing );
+				}
+				slice_of_point = getXUnscaled(i);
+				break;
+			default:
+				throw new RuntimeException("BUG: Unknown plane! ("+plane+")");
+			}
 
-				if( ((i == 0) && (realStartJoins == null)) ||
-				    ((i == points - 1) && (realEndJoins == null)) ) {
-					// Then draw it as a rectangle...
-					g.fillRect( x - (spotDiameter / 2), y - (spotDiameter / 2), spotDiameter, spotDiameter );
-				} else if( ((i == 0) && (realStartJoins != null)) ||
-					   ((i == points - 1) && (realEndJoins != null)) ) {
-					// The draw it as an oval...
-					g.fillOval( x - (spotDiameter / 2), y - (spotDiameter / 2), spotDiameter, spotDiameter );
-				} else {
-					// Just draw normally...
-					g.fillRect( x - (spotExtra / 2), y - (spotExtra / 2), spotExtra, spotExtra );
+			/* If we've been asked to draw the diameters
+			   in the 2.5D view, just do it in XY - this is only
+			   really for debugging... */
+
+			if( plane == ThreePanes.XY_PLANE && drawDiameter ) {
+				// Cross the tangents with a unit z vector:
+				double n_x = 0;
+				double n_y = 0;
+				double n_z = 1;
+
+				double t_x = tangents_x[i];
+				double t_y = tangents_y[i];
+				double t_z = tangents_z[i];
+
+				double cross_x = n_y * t_z - n_z * t_y;
+				double cross_y = n_z * t_x - n_x * t_z;
+				// double cross_z = n_x * t_y - n_y * t_x;
+
+				double sizeInPlane = Math.sqrt( cross_x * cross_x + cross_y * cross_y );
+				double normalized_cross_x = cross_x / sizeInPlane;
+				double normalized_cross_y = cross_y / sizeInPlane;
+
+				double left_x = precise_x_positions[i] + normalized_cross_x * radiuses[i];
+				double left_y = precise_y_positions[i] + normalized_cross_y * radiuses[i];
+
+				double right_x = precise_x_positions[i] - normalized_cross_x * radiuses[i];
+				double right_y = precise_y_positions[i] - normalized_cross_y * radiuses[i];
+
+				int left_x_on_screen = canvas.myScreenXD(left_x/x_spacing);
+				int left_y_on_screen = canvas.myScreenYD(left_y/y_spacing);
+
+				int right_x_on_screen = canvas.myScreenXD(right_x/x_spacing);
+				int right_y_on_screen = canvas.myScreenYD(right_y/y_spacing);
+
+				int x_on_screen = canvas.myScreenXD( precise_x_positions[i]/x_spacing );
+				int y_on_screen = canvas.myScreenYD( precise_y_positions[i]/y_spacing );
+
+				g.drawLine( x_on_screen, y_on_screen, left_x_on_screen, left_y_on_screen );
+				g.drawLine( x_on_screen, y_on_screen, right_x_on_screen, right_y_on_screen );
+			}
+
+			if( (either_side >= 0) && (Math.abs(slice_of_point - slice) > either_side) )
+				continue;
+
+			// If there was a previous point in this path, draw a line from there to here:
+			if( notFirstPoint ) {
+				// Don't redraw the line if we drew it the previous time, though:
+				if( startIndexOfLastDrawnLine != i - 1 ) {
+					g.drawLine( previous_x_on_screen, previous_y_on_screen, x, y );
+					startIndexOfLastDrawnLine = i - 1;
 				}
 			}
-		}
-		break;
 
-		case ThreePanes.XZ_PLANE:
-		{
-			for( int i = 0; i < points; ++i ) {
-				if( (either_side >= 0) && (Math.abs(getYUnscaled(i) - slice) > either_side) )
-					continue;
-
-				int x = canvas.myScreenXD(getXUnscaled(i));
-				int y = canvas.myScreenYD(getZUnscaled(i));
-
-				if( ((i == 0) && (realStartJoins == null)) ||
-				    ((i == points - 1) && (realEndJoins == null)) ) {
-					// Then draw it as a rectangle...
-					g.fillRect( x - spotExtra, y - spotExtra, spotDiameter, spotDiameter );
-				} else if( ((i == 0) && (realStartJoins != null)) ||
-					   ((i == points - 1) && (realEndJoins != null)) ) {
-					// The draw it as an oval...
-					g.fillOval( x - spotExtra, y - spotExtra, spotDiameter, spotDiameter );
-				} else {
-					// Just draw normally...
-					g.fillRect( x, y, spotExtra, spotExtra );
-				}
+			// If there's a next point in this path, draw a line from here to there:
+			if( notLastPoint ) {
+				g.drawLine( x, y, next_x_on_screen, next_y_on_screen );
+				startIndexOfLastDrawnLine = i;
 			}
-		}
-		break;
 
-		case ThreePanes.ZY_PLANE:
-		{
-			for( int i = 0; i < points; ++i ) {
-				if( (either_side >= 0) && (Math.abs(getXUnscaled(i) - slice) > either_side) )
-					continue;
-
-				int x = canvas.myScreenXD(getZUnscaled(i));
-				int y = canvas.myScreenYD(getYUnscaled(i));
-
-				if( ((i == 0) && (realStartJoins == null)) ||
-				    ((i == points - 1) && (realEndJoins == null)) ) {
-					// Then draw it as a rectangle...
-					g.fillRect( x - spotExtra, y - spotExtra, spotDiameter, spotDiameter );
-				} else if( ((i == 0) && (realStartJoins != null)) ||
-					   ((i == points - 1) && (realEndJoins != null)) ) {
-					// The draw it as an oval...
-					g.fillOval( x - spotExtra, y - spotExtra, spotDiameter, spotDiameter );
-				} else {
-					// Just draw normally...
-					g.fillRect( x, y, spotExtra, spotExtra );
-				}
+			if( ((i == 0) && (realStartJoins == null)) ||
+			    ((i == points - 1) && (realEndJoins == null)) ) {
+				// Then draw it as a rectangle...
+				g.fillRect( x - (spotDiameter / 2), y - (spotDiameter / 2), spotDiameter, spotDiameter );
+			} else if( ((i == 0) && (realStartJoins != null)) ||
+				   ((i == points - 1) && (realEndJoins != null)) ) {
+				// The draw it as an oval...
+				g.fillOval( x - (spotDiameter / 2), y - (spotDiameter / 2), spotDiameter, spotDiameter );
+			} else {
+				// Just draw normally...
+				g.fillRect( x - (spotExtra / 2), y - (spotExtra / 2), spotExtra, spotExtra );
 			}
-		}
-		break;
-
 		}
 
 	}
@@ -810,10 +802,6 @@ public class Path implements Comparable {
 
 		if( size() < 1 )
 			throw new RuntimeException("indexNearestTo called on a Path of size() = 0");
-
-		PointInImage result = new PointInImage( Double.MIN_VALUE,
-							Double.MIN_VALUE,
-							Double.MIN_VALUE );
 
 		double minimumDistanceSquared = Double.MAX_VALUE;
 		int indexOfMinimum = -1;
@@ -838,18 +826,18 @@ public class Path implements Comparable {
 	// ------------------------------------------------------------------------
 	// FIXME: adapt these for Path rather than SegmentedConnection, down to EOFIT
 
-	class CircleAttempt implements MultivariateFunction, Comparable {
+	class CircleAttempt implements MultivariateFunction, Comparable<CircleAttempt> {
 
 		double min;
 		double [] best;
 		double [] initial;
 
-		byte [] data;
-		int minValueInData;
-		int maxValueInData;
+		float [] data;
+		float minValueInData;
+		float maxValueInData;
 		int side;
 
-		public CircleAttempt(double [] start, byte [] data, int minValueInData, int maxValueInData, int side ) {
+		public CircleAttempt(double [] start, float [] data, float minValueInData, float maxValueInData, int side ) {
 
 			this.data = data;
 			this.minValueInData = minValueInData;
@@ -860,8 +848,7 @@ public class Path implements Comparable {
 			initial = start;
 		}
 
-		public int compareTo(Object other) {
-			CircleAttempt o = (CircleAttempt)other;
+		public int compareTo(CircleAttempt o) {
 			if (min < o.min)
 				return -1;
 			else if (min > o.min)
@@ -905,7 +892,7 @@ public class Path implements Comparable {
 
 			for( int i = 0; i < side; ++i ) {
 				for( int j = 0; j < side; ++j ) {
-					int value = data[j*side+i] & 0xFF;
+					float value = data[j*side+i];
 					if( r * r > ((i - x) * (i - x)  + (j - y) * (j - y)) )
 						badness += (maxValueInData - value) * (maxValueInData - value);
 					else
@@ -989,19 +976,19 @@ public class Path implements Comparable {
 		result[2] = precise_z_positions[max_index] - precise_z_positions[min_index];
 	}
 
-	public byte [] squareNormalToVector( int side,        // The number of samples in x and y in the plane, separated by step
-					     double step,     // step is in the same units as the _spacing, etc. variables.
-					     double ox,      /* These are scaled now */
-					     double oy,
-					     double oz,
-					     double nx,
-					     double ny,
-					     double nz,
-					     double [] x_basis_vector, /* The basis vectors are returned here  */
-					     double [] y_basis_vector, /* they *are* scaled by _spacing        */
-					     ImagePlus image ) {
+	public float [] squareNormalToVector( int side,        // The number of samples in x and y in the plane, separated by step
+					      double step,     // step is in the same units as the _spacing, etc. variables.
+					      double ox,      /* These are scaled now */
+					      double oy,
+					      double oz,
+					      double nx,
+					      double ny,
+					      double nz,
+					      double [] x_basis_vector, /* The basis vectors are returned here  */
+					      double [] y_basis_vector, /* they *are* scaled by _spacing        */
+					      ImagePlus image ) {
 
-		byte [] result = new byte[side*side];
+		float [] result = new float[side*side];
 
 		double epsilon = 0.000001;
 
@@ -1071,14 +1058,34 @@ public class Path implements Comparable {
 
 		}
 
-		// FIXME: do other image types too...
 		int width = image.getWidth();
 		int height = image.getHeight();
 		int depth = image.getStackSize();
-		byte [][] v = new byte[depth][];
+		float [][] v = new float[depth][];
 		ImageStack s = image.getStack();
-		for( int z = 0; z < depth; ++z )
-			v[z] = (byte []) s.getPixels( z + 1 );
+		int imageType = image.getType();
+		final int arraySize = width * height;
+		if( imageType == ImagePlus.GRAY8 || imageType == ImagePlus.COLOR_256 ) {
+			for( int z = 0; z < depth; ++z ) {
+				byte [] bytePixels = (byte[])s.getPixels(z+1);
+				float [] fa = new float[arraySize];
+				for( int i = 0; i < arraySize; ++i  )
+					fa[i] = bytePixels[i] & 0xFF;
+				v[z] = fa;
+			}
+		} else if( imageType == ImagePlus.GRAY16 ) {
+			for( int z = 0; z < depth; ++z ) {
+				short [] shortPixels = (short[])s.getPixels(z+1);
+				float [] fa = new float[arraySize];
+				for( int i = 0; i < arraySize; ++i  )
+					fa[i] = shortPixels[i];
+				v[z] = fa;
+			}
+		} else if( imageType == ImagePlus.GRAY32 ) {
+			for( int z = 0; z < depth; ++z ) {
+				v[z] = (float[])s.getPixels(z+1);
+			}
+		}
 
 		for( int grid_i = 0; grid_i < side; ++grid_i ) {
 			for( int grid_j = 0; grid_j < side; ++grid_j ) {
@@ -1137,17 +1144,17 @@ public class Path implements Comparable {
 
 				} else {
 
-					fff = v[z_f][width*y_f+x_f]&0xFF;
-					cff = v[z_c][width*y_f+x_f]&0xFF;
+					fff = v[z_f][width*y_f+x_f];
+					cff = v[z_c][width*y_f+x_f];
 
-					fcf = v[z_f][width*y_c+x_f]&0xFF;
-					ccf = v[z_c][width*y_c+x_f]&0xFF;
+					fcf = v[z_f][width*y_c+x_f];
+					ccf = v[z_c][width*y_c+x_f];
 
-					ffc = v[z_f][width*y_f+x_c]&0xFF;
-					cfc = v[z_c][width*y_f+x_c]&0xFF;
+					ffc = v[z_f][width*y_f+x_c];
+					cfc = v[z_c][width*y_f+x_c];
 
-					fcc = v[z_f][width*y_c+x_c]&0xFF;
-					ccc = v[z_c][width*y_c+x_c]&0xFF;
+					fcc = v[z_f][width*y_c+x_c];
+					ccc = v[z_c][width*y_c+x_c];
 
 				}
 
@@ -1164,12 +1171,7 @@ public class Path implements Comparable {
 
 				double value_f = w1 * (1 - x_d) + w2 * x_d;
 
-				int value = (int)value_f;
-				if( (value < 0) || (value > 255) ) {
-					System.out.println("BUG: Out of range value!");
-				}
-
-				result[grid_j*side+grid_i] = (byte)value;
+				result[grid_j*side+grid_i] = (float)value_f;
 			}
 		}
 
@@ -1185,10 +1187,10 @@ public class Path implements Comparable {
 	}
 
 	public Path fitCircles( int side, ImagePlus image, boolean display ) {
-		return fitCircles( side, image, display, null );
+		return fitCircles( side, image, display, null, -1, null );
 	}
 
-	public Path fitCircles( int side, ImagePlus image, boolean display, SimpleNeuriteTracer plugin ) {
+	public Path fitCircles( int side, ImagePlus image, boolean display, SimpleNeuriteTracer plugin, int progressIndex, MultiTaskProgress progress ) {
 
 		Path fitted = new Path( x_spacing, y_spacing, z_spacing, spacing_units );
 
@@ -1239,11 +1241,12 @@ public class Path implements Comparable {
 
 		double [] tangent = new double[3];
 
+		if( progress != null )
+			progress.updateProgress(progressIndex,0);
+
 		for( int i = 0; i < totalPoints; ++i ) {
 
 			getTangent( i, pointsEitherSide, tangent );
-
-			IJ.showProgress( i / (float)totalPoints );
 
 			double x_world = precise_x_positions[i];
 			double y_world = precise_y_positions[i];
@@ -1252,7 +1255,7 @@ public class Path implements Comparable {
 			double [] x_basis_in_plane = new double[3];
 			double [] y_basis_in_plane = new double[3];
 
-			byte [] normalPlane = squareNormalToVector(
+			float [] normalPlane = squareNormalToVector(
 				side,
 				scaleInNormalPlane,   // This is in the same units as the _spacing, etc. variables.
 				x_world,      // These are scaled now
@@ -1285,14 +1288,12 @@ public class Path implements Comparable {
 			if( verbose )
 				System.out.println("start search at: "+startValues[0]+","+startValues[1]+" with radius: "+startValues[2]);
 
-			int minValueInSquare = Integer.MAX_VALUE;
-			int maxValueInSquare = Integer.MIN_VALUE;
+			float minValueInSquare = Float.MAX_VALUE;
+			float maxValueInSquare = Float.MIN_VALUE;
 			for( int j = 0; j < (side * side); ++j ) {
-				int value = normalPlane[j]&0xFF;
-				if( value > maxValueInSquare )
-					maxValueInSquare = value;
-				if( value < minValueInSquare )
-					minValueInSquare = value;
+				float value = normalPlane[j];
+				maxValueInSquare = Math.max(value, maxValueInSquare);
+				minValueInSquare = Math.min(value, minValueInSquare);
 			}
 
 			CircleAttempt attempt = new CircleAttempt(
@@ -1371,12 +1372,13 @@ public class Path implements Comparable {
 			if( verbose )
 				System.out.println("Adding a real slice.");
 
-			ByteProcessor bp = new ByteProcessor( side, side );
+			FloatProcessor bp = new FloatProcessor( side, side );
 			bp.setPixels(normalPlane);
 			stack.addSlice(null,bp);
-		}
 
-		IJ.showProgress( 1.0 );
+			if( progress != null )
+				progress.updateProgress(((double)i+1)/totalPoints,progressIndex);
+		}
 
 		/* Now at each point along the path we calculate the
 		   mode of the radiuses in the nearby region: */
@@ -1623,25 +1625,25 @@ public class Path implements Comparable {
 	// Going by the meanings of the types given in:
 	//   http://www.soton.ac.uk/~dales/morpho/morpho_doc/
 
-	static final int SWC_UNDEFINED       = 0;
-	static final int SWC_SOMA            = 1;
-	static final int SWC_AXON            = 2;
-	static final int SWC_DENDRITE        = 3;
-	static final int SWC_APICAL_DENDRITE = 4;
-	static final int SWC_FORK_POINT      = 5;
-	static final int SWC_END_POINT       = 6;
-	static final int SWC_CUSTOM          = 7;
+	public static final int SWC_UNDEFINED       = 0;
+	public static final int SWC_SOMA            = 1;
+	public static final int SWC_AXON            = 2;
+	public static final int SWC_DENDRITE        = 3;
+	public static final int SWC_APICAL_DENDRITE = 4;
+	public static final int SWC_FORK_POINT      = 5;
+	public static final int SWC_END_POINT       = 6;
+	public static final int SWC_CUSTOM          = 7;
 
-	static final String [] swcTypeNames = { "undefined",
-						"soma",
-						"axon",
-						"dendrite",
-						"apical dendrite",
-						"fork point",
-						"end point",
-						"custom" };
+	public static final String [] swcTypeNames = { "undefined",
+						       "soma",
+						       "axon",
+						       "dendrite",
+						       "apical dendrite",
+						       "fork point",
+						       "end point",
+						       "custom" };
 
-	int swcType = 0;
+	int swcType = SWC_UNDEFINED;
 
 	public boolean circlesOverlap( double n1x, double n1y, double n1z,
 				       double c1x, double c1y, double c1z,
@@ -1816,11 +1818,7 @@ public class Path implements Comparable {
 		this.precise_z_positions = optimized_z.clone();
 	}
 
-	@Override
-	public String toString() {
-		if( useFitted )
-			return fitted.toString();
-		String pathName;
+	public String realToString() {
 		String name = getName();
 		if( name == null )
 			name = "Path " + id;
@@ -1831,7 +1829,46 @@ public class Path implements Comparable {
 		if( endJoins != null ) {
 			name += ", ends on " + endJoins.getName();
 		}
+		if( swcType != SWC_UNDEFINED )
+			name += " (SWC: "+swcTypeNames[swcType]+")";
 		return name;
+	}
+
+	/** This toString() method shows details of the path which is
+            actually being displayed, not necessarily this path
+            object.  FIXME: this is probably horribly confusing. */
+
+	@Override
+	public String toString() {
+		if( useFitted )
+			return fitted.realToString();
+		else
+			return realToString();
+	}
+
+
+	public void setSWCType(final int newSWCType) {
+		setSWCType(newSWCType,true);
+	}
+
+	public void setSWCType(final int newSWCType, boolean alsoSetInFittedVersion) {
+		if( newSWCType < 0 || newSWCType >= swcTypeNames.length)
+			throw new RuntimeException("BUG: Unknown SWC type "+newSWCType);
+		swcType = newSWCType;
+		if( alsoSetInFittedVersion ) {
+			/* If we've been asked to also set the fitted version, this
+		           should only be called on the non-fitted version
+			   of the path, so raise an error if it's been called on
+			   the fitted version by mistake instead: */
+			if( isFittedVersionOfAnotherPath() && fittedVersionOf.getSWCType() != newSWCType )
+				throw new RuntimeException("BUG: only call setSWCType on the unfitted path");
+			if( fitted != null )
+				fitted.setSWCType(newSWCType);
+		}
+	}
+
+	public int getSWCType() {
+		return swcType;
 	}
 
 /*
@@ -1861,6 +1898,8 @@ public class Path implements Comparable {
 	int paths3DDisplay = 1;
 	Content content3D;
 	Content content3DExtra;
+	ImagePlus content3DMultiColored;
+	ImagePlus content3DExtraMultiColored;
 	String nameWhenAddedToViewer;
 	String nameWhenAddedToViewerExtra;
 
@@ -1873,7 +1912,13 @@ public class Path implements Comparable {
 	synchronized void updateContent3D( Image3DUniverse univ,
 					   boolean visible,
 					   int paths3DDisplay,
-					   Color3f color ) {
+					   Color3f color,
+					   ImagePlus colorImage ) {
+
+		if( verbose ) {
+			System.out.println("In updateContent3D, colorImage is: "+colorImage);
+			System.out.println("In updateContent3D, color is: "+color);
+		}
 
 		// So, go through each of the reasons why we might
 		// have to remove (and possibly add back) the path:
@@ -1903,26 +1948,77 @@ public class Path implements Comparable {
 			pathToUse = this;
 		}
 
-		// Is the color wrong?
-		if( (pathToUse.content3D != null && ! pathToUse.content3D.getColor().equals(color)) ||
-		    (pathToUse.content3DExtra != null && ! pathToUse.content3DExtra.getColor().equals(color))) {
-			pathToUse.removeFrom3DViewer(univ);
-			pathToUse.paths3DDisplay = paths3DDisplay;
-			pathToUse.addTo3DViewer(univ,color);
-			return;
+		if( verbose ) {
+			System.out.println("pathToUse is: "+pathToUse);
+			System.out.println("  pathToUse.content3D is: "+pathToUse.content3D);
+			System.out.println("  pathToUse.content3DExtra is: "+pathToUse.content3DExtra);
+			System.out.println("  pathToUse.content3DMultiColored: "+pathToUse.content3DMultiColored);
 		}
 
 		// Is the the display (lines-and-discs or surfaces) right?
 		if( pathToUse.paths3DDisplay != paths3DDisplay ) {
 			pathToUse.removeFrom3DViewer(univ);
 			pathToUse.paths3DDisplay = paths3DDisplay;
-			pathToUse.addTo3DViewer(univ,color);
+			pathToUse.addTo3DViewer(univ,color,colorImage);
 			return;
+		}
+
+		/* Were we previously using a colour image, but now not? */
+
+		if( colorImage == null ) {
+			if( (paths3DDisplay == SimpleNeuriteTracer.DISPLAY_PATHS_LINES_AND_DISCS
+			     && pathToUse.content3DExtraMultiColored != null) ||
+			    (paths3DDisplay == SimpleNeuriteTracer.DISPLAY_PATHS_SURFACE
+			     && pathToUse.content3DMultiColored != null) ) {
+				pathToUse.removeFrom3DViewer(univ);
+				pathToUse.addTo3DViewer(univ,color,colorImage);
+				return;
+			}
+
+		/* ... or, should we now use a colour image, where
+		   previously we were using a different colour image
+		   or no colour image? */
+
+		} else {
+			if( (paths3DDisplay == SimpleNeuriteTracer.DISPLAY_PATHS_LINES_AND_DISCS
+			     && pathToUse.content3DExtraMultiColored != colorImage) ||
+			    (paths3DDisplay == SimpleNeuriteTracer.DISPLAY_PATHS_SURFACE
+			     && pathToUse.content3DMultiColored != colorImage) ) {
+				pathToUse.removeFrom3DViewer(univ);
+				pathToUse.addTo3DViewer(univ,color,colorImage);
+				return;
+			}
+		}
+
+		// Is the (flat) color wrong?
+
+		if( pathToUse.realColor == null || ! pathToUse.realColor.equals(color) ) {
+
+			/* If there's a representation of the path in
+			   the 3D viewer anyway, just set the color,
+			   don't recreate it, since the latter takes a long time: */
+
+			if( pathToUse.content3D != null || pathToUse.content3DExtra != null ) {
+
+				if( pathToUse.content3D != null )
+					pathToUse.content3D.setColor(color);
+				if( pathToUse.content3DExtra != null )
+					pathToUse.content3DExtra.setColor(color);
+				pathToUse.realColor = color;
+				return;
+
+			} else {
+				// ... but if it wasn't in the 3D viewer, recreate it:
+				pathToUse.removeFrom3DViewer(univ);
+				pathToUse.paths3DDisplay = paths3DDisplay;
+				pathToUse.addTo3DViewer(univ,color,colorImage);
+				return;
+			}
 		}
 
 		if( pathToUse.nameWhenAddedToViewer == null || ! univ.contains(pathToUse.nameWhenAddedToViewer) ) {
 			pathToUse.paths3DDisplay = paths3DDisplay;
-			pathToUse.addTo3DViewer(univ,color);
+			pathToUse.addTo3DViewer(univ,color,colorImage);
 		}
 	}
 
@@ -1951,53 +2047,66 @@ public class Path implements Comparable {
 		return linePoints;
 	}
 
-	public Content addAsLinesTo3DViewer(Image3DUniverse univ, Color c ) {
-		return addAsLinesTo3DViewer(univ,new Color3f(c));
+	public Content addAsLinesTo3DViewer(Image3DUniverse univ, Color c, ImagePlus colorImage ) {
+		return addAsLinesTo3DViewer(univ,new Color3f(c),colorImage);
 	}
 
-	public Content addAsLinesTo3DViewer(Image3DUniverse univ, Color3f c ) {
+	public Content addAsLinesTo3DViewer(Image3DUniverse univ, Color3f c, ImagePlus colorImage ) {
 		String safeName = univ.getSafeContentName(getName()+" as lines");
 		return univ.addLineMesh( getPoint3fList(), c, safeName, true );
 	}
 
-	public Content addDiscsTo3DViewer(Image3DUniverse univ, Color c) {
-		return addDiscsTo3DViewer(univ,new Color3f(c));
+	public Content addDiscsTo3DViewer(Image3DUniverse univ, Color c, ImagePlus colorImage ) {
+		return addDiscsTo3DViewer(univ,new Color3f(c),colorImage);
 	}
 
-	public Content addDiscsTo3DViewer(Image3DUniverse  univ, Color3f c ) {
+	public Content addDiscsTo3DViewer(Image3DUniverse  univ, Color3f c, ImagePlus colorImage ) {
 		if( ! hasCircles() )
 			return null;
+
+		Color3f [] originalColors = Pipe.getPointColors( precise_x_positions,
+								 precise_y_positions,
+								 precise_z_positions,
+								 c,
+								 colorImage );
+
+		List<Color3f> meshColors = new ArrayList<Color3f>();
 
 		int edges = 8;
 		List<Point3f> allTriangles = new ArrayList<Point3f>(edges*points);
 		for( int i = 0; i < points; ++i ) {
 			List<Point3f> discMesh =
 				MeshMaker.createDisc( precise_x_positions[i],
-						       precise_y_positions[i],
-						       precise_z_positions[i],
-						       tangents_x[i],
-						       tangents_y[i],
-						       tangents_z[i],
-						       radiuses[i],
-						       8 );
+						      precise_y_positions[i],
+						      precise_z_positions[i],
+						      tangents_x[i],
+						      tangents_y[i],
+						      tangents_z[i],
+						      radiuses[i],
+						      8 );
+			int pointsInDiscMesh = discMesh.size();
+			for( int j = 0; j < pointsInDiscMesh; ++j )
+				meshColors.add( originalColors[i] );
 			allTriangles.addAll(discMesh);
 		}
 		return univ.addTriangleMesh( allTriangles,
-					     c,
+					     meshColors,
 					     univ.getSafeContentName("Discs for path "+getName()) );
 	}
 
-	synchronized public void addTo3DViewer(Image3DUniverse univ, Color c) {
+	synchronized public void addTo3DViewer(Image3DUniverse univ, Color c, ImagePlus colorImage) {
 		if( c == null )
 			throw new RuntimeException("In addTo3DViewer, Color can no longer be null");
-		addTo3DViewer(univ, new Color3f(c));
+		addTo3DViewer(univ, new Color3f(c), colorImage);
 	}
 
-	synchronized public void addTo3DViewer(Image3DUniverse univ, Color3f c ) {
+	protected Color3f realColor;
+
+	synchronized public void addTo3DViewer(Image3DUniverse univ, Color3f c, ImagePlus colorImage ) {
 		if( c == null )
 			throw new RuntimeException("In addTo3DViewer, Color3f can no longer be null");
 
-		Color3f realColor = (c == null) ? new Color3f(Color.magenta) : c;
+		realColor = (c == null) ? new Color3f(Color.magenta) : c;
 
 		if(points <= 1) {
 			content3D = null;
@@ -2007,11 +2116,12 @@ public class Path implements Comparable {
 
 		if( paths3DDisplay == SimpleNeuriteTracer.DISPLAY_PATHS_LINES ||
 		    paths3DDisplay == SimpleNeuriteTracer.DISPLAY_PATHS_LINES_AND_DISCS ) {
-			content3D = addAsLinesTo3DViewer(univ,realColor);
+			content3D = addAsLinesTo3DViewer(univ,realColor,colorImage);
 			content3D.setLocked(true);
 			nameWhenAddedToViewer = content3D.getName();
 			if( paths3DDisplay == SimpleNeuriteTracer.DISPLAY_PATHS_LINES_AND_DISCS ) {
-				content3DExtra = addDiscsTo3DViewer(univ,realColor);
+				content3DExtra = addDiscsTo3DViewer(univ,realColor,colorImage);
+				content3DExtraMultiColored = colorImage;
 				if( content3DExtra == null ) {
 					nameWhenAddedToViewerExtra = null;
 				} else {
@@ -2095,27 +2205,69 @@ public class Path implements Comparable {
 		System.arraycopy( z_points_d, 0, z_points_d_trimmed, 0, pointsToUse );
 		System.arraycopy( radiuses_d, 0, radiuses_d_trimmed, 0, pointsToUse );
 
+		/* Work out whether to resample or not.  I've found
+		   that the resampling is only really required in
+		   cases where the points are at adjacent voxels.  So,
+		   work out the mean distance between all the points
+		   but in image co-ordinates - if there are points
+		   only at adjacent voxels this will be between 1 and
+		   sqrt(3) ~= 1.73.  However, after the "fitting"
+		   process here, we might remove many of these points,
+		   so I'll say that we won't resample if the mean is
+		   rather higher - above 3.  Hopefully this is a
+		   good compromise... */
+
+		double total_length_in_image_space = 0;
+		for( int i = 1; i < pointsToUse; ++i ) {
+			double x_diff = (x_points_d_trimmed[i] - x_points_d_trimmed[i-1]) / x_spacing;
+			double y_diff = (y_points_d_trimmed[i] - y_points_d_trimmed[i-1]) / y_spacing;
+			double z_diff = (z_points_d_trimmed[i] - z_points_d_trimmed[i-1]) / z_spacing;
+			total_length_in_image_space += Math.sqrt(x_diff*x_diff +
+								 y_diff*y_diff +
+								 z_diff*z_diff);
+		}
+		double mean_inter_point_distance_in_image_space = total_length_in_image_space / (pointsToUse - 1);
+		if (verbose)
+			System.out.println("For path "+this+", got mean_inter_point_distance_in_image_space: "+mean_inter_point_distance_in_image_space);
+		boolean resample = mean_inter_point_distance_in_image_space < 3;
+
+		if (verbose)
+			System.out.println("... so"+(resample?"":" not")+" resampling");
+
+		ArrayList<Color3f> tubeColors = new ArrayList<Color3f>();
+
 		double [][][] allPoints = Pipe.makeTube(x_points_d_trimmed,
 							y_points_d_trimmed,
 							z_points_d_trimmed,
 							radiuses_d_trimmed,
-							2,       // resample - 1 means just "use mean distance between points", 3 is three times that, etc.
-							12);     // "parallels" (12 means cross-sections are dodecagons)
+							resample ? 2 : 1,       // resample - 1 means just "use mean distance between points", 3 is three times that, etc.
+							12,         // "parallels" (12 means cross-sections are dodecagons)
+							resample,   // do_resample
+							realColor,
+							colorImage,
+							tubeColors);
+
 		if( allPoints == null ) {
 			content3D = null;
 			content3DExtra = null;
 			return;
 		}
 
-		java.util.List triangles = Pipe.generateTriangles(allPoints,
-								  1); // scale
+		// Make tube adds an extra point at the beginning and end:
+
+		List<Color3f> vertexColorList = new ArrayList<Color3f>();
+		List<Point3f> triangles = Pipe.generateTriangles(allPoints,
+								  1, // scale
+								  tubeColors,
+								  vertexColorList);
 
 		nameWhenAddedToViewer = univ.getSafeContentName( getName() );
 		// univ.resetView();
 		content3D = univ.addTriangleMesh(triangles,
-						 realColor,
+						 vertexColorList,
 						 nameWhenAddedToViewer);
 		content3D.setLocked(true);
+		content3DMultiColored = colorImage;
 
 		content3DExtra = null;
 		nameWhenAddedToViewerExtra = null;
@@ -2141,19 +2293,52 @@ public class Path implements Comparable {
 		}
 	}
 
+	/** The volume of each part of the fitted path most accurately
+	    would be the volume of a convex hull of two arbitrarily
+	    oriented and sized circles in space.  This is tough to
+	    work out analytically, and this precision isn't really
+	    warranted given the errors introduced in the fitting
+	    process, the tracing in the first place, etc.  So, this
+	    method produces an approximate volume assuming that the
+	    volume of each of these parts is that of a truncated cone,
+	    with circles of the same size (i.e. as if the circles had
+	    simply been reoriented to be parallel and have a common
+	    normal vector)
+
+	    For more accurate measurements of the volumes of a neuron,
+	    you should use the filling interface. */
+
+	public double getApproximateFittedVolume() {
+		if( ! hasCircles() ) {
+			return -1;
+		}
+
+		double totalVolume = 0;
+
+		for( int i = 0; i < points - 1; ++i ) {
+
+			double xdiff = precise_x_positions[i+1] - precise_x_positions[i];
+			double ydiff = precise_y_positions[i+1] - precise_y_positions[i];
+			double zdiff = precise_z_positions[i+1] - precise_z_positions[i];
+			double h = Math.sqrt(
+				xdiff * xdiff +
+				ydiff * ydiff +
+				zdiff * zdiff );
+			double r1 = radiuses[i];
+			double r2 = radiuses[i+1];
+			// See http://en.wikipedia.org/wiki/Frustum
+			double partVolume = (Math.PI * h * (r1*r1 + r2*r2 + r1*r2)) / 3.0;
+			totalVolume += partVolume;
+		}
+
+		return totalVolume;
+	}
+
 	/* This doesn't deal with the startJoins, endJoins or fitted
 	   fields, since they involve other paths which were probably
 	   also transformed by the caller. */
 
 	public Path transform( PathTransformer transformation, ImagePlus template, ImagePlus model ) {
-
-		int modelWidth = model.getWidth();
-		int modelHeight = model.getHeight();
-		int modelDepth = model.getStackSize();
-
-		int templateWidth = template.getWidth();
-		int templateHeight = template.getHeight();
-		int templateDepth = template.getStackSize();
 
 		double templatePixelWidth = 1;
 		double templatePixelHeight = 1;
@@ -2166,17 +2351,6 @@ public class Path implements Comparable {
 			templatePixelHeight = templateCalibration.pixelHeight;
 			templatePixelDepth = templateCalibration.pixelDepth;
 			templateUnits = templateCalibration.getUnits();
-		}
-
-		double modelPixelWidth = 1;
-		double modelPixelHeight = 1;
-		double modelPixelDepth = 1;
-
-		Calibration modelCalibration = model.getCalibration();
-		if( modelCalibration != null ) {
-			modelPixelWidth = modelCalibration.pixelWidth;
-			modelPixelHeight = modelCalibration.pixelHeight;
-			modelPixelDepth = modelCalibration.pixelDepth;
 		}
 
 		Path result = new Path( templatePixelWidth, templatePixelHeight, templatePixelDepth, templateUnits, size() );
