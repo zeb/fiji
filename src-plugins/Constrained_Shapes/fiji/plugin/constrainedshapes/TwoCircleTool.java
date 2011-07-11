@@ -107,13 +107,12 @@ public class TwoCircleTool extends AbstractTool implements MouseListener, MouseM
 	@Override
 	public void mousePressed(MouseEvent e) {
 		ImagePlus imp = getImagePlus(e);
-		ImageCanvas canvas = imp.getCanvas();
-		final double x = canvas.offScreenXD(e.getX());
-		final double y = canvas.offScreenYD(e.getY());
+		final double x = getOffscreenXDouble(e);
+		final double y = getOffscreenYDouble(e);
 		final Point2D p = new Point2D.Double(x, y);
 
 		TwoCircleRoi roi = getRoi(imp, true);
-		ClickLocation cl = roi.getClickLocation(p);
+		ClickLocation cl = roi.getClickLocation(new Point2D.Double(e.getX(), e.getY()));
 		shape = roi.getShape();
 
 		switch (cl) {
@@ -138,9 +137,8 @@ public class TwoCircleTool extends AbstractTool implements MouseListener, MouseM
 
 	@Override
 	public void mouseDragged(MouseEvent e) {
-		ImageCanvas canvas = getImageCanvas(e);
-		final double x = canvas.offScreenXD(e.getX());
-		final double y = canvas.offScreenYD(e.getY());
+		final double x = getOffscreenXDouble(e);
+		final double y = getOffscreenYDouble(e);
 		final Point2D p = new Point2D.Double(x, y);
 		final double[] params = shape.getParameters();
 
