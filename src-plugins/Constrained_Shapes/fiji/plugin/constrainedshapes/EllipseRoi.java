@@ -284,28 +284,4 @@ public class EllipseRoi extends ShapeRoi {
 		final Rectangle r = ic.getSrcRect();
 		canvasAffineTransform.setTransform(mag, 0.0, 0.0, mag, -r.x*mag, -r.y*mag);
 	}
-
-	/*
-	 * MAIN METHOD
-	 */
-
-	/**
-	 * For testing purposes.
-	 */
-	public static void main(String[] args) {
-		final Point2D.Float C = new Point2D.Float(100 , 100);
-		final double a = 50;
-		final double b = 100;
-		final double phi = Math.PI/3;
-		//
-		ij.ImagePlus imp = ij.IJ.openImage("http://rsb.info.nih.gov/ij/images/blobs.gif");
-		imp.show();
-
-		EllipseShape e = new EllipseShape(C.x, C.y, a, b, phi);
-		EllipseRoi roi = new EllipseRoi(e);
-		imp.setRoi(roi);
-		// test zoom
-		imp.getCanvas().zoomIn(2, 2);
-		imp.updateAndDraw();
-	}
 }
