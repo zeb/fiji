@@ -47,9 +47,7 @@ public class SnappingEllipseTool extends AbstractTool implements MouseListener, 
 		CREATING;
 	}
 
-	/*
-	 * INNER CLASS
-	 */
+	protected static class StopOptimizer extends RuntimeException {}
 
 	/**
 	 * This is a helper class for the {@link SnappingEllipseTool} plugin, that delegates the
@@ -65,46 +63,29 @@ public class SnappingEllipseTool extends AbstractTool implements MouseListener, 
 		protected long request = 0;
 		protected ShapeFitter fitter;
 		protected ImagePlus imp;
+		protected Roi roi;
 
 		// Constructor autostarts thread
 		Snapper(ImagePlus imp) {
-			super("Circle snapper");
+			super("Ellipse snapper");
 			this.imp = imp;
+			roi = imp.getRoi();
 			setPriority(Thread.NORM_PRIORITY);
-			start();
 		}
 
 		void snap() {
 			if (isInterrupted())
 				return;
-			synchronized (this) {
-				request++;
-				notify();
-			}
+			start();
 		}
 
 		public void run() {
-			while (!isInterrupted()) {
-				try {
-					final long r;
-					synchronized (this) {
-						r = request;
-					}
-					// Call opmitize from this thread
-					if (r > 0)
-						Roi.setColor(Color.BLUE);
-						fitter.optimize();
-						Roi.setColor(savedRoiColor);
-						imp.draw();
-					synchronized (this) {
-						if (r == request) {
-							request = 0; // reset
-							wait();
-						}
-						// else loop through to update again
-					}
-				} catch (Exception e) {			}
-			}
+			try {
+				Roi.setColor(Color.BLUE);
+				fitter.optimize();
+				Roi.setColor(savedRoiColor);
+				imp.setRoi(roi);
+			} catch (StopOptimizer e) {}
 		}
 
 
@@ -112,14 +93,16 @@ public class SnappingEllipseTool extends AbstractTool implements MouseListener, 
 		 * MINIMIZERMONITOR METHODS
 		 */
 
-
+		@Override
 		public synchronized void newMinimum(double value, double[] parameterValues,
 				MultivariateFunction beingOptimized) {
-			imp.draw();
+			if (isInterrupted())
+				throw new StopOptimizer();
+			imp.setRoi(roi);
 		}
 
-		public void updateProgress(double progress) {
-		}
+		@Override
+		public void updateProgress(double progress) {}
 	}
 
 
