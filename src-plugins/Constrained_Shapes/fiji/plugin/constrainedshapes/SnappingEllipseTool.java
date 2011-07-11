@@ -1,31 +1,32 @@
 package fiji.plugin.constrainedshapes;
 
 import fiji.plugin.constrainedshapes.EllipseRoi.ClickLocation;
-import fiji.util.AbstractTool;
+
+import fiji.tool.AbstractTool;
 
 import ij.IJ;
 import ij.ImagePlus;
 import ij.WindowManager;
+
 import ij.gui.ImageCanvas;
 import ij.gui.ImageWindow;
 import ij.gui.Roi;
+
 import ij.plugin.PlugIn;
 
 import java.awt.Color;
+
 import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
+import java.awt.event.MouseMotionListener;
+
 import java.awt.geom.Point2D;
 
 import pal.math.MinimiserMonitor;
 import pal.math.MultivariateFunction;
 
-public class SnappingEllipseTool extends AbstractTool implements PlugIn {
+public class SnappingEllipseTool extends AbstractTool implements MouseListener, MouseMotionListener, PlugIn {
 
-	/*
-	 * FIELDS
-	 */
-	
-	private ImagePlus imp;
-	private ImageCanvas canvas;
 	private EllipseRoi roi;
 	private InteractionStatus status;
 	private Point2D startDrag;
@@ -37,7 +38,7 @@ public class SnappingEllipseTool extends AbstractTool implements PlugIn {
 	/*
 	 * ENUM
 	 */
-	
+
 	public static enum InteractionStatus {
 		FREE,
 		MOVING,
@@ -49,7 +50,7 @@ public class SnappingEllipseTool extends AbstractTool implements PlugIn {
 	/*
 	 * INNER CLASS
 	 */
-	
+
 	/**
 	 * This is a helper class for the {@link SnappingEllipseTool} plugin, that delegates the
 	 * snapping of the circle to another thread. This class holds the fitter object
@@ -57,16 +58,18 @@ public class SnappingEllipseTool extends AbstractTool implements PlugIn {
 	 * so that it will display the shape as it is optimized (the interface requires that
 	 * the monitor is on the same thread that of the optimizer).
 	 * <p>
-	 * It is derived from a helper class Albert Cardona did for the Dynamic_Reslice plugin. 
-	 * 
+	 * It is derived from a helper class Albert Cardona did for the Dynamic_Reslice plugin.
+	 *
 	 */
 	private class Snapper extends Thread implements MinimiserMonitor {
-		long request = 0;
-		ShapeFitter fitter;
+		protected long request = 0;
+		protected ShapeFitter fitter;
+		protected ImagePlus imp;
 
 		// Constructor autostarts thread
-		Snapper() {
+		Snapper(ImagePlus imp) {
 			super("Circle snapper");
+			this.imp = imp;
 			setPriority(Thread.NORM_PRIORITY);
 			start();
 		}
@@ -103,12 +106,12 @@ public class SnappingEllipseTool extends AbstractTool implements PlugIn {
 				} catch (Exception e) {			}
 			}
 		}
-		
+
 
 		/*
 		 * MINIMIZERMONITOR METHODS
 		 */
-		
+
 
 		public synchronized void newMinimum(double value, double[] parameterValues,
 				MultivariateFunction beingOptimized) {
@@ -118,20 +121,20 @@ public class SnappingEllipseTool extends AbstractTool implements PlugIn {
 		public void updateProgress(double progress) {
 		}
 	}
-	
-	
+
+
 	/*
 	 * RUN METHOD
 	 */
-	
+
 	public void run(String arg) {
 		savedRoiColor = Roi.getColor();
 		// Initialize snapper
-		snapper = new Snapper();
-		imp = WindowManager.getCurrentImage();
-		if (imp != null) { 
+		ImagePlus imp = WindowManager.getCurrentImage();
+		snapper = new Snapper(imp);
+		if (imp != null) {
 			Roi currentRoi = imp.getRoi();
-			
+
 			if (arg.equalsIgnoreCase("test")) {
 				final int w = imp.getWidth();
 				final int h = imp.getHeight();
@@ -143,7 +146,7 @@ public class SnappingEllipseTool extends AbstractTool implements PlugIn {
 				roi = new EllipseRoi(el);
 				status = InteractionStatus.FREE;
 				imp.setRoi(roi);
-				
+
 			} else {
 
 				if ( (currentRoi != null) && (currentRoi instanceof EllipseRoi) ) {
@@ -153,7 +156,6 @@ public class SnappingEllipseTool extends AbstractTool implements PlugIn {
 					roi = new EllipseRoi();
 					status = InteractionStatus.CREATING;
 				}
-				canvas = imp.getCanvas();
 			}
 			snapper.fitter = new ShapeFitter(roi.shape);
 			snapper.fitter.setFunction(ParameterizedShape.EvalFunction.MEAN);
@@ -161,36 +163,38 @@ public class SnappingEllipseTool extends AbstractTool implements PlugIn {
 		}
 		super.run(arg);
 	}
-	
+
 	/*
 	 * MOUSE METHODS
 	 */
-	
+
+	protected EllipseRoi getRoi(ImagePlus imp, boolean createIfNotExists) {
+		Roi roi = imp.getRoi();
+		if ((roi == null) || !(roi instanceof EllipseRoi)) {
+			if (!createIfNotExists)
+				return null;
+			status = InteractionStatus.CREATING;
+			EllipseRoi newRoi = new EllipseRoi();
+			imp.setRoi(newRoi);
+			return newRoi;
+		} else {
+			status = InteractionStatus.FREE;
+			return (EllipseRoi)roi;
+		}
+	}
+
+
 	@Override
-	protected void handleMousePress(MouseEvent e) {
-		// Deal with changing window
-		ImageCanvas source = (ImageCanvas) e.getSource();
-		if (source != canvas) {
-			// We changed image window. Update fields accordingly
-			ImageWindow window = (ImageWindow) source.getParent();
-			imp = window.getImagePlus();
-			canvas = source;
-			Roi currentRoi = imp.getRoi();
-			if ( (currentRoi == null) || !(currentRoi instanceof EllipseRoi)) {
-				roi = new EllipseRoi();
-				status = InteractionStatus.CREATING;				
-			} else {
-				roi = (EllipseRoi) currentRoi;
-				status = InteractionStatus.FREE;
-			}
-			imp.setRoi(roi);
-		} 
-		
+	public void mousePressed(MouseEvent e) {
+		ImagePlus imp = getImagePlus(e);
+		ImageCanvas canvas = imp.getCanvas();
 		final double x = canvas.offScreenXD(e.getX());
 		final double y = canvas.offScreenYD(e.getY());
 		final Point2D p = new Point2D.Double(x, y);
+
+		EllipseRoi roi = getRoi(imp, true);
 		ClickLocation cl = roi.getClickLocation(p);
-		
+
 		// Tune fitter
 		snapper.fitter.setShape(roi.shape);
 		snapper.fitter.setImageProcessor(imp.getProcessor());
@@ -209,19 +213,20 @@ public class SnappingEllipseTool extends AbstractTool implements PlugIn {
 		}
 		startDrag = p;
 	}
-	
+
 	@Override
-	protected void handleMouseDrag(MouseEvent e) {
+	public void mouseDragged(MouseEvent e) {
 		final double[] params = roi.shape.getParameters();
 		final double xc  = params[0];
 		final double yc  = params[1];
 		final double a   = params[2];
 		final double b   = params[3];
-		final double phi = params[4]; 
+		final double phi = params[4];
+		ImageCanvas canvas = getImageCanvas(e);
 		final double x = canvas.offScreenXD(e.getX());
 		final double y = canvas.offScreenYD(e.getY());
 		final Point2D p = new Point2D.Double(x, y);
-		
+
 		switch (status) {
 		case MOVING:
 			params[0] += x-startDrag.getX();
@@ -240,7 +245,7 @@ public class SnappingEllipseTool extends AbstractTool implements PlugIn {
 			params[3] = Math.abs(yc - y);
 			break;
 		}
-		
+
 		// Tune fitter
 		final double range = Math.max(a, b);
 		roi.shape.lowerBounds[0] = xc - range;
@@ -256,12 +261,14 @@ public class SnappingEllipseTool extends AbstractTool implements PlugIn {
 		snapper.fitter.setNPoints((int) roi.shape.getCircumference());
 
 		startDrag = p;
-		imp.setRoi(roi); 
-		IJ.showStatus(roi.shape.toString()); 
+		getImagePlus(e).setRoi(roi);
+		IJ.showStatus(roi.shape.toString());
 	}
-	
+
 	@Override
-	protected void handleMouseClick(MouseEvent e) {
+	public void mouseClicked(MouseEvent e) {
+		ImagePlus imp = getImagePlus(e);
+		EllipseRoi roi = getRoi(imp, false);
 		if (roi == null) return;
 		ClickLocation cl = roi.getClickLocation(e.getPoint());
 		if (cl == ClickLocation.OUTSIDE ) {
@@ -270,35 +277,32 @@ public class SnappingEllipseTool extends AbstractTool implements PlugIn {
 			status = InteractionStatus.CREATING;
 		}
 	}
-	
+
 	@Override
-	protected void handleMouseRelease(MouseEvent e) {
+	public void mouseReleased(MouseEvent e) {
 		snapper.snap();
 	}
-	
+
+	@Override
+	public void mouseMoved(MouseEvent e) {}
+	@Override
+	public void mouseEntered(MouseEvent e) {}
+	@Override
+	public void mouseExited(MouseEvent e) {}
+
 	/*
 	 * ABSTRACTTOOL METHODS
 	 */
-	
+
 	@Override
 	public String getToolIcon() {
 		return "C444D13D14D15D16D22D23D26D27D32D37D41D42D51D58D61D68D71D78D81D88D91D92D97D98Da2Da7" +
 				"Db2Db3Db6Db7Dc3Dc6C03fD46D47D48D49D55D56D59D5aD65D6aD74D75D7aD7bD84D8bD94D9bDa4Dab" +
 				"Db4DbbDc4Dc5DcaDcbDd5DdaDe5De6De9DeaDf6Df7Df8Df9C900DbdDcdDceDddDdeDdfDedDeeDfd";
 	}
-	
+
 	@Override
 	public String getToolName() {
 		return "Snapping Ellipse Shape";
 	}
-
-	@Override
-	public boolean hasOptionDialog() {
-		return false;
-	}
-
-	@Override
-	public void showOptionDialog() {	}
-	
-
 }
