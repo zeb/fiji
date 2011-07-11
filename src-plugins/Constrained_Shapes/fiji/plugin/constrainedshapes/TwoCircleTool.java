@@ -1,50 +1,49 @@
 package fiji.plugin.constrainedshapes;
 
+import fiji.plugin.constrainedshapes.TwoCircleRoi.ClickLocation;
+
+import fiji.tool.AbstractTool;
+
 import ij.IJ;
 import ij.ImagePlus;
 import ij.WindowManager;
+
 import ij.gui.ImageCanvas;
 import ij.gui.ImageWindow;
 import ij.gui.Roi;
 
 import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
+import java.awt.event.MouseMotionListener;
+
 import java.awt.geom.Point2D;
 
-import fiji.plugin.constrainedshapes.TwoCircleRoi.ClickLocation;
-import fiji.util.AbstractTool;
+public class TwoCircleTool extends AbstractTool implements MouseListener, MouseMotionListener {
 
-public class TwoCircleTool extends AbstractTool {
-
-	/*
-	 * FIELDS
-	 */
-	
-	private ImageCanvas canvas;
-	private ImagePlus imp;
 	private InteractionStatus status;
 	private Point2D startDrag;
 	private TwoCircleRoi roi;
 	private TwoCircleShape shape;
 	private InteractionStatus previousStatus;
-	
+
 	/*
 	 * ENUMS
 	 */
-		
+
 	/**
 	 * Enum type to specify the current user interaction status.
 	 */
 	public static enum InteractionStatus { FREE, MOVING_ROI, MOVING_C1, MOVING_C2, RESIZING_C1, RESIZING_C2, CREATING_C1, CREATING_C2 };
 
-	
+
 	/*
 	 * RUN METHOD
 	 */
-	
+
 	public void run(String arg) {
-		imp = WindowManager.getCurrentImage();
-		if (imp != null) { 
-			
+		ImagePlus imp = WindowManager.getCurrentImage();
+		if (imp != null) {
+
 			if (arg.equalsIgnoreCase("test")) {
 				final int w = imp.getWidth();
 				final int h = imp.getHeight();
@@ -57,7 +56,7 @@ public class TwoCircleTool extends AbstractTool {
 				status = InteractionStatus.FREE;
 				imp.setRoi(roi);
 			} else {
-				Roi currentRoi = imp.getRoi(); 
+				Roi currentRoi = imp.getRoi();
 				if ( (currentRoi != null) && (currentRoi instanceof TwoCircleRoi) ) {
 					roi = (TwoCircleRoi) currentRoi;
 					shape = roi.getShape();
@@ -68,15 +67,14 @@ public class TwoCircleTool extends AbstractTool {
 					status = InteractionStatus.CREATING_C1;
 				}
 			}
-			canvas = imp.getCanvas();
 		}
 		super.run(arg);
 	}
-	
+
 	/*
 	 * PUBLIC METHODS
 	 */
-	
+
 	@Override
 	public String getToolIcon() {
 		return "C000D38D39D3dD53D62D63D7dD8cD9cDc2Dc3Dc9DcaDd3Dd9" +
@@ -91,53 +89,43 @@ public class TwoCircleTool extends AbstractTool {
 				"D59D60D65D6cD7aD83D8fD9eDa3Da9Dc0Dc5Dc7DccDe1DebDf3Df9" +
 				"CbbbCcccCdddCeeeCfff";
 	}
-	
+
 	@Override
 	public String getToolName() {
 		return "Two circle shape";
 	}
 
-
-	@Override
-	public boolean hasOptionDialog() {
-		return false;
-	}
-
-	@Override
-	public void showOptionDialog() {	}
-
-	
-	
 	/*
 	 * MOUSE INTERACTIONS
 	 */
-	
-	
+
+	protected TwoCircleRoi getRoi(ImagePlus imp, boolean createIfNotExists) {
+		Roi roi = imp.getRoi();
+		if ((roi == null) || !(roi instanceof TwoCircleRoi)) {
+			if (!createIfNotExists)
+				return null;
+			status = InteractionStatus.CREATING_C1;
+			TwoCircleRoi newRoi = new TwoCircleRoi();
+			imp.setRoi(newRoi);
+			return newRoi;
+		} else {
+			status = InteractionStatus.FREE;
+			return (TwoCircleRoi)roi;
+		}
+	}
+
 	@Override
-	public void handleMousePress(MouseEvent e) { 
-		// Deal with changing window
-		ImageCanvas source = (ImageCanvas) e.getSource();
-		if (source != canvas) {
-			// We changed image window. Update fields accordingly
-			ImageWindow window = (ImageWindow) source.getParent();
-			imp = window.getImagePlus();
-			canvas = source;
-			Roi currentRoi = imp.getRoi();
-			if ( (currentRoi == null) || !(currentRoi instanceof TwoCircleRoi)) {
-				roi = new TwoCircleRoi();
-				status = InteractionStatus.CREATING_C1;
-			} else {
-				roi = (TwoCircleRoi) currentRoi;
-				status = InteractionStatus.FREE;
-			}
-		} 
-			
+	public void mousePressed(MouseEvent e) {
+		ImagePlus imp = getImagePlus(e);
+		ImageCanvas canvas = imp.getCanvas();
 		final double x = canvas.offScreenXD(e.getX());
 		final double y = canvas.offScreenYD(e.getY());
 		final Point2D p = new Point2D.Double(x, y);
+
+		TwoCircleRoi roi = getRoi(imp, true);
 		ClickLocation cl = roi.getClickLocation(p);
 		shape = roi.getShape();
-		
+
 		switch (cl) {
 		case OUTSIDE:
 			switch (status) {
@@ -159,12 +147,13 @@ public class TwoCircleTool extends AbstractTool {
 	}
 
 	@Override
-	public void handleMouseDrag(MouseEvent e) {
+	public void mouseDragged(MouseEvent e) {
+		ImageCanvas canvas = getImageCanvas(e);
 		final double x = canvas.offScreenXD(e.getX());
 		final double y = canvas.offScreenYD(e.getY());
 		final Point2D p = new Point2D.Double(x, y);
 		final double[] params = shape.getParameters();
-		
+
 		switch (status) {
 		case MOVING_ROI:
 			params[0] += x-startDrag.getX();
@@ -182,21 +171,21 @@ public class TwoCircleTool extends AbstractTool {
 			break;
 		case RESIZING_C1:
 		case CREATING_C1:
-			params[2] = shape.getC1().distance(p);			
+			params[2] = shape.getC1().distance(p);
 			break;
 		case RESIZING_C2:
 		case CREATING_C2:
-			params[5] = shape.getC2().distance(p);			
+			params[5] = shape.getC2().distance(p);
 			break;
 		}
 		startDrag = p;
 		roi = new TwoCircleRoi(shape);
-		imp.setRoi(roi); 
-		IJ.showStatus(shape.toString()); 
+		getImagePlus(e).setRoi(roi);
+		IJ.showStatus(shape.toString());
 	}
 
 	@Override
-	public void handleMouseRelease(MouseEvent e) {
+	public void mouseReleased(MouseEvent e) {
 		switch (status) {
 		case CREATING_C1:
 			status = InteractionStatus.CREATING_C2;
@@ -211,9 +200,11 @@ public class TwoCircleTool extends AbstractTool {
 			break;
 		}
 	}
-	
+
 	@Override
-	public void handleMouseClick(MouseEvent e) {
+	public void mouseClicked(MouseEvent e) {
+		ImagePlus imp = getImagePlus(e);
+		TwoCircleRoi roi = getRoi(imp, false);
 		if (roi == null) return;
 		ClickLocation cl = roi.getClickLocation(e.getPoint());
 		if (cl == ClickLocation.OUTSIDE ) {
@@ -223,14 +214,11 @@ public class TwoCircleTool extends AbstractTool {
 			status = InteractionStatus.CREATING_C1;
 		}
 	}
-	
-	@Override
-	public void handleMouseMove(MouseEvent e) {	}
-	
-	/*
-	 * PRIVATE METHODS
-	 */
-	
 
-	
+	@Override
+	public void mouseMoved(MouseEvent e) { }
+	@Override
+	public void mouseEntered(MouseEvent e) { }
+	@Override
+	public void mouseExited(MouseEvent e) { }
 }
