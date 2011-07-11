@@ -27,13 +27,13 @@ import pal.math.MultivariateFunction;
 
 public class SnappingEllipseTool extends AbstractTool implements MouseListener, MouseMotionListener, PlugIn {
 
-	private EllipseRoi roi;
-	private InteractionStatus status;
-	private Point2D startDrag;
-	private Snapper snapper;
-	private double[] lowerBounds = new double[5];
-	private double[] upperBounds = new double[5];
-	private Color savedRoiColor;
+	protected EllipseRoi roi;
+	protected InteractionStatus status;
+	protected Point2D startDrag;
+	protected Snapper snapper;
+	protected double[] lowerBounds = new double[5];
+	protected double[] upperBounds = new double[5];
+	protected Color savedRoiColor;
 
 	/*
 	 * ENUM
@@ -61,7 +61,7 @@ public class SnappingEllipseTool extends AbstractTool implements MouseListener, 
 	 * It is derived from a helper class Albert Cardona did for the Dynamic_Reslice plugin.
 	 *
 	 */
-	private class Snapper extends Thread implements MinimiserMonitor {
+	protected class Snapper extends Thread implements MinimiserMonitor {
 		protected long request = 0;
 		protected ShapeFitter fitter;
 		protected ImagePlus imp;

@@ -20,15 +20,11 @@ import java.awt.geom.Point2D;
 
 public class TwoCircleTool extends AbstractTool implements MouseListener, MouseMotionListener {
 
-	private InteractionStatus status;
-	private Point2D startDrag;
-	private TwoCircleRoi roi;
-	private TwoCircleShape shape;
-	private InteractionStatus previousStatus;
-
-	/*
-	 * ENUMS
-	 */
+	protected InteractionStatus status;
+	protected Point2D startDrag;
+	protected TwoCircleRoi roi;
+	protected TwoCircleShape shape;
+	protected InteractionStatus previousStatus;
 
 	/**
 	 * Enum type to specify the current user interaction status.

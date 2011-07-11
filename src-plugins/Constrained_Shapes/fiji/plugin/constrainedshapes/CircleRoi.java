@@ -17,23 +17,18 @@ import java.awt.geom.Point2D;
 
 
 public class CircleRoi extends OvalRoi {
-
-	/*
-	 * FIELDS
-	 */
-	
-	private static final long serialVersionUID = 1L;
+	protected static final long serialVersionUID = 1L;
 	/** Min dist to drag a handle, in unzoomed pixels */
-	private static final double DRAG_TOLERANCE = 10;
+	protected static final double DRAG_TOLERANCE = 10;
 	public CircleShape shape;
-	private Handle[] handles = new Handle[4];
+	protected Handle[] handles = new Handle[4];
 	AffineTransform canvasAffineTransform = new AffineTransform();
-	
+
 	/*
 	 * ENUM
 	 */
 
-	public static enum ClickLocation { 
+	public static enum ClickLocation {
 		INSIDE, OUTSIDE, HANDLE;
 
 		/**
@@ -53,31 +48,31 @@ public class CircleRoi extends OvalRoi {
 				break;
 			}
 			return is;
-		}	
-	}; 
-	
+		}
+	};
+
 	/*
 	 * INNER CLASS
 	 */
-	
+
 	/**
 	 * This internal class is used to deal with the small handles that appear on
-	 * the ROI. They are used to resize the shape when the user click-drags on 
+	 * the ROI. They are used to resize the shape when the user click-drags on
 	 * them.
 	 */
-	private static class Handle {
-		private static final long serialVersionUID = 1L;
-		private static final Color HANDLE_COLOR = Color.WHITE;
+	protected static class Handle {
+		protected static final long serialVersionUID = 1L;
+		protected static final Color HANDLE_COLOR = Color.WHITE;
 		public Point2D center = new Point2D.Double();
 		public int size = 7;
-		
+
 		public Handle(double x, double y) {
 			this.center = new Point2D.Double(x, y);
 		}
-		
+
 		public void draw(Graphics g, AffineTransform at) {
 			Point2D dest = new Point2D.Double();
-			if ( at == null) { 
+			if ( at == null) {
 				dest = center;
 			} else {
 				at.transform(center, dest);
@@ -90,21 +85,21 @@ public class CircleRoi extends OvalRoi {
 			g.fillRect(ix-size/2+1, iy-size/2+1, size-2, size-2);
 		}
 	}
-	
+
 	/*
 	 * CONSTRUCTORS
 	 */
-	
+
 	public CircleRoi() {
 		this(new CircleShape());
 	}
-	
+
 	public CircleRoi(CircleShape shape) {
 		super(1,1,1,1); // but we don't care
 		this.shape = shape;
 		constrain = true;
 	}
-	
+
 	/*
 	 * OVALROI METHODS
 	 */
@@ -119,44 +114,44 @@ public class CircleRoi extends OvalRoi {
 		prepareHandles();
 		drawHandles(g);
 	}
-	
+
 	@Override
 	public void drawPixels(ImageProcessor ip) {
 		Rectangle r = shape.getBounds();
 		new OvalRoi(r.x, r.y, r.width, r.height).drawPixels(ip);
 	}
-	
+
 	@Override
 	public Rectangle getBounds() {
 		return shape.getBounds();
 	}
-	
+
 	@Override
 	public ImageProcessor getMask() {
 		Rectangle r = shape.getBounds();
 		return new OvalRoi(r.x, r.y, r.width, r.height).getMask();
 	}
-	
+
 	@Override
 	public boolean contains(int x, int y) {
 		return shape.contains(x, y);
 	}
-	
+
 	@Override
 	public Polygon getConvexHull() {
 		Rectangle r = shape.getBounds();
 		return new OvalRoi(r.x, r.y, r.width, r.height).getConvexHull();
 	}
-	
+
 	@Override
 	public double getLength() {
 		return shape.getRadius()*2*Math.PI;
 	}
-	
+
 	/*
 	 * PUBLIC METHODS
 	 */
-	
+
 	public ClickLocation getClickLocation(Point2D p) {
 		if (shape == null)  { // There is no shape yet
 			return ClickLocation.OUTSIDE;
@@ -178,20 +173,16 @@ public class CircleRoi extends OvalRoi {
 		}
 		if (canvasAffineTransform.createTransformedShape(shape).contains(p)) {
 			return ClickLocation.INSIDE;
-		} 
+		}
 		return ClickLocation.OUTSIDE;
 	}
-	
-	/*
-	 * PRIVATE METHODS
-	 */
-		
+
 	/**
 	 * Regenerate the {@link #handles} field. The {@link Handle} coordinates are generated
-	 * with respect to the {@link TwoCircleShape} object. They will be transformed in the 
+	 * with respect to the {@link TwoCircleShape} object. They will be transformed in the
 	 * {@link ImageCanvas} coordinates when drawn.
 	 */
-	private void prepareHandles() {	
+	protected void prepareHandles() {
 		final double[] params = shape.getParameters();
 		final double xc = params[0];
 		final double yc = params[1];
@@ -205,13 +196,13 @@ public class CircleRoi extends OvalRoi {
 		handles[2] = hl;
 		handles[3] = hr;
 	}
-	
+
 	/**
 	 * Non destructively draw the handles of this ROI, using the {@link Graphics}
 	 * object given. The {@link #canvasAffineTransform} is used to position
 	 * the handles correctly with respect to the canvas zoom level.
 	 */
-	private void drawHandles(Graphics g) {
+	protected void drawHandles(Graphics g) {
 		final double r = shape.getParameters()[2];
 		double size = 4;
 		if (!Double.isNaN(r)) {
@@ -222,7 +213,7 @@ public class CircleRoi extends OvalRoi {
 			handleSize = 8;
 		} else if (size>5) {
 			handleSize = 6;
-		} else {			
+		} else {
 			handleSize = 4;
 		}
 		for (Handle h : handles) {
@@ -230,14 +221,14 @@ public class CircleRoi extends OvalRoi {
 			h.draw(g, canvasAffineTransform);
 		}
 	}
-	
+
 	/**
 	 * Refresh the {@link AffineTransform} of this shape, according to current {@link ImageCanvas}
 	 * settings. It is normally called only by the {@link #draw(Graphics)} method, for it
 	 * is called every time something changed in the canvas, and that is when this transform needs
 	 * to be updated.
 	 */
-	private void refreshAffineTransform() {
+	protected void refreshAffineTransform() {
 		canvasAffineTransform = new AffineTransform();
 		if (ic == null) { return; }
 		final double mag = ic.getMagnification();
@@ -248,7 +239,7 @@ public class CircleRoi extends OvalRoi {
 	/*
 	 * MAIN METHOD
 	 */
-	
+
 	/**
 	 * For testing purposes.
 	 */
@@ -258,7 +249,7 @@ public class CircleRoi extends OvalRoi {
 		//
 		ij.ImagePlus imp = ij.IJ.openImage("http://rsb.info.nih.gov/ij/images/blobs.gif");
 		imp.show();
-		
+
 		CircleShape c = new CircleShape(C.x, C.y, R);
 		CircleRoi roi = new CircleRoi(c);
 		imp.setRoi(roi);

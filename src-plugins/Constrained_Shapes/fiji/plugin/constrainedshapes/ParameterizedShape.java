@@ -25,10 +25,6 @@ public abstract class ParameterizedShape implements Shape, Cloneable {
 		Arrays.fill(upperBounds, Double.POSITIVE_INFINITY);
 	}
 
-	/*
-	 * INNER CLASSES & ENUMS
-	 */
-
 	/**
 	 * Enum to specify how we compute an energy value from a list of pixel values.
 	 * If the usage requires it, we can make this a proper interface with taylored
@@ -188,7 +184,4 @@ public abstract class ParameterizedShape implements Shape, Cloneable {
 		}
 		return function.compute(pixelList);
 	}
-
-
-
 }

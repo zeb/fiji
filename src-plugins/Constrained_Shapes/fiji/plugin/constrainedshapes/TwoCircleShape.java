@@ -18,15 +18,9 @@ import javax.swing.JFrame;
 import javax.swing.WindowConstants;
 
 public class TwoCircleShape extends ParameterizedShape   {
-
-
 	/** Enum that describes the instance two circles arrangement. Useful for drawing.	 */
 	public enum Arrangement { ISOLATED, CIRCLE_1_SWALLOWED, CIRCLE_2_SWALLOWED, INTERSECTING }
 
-	/*
-	 * FIELDS
-	 */
-	
 	/**
 	 * Parameter array for this shape. As specified in the mother abstract class {@link ParameterizedShape},
 	 * we store them as a double array of 6 elements. Array content is the following:
@@ -39,17 +33,17 @@ public class TwoCircleShape extends ParameterizedShape   {
 	 * 	<li> [5]: <code>r2</code>, the radius of circle 2
 	 * </ul>
 	 */
-	private double[] params = new double[6];
-	
+	protected double[] params = new double[6];
+
 	/*
 	 * CONSTRUCTORS
 	 */
-	
+
 	public TwoCircleShape() {
 		this(Double.NaN, Double.NaN, Double.NaN, Double.NaN, Double.NaN, Double.NaN);
 //		this(0, 0, 0, 0, 0, 0);
 	}
-	
+
 	public TwoCircleShape(double xc1, double yc1, double r1, double xc2, double yc2, double r2) {
 		params[0] 	= xc1;
 		params[1]	= yc1;
@@ -58,18 +52,18 @@ public class TwoCircleShape extends ParameterizedShape   {
 		params[4]	= yc2;
 		params[5]	= r2;
 	}
-	
+
 	/*
 	 * PUBLIC METHODS
 	 */
-	
+
 
 	public int getNumParameters() {
 		return 6;
 	}
-	
+
 	/**
-	 * Return the parameter array for this shape. 
+	 * Return the parameter array for this shape.
 	 * As specified in the mother abstract class {@link ParameterizedShape},
 	 * we store them as a double array of 6 elements. Array content is the following:
 	 * <ul>
@@ -82,10 +76,10 @@ public class TwoCircleShape extends ParameterizedShape   {
 	 * </ul>
 	 * @see #setParameters(double[])
 	 */
-	public double[] getParameters() {		
+	public double[] getParameters() {
 		return params;
 	}
-	
+
 	public static String[] getParameterNames() {
 		return new String[] {
 				"xc1",
@@ -96,11 +90,11 @@ public class TwoCircleShape extends ParameterizedShape   {
 				"r2"
 		};
 	}
-	
+
 	/**
-	 * Sets the parameter array for this shape. This <b>replaces</b> the 
+	 * Sets the parameter array for this shape. This <b>replaces</b> the
 	 * previous one, and as such, invalidates previous references to it.
-	 * <p>  
+	 * <p>
 	 * Array content is the following:
 	 * <ul>
 	 * 	<li> [0]: <code>xc1</code>, the x coordinate of circle 1 center
@@ -112,10 +106,10 @@ public class TwoCircleShape extends ParameterizedShape   {
 	 * </ul>
 	 * @see #getParameters()
 	 */
-	public void setParameters(double[] arr) {		
+	public void setParameters(double[] arr) {
 		this.params = arr;
 	}
-	
+
 	/**
 	 * Return the perimeter of this shape.
 	 */
@@ -128,25 +122,25 @@ public class TwoCircleShape extends ParameterizedShape   {
 		final double r2  = params[5];
 		double l = Double.NaN;
 		final double a = Math.sqrt((xc2-xc1)*(xc2-xc1) + (yc2-yc1)*(yc2-yc1)); // distance C1 to C2
-		final boolean separatedCircles = a > r1+r2; // true if the two circles do not intersect, resulting in having 2 separated circles 
+		final boolean separatedCircles = a > r1+r2; // true if the two circles do not intersect, resulting in having 2 separated circles
 		final boolean circle1Swallowed = r2 > r1 + a; // true if circle 1 is totally within circle 2, resulting in having only 1 circle
 		final boolean circle2Swallowed = r1 > r2 + a;
-		if (circle1Swallowed) { 
+		if (circle1Swallowed) {
 			l = 2 * Math.PI * r2;
 		} else if (circle2Swallowed) {
 			l = 2 * Math.PI * r1;
 		} else if (separatedCircles) {
 			l = 2 * Math.PI * (r1+r2);
-		} else { 
+		} else {
 			final double lx1 = ( a*a - r2*r2 + r1*r1 ) / (2*a); // distance C1 to cap
 			final double lx2 = ( a*a + r2*r2 - r1*r1 ) / (2*a); // distance C2 to cap
 			final double alpha1 = Math.acos(lx1/r1); // cap angle seen from C1
 			final double alpha2 = Math.acos(lx2/r2); // cap angle seen from C1
-			l = 2 * ( Math.PI - alpha1) * r1 + 2 * ( Math.PI - alpha2) * r2; 
+			l = 2 * ( Math.PI - alpha1) * r1 + 2 * ( Math.PI - alpha2) * r2;
 		}
 		return l;
 	}
-	
+
 	public double[][] sample(final int nPoints) {
 		final double xc1 = params[0];
 		final double yc1 = params[1];
@@ -154,16 +148,16 @@ public class TwoCircleShape extends ParameterizedShape   {
 		final double xc2 = params[3];
 		final double yc2 = params[4];
 		final double r2  = params[5];
-		
+
 		final double[] x = new double[nPoints];
 		final double[] y = new double[nPoints];
-		
+
 		final double phi = Math.atan2(yc2-yc1, xc2-xc1); // angle of C1C2 with x axis
 		final double a = Math.sqrt((xc2-xc1)*(xc2-xc1) + (yc2-yc1)*(yc2-yc1)); // distance C1 to C2
-		
-		final boolean separatedCircles = a > r1+r2; // true if the two circles do not intersect, resulting in having 2 separated circles 
+
+		final boolean separatedCircles = a > r1+r2; // true if the two circles do not intersect, resulting in having 2 separated circles
 		final boolean circle1Swallowed = r2 > r1 + a; // true if circle 1 is totally within circle 2, resulting in having only 1 circle
-		final boolean circle2Swallowed = r1 > r2 + a; 
+		final boolean circle2Swallowed = r1 > r2 + a;
 
 		if (circle1Swallowed) {
 			double theta;
@@ -179,7 +173,7 @@ public class TwoCircleShape extends ParameterizedShape   {
 				theta = i * 2 * Math.PI / nPoints;
 				x[i] = xc1 + r1 * Math.cos(theta);
 				y[i] = yc1 + r1 * Math.sin(theta);
-			} 
+			}
 
 		}else 	if (separatedCircles) {
 			final int N1 = (int) Math.round(nPoints / (1+r2/r1));
@@ -227,9 +221,9 @@ public class TwoCircleShape extends ParameterizedShape   {
 		final double xc2 = params[3];
 		final double yc2 = params[4];
 		final double r2  = params[5];
-		
+
 		final double a = Math.sqrt((xc2-xc1)*(xc2-xc1) + (yc2-yc1)*(yc2-yc1)); // distance C1 to C2
-		final boolean separatedCircles = a > r1+r2; // true if the two circles do not intersect, resulting in having 2 separated circles 
+		final boolean separatedCircles = a > r1+r2; // true if the two circles do not intersect, resulting in having 2 separated circles
 		final boolean circle1Swallowed = r2 > r1 + a; // true if circle 1 is totally within circle 2, resulting in having only 1 circle
 		final boolean circle2Swallowed = r1 > r2 + a;
 
@@ -243,11 +237,11 @@ public class TwoCircleShape extends ParameterizedShape   {
 			return Arrangement.INTERSECTING;
 		}
 	}
-	
+
 	public Point2D getC1() {
 		return new Point2D.Double(params[0], params[1]);
 	}
-	
+
 	public void setC1(Point2D p) {
 		params[0] = p.getX();
 		params[1] = p.getY();
@@ -256,84 +250,78 @@ public class TwoCircleShape extends ParameterizedShape   {
 	public Point2D getC2() {
 		return new Point2D.Double(params[3], params[4]);
 	}
-	
+
 	public void setC2(Point2D p) {
 		params[3] = p.getX();
 		params[4] = p.getY();
 	}
-	
+
 	public TwoCircleShape clone() {
 		TwoCircleShape newShape = new TwoCircleShape();
 		newShape.setParameters(this.getParameters().clone());
 		return newShape;
 	}
-	
+
 	public String toString() {
-		return String.format("xc1=%5.0f, yc1=%5.0f, r1=%5.0f, xc2=%5.0f, yc2=%5.0f, r2=%5.0f", 
+		return String.format("xc1=%5.0f, yc1=%5.0f, r1=%5.0f, xc2=%5.0f, yc2=%5.0f, r2=%5.0f",
 				params[0], params[1], params[2], params[3], params[4], params[5]);
 	}
-	
-	/*
-	 * PRIVATE METHODS
-	 */
-	
+
 	/**
-	 * Return a {@link GeneralPath} that describes the outline of this two-circle shape. 
+	 * Return a {@link GeneralPath} that describes the outline of this two-circle shape.
 	 * As {@link Ellipse2D} are used internally, the path will be made of Bézier curves.
-	 * The path generated by this method is then used in {@link Shape} methods. 
+	 * The path generated by this method is then used in {@link Shape} methods.
 	 */
-	private GeneralPath getPath() {
+	protected GeneralPath getPath() {
 		final double xc1 = params[0];
 		final double yc1 = params[1];
 		final double r1  = params[2];
 		final double xc2 = params[3];
 		final double yc2 = params[4];
 		final double r2  = params[5];
-		
+
 		GeneralPath path = new GeneralPath();
 		if ( !( Double.isNaN(xc1) || Double.isNaN(yc1) || Double.isNaN(r1)) ) {
 			final double xb1 = xc1 - r1;
-			final double yb1 = yc1 - r1;		
+			final double yb1 = yc1 - r1;
 			final Ellipse2D circle1 = new Ellipse2D.Double(xb1, yb1, 2*r1, 2*r1);
 			path.append(circle1, false);
 		}
 		if ( !( Double.isNaN(xc2) || Double.isNaN(yc2) || Double.isNaN(r2)) ) {
 			final double xb2 = xc2 - r2;
-			final double yb2 = yc2 - r2;		
+			final double yb2 = yc2 - r2;
 			final Ellipse2D circle2 = new Ellipse2D.Double(xb2, yb2, 2*r2, 2*r2);
 			path.append(circle2, false);
 		}
 		Area area = new Area(path); // We want the outline
 		return new GeneralPath(area);
 	}
-	
 
-	
 	/*
 	 * MAIN METHOD
 	 */
-	
+
 	public static void main(String[] args) {
-		
+
 		class TestCanvas extends Canvas {
-			private TwoCircleShape[] shape;
+			protected TwoCircleShape[] shape;
 			public TestCanvas(TwoCircleShape[] shape) {
 				this.shape = shape;
 			}
-			private static final long serialVersionUID = 1L;
+			protected static final long serialVersionUID = 1L;
 			public void paint(Graphics g) {
 				super.paint(g);
 				Graphics2D g2 = (Graphics2D) g;
-				for (TwoCircleShape s : shape) {					
+				for (TwoCircleShape s : shape) {
 					g2.draw(s);
-				}				
+				}
 				g2.setStroke(new CircleStroke(2));
-				for (TwoCircleShape s : shape) {					
+				for (TwoCircleShape s : shape) {
 					g2.draw(s);
-				}				
+				}
 			}
 		}
-		
+
 		TwoCircleShape tcs1 = new TwoCircleShape(100, 100, 70, 150, 150, 50); // mingled
 		TwoCircleShape tcs2 = new TwoCircleShape(50, 200, 30, 150, 250, 60); // separated
 		TwoCircleShape tcs3 = new TwoCircleShape(100, 400, 70, 100, 410, 50); // inside
@@ -346,13 +334,13 @@ public class TwoCircleShape extends ParameterizedShape   {
 		frame.getContentPane().add(canvas, BorderLayout.CENTER);
 		frame.pack();
 		frame.setSize(250, 500);
-		frame.setVisible(true);		
+		frame.setVisible(true);
 	}
-	
+
 	/*
 	 * SHAPE METHODS
 	 */
-	
+
 	public PathIterator getPathIterator(AffineTransform at) {
 		return getPath().getPathIterator(at);
 	}

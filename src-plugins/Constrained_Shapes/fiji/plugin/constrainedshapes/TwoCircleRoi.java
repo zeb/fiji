@@ -14,30 +14,17 @@ import java.awt.geom.Point2D;
 import java.util.ArrayList;
 
 public class TwoCircleRoi extends ShapeRoi  {
-
-	/*
-	 * FIELDS
-	 */
-	
-
-	/**
-	 * 
-	 */
-	private static final long serialVersionUID = 1L;
+	protected static final long serialVersionUID = 1L;
 	/** Min dist to drag a handle, in unzoomed pixels */
-	private static final double DRAG_TOLERANCE = 10;
-	private TwoCircleShape tcs;
-	private ArrayList<Handle> handles = new ArrayList<Handle>(4);
-	private AffineTransform canvasAffineTransform = new AffineTransform();
-	
-	/*
-	 * INNER CLASS * ENUMS
-	 */
-	
+	protected static final double DRAG_TOLERANCE = 10;
+	protected TwoCircleShape tcs;
+	protected ArrayList<Handle> handles = new ArrayList<Handle>(4);
+	protected AffineTransform canvasAffineTransform = new AffineTransform();
+
 	/**
 	 * Enum type to return where the user clicked relative to this ROI.
 	 */
-	public static enum ClickLocation { 
+	public static enum ClickLocation {
 		OUTSIDE, INSIDE, HANDLE_C1, HANDLE_C2, HANDLE_R1, HANDLE_R2;
 		/**
 		 * Return the {@link InteractionStatus} expected when clicking this location.
@@ -62,19 +49,19 @@ public class TwoCircleRoi extends ShapeRoi  {
 				break;
 			}
 			return is;
-		}	
+		}
 	}
-	
+
 	/**
 	 * This internal class is used to deal with the small handles that appear on
-	 * the ROI. They are used to resize the shape when the user click-drags on 
+	 * the ROI. They are used to resize the shape when the user click-drags on
 	 * them.
 	 */
-	private static class Handle {
-		private static final long serialVersionUID = 1L;
-		private static final Color HANDLE_COLOR = Color.WHITE;
-		
-		public enum Type { 
+	protected static class Handle {
+		protected static final long serialVersionUID = 1L;
+		protected static final Color HANDLE_COLOR = Color.WHITE;
+
+		public enum Type {
 			CIRCLE_1_CENTER, CIRCLE_2_CENTER, CIRCLE_1_RADIUS, CIRCLE_2_RADIUS;
 			/**
 			 * Return the {@link ClickLocation} corresponding to this handle.
@@ -96,7 +83,7 @@ public class TwoCircleRoi extends ShapeRoi  {
 					break;
 				}
 				return cl;
-			}			
+			}
 		}
 		public Type type;
 		public Point2D center = new Point2D.Double();
@@ -105,10 +92,10 @@ public class TwoCircleRoi extends ShapeRoi  {
 			this.center = new Point2D.Double(x, y);
 			this.type = type;
 		}
-		
+
 		public void draw(Graphics g, AffineTransform at) {
 			Point2D dest = new Point2D.Double();
-			if ( at == null) { 
+			if ( at == null) {
 				dest = center;
 			} else {
 				at.transform(center, dest);
@@ -133,25 +120,25 @@ public class TwoCircleRoi extends ShapeRoi  {
 			}
 		}
 	}
-	
-	
+
+
 	/*
 	 * CONSTRUCTOR
 	 */
-	
+
 	public TwoCircleRoi() {
 		this(new TwoCircleShape());
 	}
-	
+
 	public TwoCircleRoi(TwoCircleShape tcs) {
 		super(tcs);
 		this.tcs = tcs;
 	}
-	
+
 	/*
 	 * PUBLIC METHODS
 	 */
-	
+
 	/**
 	 * Return the location of the given point with respect to this shape. The point
 	 * coordinates are supposed to be in the {@link ImageCanvas} coordinates.
@@ -174,27 +161,27 @@ public class TwoCircleRoi extends ShapeRoi  {
 		}
 		if (canvasAffineTransform.createTransformedShape(tcs).contains(p)) {
 			return ClickLocation.INSIDE;
-		} 
+		}
 		return ClickLocation.OUTSIDE;
 	}
-		
+
 	/*
 	 * SHAPEROI METHODS
 	 */
-	
+
 	/**
 	 * Returns the {@link TwoCircleShape} encapsulated by this object. This method
-	 * is problematic, because we want this ROI to be immutable. But modifying the shape 
+	 * is problematic, because we want this ROI to be immutable. But modifying the shape
 	 * which reference is given by this method will modify the ROI internally. However,
 	 * the ROI mechanics in ImageJ will ignore these changes.
 	 */
 	public TwoCircleShape getShape() {
 		return tcs;
 	}
-	
+
 	/**
-	 * Draw this ROI on the current {@link ImageCanvas}. 
-	 * Overrides the {@link ShapeRoi#draw(java.awt.Graphics)} method, so that 
+	 * Draw this ROI on the current {@link ImageCanvas}.
+	 * Overrides the {@link ShapeRoi#draw(java.awt.Graphics)} method, so that
 	 * we can draw our shape with handles.
 	 */
 	@Override
@@ -208,16 +195,12 @@ public class TwoCircleRoi extends ShapeRoi  {
 		drawHandles(g2);
 	}
 
-	/*
-	 * PRIVATE METHODS
-	 */
-		
 	/**
 	 * Regenerate the {@link #handles} field. The {@link Handle} coordinates are generated
-	 * with respect to the {@link TwoCircleShape} object. They will be transformed in the 
+	 * with respect to the {@link TwoCircleShape} object. They will be transformed in the
 	 * {@link ImageCanvas} coordinates when drawn.
 	 */
-	private void prepareHandles() {	
+	protected void prepareHandles() {
 		handles.clear();
 		// Prepare handles
 		final double[] params = tcs.getParameters();
@@ -227,10 +210,10 @@ public class TwoCircleRoi extends ShapeRoi  {
 		final double xc2 = params[3];
 		final double yc2 = params[4];
 		final double r2  = params[5];
-		
+
 		final double dx = xc2 - xc1;
 		final double dy = yc2 - yc1;
-		
+
 		final double a = Math.sqrt(dx*dx + dy*dy); // distance C1 to C2
 		final double lx1 = ( a*a - r2*r2 + r1*r1 ) / (2*a); // distance C1 to cap
 		final double lx2 = ( a*a + r2*r2 - r1*r1 ) / (2*a); // distance C2 to cap
@@ -315,13 +298,13 @@ public class TwoCircleRoi extends ShapeRoi  {
 		}
 		}
 	}
-	
+
 	/**
 	 * Non destructively draw the handles of this ROI, using the {@link Graphics}
 	 * object given. The {@link #canvasAffineTransform} is used to position
 	 * the handles correctly with respect to the canvas zoom level.
 	 */
-	private void drawHandles(Graphics g) {
+	protected void drawHandles(Graphics g) {
 		final double[] params = tcs.getParameters();
 		final double r1 = params[2];
 		final double r2 = params[5];
@@ -338,7 +321,7 @@ public class TwoCircleRoi extends ShapeRoi  {
 			handleSize = 8;
 		} else if (size>5) {
 			handleSize = 6;
-		} else {			
+		} else {
 			handleSize = 4;
 		}
 		for (Handle h : handles) {
@@ -346,27 +329,27 @@ public class TwoCircleRoi extends ShapeRoi  {
 			h.draw(g, canvasAffineTransform);
 		}
 	}
-	
-	
-	
+
+
+
 	/**
 	 * Refresh the {@link AffineTransform} of this shape, according to current {@link ImageCanvas}
 	 * settings. It is normally called only by the {@link #draw(Graphics)} method, for it
 	 * is called every time something changed in the canvas, and that is when this transform needs
 	 * to be updated.
 	 */
-	private void refreshAffineTransform() {
+	protected void refreshAffineTransform() {
 		canvasAffineTransform = new AffineTransform();
 		if (ic == null) { return; }
 		final double mag = ic.getMagnification();
 		final Rectangle r = ic.getSrcRect();
 		canvasAffineTransform.setTransform(mag, 0.0, 0.0, mag, -r.x*mag, -r.y*mag);
 	}
-	
+
 	/*
 	 * MAIN METHOD
 	 */
-	
+
 	/**
 	 * For testing purposes.
 	 */
@@ -378,7 +361,7 @@ public class TwoCircleRoi extends ShapeRoi  {
 		//
 		ij.ImagePlus imp = ij.IJ.openImage("http://rsb.info.nih.gov/ij/images/blobs.gif");
 		imp.show();
-		
+
 		TwoCircleShape tcs = new TwoCircleShape(C1.x, C1.y, R1, C2.x, C2.y, R2);
 		TwoCircleRoi roi = new TwoCircleRoi(tcs);
 		imp.setRoi(roi);
@@ -386,5 +369,4 @@ public class TwoCircleRoi extends ShapeRoi  {
 		imp.getCanvas().zoomIn(2, 2);
 		imp.updateAndDraw();
 	}
-
 }

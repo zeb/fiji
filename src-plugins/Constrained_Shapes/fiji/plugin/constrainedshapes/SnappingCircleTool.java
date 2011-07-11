@@ -31,10 +31,6 @@ public class SnappingCircleTool extends AbstractTool implements MouseListener, M
 	protected Snapper snapper;
 	protected Color savedRoiColor;
 
-	/*
-	 * ENUM
-	 */
-
 	public static enum InteractionStatus {
 		FREE,
 		MOVING,
@@ -58,7 +54,7 @@ public class SnappingCircleTool extends AbstractTool implements MouseListener, M
 	 * It is derived from a helper class Albert Cardona did for the Dynamic_Reslice plugin.
 	 *
 	 */
-	private class Snapper extends Thread implements MinimiserMonitor {
+	protected class Snapper extends Thread implements MinimiserMonitor {
 		protected ShapeFitter fitter;
 		protected ImagePlus imp;
 

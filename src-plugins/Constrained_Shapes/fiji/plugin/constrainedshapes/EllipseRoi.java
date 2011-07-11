@@ -16,23 +16,18 @@ import ij.gui.ShapeRoi;
 import ij.process.ImageProcessor;
 
 public class EllipseRoi extends ShapeRoi {
-
-	/*
-	 * FIELDS
-	 */
-	
-	private static final long serialVersionUID = 1L;
+	protected static final long serialVersionUID = 1L;
 	/** Min dist to drag a handle, in unzoomed pixels */
-	private static final double DRAG_TOLERANCE = 10;
+	protected static final double DRAG_TOLERANCE = 10;
 	public EllipseShape shape;
-	private Handle[] handles = new Handle[4];
+	protected Handle[] handles = new Handle[4];
 	AffineTransform canvasAffineTransform = new AffineTransform();
-	
+
 	/*
 	 * ENUM
 	 */
 
-	public static enum ClickLocation { 
+	public static enum ClickLocation {
 		INSIDE, OUTSIDE, HANDLE_MAJOR, HANDLE_MINOR;
 
 		/**
@@ -50,21 +45,21 @@ public class EllipseRoi extends ShapeRoi {
 			default:
 				return InteractionStatus.FREE; // dummy
 			}
-		}	
-	}; 
-	
+		}
+	};
+
 	/*
 	 * INNER CLASS
 	 */
-	
+
 	/**
 	 * This internal class is used to deal with the small handles that appear on
-	 * the ROI. They are used to resize the shape when the user click-drags on 
+	 * the ROI. They are used to resize the shape when the user click-drags on
 	 * them.
 	 */
-	private static class Handle {
-		private static final long serialVersionUID = 1L;
-		private static final Color HANDLE_COLOR = Color.WHITE;
+	protected static class Handle {
+		protected static final long serialVersionUID = 1L;
+		protected static final Color HANDLE_COLOR = Color.WHITE;
 		public Point2D center = new Point2D.Double();
 		public Type type;
 		public int size = 7;
@@ -80,15 +75,15 @@ public class EllipseRoi extends ShapeRoi {
 				}
 			}
 		}
-		
+
 		public Handle(double x, double y, Type type) {
 			this.center = new Point2D.Double(x, y);
 			this.type = type;
 		}
-		
+
 		public void draw(Graphics g, AffineTransform at) {
 			Point2D dest = new Point2D.Double();
-			if ( at == null) { 
+			if ( at == null) {
 				dest = center;
 			} else {
 				at.transform(center, dest);
@@ -101,24 +96,24 @@ public class EllipseRoi extends ShapeRoi {
 			g.fillRect(ix-size/2+1, iy-size/2+1, size-2, size-2);
 		}
 	}
-	
+
 	/*
 	 * CONSTRUCTORS
 	 */
-	
+
 	public EllipseRoi() {
 		this(new EllipseShape());
 	}
-	
+
 	public EllipseRoi(EllipseShape shape) {
 		super(1, 1, new Ellipse2D.Float(0, 0, 1, 1)); // but we don't care
 		this.shape = shape;
 	}
-	
+
 	/*
 	 * SHAPEROI METHODS
 	 */
-	
+
 	@Override
 	public void draw(Graphics g) {
 		refreshAffineTransform();
@@ -129,79 +124,79 @@ public class EllipseRoi extends ShapeRoi {
 		prepareHandles();
 		drawHandles(g);
 	}
-	
+
 	@Override
 	public ShapeRoi and(ShapeRoi sr) {
 		ShapeRoi hiddenRoi = new ShapeRoi(shape);
 		return hiddenRoi.and(sr);
 	}
-	
+
 	@Override
 	public ShapeRoi xor(ShapeRoi sr) {
 		ShapeRoi hiddenRoi = new ShapeRoi(shape);
 		return hiddenRoi.xor(sr);
 	}
-	
+
 	@Override
 	public ShapeRoi or(ShapeRoi sr) {
 		ShapeRoi hiddenRoi = new ShapeRoi(shape);
 		return hiddenRoi.or(sr);
 	}
-	
+
 	@Override
 	public String toString() {
 		return "EllipseRoi: "+shape.toString();
 	}
-	
+
 	@Override
 	public boolean contains(int x, int y) {
 		return shape.contains(x, y);
 	}
-	
+
 	@Override
 	public synchronized Object clone() {
 		return new EllipseRoi(shape.clone());
 	}
-	
+
 	@Override
 	public void drawPixels(ImageProcessor ip) {
 		ShapeRoi hiddenRoi = new ShapeRoi(shape);
 		hiddenRoi.drawPixels(ip);
 	}
-	
+
 	@Override
 	public Rectangle getBoundingRect() {
 		return shape.getBounds();
 	}
-	
+
 	@Override
 	public Rectangle getBounds() {
 		return shape.getBounds();
 	}
-	
+
 	@Override
 	public ImageProcessor getMask() {
 		ShapeRoi hiddenRoi = new ShapeRoi(shape);
 		return hiddenRoi.getMask();
 	}
-	
+
 	@Override
 	public boolean isArea() {
 		return true;
 	}
-	
-	
-	
+
+
+
 	/*
 	 * PUBLIC METHODS
 	 */
-	
+
 	public ClickLocation getClickLocation(Point2D p) {
 		if (shape == null)  { // There is no shape yet
 			return ClickLocation.OUTSIDE;
 		}
 		double[] params = shape.getParameters();
-		if ( Double.isNaN(params[0]) || Double.isNaN(params[1]) || Double.isNaN(params[2]) || 
+		if ( Double.isNaN(params[0]) || Double.isNaN(params[1]) || Double.isNaN(params[2]) ||
 				Double.isNaN(params[3]) || Double.isNaN(params[4]) ) {
 			return ClickLocation.OUTSIDE;
 		}
@@ -218,15 +213,11 @@ public class EllipseRoi extends ShapeRoi {
 		}
 		if (canvasAffineTransform.createTransformedShape(shape).contains(p)) {
 			return ClickLocation.INSIDE;
-		} 
+		}
 		return ClickLocation.OUTSIDE;
 	}
-	
-	/*
-	 * PRIVATE METHODS
-	 */
-	
-	private void prepareHandles() {
+
+	protected void prepareHandles() {
 		final double[] params = shape.getParameters();
 		final double xc  = params[0];
 		final double yc  = params[1];
@@ -244,14 +235,14 @@ public class EllipseRoi extends ShapeRoi {
 		handles[2] = h3;
 		handles[3] = h4;
 	}
-	
+
 	/**
 	 * Non destructively draw the handles of this ROI, using the {@link Graphics}
 	 * object given. The {@link #canvasAffineTransform} is used to position
 	 * the handles correctly with respect to the canvas zoom level.
 	 */
-	private void drawHandles(Graphics g) {
-		final double[] params = shape.getParameters(); 
+	protected void drawHandles(Graphics g) {
+		final double[] params = shape.getParameters();
 		final double a = params[2];
 		final double b = params[3];
 		double size = 4;
@@ -267,7 +258,7 @@ public class EllipseRoi extends ShapeRoi {
 			handleSize = 8;
 		} else if (size>5) {
 			handleSize = 6;
-		} else {			
+		} else {
 			handleSize = 4;
 		}
 		for (Handle h : handles) {
@@ -275,26 +266,26 @@ public class EllipseRoi extends ShapeRoi {
 			h.draw(g, canvasAffineTransform);
 		}
 	}
-	
-	
+
+
 	/**
 	 * Refresh the {@link AffineTransform} of this shape, according to current {@link ImageCanvas}
 	 * settings. It is normally called only by the {@link #draw(Graphics)} method, for it
 	 * is called every time something changed in the canvas, and that is when this transform needs
 	 * to be updated.
 	 */
-	private void refreshAffineTransform() {
+	protected void refreshAffineTransform() {
 		canvasAffineTransform = new AffineTransform();
 		if (ic == null) { return; }
 		final double mag = ic.getMagnification();
 		final Rectangle r = ic.getSrcRect();
 		canvasAffineTransform.setTransform(mag, 0.0, 0.0, mag, -r.x*mag, -r.y*mag);
 	}
-	
+
 	/*
 	 * MAIN METHOD
 	 */
-	
+
 	/**
 	 * For testing purposes.
 	 */
@@ -306,7 +297,7 @@ public class EllipseRoi extends ShapeRoi {
 		//
 		ij.ImagePlus imp = ij.IJ.openImage("http://rsb.info.nih.gov/ij/images/blobs.gif");
 		imp.show();
-		
+
 		EllipseShape e = new EllipseShape(C.x, C.y, a, b, phi);
 		EllipseRoi roi = new EllipseRoi(e);
 		imp.setRoi(roi);
@@ -314,5 +305,4 @@ public class EllipseRoi extends ShapeRoi {
 		imp.getCanvas().zoomIn(2, 2);
 		imp.updateAndDraw();
 	}
-
 }

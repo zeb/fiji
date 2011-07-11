@@ -17,11 +17,6 @@ import javax.swing.JFrame;
 import javax.swing.WindowConstants;
 
 public class EllipseShape extends ParameterizedShape {
-
-	/*
-	 * FIELDS
-	 */
-	
 	/**
 	 * Parameter array for this shape. As specified in the mother abstract class {@link ParameterizedShape},
 	 * we store them as a double array of 5 elements. In this class, the ellipse is implemented
@@ -34,12 +29,12 @@ public class EllipseShape extends ParameterizedShape {
 	 *  <li> [4]: <code>phi</code>, the angle between the X axis and the major axis, in radians.
 	 * </ul>
 	 */
-	private double[] params = new double[5];
-	
+	protected double[] params = new double[5];
+
 	/*
 	 * CONSTRUCTORS
 	 */
-	
+
 	/**
 	 * Create a new ellipse using its parametric form:
 	 * @param xc  the ellipse center X coordinate
@@ -55,26 +50,26 @@ public class EllipseShape extends ParameterizedShape {
 		params[3] = b;
 		params[4] = phi;
 	}
-	
+
 	public EllipseShape() {
 		this(Double.NaN, Double.NaN, Double.NaN, Double.NaN, Double.NaN);
 	}
-	
+
 	/*
 	 * PUBLIC METHODS
 	 */
-	
+
 	public Point2D getCenter() {
 		return new Point2D.Double(params[0], params[1]);
 	}
-	
+
 	public void setCenter(Point2D c) {
 		params[0] = c.getX();
 		params[1] = c.getY();
 	}
-	
+
 	public String toString() {
-		return String.format("xc=%5.0f, yc=%5.0f, a=%5.0f, b=%5.0f, phi=%.2f", 
+		return String.format("xc=%5.0f, yc=%5.0f, a=%5.0f, b=%5.0f, phi=%.2f",
 				params[0], params[1], params[2], params[3], params[4]);
 	}
 
@@ -87,11 +82,11 @@ public class EllipseShape extends ParameterizedShape {
 		return Math.PI * ( 3*(a+b) - Math.sqrt(10*a*b + 3*(a*a+b*b)) );
 	}
 
-	
+
 	/*
 	 * GEOMSHAPE METHODS
 	 */
-	
+
 	@Override
 	public EllipseShape clone() {
 		EllipseShape newEl = new EllipseShape();
@@ -115,13 +110,13 @@ public class EllipseShape extends ParameterizedShape {
 		final double yc  = params[1];
 		final double a   = params[2];
 		final double b   = params[3];
-		final double phi = params[4]; 
+		final double phi = params[4];
 		final double sinphi = Math.sin(phi);
 		final double cosphi = Math.cos(phi);
 		final double[] x = new double[nPoints];
-		final double[] y = new double[nPoints];		
+		final double[] y = new double[nPoints];
 		double alpha, sinalpha, cosalpha;
-		
+
 		for (int i = 0; i < nPoints; i++ ) 		  {
 			alpha = i * 2 * Math.PI / nPoints ;
 			sinalpha = Math.sin(alpha);
@@ -176,57 +171,53 @@ public class EllipseShape extends ParameterizedShape {
 	public boolean intersects(double x, double y, double w, double h) {
 		return getPrimitiveShape().intersects(x, y, w, h);
 	}
-	
-	/*
-	 * PRIVATE METHODS
-	 */
-	
-	private Shape getPrimitiveShape() {
+
+	protected Shape getPrimitiveShape() {
 		final double xc  = params[0];
 		final double yc  = params[1];
 		final double a   = params[2];
 		final double b   = params[3];
-		final double phi = params[4]; 
+		final double phi = params[4];
 		final Ellipse2D el = new Ellipse2D.Double(xc-a, yc-b, 2*a, 2*b);
 		return AffineTransform.getRotateInstance(phi, xc, yc).createTransformedShape(el);
 	}
-	
+
 	/*
 	 * MAIN METHOD
 	 */
-	
-	
+
+
 	public static void main(String[] args) {
-		
+
 		class TestCanvas extends Canvas {
-			private EllipseShape[] shape;
+			protected EllipseShape[] shape;
 			public TestCanvas(EllipseShape[] shape) {
 				this.shape = shape;
 			}
-			private static final long serialVersionUID = 1L;
+			protected static final long serialVersionUID = 1L;
 			public void paint(Graphics g) {
 				double[][] xy;
 				GeneralPath path;
 				super.paint(g);
 				Graphics2D g2 = (Graphics2D) g;
-				for (EllipseShape s : shape) {					
+				for (EllipseShape s : shape) {
 					g2.draw(s);
-				}				
+				}
 				g2.setStroke(new CircleStroke(2));
-				for (EllipseShape s : shape) {					
+				for (EllipseShape s : shape) {
 					xy = s.sample(50);
 					path = new GeneralPath(GeneralPath.WIND_EVEN_ODD, xy[0].length);
-					path.moveTo( (float) xy[0][0], (float) xy[1][0]);						
+					path.moveTo( (float) xy[0][0], (float) xy[1][0]);
 					for (int i = 1; i < xy[0].length; i++) {
-						path.lineTo( (float) xy[0][i], (float) xy[1][i]);						
+						path.lineTo( (float) xy[0][i], (float) xy[1][i]);
 					}
 					g2.draw(path);
-				}				
+				}
 			}
 		}
-		EllipseShape e1 = new EllipseShape(100, 100, 70, 50, 0); 
-		EllipseShape e2 = new EllipseShape(100, 200, 30, 15, 1); 
-		EllipseShape e3 = new EllipseShape(100, 300, 70, 30, -0.5); 
+		EllipseShape e1 = new EllipseShape(100, 100, 70, 50, 0);
+		EllipseShape e2 = new EllipseShape(100, 200, 30, 15, 1);
+		EllipseShape e3 = new EllipseShape(100, 300, 70, 30, -0.5);
 		EllipseShape[] shapes = new EllipseShape[] { e1, e2, e3 };
 		JFrame frame = new JFrame();
 		frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
@@ -236,8 +227,6 @@ public class EllipseShape extends ParameterizedShape {
 		frame.getContentPane().add(canvas, BorderLayout.CENTER);
 		frame.pack();
 		frame.setSize(250, 500);
-		frame.setVisible(true);		
+		frame.setVisible(true);
 	}
-	
-
 }

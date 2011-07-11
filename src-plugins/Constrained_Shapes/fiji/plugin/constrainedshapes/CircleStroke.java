@@ -7,21 +7,12 @@ import java.awt.geom.GeneralPath;
 import java.awt.geom.PathIterator;
 
 public class CircleStroke implements Stroke {
+	protected float size;
 
-	/*
-	 * FIELDS
-	 */
-	
-	private float size;
-	
-	/*
-	 * CONSTRUCTOR
-	 */
-	
 	public CircleStroke(float size) {
 		this.size = size;
 	}
-	
+
 	public Shape createStrokedShape(final Shape p) {
 		GeneralPath path = new GeneralPath();
 		final PathIterator pi = p.getPathIterator(null);
@@ -55,9 +46,8 @@ public class CircleStroke implements Stroke {
 		}
 		return path;
 	}
-		
-	private Shape convolve(final float x, final float y) {
+
+	protected Shape convolve(final float x, final float y) {
 		return new Ellipse2D.Float(x-size/2, y-size/2, size, size);
 	}
-
 }

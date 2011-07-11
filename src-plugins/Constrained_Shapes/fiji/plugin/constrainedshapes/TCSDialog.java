@@ -26,8 +26,8 @@ public class TCSDialog extends javax.swing.JDialog implements ImageListener, Act
 
 	public static final int OK = 0;
 	public static final int CANCELED = 1;
-	
-	private static final long serialVersionUID = 1L;
+
+	protected static final long serialVersionUID = 1L;
 
 	{
 		//Set Look & Feel
@@ -38,27 +38,27 @@ public class TCSDialog extends javax.swing.JDialog implements ImageListener, Act
 		}
 	}
 
-	private JLabel jLabelStart;
-	private JLabel jLabelLast;
-	private JLabel jLabelStep;
-	private JLabel jLabelHelp;
-	private JButton jButtonCancel;
-	private JButton jButtonOK;
-	private JTextField jTextFieldStep;
-	private JTextField jTextFieldLast;
-	private JTextField jTextFieldFirst;
-	private JCheckBox jCheckBoxMonitor;
-	private JComboBox jComboBoxTargetFunction;
-	private JLabel jLabelTargetFunction;
-	
-	private ImagePlus sourceImp;
-	private int[] slicingValues;
-	private int[] previousValues;
-	private int[] upperBounds; // inclusive
-	private int[] lowerBounds;
-	private boolean doMonitor;
-	
-	private ArrayList<ActionListener> actionListeners = new ArrayList<ActionListener>();
+	protected JLabel jLabelStart;
+	protected JLabel jLabelLast;
+	protected JLabel jLabelStep;
+	protected JLabel jLabelHelp;
+	protected JButton jButtonCancel;
+	protected JButton jButtonOK;
+	protected JTextField jTextFieldStep;
+	protected JTextField jTextFieldLast;
+	protected JTextField jTextFieldFirst;
+	protected JCheckBox jCheckBoxMonitor;
+	protected JComboBox jComboBoxTargetFunction;
+	protected JLabel jLabelTargetFunction;
+
+	protected ImagePlus sourceImp;
+	protected int[] slicingValues;
+	protected int[] previousValues;
+	protected int[] upperBounds; // inclusive
+	protected int[] lowerBounds;
+	protected boolean doMonitor;
+
+	protected ArrayList<ActionListener> actionListeners = new ArrayList<ActionListener>();
 
 	/**
 	* Auto-generated main method to display this JDialog
@@ -72,7 +72,7 @@ public class TCSDialog extends javax.swing.JDialog implements ImageListener, Act
 		} else {
 			imp = null;
 		}
-		
+
 		SwingUtilities.invokeLater(new Runnable() {
 			public void run() {
 				TCSDialog inst = new TCSDialog(imp);
@@ -80,11 +80,11 @@ public class TCSDialog extends javax.swing.JDialog implements ImageListener, Act
 			}
 		});
 	}
-	
+
 	/*
 	 * CONSTRUCTOR
 	 */
-	
+
 	public TCSDialog(ImagePlus imp) {
 		super();
 		sourceImp = imp;
@@ -104,41 +104,41 @@ public class TCSDialog extends javax.swing.JDialog implements ImageListener, Act
 		initGUI();
 		ImagePlus.addImageListener(this);
 	}
-	
+
 	/*
 	 * PUBLIC METHODS
 	 */
-	
+
 	public void addActionListener(ActionListener l) {
 		actionListeners.add(l);
 	}
-	
+
 	public void removeActionListener(ActionListener l) {
 		actionListeners.remove(l);
 	}
-	
+
 	public ActionListener[] getActionListeners() {
 		return (ActionListener[]) actionListeners.toArray();
 	}
-	
+
 	public ParameterizedShape.EvalFunction getSelectedTargetFunction() {
 		return (EvalFunction) jComboBoxTargetFunction.getSelectedItem();
 	}
-	
+
 	public int[] getSliceParameters() {
 		return slicingValues;
 	}
-	
+
 	public boolean doMonitor() {
 		doMonitor = jCheckBoxMonitor.isSelected();
 		return doMonitor;
 	}
-	
-	
+
+
 	/*
 	 * IMAGEOBSERVER METHODS
 	 */
-	
+
 	/**
 	 * Terminate dialog if source ImagePlus is closed.
 	 */
@@ -152,7 +152,7 @@ public class TCSDialog extends javax.swing.JDialog implements ImageListener, Act
 	/*
 	 * ACTIONLISTENER METHOD
 	 */
-	
+
 	public void actionPerformed(ActionEvent e) {
 		String command = e.getActionCommand();
 		if (command.contentEquals(jButtonOK.getText())) {
@@ -167,18 +167,14 @@ public class TCSDialog extends javax.swing.JDialog implements ImageListener, Act
 	/*
 	 * FOCUSLISTENER METHODS
 	 */
-	
+
 	public void focusGained(FocusEvent e) {	}
 
 	public void focusLost(FocusEvent e) {
 		dealWithTextFields(e);
 	}
 
-	/*
-	 * PRIVATE METHODS
-	 */
-	
-	private void dealWithTextFields(EventObject e) {
+	protected void dealWithTextFields(EventObject e) {
 		JTextField source = (JTextField) e.getSource();
 		int index = 0;
 		if (source == jTextFieldFirst) { index = 0; }
@@ -198,18 +194,18 @@ public class TCSDialog extends javax.swing.JDialog implements ImageListener, Act
 			source.setText(String.format("%d", previousValues[index]));
 		}
 	}
-	
-	private void fireActionProperty(int eventId, String command) {
+
+	protected void fireActionProperty(int eventId, String command) {
 		ActionEvent action = new ActionEvent(this, eventId, command);
 		for (ActionListener l : actionListeners) {
 			synchronized (l) {
 				l.notifyAll();
-				l.actionPerformed(action);				
+				l.actionPerformed(action);
 			}
 		}
 	}
-	
-	private void initGUI() {
+
+	protected void initGUI() {
 		try {
 			{
 				getContentPane().setLayout(null);
@@ -246,7 +242,7 @@ public class TCSDialog extends javax.swing.JDialog implements ImageListener, Act
 					jLabelStep.setText("Step");
 					jLabelStep.setBounds(20, 60, 76, 16);
 					jLabelStep.setHorizontalTextPosition(SwingConstants.RIGHT);
-					jLabelStep.setHorizontalAlignment(SwingConstants.RIGHT);				
+					jLabelStep.setHorizontalAlignment(SwingConstants.RIGHT);
 				}
 				{
 					jTextFieldFirst = new JTextField();
@@ -327,5 +323,4 @@ public class TCSDialog extends javax.swing.JDialog implements ImageListener, Act
 			e.printStackTrace();
 		}
 	}
-	
 }

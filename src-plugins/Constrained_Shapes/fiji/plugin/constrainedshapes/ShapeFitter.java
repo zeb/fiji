@@ -9,11 +9,6 @@ import pal.math.MultivariateMinimum;
 import pal.math.OrthogonalHints;
 
 public class ShapeFitter implements MultivariateFunction {
-
-	/*
-	 * ENUM
-	 */
-
 	/**
 	 * This is used as a factory to return an optimization method. As now,
 	 * since there is only one working optimizer in the PAL package, there
@@ -33,26 +28,22 @@ public class ShapeFitter implements MultivariateFunction {
 		}
 	}
 
-	/*
-	 * FIELDS
-	 */
-
-	private int nPoints = 500;
+	protected int nPoints = 500;
 	/**
 	 * Sets the desired precision of the optimization process.
 	 * These 2 numbers set the desired number of digits after
 	 * dot of parameters and function.
 	 */
-	private static final int PARAMETER_PRECISION = 2;
-	private static final int FUNCTION_PRECISION = 2;
+	protected static final int PARAMETER_PRECISION = 2;
+	protected static final int FUNCTION_PRECISION = 2;
 
-	private ParameterizedShape shape; // Can't be null because of constructor.
-	private ImageProcessor ip;
-	private ParameterizedShape.EvalFunction function = ParameterizedShape.EvalFunction.MEAN;
-	private MinimiserMonitor monitor = null;
+	protected ParameterizedShape shape; // Can't be null because of constructor.
+	protected ImageProcessor ip;
+	protected ParameterizedShape.EvalFunction function = ParameterizedShape.EvalFunction.MEAN;
+	protected MinimiserMonitor monitor = null;
 
-	private Method method = Method.CONJUGATE_DIRECTION_SEARCH;
-	private MultivariateMinimum optimizer;
+	protected Method method = Method.CONJUGATE_DIRECTION_SEARCH;
+	protected MultivariateMinimum optimizer;
 
 	/*
 	 * CONSTRUCTOR
@@ -169,5 +160,4 @@ public class ShapeFitter implements MultivariateFunction {
 		this.optimizer = method.instantiate(shape);
 		this.shape = shape;
 	}
-
 }

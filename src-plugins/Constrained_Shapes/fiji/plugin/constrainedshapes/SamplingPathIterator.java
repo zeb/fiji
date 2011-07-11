@@ -3,19 +3,15 @@ package fiji.plugin.constrainedshapes;
 import java.awt.geom.PathIterator;
 
 public class SamplingPathIterator implements PathIterator {
-	
-	/*
-	 * FIELDS 
-	 */
-	ParameterizedShape shape;
-	double[] x;
-	double[] y;
-	int currentIndex, nPoints;
-	
+	protected ParameterizedShape shape;
+	protected double[] x;
+	protected double[] y;
+	protected int currentIndex, nPoints;
+
 	/*
 	 * CONSTRUCTORS
 	 */
-	
+
 	public SamplingPathIterator(ParameterizedShape shape, int n) {
 		this.shape = shape;
 		this.nPoints = n;
@@ -25,11 +21,11 @@ public class SamplingPathIterator implements PathIterator {
 		this.currentIndex = 0;
 	}
 
-	
+
 	/*
 	 * PATHITERATOR METHODS
 	 */
-	
+
 	public int currentSegment(float[] coords) {
 		coords[0] = (float) x[currentIndex];
 		coords[1] = (float) y[currentIndex];
@@ -38,10 +34,10 @@ public class SamplingPathIterator implements PathIterator {
 		coords[4] = 0.0f;
 		coords[5] = 0.0f;
 		int segmentType;
-		if (currentIndex == 0)			{ 
-			segmentType = PathIterator.SEG_MOVETO; 
+		if (currentIndex == 0)			{
+			segmentType = PathIterator.SEG_MOVETO;
 		} else {
-			segmentType = PathIterator.SEG_LINETO; 
+			segmentType = PathIterator.SEG_LINETO;
 		}
 		return segmentType;
 	}
@@ -54,10 +50,10 @@ public class SamplingPathIterator implements PathIterator {
 		coords[4] = 0.0;
 		coords[5] = 0.0;
 		int segmentType;
-		if (currentIndex == 0)			{ 
-			segmentType = PathIterator.SEG_MOVETO; 
+		if (currentIndex == 0)			{
+			segmentType = PathIterator.SEG_MOVETO;
 		} else {
-			segmentType = PathIterator.SEG_LINETO; 
+			segmentType = PathIterator.SEG_LINETO;
 		}
 		return segmentType;
 	}
@@ -73,5 +69,4 @@ public class SamplingPathIterator implements PathIterator {
 	public void next() {
 		currentIndex++;
 	}
-
 }

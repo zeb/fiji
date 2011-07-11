@@ -8,11 +8,6 @@ import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 
 public class CircleShape extends ParameterizedShape {
-
-	/*
-	 * FIELDS
-	 */
-	
 	/**
 	 * Parameter array for this shape. As specified in the mother abstract class {@link ParameterizedShape},
 	 * we store them as a double array of 3 elements. Array content is the following:
@@ -22,63 +17,63 @@ public class CircleShape extends ParameterizedShape {
 	 * 	<li> [2]: <code>r</code>, the radius of the circle
 	 * </ul>
 	 */
-	private double[] params = new double[3];
-	
-	
+	protected double[] params = new double[3];
+
+
 	/*
-	 * CONSTRUCTORS 
+	 * CONSTRUCTORS
 	 */
-	
+
 	public CircleShape() {
 		this(Double.NaN, Double.NaN, Double.NaN);
 	}
-	
+
 	public CircleShape(double xc, double yc, double r) {
 		params[0] = xc;
 		params[1] = yc;
 		params[2] = r;
 	}
-	
+
 	/*
 	 * PUBLIC METHODS
 	 */
-	
+
 	public void setCenter(Point2D p) {
 		params[0] = p.getX();
 		params[1] = p.getY();
 	}
-	
+
 	public Point2D getCenter() {
-		return new Point2D.Double(params[0], params[1]); 
+		return new Point2D.Double(params[0], params[1]);
 	}
-	
+
 	public double getRadius() {
 		return params[2];
 	}
-	
+
 	public void setRadius(double r) {
 		params[2] = r;
 	}
-	
+
 	public String toString() {
-		return String.format("xc=%5.0f, yc=%5.0f, r=%5.0f", 
+		return String.format("xc=%5.0f, yc=%5.0f, r=%5.0f",
 				params[0], params[1], params[2]);
 	}
-	
+
 	/*
 	 * GEOMSHAPE METHODS
 	 */
-	
+
 
 	@Override
 	public double[][] sample(int nPoints) {
 		final double xc = params[0];
 		final double yc = params[1];
 		final double r  = params[2];
-		
+
 		final double[] x = new double[nPoints];
 		final double[] y = new double[nPoints];
-		
+
 		double angle;
 		for (int i = 0; i < nPoints; i++) {
 			angle = 2*Math.PI * i / nPoints;
@@ -87,7 +82,7 @@ public class CircleShape extends ParameterizedShape {
 		}
 		return new double[][] {x, y};
 	}
-	
+
 	@Override
 	public ParameterizedShape clone() {
 		CircleShape circle = new CircleShape();
@@ -155,16 +150,11 @@ public class CircleShape extends ParameterizedShape {
 	public boolean intersects(double x, double y, double w, double h) {
 		return getCircle().intersects(x, y, w, h);
 	}
-	
-	/*
-	 * PRIVATE METHODS
-	 */
-	
-	private Ellipse2D getCircle() {
+
+	protected Ellipse2D getCircle() {
 		final double xc = params[0];
 		final double yc = params[1];
 		final double r  = params[2];
-		return new Ellipse2D.Double(xc-r, yc-r, 2*r, 2*r);	
+		return new Ellipse2D.Double(xc-r, yc-r, 2*r, 2*r);
 	}
-
 }
