@@ -4,6 +4,7 @@
 from fiji import User_Plugins
 from ij import IJ
 from java.io import File
+from java.util import LinkedHashMap
 import os, stat, types
 import zipfile
 import sys
@@ -89,10 +90,12 @@ def createPluginsTree(fiji_folder):
                 continue
             elif type == PLUGINS_TYPE.get(JAR_EXTENSION):
                 appendJar(os.path.join(plugins_location, name), type)
-            else: # Plain plugin
+            elif file_name.find('_') >= 0: # Plain plugin
                 menuPath = top[top.find(PLUGINS_FOLDER) + len(PLUGINS_FOLDER) + 1:].replace('/', '>')
                 if menuPath == '':
                     menuPath = 'Plugins'
+                elif menuPath.startswith('Scripts>'):
+                    menuPath = menuPath[8:]
                 else:
                     menuPath = 'Plugins>' + menuPath
                 menuItemLabel = name[:-len(file_extension)].replace('_', ' ')
@@ -145,6 +148,7 @@ JAR_EXTENSION = '.jar'
 PLUGINS_TYPE = {JAR_EXTENSION:'java jar file',
                 '.class':'java class file',
                 '.txt':'macro',
+                '.ijm':'macro',
                 '.js':'javascript file',
                 '.rb':'jruby script',
                 '.py':'jython script',
@@ -153,10 +157,10 @@ PLUGINS_TYPE = {JAR_EXTENSION:'java jar file',
 PLUGINS_FOLDER = 'plugins'
 PLUGINS_MENU_NAME = 'Plugins'
 
-URL = 'http://pacific.mpi-cbg.de/wiki/index.php'
+URL = 'http://fiji.sc/wiki/index.php'
 PAGE = 'Template:PluginList'
 
-allElements = dict()
+allElements = LinkedHashMap()
 allElements[''] = []
 
 uploadToWiki = False

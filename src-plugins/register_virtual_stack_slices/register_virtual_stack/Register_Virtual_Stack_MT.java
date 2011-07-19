@@ -86,7 +86,7 @@ import bunwarpj.trakem2.transform.CubicBSplineTransform;
  * <p>
  * For a detailed documentation, please visit the plugin website at:
  * <p>
- * <A target="_blank" href="http://pacific.mpi-cbg.de/wiki/Register_Virtual_Stack_Slices">http://pacific.mpi-cbg.de/wiki/Register_Virtual_Stack_Slices</A>
+ * <A target="_blank" href="http://fiji.sc/wiki/Register_Virtual_Stack_Slices">http://fiji.sc/wiki/Register_Virtual_Stack_Slices</A>
  * 
  * @version 03/15/2010
  * @author Ignacio Arganda-Carreras (ignacio.arganda@gmail.com), Stephan Saalfeld and Albert Cardona
@@ -395,12 +395,18 @@ public class Register_Virtual_Stack_MT implements PlugIn
 
 		/**
 		 * Implemented transformation models for choice
-	 	*  0=TRANSLATION, 1=RIGID, 2=SIMILARITY, 3=AFFINE, 4=ELASTIC, 5=MOVING_LEAST_SQUARES
+		 *  0=TRANSLATION, 1=RIGID, 2=SIMILARITY, 3=AFFINE, 4=ELASTIC, 5=MOVING_LEAST_SQUARES
 		 */
 		public static int registrationModelIndex = Register_Virtual_Stack_MT.RIGID;
+		
+		/**
+		 * Interpolate?
+		 */
+		public static boolean interpolate = true;
                 
 		/** bUnwarpJ parameters for consistent elastic registration */
-        public bunwarpj.Param elastic_param = new bunwarpj.Param();        
+        public bunwarpj.Param elastic_param = new bunwarpj.Param();
+        
         
         //---------------------------------------------------------------------------------
         /**
@@ -429,6 +435,7 @@ public class Register_Virtual_Stack_MT implements PlugIn
 
 			gd.addMessage("Registration:");
 			gd.addChoice( "Registration_model:", registrationModelStrings, registrationModelStrings[ registrationModelIndex ] ); // rigid
+			gd.addCheckbox( "interpolate", interpolate );
 
 			gd.showDialog();
 
@@ -450,6 +457,7 @@ public class Register_Virtual_Stack_MT implements PlugIn
 			featuresModelIndex = gd.getNextChoiceIndex();
 
 			registrationModelIndex = gd.getNextChoiceIndex();
+			interpolate = gd.getNextBoolean();
                       
 			// Show bUnwarpJ parameters if elastic registration
 			if (registrationModelIndex == Register_Virtual_Stack_MT.ELASTIC)
@@ -493,7 +501,7 @@ public class Register_Virtual_Stack_MT implements PlugIn
 		}
 		
 		// Executor service to run concurrent tasks
-		final ExecutorService exe = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+		ExecutorService exe = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
 		
 		// Select features model to select the correspondences in every image
 		Model< ? > featuresModel;
@@ -549,8 +557,11 @@ public class Register_Virtual_Stack_MT implements PlugIn
 			}
 
 			fu = null;
+			// shut down the executor service to allow garbage collection
+			exe.shutdown();
 			
 			// Match features				
+			exe = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
 			final Future<ArrayList<PointMatch>>[] fpm = new Future[sorted_file_names.length-1];
 			// Loop over the sequence to select correspondences by pairs			
 			for (int i=1; i<sorted_file_names.length; i++) 
@@ -589,7 +600,8 @@ public class Register_Virtual_Stack_MT implements PlugIn
 			fs[sorted_file_names.length-1].clear();
 
 			fs = null;
-
+			// shut down the executor service to allow garbage collection
+			exe.shutdown();
 			System.gc();
 			
 			// Rigidly register
@@ -641,7 +653,13 @@ public class Register_Virtual_Stack_MT implements PlugIn
 			}
 			// Create final images.
 			IJ.showStatus("Calculating final images...");
-			if( !createResults(source_dir, sorted_file_names, target_dir, save_dir, exe, transform) )
+			if( !createResults(
+					source_dir,
+					sorted_file_names,
+					target_dir,
+					save_dir,
+					transform,
+					Param.interpolate) )
 			{
 				IJ.log("Error when creating target images");
 				return;
@@ -868,7 +886,6 @@ public class Register_Virtual_Stack_MT implements PlugIn
 	 * @param sorted_file_names Array of sorted source file names.
 	 * @param target_dir Directory to store registered slices into.
 	 * @param save_dir Directory to store transform files into (null if transformations are not saved).
-	 * @param exe executor service to save the images.
 	 * @param transform array of transforms for every source image (including the first one).
 	 * @return true or false in case of proper result or error
 	 */
@@ -877,10 +894,10 @@ public class Register_Virtual_Stack_MT implements PlugIn
 			final String[] sorted_file_names,
 			final String target_dir,
 			final String save_dir,
-			final ExecutorService exe,
-			final CoordinateTransform[] transform) 
+			final CoordinateTransform[] transform,
+			final boolean interpolate) 
 	{
-		
+		ExecutorService exe = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
 		final ImagePlus first = IJ.openImage(source_dir + sorted_file_names[0]);
 		
 		// Common bounds to create common frame for all images
@@ -895,7 +912,16 @@ public class Register_Virtual_Stack_MT implements PlugIn
 		ArrayList<Future<Boolean>> save_job = new ArrayList <Future<Boolean>>();
 		for (int i=0; i<sorted_file_names.length; i++) 
 		{
-			save_job.add(exe.submit(applyTransformAndSave(source_dir, sorted_file_names[i], target_dir, transform[i], bounds, i)));
+			save_job.add(
+					exe.submit(
+							applyTransformAndSave(
+									source_dir,
+									sorted_file_names[i],
+									target_dir,
+									transform[i],
+									bounds,
+									interpolate,
+									i)));
 		}
 
 
@@ -913,20 +939,26 @@ public class Register_Virtual_Stack_MT implements PlugIn
 			} catch (InterruptedException e) {
 				IJ.error("Interruption exception!");
 				e.printStackTrace();
+				exe.shutdownNow();
 				return false;
 			} catch (ExecutionException e) {
 				IJ.error("Execution exception!");
 				e.printStackTrace();
+				exe.shutdownNow();
 				return false;
 			}
 			
 			if( saved_file.booleanValue() == false)
 			{
 				IJ.log("Error while saving: " +  makeTargetPath(target_dir, sorted_file_names[ind]));
+				exe.shutdownNow();
 				return false;
 			}
 			
 		}
+		
+		// Shut executor service down to allow garbage collection
+		exe.shutdown();
 
 		save_job = null;
 		
@@ -966,6 +998,7 @@ public class Register_Virtual_Stack_MT implements PlugIn
 		}
 
 		// Reopen all target images and repaint them on an enlarged canvas
+		exe = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
 		IJ.showStatus("Resizing images...");
 		ArrayList<Future<String>> names = new ArrayList<Future<String>>();
 		for (int i=0; i<sorted_file_names.length; i++) 
@@ -1002,6 +1035,7 @@ public class Register_Virtual_Stack_MT implements PlugIn
 		}
 
 		names.clear();
+		exe.shutdown();
 
 		// Show registered stack
 		new ImagePlus("Registered " + new File(source_dir).getName(), stack).show();
@@ -1009,7 +1043,7 @@ public class Register_Virtual_Stack_MT implements PlugIn
 		// Save transforms
 		if(save_dir != null)
 		{
-			saveTransforms(transform, save_dir, sorted_file_names, exe);			
+			saveTransforms(transform, save_dir, sorted_file_names);			
 		}
 
 		IJ.showStatus("Done!");
@@ -1020,16 +1054,18 @@ public class Register_Virtual_Stack_MT implements PlugIn
 	//-----------------------------------------------------------------------------------------
 	/**
 	 * Save transforms into XML files.
+	 * 
 	 * @param transform array of transforms.
 	 * @param save_dir directory to save transforms into.
 	 * @param sorted_file_names array of sorted file image names.
-	 * @param exe executor service to run everything concurrently.
 	 * @return true if every file is save correctly, false otherwise.
 	 */
-	private static boolean saveTransforms(CoordinateTransform[] transform,
-			String save_dir, String[] sorted_file_names, ExecutorService exe) 
+	private static boolean saveTransforms(
+			CoordinateTransform[] transform,
+			String save_dir, 
+			String[] sorted_file_names) 
 	{
-		
+		final ExecutorService exe = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
 		final Future<String>[] jobs = new Future[transform.length];
 		
 		for(int i = 0; i < transform.length; i ++)
@@ -1044,17 +1080,21 @@ public class Register_Virtual_Stack_MT implements PlugIn
 			} catch (InterruptedException e) {
 				IJ.error("Interruption exception!");
 				e.printStackTrace();
+				exe.shutdownNow();
 				return false;
 			} catch (ExecutionException e) {
 				IJ.error("Execution exception!");
 				e.printStackTrace();
+				exe.shutdownNow();
 				return false;
 			}
 			if (null == filename) {
 				IJ.log("Not able to save file: " + filename);
+				exe.shutdownNow();
 				return false;
 			}
 		}
+		exe.shutdown();
 		return true;
 	}
 	
@@ -1263,7 +1303,7 @@ public class Register_Virtual_Stack_MT implements PlugIn
 			// Save transforms
 			if(save_dir != null)
 			{
-				saveTransforms(transform, save_dir, sorted_file_names, exe);			
+				saveTransforms(transform, save_dir, sorted_file_names);			
 			}
 
 			// Show registered stack
@@ -1470,6 +1510,7 @@ public class Register_Virtual_Stack_MT implements PlugIn
 			final String target_dir, 
 			final CoordinateTransform transform,
 			final Rectangle[] bounds,
+			final boolean interpolate,
 			final int i) 
 	{
 		return new Callable<Boolean>() {
@@ -1482,7 +1523,8 @@ public class Register_Virtual_Stack_MT implements PlugIn
 							
 				// Create interpolated deformed image with black background
 				imp2.getProcessor().setValue(0);
-				imp2.setProcessor(imp2.getTitle(), mapping.createMappedImageInterpolated(imp2.getProcessor()));						
+				final ImageProcessor ip2 = interpolate ? mapping.createMappedImageInterpolated(imp2.getProcessor()) : mapping.createMappedImage(imp2.getProcessor()); 
+				imp2.setProcessor(imp2.getTitle(), ip2);
 				
 				//imp2.show();
 
@@ -1714,11 +1756,13 @@ public class Register_Virtual_Stack_MT implements PlugIn
 			imp2mask.setProcessor(imp2mask.getTitle(), new ByteProcessor(imp2.getWidth(), imp2.getHeight()));
 			imp2mask.getProcessor().setValue(255);
 			imp2mask.getProcessor().fill();
-			imp2mask.setProcessor(imp2mask.getTitle(), mapping.createMappedImageInterpolated(imp2mask.getProcessor() ) );
+			final ImageProcessor ip2mask = Param.interpolate ? mapping.createMappedImageInterpolated(imp2mask.getProcessor() ) : mapping.createMappedImage(imp2mask.getProcessor() );
+			imp2mask.setProcessor(imp2mask.getTitle(), ip2mask );
 		}
 		// Create interpolated deformed image with black background
 		imp2.getProcessor().setValue(0);
-		imp2.setProcessor(imp2.getTitle(), mapping.createMappedImageInterpolated(imp2.getProcessor()));						
+		final ImageProcessor ip2 = Param.interpolate ? mapping.createMappedImageInterpolated(imp2.getProcessor() ) : mapping.createMappedImage(imp2.getProcessor() );
+		imp2.setProcessor(imp2.getTitle(), ip2);						
 		
 		// Accumulate bounding boxes, so in the end they can be reopened and re-saved with an enlarged canvas.
 		final Rectangle currentBounds = mesh.getBoundingBox();

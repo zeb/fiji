@@ -7,7 +7,9 @@ import javax.media.j3d.Background;
 import javax.vecmath.Color3f;
 
 import java.awt.event.MouseAdapter;
+import java.awt.event.MouseListener;
 import java.awt.event.MouseMotionAdapter;
+import java.awt.event.MouseMotionListener;
 import java.awt.event.MouseEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
@@ -20,7 +22,6 @@ import java.util.Map;
 import java.util.HashMap;
 
 import ij.process.ByteProcessor;
-import ij.gui.Toolbar;
 import ij.gui.ImageCanvas;
 import ij.ImagePlus;
 import ij.gui.Roi;
@@ -32,8 +33,9 @@ public class ImageCanvas3D extends Canvas3D implements KeyListener {
 
 	private RoiImagePlus roiImagePlus;
 	private ImageCanvas roiImageCanvas;
-	private Map<Integer, Long> pressed, released; 
+	private Map<Integer, Long> pressed, released;
 	private Background background;
+	private UIAdapter ui;
 	final private ExecutorService exec = Executors.newSingleThreadExecutor();
 
 	protected void flush() {
@@ -53,20 +55,22 @@ public class ImageCanvas3D extends Canvas3D implements KeyListener {
 		}
 	}
 
-	public ImageCanvas3D(int width,int height) {
+	public ImageCanvas3D(int width, int height, UIAdapter uia) {
 		super(SimpleUniverse.getPreferredConfiguration());
+		this.ui = uia;
 		setPreferredSize(new Dimension(width, height));
 		ByteProcessor ip = new ByteProcessor(width, height);
-		roiImagePlus = new RoiImagePlus("RoiImage", ip); 
+		roiImagePlus = new RoiImagePlus("RoiImage", ip);
 		roiImageCanvas = new ImageCanvas(roiImagePlus) {
 			/* prevent ROI to enlarge/move on mouse click */
 			public void mousePressed(MouseEvent e) {
-				int id = Toolbar.getToolId();
-				if(id != Toolbar.MAGNIFIER && id != Toolbar.POINT)
+				if(!ui.isMagnifierTool() && !ui.isPointTool())
 					super.mousePressed(e);
 			}
 		};
 		roiImageCanvas.removeKeyListener(ij.IJ.getInstance());
+		roiImageCanvas.removeMouseListener(roiImageCanvas);
+		roiImageCanvas.removeMouseMotionListener(roiImageCanvas);
 		roiImageCanvas.disablePopupMenu(true);
 
 		background = new Background(
@@ -74,8 +78,6 @@ public class ImageCanvas3D extends Canvas3D implements KeyListener {
 		background.setCapability(Background.ALLOW_COLOR_WRITE);
 
 		addListeners();
-		addMouseListener(roiImageCanvas);
-		addMouseMotionListener(roiImageCanvas);
 	}
 
 	public Background getBG() { //can't use getBackground()
@@ -87,19 +89,10 @@ public class ImageCanvas3D extends Canvas3D implements KeyListener {
 		render();
 	}
 
-	private boolean isSelectionTool() {
-		 int tool = Toolbar.getToolId();
-		 return tool == Toolbar.RECTANGLE || tool == Toolbar.OVAL 
-		 	|| tool == Toolbar.POLYGON || tool == Toolbar.FREEROI
-			|| tool == Toolbar.LINE || tool == Toolbar.POLYLINE
-			|| tool == Toolbar.FREELINE || tool == Toolbar.POINT
-			|| tool == Toolbar.WAND;
-	}
-
-	private void addListeners() {
+	void addListeners() {
 		addMouseMotionListener(new MouseMotionAdapter() {
 			public void mouseDragged(MouseEvent e) {
-				if(isSelectionTool())
+				if(ui.isRoiTool())
 					exec.submit(new Runnable() { public void run() {
 						postRender();
 					}});
@@ -107,19 +100,19 @@ public class ImageCanvas3D extends Canvas3D implements KeyListener {
 		});
 		addMouseListener(new MouseAdapter() {
 			public void mouseClicked(MouseEvent e) {
-				if(isSelectionTool())
+				if(ui.isRoiTool())
 					exec.submit(new Runnable() { public void run() {
 						render();
 					}});
 			}
 			public void mouseReleased(MouseEvent e) {
-				if(isSelectionTool())
+				if(ui.isRoiTool())
 					exec.submit(new Runnable() { public void run() {
 						render();
 					}});
 			}
 			public void mousePressed(MouseEvent e) {
-				if(!isSelectionTool())
+				if(!ui.isRoiTool())
 					roiImagePlus.killRoi();
 			}
 		});
@@ -127,14 +120,17 @@ public class ImageCanvas3D extends Canvas3D implements KeyListener {
 			public void componentResized(ComponentEvent e) {
 				exec.submit(new Runnable() { public void run() {
 					ByteProcessor ip = new ByteProcessor(
-									getWidth(), 
+									getWidth(),
 									getHeight());
 					roiImagePlus.setProcessor("RoiImagePlus", ip);
 					render();
 				}});
 			}
 		});
-		addKeyListener(this);
+	}
+
+	public ImageCanvas getRoiCanvas() {
+		return roiImageCanvas;
 	}
 
 	public Roi getRoi() {
@@ -149,10 +145,12 @@ public class ImageCanvas3D extends Canvas3D implements KeyListener {
 
 	/*
 	 * Needed for the isKeyDown() method. Problem:
-	 * keyPressed() and keyReleased is fired periodically, 
+	 * keyPressed() and keyReleased is fired periodically,
 	 * dependent on the operating system preferences,
 	 * even if the key is hold down.
 	 */
+	public void keyTyped(KeyEvent e) {}
+
 	public synchronized void keyPressed(KeyEvent e) {
 		long when = e.getWhen();
 		pressed.put(e.getKeyCode(), when);
@@ -178,8 +176,6 @@ public class ImageCanvas3D extends Canvas3D implements KeyListener {
 		return p >= r || System.currentTimeMillis() - r < 100;
 	}
 
-	public void keyTyped(KeyEvent e) {}
-
 	public void postRender() {
 		J3DGraphics2D g3d = getGraphics2D();
 		Roi roi = roiImagePlus.getRoi();
@@ -188,5 +184,5 @@ public class ImageCanvas3D extends Canvas3D implements KeyListener {
 		}
 		g3d.flush(true);
 	}
-} 
+}
 

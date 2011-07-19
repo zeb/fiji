@@ -1,6 +1,6 @@
 /* -*- mode: java; c-basic-offset: 8; indent-tabs-mode: t; tab-width: 8 -*- */
 
-/* Copyright 2006, 2007, 2008, 2009, 2010 Mark Longair */
+/* Copyright 2006, 2007, 2008, 2009, 2010, 2011 Mark Longair */
 
 /*
   This file is part of the ImageJ plugin "Simple Neurite Tracer".
@@ -30,9 +30,13 @@ package tracing;
 import ij.*;
 import java.awt.*;
 import java.awt.event.*;
+import stacks.ThreePanes;
+import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.HashMap;
 
 @SuppressWarnings("serial")
-public class InteractiveTracerCanvas extends TracerCanvas implements KeyListener {
+public class InteractiveTracerCanvas extends TracerCanvas {
 
 	static final boolean verbose = SimpleNeuriteTracer.verbose;
 
@@ -75,87 +79,68 @@ public class InteractiveTracerCanvas extends TracerCanvas implements KeyListener
 		this.currentPath = path;
 	}
 
-	public void keyPressed(KeyEvent e) {
-
-		if( ! tracerPlugin.isReady() )
-			return;
-
-		int keyCode = e.getKeyCode();
-		char keyChar = e.getKeyChar();
-
-		boolean mac = IJ.isMacintosh();
-
-		boolean shift_pressed = (keyCode == KeyEvent.VK_SHIFT);
-		boolean join_modifier_pressed = mac ? keyCode == KeyEvent.VK_ALT : keyCode == KeyEvent.VK_CONTROL;
-
-		if (verbose) System.out.println("keyCode=" + keyCode + " (" + KeyEvent.getKeyText(keyCode)
-						+ ") keyChar=\"" + keyChar + "\" (" + (int)keyChar + ") "
-						+ KeyEvent.getKeyModifiersText(flags));
-
-		if( keyChar == 'y' || keyChar == 'Y' ) {
-
-			// if (verbose) System.out.println( "Yes, running confirmPath" );
-			tracerPlugin.confirmTemporary( );
-
-		} else if( keyCode == KeyEvent.VK_ESCAPE ) {
-
-			// if (verbose) System.out.println( "Yes, running cancelPath+" );
-			tracerPlugin.cancelTemporary( );
-
-		} else if( keyChar == 'f' || keyChar == 'F' ) {
-
-			// if (verbose) System.out.println( "Finalizing that path" );
-			tracerPlugin.finishedPath( );
-
-		} else if( keyChar == 'v' || keyChar == 'V' ) {
-
-			// if (verbose) System.out.println( "View paths as a stack" );
-			tracerPlugin.makePathVolume( );
-
-		} else if( keyChar == '5' ) {
-
-			just_near_slices = ! just_near_slices;
-
-		} else if( shift_pressed || join_modifier_pressed ) {
-
-			/* This case is just so that when someone
-			   starts holding down the modified they
-			   immediately see the effect, rather than
-			   having to wait for the next mouse move
-			   event. */
-
-			tracerPlugin.mouseMovedTo( last_x_in_pane_precise, last_y_in_pane_precise, plane, shift_pressed, join_modifier_pressed );
-
-		}
-
-		int modifiers = e.getModifiersEx();
-		boolean shift_down = (modifiers & InputEvent.SHIFT_DOWN_MASK) > 0;
-		boolean control_down = (modifiers & InputEvent.CTRL_DOWN_MASK) > 0;
-		boolean alt_down = (modifiers & InputEvent.ALT_DOWN_MASK) > 0;
-
-		if( shift_down && (control_down || alt_down) && (keyCode == KeyEvent.VK_A) ) {
-			if( pathAndFillManager.anySelected() ) {
-				double [] p = new double[3];
-				tracerPlugin.findPointInStackPrecise( last_x_in_pane_precise, last_y_in_pane_precise, plane, p );
-				PointInImage pointInImage = pathAndFillManager.nearestJoinPointOnSelectedPaths( p[0], p[1], p[2] );
-				new ShollAnalysisDialog(
-					"Sholl analysis for tracing of "+tracerPlugin.getImagePlus().getTitle(),
-					pointInImage.x,
-					pointInImage.y,
-					pointInImage.z,
-					pathAndFillManager,
-					tracerPlugin.getImagePlus());
-			} else {
-				IJ.error("You must have a path selected in order to start Sholl analysis");
-			}
-		}
-
-		e.consume();
+	public void toggleJustNearSlices( ) {
+		just_near_slices = ! just_near_slices;
 	}
 
-	public void keyReleased(KeyEvent e) {}
+	public void fakeMouseMoved( boolean shift_pressed, boolean join_modifier_pressed ) {
+		tracerPlugin.mouseMovedTo( last_x_in_pane_precise, last_y_in_pane_precise, plane, shift_pressed, join_modifier_pressed );
+	}
 
-	public void keyTyped(KeyEvent e) {}
+	public void startShollAnalysis( ) {
+		if( pathAndFillManager.anySelected() ) {
+			double [] p = new double[3];
+			tracerPlugin.findPointInStackPrecise( last_x_in_pane_precise, last_y_in_pane_precise, plane, p );
+			PointInImage pointInImage = pathAndFillManager.nearestJoinPointOnSelectedPaths( p[0], p[1], p[2] );
+			new ShollAnalysisDialog(
+				"Sholl analysis for tracing of "+tracerPlugin.getImagePlus().getTitle(),
+				pointInImage.x,
+				pointInImage.y,
+				pointInImage.z,
+				pathAndFillManager,
+				tracerPlugin.getImagePlus());
+		} else {
+			IJ.error("You must have a path selected in order to start Sholl analysis");
+		}
+	}
+
+	public void selectNearestPathToMousePointer( boolean addToExistingSelection ) {
+
+		if( pathAndFillManager.size() == 0 ) {
+			IJ.error("There are no paths yet, so you can't select one with 'g'");
+			return;
+		}
+
+		double [] p = new double[3];
+		tracerPlugin.findPointInStackPrecise( last_x_in_pane_precise, last_y_in_pane_precise, plane, p );
+
+		double diagonalLength = tracerPlugin.getStackDiagonalLength();
+
+		/* Find the nearest point on any path - we'll
+		   select that path... */
+
+		NearPoint np = pathAndFillManager.nearestPointOnAnyPath( p[0] * tracerPlugin.x_spacing,
+									 p[1] * tracerPlugin.y_spacing,
+									 p[2] * tracerPlugin.z_spacing,
+									 diagonalLength);
+
+		if( np == null ) {
+			IJ.error("BUG: No nearby path was found within "+diagonalLength+" of the pointer");
+			return;
+		}
+
+		Path path = np.getPath();
+
+		/* FIXME: in fact shift-G for multiple
+		   selections doesn't work, since in ImageJ
+		   that's a shortcut for taking a screenshot.
+		   Holding down control doesn't work since
+		   that's already used to restrict the
+		   cross-hairs to the selected path.  Need to
+		   find some way around this ... */
+
+		tracerPlugin.selectPath( path, addToExistingSelection );
+	}
 
 	@Override
 	public void mouseMoved( MouseEvent e ) {
@@ -213,6 +198,36 @@ public class InteractiveTracerCanvas extends TracerCanvas implements KeyListener
 			IJ.error( "BUG: No operation chosen" );
 	}
 
+	protected void drawSquare( Graphics g,
+				   PointInImage p,
+				   Color fillColor, Color edgeColor,
+				   int side ) {
+
+		int x, y;
+
+		if( plane == ThreePanes.XY_PLANE ) {
+			x = myScreenXD(p.x/tracerPlugin.x_spacing);
+			y = myScreenYD(p.y/tracerPlugin.y_spacing);
+		} else if( plane == ThreePanes.XZ_PLANE ) {
+			x = myScreenXD(p.x/tracerPlugin.x_spacing);
+			y = myScreenYD(p.z/tracerPlugin.z_spacing);
+		} else { // plane is ThreePanes.ZY_PLANE
+			x = myScreenXD(p.z/tracerPlugin.z_spacing);
+			y = myScreenYD(p.y/tracerPlugin.y_spacing);
+		}
+
+		int rectX = x - side / 2;
+		int rectY = y - side / 2;
+
+		g.setColor(fillColor);
+		g.fillRect( rectX, rectY, side, side );
+
+		if( edgeColor != null ) {
+			g.setColor(edgeColor);
+			g.drawRect( rectX, rectY, side, side );
+		}
+	}
+
 	@Override
 	protected void drawOverlay(Graphics g) {
 
@@ -241,18 +256,8 @@ public class InteractiveTracerCanvas extends TracerCanvas implements KeyListener
 			if( unconfirmedSegment.endJoins != null ) {
 
 				int n = unconfirmedSegment.size();
-
-				int x = myScreenX(unconfirmedSegment.getXUnscaled(n-1));
-				int y = myScreenY(unconfirmedSegment.getYUnscaled(n-1));
-
-				int rectX = x - spotDiameter / 2;
-				int rectY = y - spotDiameter / 2;
-
-				g.setColor(Color.BLUE);
-				g.fillRect( rectX, rectY, spotDiameter, spotDiameter );
-
-				g.setColor(Color.GREEN);
-				g.drawRect( rectX, rectY, spotDiameter, spotDiameter );
+				PointInImage p = unconfirmedSegment.getPointInImage(n-1);
+				drawSquare( g, p, Color.BLUE, Color.GREEN, spotDiameter );
 			}
 		}
 
@@ -266,20 +271,15 @@ public class InteractiveTracerCanvas extends TracerCanvas implements KeyListener
 
 			if( lastPathUnfinished && currentPath.size() == 0 ) {
 
-				int x = myScreenX(tracerPlugin.last_start_point_x);
-				int y = myScreenY(tracerPlugin.last_start_point_y);
+				PointInImage p = new PointInImage( tracerPlugin.last_start_point_x * tracerPlugin.x_spacing,
+								   tracerPlugin.last_start_point_y * tracerPlugin.y_spacing,
+								   tracerPlugin.last_start_point_z * tracerPlugin.z_spacing);
 
-				int rectX = x - spotDiameter / 2;
-				int rectY = y - spotDiameter / 2;
+				Color edgeColour = null;
+				if( currentPathFromTracer.startJoins != null )
+					edgeColour = Color.GREEN;
 
-				g.setColor(Color.BLUE);
-				g.fillRect( rectX, rectY, spotDiameter, spotDiameter );
-
-				if( currentPathFromTracer.startJoins != null ) {
-					g.setColor(Color.GREEN);
-					g.drawRect( rectX, rectY, spotDiameter, spotDiameter );
-				}
-
+				drawSquare( g, p, Color.BLUE, edgeColour, spotDiameter );
 			}
 		}
 

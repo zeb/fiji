@@ -1,6 +1,6 @@
 /* -*- mode: java; c-basic-offset: 8; indent-tabs-mode: t; tab-width: 8 -*- */
 
-/* Copyright 2006, 2007, 2008, 2009, 2010 Mark Longair */
+/* Copyright 2006, 2007, 2008, 2009, 2010, 2011 Mark Longair */
 
 /*
   This file is part of the ImageJ plugin "Simple Neurite Tracer".
@@ -38,12 +38,14 @@ import ij3d.Content;
 import ij3d.MeshMaker;
 import javax.vecmath.Color3f;
 import javax.vecmath.Point3f;
+import javax.vecmath.Point3d;
 import java.awt.*;
+import java.awt.event.KeyListener;
 import java.io.*;
 
+import java.util.HashSet;
 import java.util.Set;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 
 import client.ArchiveClient;
@@ -69,14 +71,18 @@ import features.TubenessProcessor;
 */
 
 public class SimpleNeuriteTracer extends ThreePanes
-	implements SearchProgressCallback, FillerProgressCallback, GaussianGenerationCallback {
+	implements SearchProgressCallback, GaussianGenerationCallback, PathAndFillListener {
 
-	public static final String PLUGIN_VERSION = "1.9.0";
+	public static final String PLUGIN_VERSION = "2.0.0";
 	protected static final boolean verbose = false;
 
 	protected static final int DISPLAY_PATHS_SURFACE = 1;
 	protected static final int DISPLAY_PATHS_LINES = 2;
 	protected static final int DISPLAY_PATHS_LINES_AND_DISCS = 3;
+
+	protected static final String startBallName = "Start point";
+	protected static final String targetBallName = "Target point";
+	protected static final int ballRadiusMultiplier = 5;
 
 	protected PathAndFillManager pathAndFillManager;
 
@@ -84,7 +90,7 @@ public class SimpleNeuriteTracer extends ThreePanes
 	protected Image3DUniverse univ;
 	protected Content imageContent;
 
-	protected boolean unsavedPaths = false;
+	volatile protected boolean unsavedPaths = false;
 
 	public boolean pathsUnsaved() {
 		return unsavedPaths;
@@ -92,6 +98,10 @@ public class SimpleNeuriteTracer extends ThreePanes
 
 	public PathAndFillManager getPathAndFillManager() {
 		return pathAndFillManager;
+	}
+
+	public InteractiveTracerCanvas getXYCanvas() {
+		return xy_tracer_canvas;
 	}
 
 	/* Just for convenience, keep casted references to the
@@ -103,6 +113,18 @@ public class SimpleNeuriteTracer extends ThreePanes
 
 	public ImagePlus getImagePlus() {
 		return xy;
+	}
+
+	public double getLargestDimension() {
+		return Math.max( x_spacing * width,
+				 Math.max( y_spacing * height,
+					   z_spacing * depth ));
+	}
+
+	public double getStackDiagonalLength() {
+		return Math.sqrt( (x_spacing * width) * (x_spacing * width) +
+				  (y_spacing * height) * (y_spacing * height) +
+				  (z_spacing * depth) * (z_spacing * depth) );
 	}
 
 	/* This overrides the method in ThreePanes... */
@@ -123,6 +145,14 @@ public class SimpleNeuriteTracer extends ThreePanes
 
 	public void threadStatus( SearchThread source, int status ) {
 		// Ignore this information.
+	}
+
+	public void changeUIState(int newState) {
+		resultsDialog.changeState(newState);
+	}
+
+	public int getUIState() {
+		return resultsDialog.getCurrentState();
 	}
 
 	synchronized public void saveFill( ) {
@@ -175,6 +205,8 @@ public class SimpleNeuriteTracer extends ThreePanes
 		   so distinguish these cases: */
 
 		if( source == currentSearchThread ) {
+
+			removeSphere(targetBallName);
 
 			if( success ) {
 				Path result = currentSearchThread.getResult();
@@ -229,8 +261,8 @@ public class SimpleNeuriteTracer extends ThreePanes
 
 	/* If we're timing out the searches (probably not any longer...) */
 
-	protected boolean setupTimeout = false;
-	protected float   setupTimeoutValue = 0.0f;
+	volatile protected boolean setupTimeout = false;
+	volatile protected float   setupTimeoutValue = 0.0f;
 
 	/* For the original file info - needed for loading the
 	   corresponding labels file and checking if a "tubes.tif"
@@ -357,7 +389,7 @@ public class SimpleNeuriteTracer extends ThreePanes
 
 	}
 
-	boolean loading = false;
+	volatile boolean loading = false;
 
 	synchronized public void loadTracings( ) {
 
@@ -532,7 +564,7 @@ public class SimpleNeuriteTracer extends ThreePanes
 		}
 	}
 
-	boolean lastStartPointSet = false;
+	volatile boolean lastStartPointSet = false;
 
 	int last_start_point_x;
 	int last_start_point_y;
@@ -567,6 +599,8 @@ public class SimpleNeuriteTracer extends ThreePanes
 		if( temporaryPath != null )
 			temporaryPath.setName("Temporary Path");
 		if( use3DViewer ) {
+
+
 			if( oldTemporaryPath != null ) {
 				oldTemporaryPath.removeFrom3DViewer(univ);
 			}
@@ -608,7 +642,7 @@ public class SimpleNeuriteTracer extends ThreePanes
 	   may be redundant - check that.
 	*/
 
-	boolean pathUnfinished = false;
+	volatile boolean pathUnfinished = false;
 
 	public void setPathUnfinished( boolean unfinished ) {
 
@@ -642,7 +676,7 @@ public class SimpleNeuriteTracer extends ThreePanes
 	   image, but with values set to either 255 (if there's a point
 	   on a path there) or 0 */
 
-	synchronized public void makePathVolume( ) {
+	synchronized public ImagePlus makePathVolume( ) {
 
 		byte [][] snapshot_data = new byte[depth][];
 
@@ -659,8 +693,7 @@ public class SimpleNeuriteTracer extends ThreePanes
 			newStack.addSlice( null, thisSlice );
 		}
 
-		ImagePlus ip = new ImagePlus( "Paths rendered in a Stack", newStack );
-		ip.show( );
+		return new ImagePlus( "Paths rendered in a Stack", newStack );
 	}
 
 	/* If non-null, holds a reference to the currently searching thread: */
@@ -685,18 +718,31 @@ public class SimpleNeuriteTracer extends ThreePanes
 		double [] p = new double[3];
 		findPointInStackPrecise( x_in_pane_precise, y_in_pane_precise, plane, p );
 
+		double real_x_end, real_y_end, real_z_end;
+
 		int x_end, y_end, z_end;
 		if( joinPoint == null ) {
-			x_end = (int)Math.round(p[0]);
-			y_end = (int)Math.round(p[1]);
-			z_end = (int)Math.round(p[2]);
+			real_x_end = p[0] * x_spacing;
+			real_y_end = p[1] * y_spacing;
+			real_z_end = p[2] * z_spacing;
 		} else {
-			x_end = (int)Math.round(joinPoint.x / x_spacing);
-			y_end = (int)Math.round(joinPoint.y / y_spacing);
-			z_end = (int)Math.round(joinPoint.z / z_spacing);
+			real_x_end = joinPoint.x;
+			real_y_end = joinPoint.y;
+			real_z_end = joinPoint.z;
 			endJoin = joinPoint.onPath;
 			endJoinPoint = joinPoint;
 		}
+
+		addSphere( targetBallName,
+			   real_x_end,
+			   real_y_end,
+			   real_z_end,
+			   Color.BLUE,
+			   x_spacing * ballRadiusMultiplier );
+
+		x_end = (int)Math.round( real_x_end / x_spacing );
+		y_end = (int)Math.round( real_y_end / y_spacing );
+		z_end = (int)Math.round( real_z_end / z_spacing );
 
 		currentSearchThread = new TracerThread(
 			xy,
@@ -770,6 +816,8 @@ public class SimpleNeuriteTracer extends ThreePanes
 			return;
 		}
 
+		removeSphere( targetBallName );
+
 		if( temporaryPath.endJoins != null ) {
 			temporaryPath.unsetEndJoin();
 		}
@@ -791,6 +839,9 @@ public class SimpleNeuriteTracer extends ThreePanes
 			if( currentPath.endJoins != null )
 				currentPath.unsetEndJoin();
 		}
+
+		removeSphere( targetBallName );
+		removeSphere( startBallName );
 
 		setCurrentPath( null );
 		setTemporaryPath( null );
@@ -817,6 +868,9 @@ public class SimpleNeuriteTracer extends ThreePanes
 			return;
 		}
 
+		removeSphere(startBallName);
+		removeSphere(targetBallName);
+
 		lastStartPointSet = false;
 		setPathUnfinished( false );
 
@@ -831,6 +885,19 @@ public class SimpleNeuriteTracer extends ThreePanes
 		resultsDialog.changeState( NeuriteTracerResultsDialog.WAITING_TO_START_PATH );
 
 		repaintAllPanes( );
+	}
+
+	/** This method should really be called by the other clickForTrace:
+	    FIXME - this needs some refactoring */
+
+	synchronized public void clickForTrace( Point3d p, boolean join ) {
+		double x_unscaled = p.x / x_spacing;
+		double y_unscaled = p.y / y_spacing;
+		double z_unscaled = p.z / z_spacing;
+		setSlicesAllPanes( (int)x_unscaled,
+				   (int)y_unscaled,
+				   (int)z_unscaled );
+		clickForTrace( x_unscaled, y_unscaled, ThreePanes.XY_PLANE, join );
 	}
 
 	synchronized public void clickForTrace( double x_in_pane_precise, double y_in_pane_precise, int plane, boolean join ) {
@@ -919,18 +986,50 @@ public class SimpleNeuriteTracer extends ThreePanes
 		Path path = new Path(x_spacing,y_spacing,z_spacing,spacing_units);
 		path.setName("New Path");
 
+		Color ballColor;
+
+		double real_last_start_x, real_last_start_y, real_last_start_z;
+
 		if( joinPoint == null ) {
-			last_start_point_x = (int)Math.round(p[0]);
-			last_start_point_y = (int)Math.round(p[1]);
-			last_start_point_z = (int)Math.round(p[2]);
+			real_last_start_x = p[0] * x_spacing;
+			real_last_start_y = p[1] * y_spacing;
+			real_last_start_z = p[2] * z_spacing;
+			ballColor = Color.BLUE;
 		} else {
-			last_start_point_x = (int)Math.round( joinPoint.x / x_spacing );
-			last_start_point_y = (int)Math.round( joinPoint.y / y_spacing );
-			last_start_point_z = (int)Math.round( joinPoint.z / z_spacing );
+			real_last_start_x = joinPoint.x;
+			real_last_start_y = joinPoint.y;
+			real_last_start_z = joinPoint.z;
 			path.setStartJoin( joinPoint.onPath, joinPoint );
+			ballColor = Color.GREEN;
 		}
 
+		last_start_point_x = (int)Math.round( real_last_start_x / x_spacing );
+		last_start_point_y = (int)Math.round( real_last_start_y / y_spacing );
+		last_start_point_z = (int)Math.round( real_last_start_z / z_spacing );
+
+		addSphere( startBallName,
+			   real_last_start_x,
+			   real_last_start_y,
+			   real_last_start_z,
+			   ballColor,
+			   x_spacing * ballRadiusMultiplier );
+
 		setCurrentPath( path );
+	}
+
+	protected void addSphere( String name, double x, double y, double z, Color color, double radius ) {
+		if( use3DViewer ) {
+			List<Point3f> sphere = MeshMaker.createSphere( x,
+								       y,
+								       z,
+								       radius);
+			univ.addTriangleMesh( sphere, new Color3f(color), name );
+		}
+	}
+
+	protected void removeSphere( String name ) {
+		if( use3DViewer )
+			univ.removeContent(name);
 	}
 
 	/* Return true if we have just started a new path, but have
@@ -974,7 +1073,7 @@ public class SimpleNeuriteTracer extends ThreePanes
 
 	protected NeuriteTracerResultsDialog resultsDialog;
 
-	protected boolean cancelled = false;
+	volatile protected boolean cancelled = false;
 
 	protected TextWindow helpTextWindow;
 
@@ -982,8 +1081,8 @@ public class SimpleNeuriteTracer extends ThreePanes
 
 	protected ArchiveClient archiveClient;
 
-	protected float stackMax = Float.MIN_VALUE;
-	protected float stackMin = Float.MAX_VALUE;
+	volatile protected float stackMax = Float.MIN_VALUE;
+	volatile protected float stackMin = Float.MAX_VALUE;
 
 
 	public int guessResamplingFactor() {
@@ -1107,20 +1206,16 @@ public class SimpleNeuriteTracer extends ThreePanes
 		}
 	}
 
-	public void maximumDistanceCompletelyExplored( SearchThread source, float f ) {
-		// Unused
-	}
-
 	public double getMinimumSeparation() {
 		return Math.min(Math.abs(x_spacing),Math.min(Math.abs(y_spacing),Math.abs(z_spacing)));
 	}
 
-	boolean hessianEnabled = false;
+	volatile boolean hessianEnabled = false;
 	ComputeCurvatures hessian = null;
 	/* This variable just stores the sigma which the current
 	   'hessian' ComputeCurvatures was / is being calculated
 	   (or -1 if 'hessian' is null) ... */
-	double hessianSigma = -1;
+	volatile double hessianSigma = -1;
 
 	public void startHessian() {
 		if( hessian == null ) {
@@ -1165,7 +1260,7 @@ public class SimpleNeuriteTracer extends ThreePanes
 	}
 
 	// This is the implementation of GaussianGenerationCallback
-
+	@Override
 	public void proportionDone( double proportion ) {
 		if( proportion < 0 ) {
 			hessianEnabled = false;
@@ -1264,7 +1359,7 @@ public class SimpleNeuriteTracer extends ThreePanes
 		// univ.resetView();
 	}
 
-	private boolean showOnlySelectedPaths;
+	volatile private boolean showOnlySelectedPaths;
 
 	public void setShowOnlySelectedPaths(boolean showOnlySelectedPaths) {
 		this.showOnlySelectedPaths = showOnlySelectedPaths;
@@ -1311,6 +1406,8 @@ public class SimpleNeuriteTracer extends ThreePanes
 		update3DViewerContents();
 	}
 
+	/* FIXME: this can be very slow ... Perhaps do it in a
+	   separate thread? */
 	public void setColorImage( ImagePlus newColorImage ) {
 		colorImage = newColorImage;
 		update3DViewerContents();
@@ -1327,5 +1424,58 @@ public class SimpleNeuriteTracer extends ThreePanes
 		return this.paths3DDisplay;
 	}
 
-}
+	public void selectPath( Path p, boolean addToExistingSelection ) {
+		HashSet<Path> pathsToSelect = new HashSet<Path>();
+		if( p.isFittedVersionOfAnotherPath() )
+			pathsToSelect.add(p.fittedVersionOf);
+		else
+			pathsToSelect.add(p);
+		if( addToExistingSelection ) {
+			pathsToSelect.addAll( resultsDialog.pw.getSelectedPaths() );
+		}
+		resultsDialog.pw.setSelectedPaths( pathsToSelect, this );
+	}
 
+	public Set<Path> getSelectedPaths() {
+		if( resultsDialog.pw != null ) {
+			return resultsDialog.pw.getSelectedPaths();
+		}
+		throw new RuntimeException("getSelectedPaths was called when resultsDialog.pw was null");
+	}
+
+	@Override
+	public void setPathList( String [] newList, Path justAdded, boolean expandAll ) { }
+
+	@Override
+	public void setFillList( String [] newList ) { }
+
+	// Note that rather unexpectedly the p.setSelcted calls make sure that
+	// the colour of the path in the 3D viewer is right...  (FIXME)
+	@Override
+	public void setSelectedPaths( HashSet<Path> selectedPathsSet, Object source ) {
+		if( source == this )
+			return;
+		for( int i = 0; i < pathAndFillManager.size(); ++i ) {
+			Path p = pathAndFillManager.getPath(i);
+			if( selectedPathsSet.contains(p) ) {
+				p.setSelected( true );
+			} else {
+				p.setSelected( false );
+			}
+		}
+	}
+
+	/** This method will remove the existing keylisteners from the
+	    component 'c', tells 'firstKeyListener' to call those key
+	    listeners if it has not dealt with the key, and then sets
+	    'firstKeyListener' as the key listener for 'c' */
+	public static void setAsFirstKeyListener(Component c, QueueJumpingKeyListener firstKeyListener) {
+		KeyListener [] oldKeyListeners = c.getKeyListeners();
+		for( KeyListener kl : oldKeyListeners ) {
+			c.removeKeyListener(kl);
+		}
+		firstKeyListener.addOtherKeyListeners(oldKeyListeners);
+		c.addKeyListener(firstKeyListener);
+	}
+
+}

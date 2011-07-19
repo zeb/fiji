@@ -14,7 +14,6 @@ import java.io.PrintStream;
 import bsh.Interpreter;
 import ij.IJ;
 
-
 public class Refresh_BSH_Scripts extends RefreshScripts {
 
 	public void run(String arg) {
@@ -48,6 +47,8 @@ public class Refresh_BSH_Scripts extends RefreshScripts {
 			Interpreter interpreter = new Interpreter();
 			interpreter.setOut(new PrintStream(out));
 			interpreter.setErr(new PrintStream(err));
+			BSH_Interpreter bsh = new BSH_Interpreter();
+			interpreter.eval(bsh.getImportStatement());
 			interpreter.eval(new InputStreamReader(istream),
 				interpreter.getNameSpace(), sourceFileName);
 		} catch (Throwable error) {

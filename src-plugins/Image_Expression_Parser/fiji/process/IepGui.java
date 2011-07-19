@@ -1,5 +1,6 @@
 package fiji.process;
 
+import ij.CompositeImage;
 import ij.IJ;
 import ij.ImageListener;
 import ij.ImagePlus;
@@ -75,17 +76,6 @@ import fiji.expressionparser.ImgLibParser;
  * @author Jean-Yves Tinevez <jeanyves.tinevez@gmail.com>, Albert Cardona <acardona@ini.phys.ethz.ch>
  */
 public class IepGui <T extends RealType<T>> extends javax.swing.JFrame implements ImageListener, WindowListener {
-
-
-	{
-		//Set Look & Feel
-		try {
-			javax.swing.UIManager.setLookAndFeel(javax.swing.UIManager.getSystemLookAndFeelClassName());
-		} catch(Exception e) {
-			e.printStackTrace();
-		}
-	}
-
 	/*
 	 * FIELDS
 	 */
@@ -186,7 +176,7 @@ public class IepGui <T extends RealType<T>> extends javax.swing.JFrame implement
 		"<td>Power</td><td>pow</td>" +
 		"</tr>"+
 		"<tr>" +
-		"<td>Square Root</td><td>sqr</td>" +
+		"<td>Square Root</td><td>sqrt</td>" +
 		"</tr>"+
 		"<tr>" +
 		"<td>Absolute Value</td><td>abs</td>" +
@@ -246,9 +236,6 @@ public class IepGui <T extends RealType<T>> extends javax.swing.JFrame implement
 	 * Main method for debug
 	 */
 	public static <T extends RealType<T>> void main(String[] args) {
-		// Load an image
-		ImagePlus imp = IJ.openImage("http://rsb.info.nih.gov/ij/images/blobs.gif");
-		imp.show();
 		// Launch the GUI
 		SwingUtilities.invokeLater(new Runnable() {
 			public void run() {
@@ -320,6 +307,7 @@ public class IepGui <T extends RealType<T>> extends javax.swing.JFrame implement
 	 */
 	public String getExpression() {
 		String expression = (String) expressionField.getSelectedItem();
+		if (null == expression) return null;
 		return expression.trim();
 	}
 	
@@ -675,7 +663,7 @@ public class IepGui <T extends RealType<T>> extends javax.swing.JFrame implement
 						
 						// Have the parser process individual channel separately
 						Map<String, Image<T>> img_map;
-						ImageStack[] result_array = new ImageStack[3];
+						ImagePlus[] result_array = new ImagePlus[3];
 						Image<T> tmp_image;
 						int index = 0;
 						for (Map<String, ImagePlus> current_map : map_array) {
@@ -684,15 +672,18 @@ public class IepGui <T extends RealType<T>> extends javax.swing.JFrame implement
 							image_expression_parser.process();
 							// Collect results
 							tmp_image = image_expression_parser.getResult();
-							result_array[index] = ImageJFunctions.copyToImagePlus(tmp_image).getImageStack();
+							result_array[index] = ImageJFunctions.copyToImagePlus(tmp_image);
 							index++;
 						}
 						
 						// Merge back channels
 						RGBStackMerge rgb_merger = new RGBStackMerge();
-						ImagePlus new_imp = rgb_merger.createComposite(current_imp.getWidth(), current_imp.getHeight(), current_imp.getNSlices(), 
-								result_array, false);
-						new_imp.resetDisplayRange();
+						ImagePlus new_imp = rgb_merger.mergeHyperstacks(result_array, false);
+						// Jump through hoops...
+						for (int channel = new_imp.getNChannels(); channel > 0; channel--) {
+							new_imp.setPosition(channel, new_imp.getSlice(), new_imp.getFrame());
+							new_imp.resetDisplayRange();
+						}
 						
 						if (target_imp == null) {
 							target_imp = new_imp;
@@ -703,6 +694,9 @@ public class IepGui <T extends RealType<T>> extends javax.swing.JFrame implement
 								target_imp.show();
 							} else {
 								target_imp.setStack(expression, new_imp.getStack());
+								if (target_imp.isComposite())
+									// Workaround: setStack() does not update CompositeImage's buffered image
+									((CompositeImage)target_imp).reset();
 							}
 						}
 
@@ -712,7 +706,10 @@ public class IepGui <T extends RealType<T>> extends javax.swing.JFrame implement
 						Map<String, Image<T>> img_map = image_expression_parser.convertToImglib(imp_map);
 						image_expression_parser.setImageMap(img_map);
 						// Call calculation
-						image_expression_parser.process();
+						if (!image_expression_parser.process()) {
+							IJ.error(image_expression_parser.getErrorMessage());
+							return;
+						}
 						// Collect result
 						result_img = image_expression_parser.getResult();
 

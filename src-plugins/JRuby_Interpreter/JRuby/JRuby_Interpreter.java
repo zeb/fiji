@@ -1,5 +1,4 @@
 /* -*- mode: java; c-basic-offset: 8; indent-tabs-mode: t; tab-width: 8 -*- */
-
 package JRuby;
 
 import ij.IJ;
@@ -26,16 +25,18 @@ public class JRuby_Interpreter extends AbstractInterpreter {
 				 "the JRuby interpreter");
 			return;
 		}
+		Thread.currentThread().setContextClassLoader(IJ.getClassLoader());
 		super.run(ignored);
 		setTitle("JRuby Interpreter");
-		print("Starting JRuby ...");
+		println("Starting JRuby ...");
 		prompt.setEnabled(false);
 		PrintStream stream = new PrintStream(out);
 		rubyRuntime = Ruby.newInstance(System.in,stream,stream);
-		println(" done.");
+		println("done.");
 		prompt.setEnabled(true);
 
 		rubyRuntime.evalScriptlet(getStartupScript());
+		importAll();
 	}
 
 	public static String getImageJRubyPath() {
@@ -59,6 +60,16 @@ public class JRuby_Interpreter extends AbstractInterpreter {
 			"imagej_functions_path = '"+getImageJRubyPath()+"'\n" +
 			"require imagej_functions_path\n";
 		return s;
+	}
+
+	protected String getImportStatement(String packageName, Iterable<String> classNames) {
+		StringBuffer sb = new StringBuffer();
+		if (!"".equals(packageName))
+			packageName += ".";
+		for (String className : classNames)
+			sb.append("include_class '").append(packageName)
+				.append(className).append("'\n");
+		return sb.toString();
 	}
 
 	protected String getLineCommentMark() {

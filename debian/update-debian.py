@@ -1,6 +1,7 @@
-#!/usr/bin/python2.6
+#!/usr/bin/python
 
 import os
+import stat
 import sys
 import urllib2
 import re
@@ -13,6 +14,7 @@ from lxml import etree
 from subprocess import call, check_call, Popen, PIPE
 from common import *
 import textwrap
+from tempfile import NamedTemporaryFile
 
 # On Ubuntu and Debian, the required Java3D jars are in these packages:
 #
@@ -175,7 +177,10 @@ package_name_to_file_matchers = {
         [ "plugins/3D_Viewer.jar" ],
 
     "fiji-tracer" :
-        [ "plugins/Simple_Neurite_Tracer.jar" ]
+        [ "plugins/Simple_Neurite_Tracer.jar" ],
+
+    "fiji-jython" :
+        [ "jars/jython.jar" ]
 
 }
 
@@ -197,7 +202,6 @@ conflicts_and_replaces = {
 # less brittle.
 map_to_external_dependencies = {
     'jars/batik\.jar' : ( 'libbatik-java', 'libxml-commons-external-java' ),
-    'jars/jython\.jar' : ( 'jython', ),
     'jars/bsh.*\.jar' : ('bsh', ),
     'jars/clojure.*\.jar' : ( 'clojure', ),
     'jars/junit.*\.jar' : ( 'junit', ),
@@ -209,7 +213,8 @@ map_to_external_dependencies = {
     'jars/jcommon.*\.jar' : ( 'libjcommon-java', ),
     'jars/jsch.*\.jar' : ( 'libjsch-java', ),
     'jars/postgresql.*\.jar' : ( 'libpg-java', ),
-    'jars/ant.*\.jar' : ( 'ant', 'ant-optional' )
+    'jars/ant.*\.jar' : ( 'ant', 'ant-optional' ),
+    'jars/javassist.*\.jar' : ( 'libjavassist-java' )
 }
 
 # A dictionary that maps a file in the Fiji build tree to tuples of
@@ -224,11 +229,11 @@ replacement_files =  {
     'jars/jcommon-1.0.12.jar' : ( '/usr/share/java/jcommon.jar', ),
     'jars/jfreechart-1.0.13.jar' : ( '/usr/share/java/jfreechart.jar', ),
     'jars/js.jar' : ( '/usr/share/java/js.jar', ),
-    'jars/jsch-0.1.37.jar' : ( '/usr/share/java/jsch.jar', ),
+    'jars/jsch-0.1.44.jar' : ( '/usr/share/java/jsch.jar', ),
     'jars/junit-4.5.jar' : ( '/usr/share/java/junit4.jar', ),
-    'jars/jython.jar' : ( '/usr/share/java/jython.jar', ),
     'jars/jzlib-1.0.7.jar' : ( '/usr/share/java/jzlib.jar', ),
     'jars/postgresql-8.2-506.jdbc3.jar' : ( '/usr/share/java/postgresql.jar', ),
+    'jars/javassist.jar' : ( '/usr/share/java/javassist.jar' ),
     '$TOOLS_JAR' : ('/usr/lib/jvm/java-6-openjdk/lib/tools.jar', ),
     '$JAVA3D_JARS' : ('/usr/share/java/j3dcore.jar', '/usr/share/java/vecmath.jar', '/usr/share/java/j3dutils.jar', )
 }
@@ -347,20 +352,29 @@ options,args = parser.parse_args()
 source_directory = os.path.split(script_directory)[0]
 os.chdir(source_directory)
 
+with open('debian/java-home') as fp:
+    java_home = fp.read().strip()
+
 # ========================================================================
 # Fill in some template information at the top of the changelog, including
 # the current git HEAD:
 
 if options.add_changelog_template:
+    if len(args) == 0:
+        message = "[Fill in the rest of the commit message here.]"
+    elif len(args) == 1:
+        message = args[0]
+    else:
+        raise Exception, "You must provide a single argument with the changelog message"
     suggest_new_version = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
     git_rev = Popen(["git","rev-parse","--verify","HEAD"],stdout=PIPE).communicate()[0].strip()
     fp = open("debian/changelog")
     old_changelog = fp.read()
     fp.close()
     fp = open("debian/changelog","w")
-    fp.write("fiji (%s) unstable; urgency=low\n\n"%(suggest_new_version))
+    fp.write("fiji (%s) unstable; urgency=low\n\n"%(suggest_new_version,))
     fp.write("  * Based on fiji.git at "+git_rev+"\n")
-    fp.write("    [Fill in the rest of the commit message here.]\n")
+    fp.write("    %s\n"%(message))
     fp.write("\n")
     fp.write(" -- Mark Longair <mhl@pobox.com>  "+time.strftime("%a, %d %b %Y %H:%M:%S +0000",time.gmtime())+"\n\n")
     fp.write(old_changelog)
@@ -404,6 +418,8 @@ if options.generate_build_command:
 ## with debian/update-debian --generate-build-command
 
 DEBIAN_DIRECTORY=$(dirname $(readlink -f "$BASH_SOURCE"))
+FIJI_DIRECTORY=$(readlink -f "$DEBIAN_DIRECTORY"/..)
+
 export JAVA_HOME=`cat "$DEBIAN_DIRECTORY"/java-home`
 JAVAC_PATH=$JAVA_HOME/bin/javac
 
@@ -415,7 +431,19 @@ fi
 
 echo In build-command, found JAVA_HOME was $JAVA_HOME
 
-sh -x Fake.sh FALLBACK=false VERBOSE=true \\
+# These lines are taken from Build.sh to ensure that Fake
+# is built:
+source_dir=src-plugins/fake
+source=$source_dir/fiji/build/*.java
+export SYSTEM_JAVAC=$JAVA_HOME/bin/javac
+export SYSTEM_JAVA=$JAVA_HOME/bin/java
+
+mkdir -p "$FIJI_DIRECTORY"/build &&
+  $SYSTEM_JAVAC -d "$FIJI_DIRECTORY"/build/ "$FIJI_DIRECTORY"/$source &&
+  $SYSTEM_JAVA -classpath "$FIJI_DIRECTORY"/build fiji.build.Fake fiji &&
+  $SYSTEM_JAVA -classpath "$FIJI_DIRECTORY"/build fiji.build.Fake jars/fake.jar
+
+./fiji --build --java-home "$JAVA_HOME" -- FALLBACK=false VERBOSE=true \\
 ''')
         for k in sorted(new_classpaths.keys()):
             f.write('    "CLASSPATH(%s)=%s" \\\n' % (k,':'.join(sorted(new_classpaths[k]))))
@@ -618,7 +646,6 @@ if options.clean:
     to_remove.append("java/win64")
     to_remove.append("livehelper")
     to_remove.append("Retrotranslator")
-    to_remove.append("jython")
     to_remove.append("clojure")
     to_remove.append("junit")
 
@@ -657,18 +684,22 @@ if options.clean:
         if skip_next_line:
             skip_next_line = False
             continue
-        if re.search("TurboReg_",line):
-            continue
-        if re.search("TransformJ_",line):
-            continue
-        if re.search("(^\s*jars|precompiled)/jython.jar",line):
-            continue
-        if re.search("(^\s*jars|precompiled)/clojure.jar",line):
-            continue
-        if re.search("(^\s*jars|precompiled)/junit-4.5.jar",line):
-            continue
-        if re.search("(^\s*jars|precompiled)/batik.jar",line):
-            continue
+        # Don't exclude the dummy targets:
+        if not re.search('\[\] *<- *$',line):
+            if re.search("TurboReg_",line):
+                continue
+            if re.search("TransformJ_",line):
+                continue
+            if re.search("(^\s*jars|precompiled)/clojure.jar",line):
+                continue
+            if re.search("(^\s*jars|precompiled)/javassist.jar",line):
+                continue
+            if re.search("(^\s*jars|precompiled)/jsch-0.1.44.jar",line):
+                continue
+            if re.search("(^\s*jars|precompiled)/junit-4.5.jar",line):
+                continue
+            if re.search("(^\s*jars|precompiled)/batik.jar",line):
+                continue
         if re.search("^\s*missingPrecompiledFallBack",line):
             skip_next_line = True
             continue
@@ -680,6 +711,23 @@ if options.clean:
         line = re.sub('jars/Jama-1\.0\.2\.jar','/usr/share/java/jama.jar',line)
         fp.write(line)
     fp.close()
+
+    # Hopefully there'll be a better fix for this at some stage, but
+    # for the moment rewrite any occurence of "fiji --ant" in
+    # staged-plugins/* and bin/build-jython.sh to include the
+    # --java-home parameter:
+
+    files_to_rewrite = [ os.path.join('staged-plugins',s) for s in os.listdir('staged-plugins') ]
+    files_to_rewrite.append('bin/build-jython.sh')
+
+    for filename in files_to_rewrite:
+        original_permissions = stat.S_IMODE(os.stat(filename).st_mode)
+        with NamedTemporaryFile(delete=False) as tfp:
+            with open(filename) as original:
+                for line in original:
+                    tfp.write(re.sub('fiji\s+--ant',"fiji --java-home '%s' --ant"%(java_home,),line))
+        os.chmod(tfp.name, original_permissions)
+        os.rename(tfp.name, original.name)
 
     # Remove all the files in precompiled - we want to build
     # everything from source:
@@ -693,7 +741,7 @@ if options.generate_complete_control or options.all_dependencies or options.depe
     # generated by looking at which classes are referenced in each jar
     # file, and finding the jar that contains those classes.)
 
-    package_url = 'http://pacific.mpi-cbg.de/update/db.xml.gz'
+    package_url = 'http://fiji.sc/update/db.xml.gz'
 
     if True:
         f = urllib2.urlopen(package_url)

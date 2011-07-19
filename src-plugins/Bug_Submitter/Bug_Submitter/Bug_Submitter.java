@@ -91,6 +91,7 @@ import java.awt.Toolkit;
 
 import fiji.updater.UptodateCheck;
 import fiji.updater.logic.Checksummer;
+import fiji.updater.logic.PluginCollection;
 import fiji.updater.logic.PluginObject;
 import fiji.updater.ui.ProgressDialog;
 import fiji.updater.util.Canceled;
@@ -132,7 +133,7 @@ public class Bug_Submitter implements PlugIn {
 		return new String(newChars);
 	}
 
-	final String bugzillaBaseURI = "http://pacific.mpi-cbg.de/cgi-bin/bugzilla/";
+	final String bugzillaBaseURI = "http://fiji.sc/cgi-bin/bugzilla/";
 
 	static final int SUCCESS = 1;
 	static final int LOGIN_FAILURE = 2;
@@ -192,10 +193,19 @@ public class Bug_Submitter implements PlugIn {
 		return result.toString();
 	}
 
+	protected String getPathInformation() {
+		StringBuffer sb = new StringBuffer();
+		sb.append("  JAVA_HOME is set to: ");
+		sb.append(System.getenv("JAVA_HOME"));
+		sb.append("\n  fiji.dir => ");
+		sb.append(System.getProperty("fiji.dir"));
+		return sb.toString();
+	}
+
 	protected String getInstalledVersions() {
 
 		ProgressDialog progress = new ProgressDialog(IJ.getInstance(),"Finding installed plugin versions...");
-		Checksummer checksummer = new Checksummer(progress);
+		Checksummer checksummer = new Checksummer(new PluginCollection(), progress);
 		try {
 				checksummer.updateFromLocal();
 		} catch (Canceled e) {
@@ -751,7 +761,9 @@ public class Bug_Submitter implements PlugIn {
 			"this information is useful for the Fiji developers:\n\n"+
 			getUsefulSystemInformation()+
 			"\nThe up-to-date check says: "+(new UptodateCheck()).check()+"\n"+
-			"\nInformation about the version of each plugin:\n\n"+
+			"\nInformation relevant to JAVA_HOME related problems:\n\n"+
+			getPathInformation()+
+			"\n\nInformation about the version of each plugin:\n\n"+
 			getInstalledVersions();
 
 		while( true ) {

@@ -14,6 +14,7 @@ import ij.plugin.frame.Recorder;
 import ij.process.StackConverter;
 import ij.process.ImageConverter;
 
+import ij3d.gui.LUTDialog;
 import ij3d.gui.ContentCreatorDialog;
 
 import math3d.TransformIO;
@@ -22,6 +23,7 @@ import javax.swing.JFileChooser;
 import javax.swing.filechooser.*;
 import java.awt.event.*;
 import java.awt.*;
+import java.util.Arrays;
 import java.util.Vector;
 import java.util.Iterator;
 import java.util.Collection;
@@ -32,11 +34,13 @@ import java.io.File;
 import vib.InterpolatedImage;
 import vib.FastMatrix;
 
+import orthoslice.MultiOrthoGroup;
 import orthoslice.OrthoGroup;
 import voltex.VoltexGroup;
 import voltex.VolumeRenderer;
 import isosurface.MeshExporter;
 import isosurface.MeshEditor;
+import isosurface.SmoothControl;
 
 import javax.vecmath.Color3f;
 import javax.vecmath.Point3f;
@@ -47,7 +51,10 @@ import javax.media.j3d.Background;
 
 import customnode.CustomMesh;
 import customnode.CustomMeshNode;
+import customnode.CustomMultiMesh;
 import customnode.CustomTriangleMesh;
+
+import java.awt.event.TextListener;
 
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.vecmath.Point3d;
@@ -73,7 +80,7 @@ public class Executer {
 	public static final String CLOSE = "close";
 	public static final String WINDOW_SIZE = "windowSize";
 
-	public static final String SET_COLOR = "setColor"; 
+	public static final String SET_COLOR = "setColor";
 	public static final String SET_TRANSPARENCY = "setTransparency";
 	public static final String SET_CHANNELS = "setChannels";
 	public static final String FILL_SELECTION = "fillSelection";
@@ -144,6 +151,7 @@ public class Executer {
 
 	public void addContent(final ImagePlus image, final File file) {
 		new Thread() {
+			{ setPriority(Thread.NORM_PRIORITY); }
 			@Override
 			public void run() {
 				addC(image, file);
@@ -205,7 +213,7 @@ public class Executer {
 // 		}
 // 		univ.addOctree(dir, name);
 // 	}
-// 
+//
 // 	public void removeOctree() {
 // 		univ.removeOctree();
 // 	}
@@ -231,12 +239,42 @@ public class Executer {
 			IJ.showMessage("Could not load the file:\n" + path);
 	}
 
+	public void importSTL() {
+		OpenDialog od = new OpenDialog("Select .stl file", OpenDialog.getDefaultDirectory(), null);
+		String filename = od.getFileName();
+		if (null == filename) return;
+		if (!filename.toLowerCase().endsWith(".stl")) {
+			IJ.showMessage("Must select an STL file!");
+			return;
+		}
+		String path = new StringBuilder(od.getDirectory()).append(filename).toString();
+		IJ.log("path: " + path);
+		Object ob;
+		try {
+			ob = univ.addContentLater(path);
+		} catch (Exception e) {
+			e.printStackTrace();
+			ob = null;
+		}
+		if (null == ob)
+			IJ.showMessage("Could not load the file:\n" + path);
+	}
+
+
 	public void saveAsDXF() {
 		MeshExporter.saveAsDXF(univ.getContents());
 	}
 
 	public void saveAsWaveFront() {
 		MeshExporter.saveAsWaveFront(univ.getContents());
+	}
+
+	public void saveAsAsciiSTL(){
+		MeshExporter.saveAsSTL(univ.getContents(), MeshExporter.ASCII);
+	}
+
+	public void saveAsBinarySTL(){
+		MeshExporter.saveAsSTL(univ.getContents(), MeshExporter.BINARY);
 	}
 
 	public void loadView() {
@@ -275,6 +313,7 @@ public class Executer {
 		if(dir == null || name == null)
 			return;
 		new Thread() {
+			{ setPriority(Thread.NORM_PRIORITY); }
 			public void run() {
 				try {
 					univ.loadSession(dir + name);
@@ -326,6 +365,81 @@ public class Executer {
 	public void changeSlices(final Content c) {
 		if(!checkSel(c))
 			return;
+		switch(c.getType()) {
+			case Content.ORTHO: changeOrthslices(c); break;
+			case Content.MULTIORTHO: changeMultiOrthslices(c); break;
+		}
+	}
+
+	private void changeMultiOrthslices(final Content c) {
+		if(!checkSel(c))
+			return;
+		final GenericDialog gd = new GenericDialog(
+			"Adjust slices...", univ.getWindow());
+		final MultiOrthoGroup os = (MultiOrthoGroup)c.getContent();
+
+		boolean opaque = os.getTexturesOpaque();
+
+		gd.addMessage("Number of slices {x: " + os.getSliceCount(0)
+				+ ", y: " + os.getSliceCount(1)
+				+ ", z: " + os.getSliceCount(2) + "}");
+		gd.addStringField("x_slices (e.g. 1, 2-5, 20)", "", 10);
+		gd.addStringField("y_slices (e.g. 1, 2-5, 20)", "", 10);
+		gd.addStringField("z_slices (e.g. 1, 2-5, 20)", "", 10);
+
+		gd.addCheckbox("Opaque textures", opaque);
+
+		gd.showDialog();
+		if(gd.wasCanceled())
+			return;
+
+		int X = AxisConstants.X_AXIS;
+		int Y = AxisConstants.Y_AXIS;
+		int Z = AxisConstants.Z_AXIS;
+
+		boolean[] xAxis = new boolean[os.getSliceCount(X)];
+		boolean[] yAxis = new boolean[os.getSliceCount(Y)];
+		boolean[] zAxis = new boolean[os.getSliceCount(Z)];
+
+		parseRange(gd.getNextString(), xAxis);
+		parseRange(gd.getNextString(), yAxis);
+		parseRange(gd.getNextString(), zAxis);
+
+		os.setVisible(X, xAxis);
+		os.setVisible(Y, yAxis);
+		os.setVisible(Z, zAxis);
+
+		os.setTexturesOpaque(gd.getNextBoolean());
+	}
+
+	private static void parseRange(String rangeString, boolean[] b) {
+		Arrays.fill(b, false);
+		if(rangeString.trim().length() == 0)
+			return;
+		try {
+			String[] tokens1 = rangeString.split(",");
+			for(String tok1 : tokens1) {
+				String[] tokens2 = tok1.split("-");
+				if(tokens2.length == 1) {
+					b[Integer.parseInt(tokens2[0].trim())] = true;
+				} else {
+					int start = Integer.parseInt(tokens2[0].trim());
+					int end = Integer.parseInt(tokens2[1].trim());
+					for(int i = start; i <= end; i++) {
+						if(i >= 0 && i < b.length)
+							b[i] = true;
+					}
+				}
+			}
+		} catch(Exception e) {
+			IJ.error("Cannot parse " + rangeString);
+			return;
+		}
+	}
+
+	private void changeOrthslices(final Content c) {
+		if(!checkSel(c))
+			return;
 		final GenericDialog gd = new GenericDialog(
 			"Adjust slices...", univ.getWindow());
 		final OrthoGroup os = (OrthoGroup)c.getContent();
@@ -353,9 +467,9 @@ public class Executer {
 				"x, y, z + SPACE switches planes on\n" +
 				"and off");
 
-		final int[] dirs = new int[] {VolumeRenderer.X_AXIS, 
+		final int[] dirs = new int[] {VolumeRenderer.X_AXIS,
 				VolumeRenderer.Y_AXIS, VolumeRenderer.Z_AXIS};
-		final Scrollbar[] sl = new Scrollbar[3]; 
+		final Scrollbar[] sl = new Scrollbar[3];
 		final Checkbox[] cb = new Checkbox[3];
 
 		for(int k = 0; k < 3; k++) {
@@ -392,7 +506,7 @@ public class Executer {
 					return;
 				} else {
 					record(SET_SLICES,
-					Integer.toString(sl[0].getValue()), 
+					Integer.toString(sl[0].getValue()),
 					Integer.toString(sl[1].getValue()),
 					Integer.toString(sl[2].getValue()));
 					return;
@@ -406,9 +520,10 @@ public class Executer {
 		if(!checkSel(c))
 			return;
 		int type = c.getType();
-		if(type != Content.VOLUME && type != Content.ORTHO) 
+		if(type != Content.VOLUME && type != Content.ORTHO)
 			return;
 		new Thread() {
+			{ setPriority(Thread.NORM_PRIORITY); }
 			@Override
 			public void run() {
 				ImageCanvas3D canvas = (ImageCanvas3D)univ.getCanvas();
@@ -423,13 +538,19 @@ public class Executer {
 	public void smoothMesh(Content c) {
 		if(!checkSel(c))
 			return;
-		if(c.getType() == Content.SURFACE || c.getType() == Content.CUSTOM) {
-			ContentNode cn = c.getContent();
-			if(cn instanceof CustomMeshNode) {
-				CustomMesh mesh = ((CustomMeshNode)cn).getMesh();
-				if(mesh instanceof CustomTriangleMesh)
-					MeshEditor.smooth((CustomTriangleMesh)mesh, 0.25f);
+		ContentNode cn = c.getContent();
+		// Check multi first; it extends CustomMeshNode
+		if(cn instanceof CustomMultiMesh) {
+			CustomMultiMesh multi = (CustomMultiMesh)cn;
+			for(int i=0; i<multi.size(); i++) {
+				CustomMesh m = multi.getMesh(i);
+				if(m instanceof CustomTriangleMesh)
+					MeshEditor.smooth2((CustomTriangleMesh)m, 1);
 			}
+		} else if(cn instanceof CustomMeshNode) {
+			CustomMesh mesh = ((CustomMeshNode)cn).getMesh();
+			if(mesh instanceof CustomTriangleMesh)
+				MeshEditor.smooth2((CustomTriangleMesh)mesh, 1); // 0.25f);
 		}
 	}
 
@@ -443,6 +564,7 @@ public class Executer {
 			Runtime.getRuntime().availableProcessors()];
 		for (int i = 0; i<thread.length; i++) {
 			thread[i] = new Thread() {
+				{ setPriority(Thread.NORM_PRIORITY); }
 				@Override
 				public void run() {
 					try {
@@ -460,6 +582,10 @@ public class Executer {
 		}
 	}
 
+	/** Interactively smooth meshes, with undo. */
+	public void smoothControl() {
+		new SmoothControl(univ);
+	}
 
 	/* ----------------------------------------------------------
 	 * Display As submenu
@@ -470,58 +596,57 @@ public class Executer {
 		c.displayAs(type);
 	}
 
+	private interface ColorListener {
+		public void colorChanged(Color3f color);
+		public void ok(GenericDialog gd);
+	}
 
-	/* ----------------------------------------------------------
-	 * Attributes submenu
-	 * --------------------------------------------------------*/
-	public void changeColor(final Content c) {
-		if(!checkSel(c))
-			return;
-		final ContentInstant ci = c.getCurrent();
-		final GenericDialog gd = 
-			new GenericDialog("Adjust color ...", univ.getWindow());
-		final Color3f oldC = ci.getColor();
+	protected void showColorDialog(final String title,
+			final Color3f oldC, final ColorListener colorListener,
+			boolean showDefaultCheckbox, boolean showTimepointsCheckbox) {
+		final GenericDialog gd = new GenericDialog(title, univ.getWindow());
 
-		gd.addCheckbox("Use default color", oldC == null);
+		if (showDefaultCheckbox)
+			gd.addCheckbox("Use default color", oldC == null);
 		gd.addSlider("Red",0,255,oldC == null ? 255 : oldC.x*255);
 		gd.addSlider("Green",0,255,oldC == null ? 0 : oldC.y*255);
 		gd.addSlider("Blue",0,255,oldC == null ? 0 : oldC.z*255);
 
-		gd.addCheckbox("Apply to all timepoints", true);
+		if (showTimepointsCheckbox)
+			gd.addCheckbox("Apply to all timepoints", true);
 
 		final Scrollbar rSlider = (Scrollbar)gd.getSliders().get(0);
 		final Scrollbar gSlider = (Scrollbar)gd.getSliders().get(1);
 		final Scrollbar bSlider = (Scrollbar)gd.getSliders().get(2);
-		final Checkbox cBox = (Checkbox)gd.getCheckboxes().get(0);
-		final Checkbox aBox = (Checkbox)gd.getCheckboxes().get(1);
 
 		rSlider.setEnabled(oldC != null);
 		gSlider.setEnabled(oldC != null);
 		bSlider.setEnabled(oldC != null);
 
-		cBox.addItemListener(new ItemListener() {
-			public void itemStateChanged(ItemEvent e) {
-				gd.setCursor(new Cursor(Cursor.WAIT_CURSOR));
-				rSlider.setEnabled(!cBox.getState());
-				gSlider.setEnabled(!cBox.getState());
-				bSlider.setEnabled(!cBox.getState());
-				ci.setColor(cBox.getState() ? null :
-					new Color3f(
-						rSlider.getValue() / 255f,
-						gSlider.getValue() / 255f,
-						bSlider.getValue() / 255f));
-				gd.setCursor(new Cursor(Cursor.DEFAULT_CURSOR));
-				univ.fireContentChanged(c);
-			}
-		});
+		if (showDefaultCheckbox) {
+			final Checkbox cBox = (Checkbox)gd.getCheckboxes().get(0);
+			cBox.addItemListener(new ItemListener() {
+				public void itemStateChanged(ItemEvent e) {
+					gd.setCursor(new Cursor(Cursor.WAIT_CURSOR));
+					rSlider.setEnabled(!cBox.getState());
+					gSlider.setEnabled(!cBox.getState());
+					bSlider.setEnabled(!cBox.getState());
+					colorListener.colorChanged(
+						new Color3f(
+							rSlider.getValue() / 255f,
+							gSlider.getValue() / 255f,
+							bSlider.getValue() / 255f));
+					gd.setCursor(new Cursor(Cursor.DEFAULT_CURSOR));
+				}
+			});
+		}
 
 		AdjustmentListener listener = new AdjustmentListener() {
 			public void adjustmentValueChanged(AdjustmentEvent e) {
-				ci.setColor(new Color3f(
+				colorListener.colorChanged(new Color3f(
 						rSlider.getValue() / 255f,
 						gSlider.getValue() / 255f,
 						bSlider.getValue() / 255f));
-				univ.fireContentChanged(c);
 			}
 		};
 		rSlider.addAdjustmentListener(listener);
@@ -532,87 +657,111 @@ public class Executer {
 		gd.addWindowListener(new WindowAdapter() {
 			@Override
 			public void windowClosed(WindowEvent e) {
-				if(gd.wasCanceled()) {
-					ci.setColor(oldC);
-					univ.fireContentChanged(c);
-					return;
-				}
-				// gd.wasOKed: apply to all time points
-				if(aBox.getState()) {
-					c.setColor(ci.getColor());
-				}
-				univ.fireContentChanged(c);
-				if(cBox.getState()){
-					record(SET_COLOR,
-					"null", "null", "null");
-				} else {
-					record(SET_COLOR,
-					Integer.toString(rSlider.getValue()),
-					Integer.toString(gSlider.getValue()),
-					Integer.toString(bSlider.getValue()));
+				if (gd.wasCanceled())
+					colorListener.colorChanged(oldC);
+				else {
+					gd.setCursor(new Cursor(Cursor.WAIT_CURSOR));
+					colorListener.ok(gd);
+					gd.setCursor(new Cursor(Cursor.DEFAULT_CURSOR));
 				}
 			}
 		});
 		gd.showDialog();
 	}
 
+	/* ----------------------------------------------------------
+	 * Attributes submenu
+	 * --------------------------------------------------------*/
+	public void changeColor(final Content c) {
+		if(!checkSel(c))
+			return;
+		final ContentInstant ci = c.getCurrent();
+		final Color3f oldC = ci.getColor();
+		final ColorListener colorListener = new ColorListener() {
+			public void colorChanged(Color3f color) {
+				ci.setColor(color);
+				univ.fireContentChanged(c);
+			}
+
+			public void ok(final GenericDialog gd) {
+				if (gd.getNextBoolean())
+					record(SET_COLOR, "null", "null", "null");
+				else
+					record(SET_COLOR, "" + (int)gd.getNextNumber(),
+						"" + (int)gd.getNextNumber(), "" + (int)gd.getNextNumber());
+
+				// gd.wasOKed: apply to all time points
+				if (gd.getNextBoolean())
+					c.setColor(ci.getColor());
+				univ.fireContentChanged(c);
+			}
+		};
+		showColorDialog("Change color...", oldC, colorListener, true, true);
+	}
+
 	/** Adjust the background color in place. */
 	public void changeBackgroundColor() {
-		final GenericDialog gd = 
-			new GenericDialog("Adjust background color ...", univ.getWindow());
-
 		final Background background = ((ImageCanvas3D)univ.getCanvas()).getBG();
 		final Label status = univ.getWindow().getStatusLabel();
 		final Color3f oldC = new Color3f();
 		background.getColor(oldC);
 
-		gd.addSlider("Red",0,255,oldC == null ? 255 : oldC.x*255);
-		gd.addSlider("Green",0,255,oldC == null ? 0 : oldC.y*255);
-		gd.addSlider("Blue",0,255,oldC == null ? 0 : oldC.z*255);
-
-		final Scrollbar rSlider = (Scrollbar)gd.getSliders().get(0);
-		final Scrollbar gSlider = (Scrollbar)gd.getSliders().get(1);
-		final Scrollbar bSlider = (Scrollbar)gd.getSliders().get(2);
-
-		rSlider.setEnabled(oldC != null);
-		gSlider.setEnabled(oldC != null);
-		bSlider.setEnabled(oldC != null);
-
-		AdjustmentListener listener = new AdjustmentListener() {
-			public void adjustmentValueChanged(AdjustmentEvent e) {
-				float r = rSlider.getValue() / 255f;
-				float g = gSlider.getValue() / 255f;
-				float b = bSlider.getValue() / 255f;
-				background.setColor(r, g, b);
-				status.setBackground(new Color(r, g, b));
+		final ColorListener colorListener = new ColorListener() {
+			public void colorChanged(Color3f color) {
+				background.setColor(color);
+				status.setBackground(color.get());
 				((ImageCanvas3D)univ.getCanvas()).render();
 			}
-		};
-		rSlider.addAdjustmentListener(listener);
-		gSlider.addAdjustmentListener(listener);
-		bSlider.addAdjustmentListener(listener);
 
-		gd.setModal(false);
-		gd.addWindowListener(new WindowAdapter() {
-			public void windowClosed(WindowEvent e) {
-				if(gd.wasCanceled()) {
-					background.setColor(oldC);
-					status.setBackground(new Color(oldC.x, oldC.y, oldC.z));
-					((ImageCanvas3D)univ.getCanvas()).render();
-					return;
-				} else {
-					// TODO macro record
-					// Apply:
-					float r = rSlider.getValue() / 255f;
-					float g = gSlider.getValue() / 255f;
-					float b = bSlider.getValue() / 255f;
-					background.setColor(r, g, b);
-					status.setBackground(new Color(r, g, b));
-					((ImageCanvas3D)univ.getCanvas()).render();
-				}
+			public void ok(final GenericDialog gd) {
+				// TODO macro record
+			}
+		};
+		showColorDialog("Adjust background color ...", oldC, colorListener, false, false);
+	}
+
+	public void changePointColor(final Content c) {
+		if(!checkSel(c))
+			return;
+		final ContentInstant ci = c.getCurrent();
+		final Color3f oldC = ci.getLandmarkColor();
+		final ColorListener colorListener = new ColorListener() {
+			public void colorChanged(Color3f color) {
+				ci.setLandmarkColor(color);
+				univ.fireContentChanged(c);
+			}
+
+			public void ok(final GenericDialog gd) {
+				// TODO: record
+				// gd.wasOKed: apply to all time points
+				if (gd.getNextBoolean())
+					c.setLandmarkColor(ci.getLandmarkColor());
+				univ.fireContentChanged(c);
+			}
+		};
+		showColorDialog("Change point color...", oldC, colorListener, false, true);
+	}
+
+	public void adjustLUTs(final Content c) {
+		if(!checkSel(c))
+			return;
+		final int[] r = new int[256]; c.getRedLUT(r);
+		final int[] g = new int[256]; c.getGreenLUT(g);
+		final int[] b = new int[256]; c.getBlueLUT(b);
+		final int[] a = new int[256]; c.getAlphaLUT(a);
+
+		LUTDialog ld = new LUTDialog(r, g, b, a);
+		ld.addCtrlHint();
+
+		ld.addListener(new LUTDialog.Listener() {
+			public void applied() {
+				c.setLUT(r, g, b, a);
+				univ.fireContentChanged(c);
 			}
 		});
-		gd.showDialog();
+		ld.showDialog();
+
+		// TODO record
 	}
 
 	public void changeChannels(Content c) {
@@ -622,16 +771,16 @@ public class Executer {
 		GenericDialog gd = new GenericDialog("Adjust channels ...",
 							univ.getWindow());
 		gd.addMessage("Channels");
-		gd.addCheckboxGroup(1, 3, 
-				new String[] {"red", "green", "blue"}, 
+		gd.addCheckboxGroup(1, 3,
+				new String[] {"red", "green", "blue"},
 				ci.getChannels());
 		gd.addCheckbox("Apply to all timepoints", true);
 		gd.showDialog();
 		if(gd.wasCanceled())
 			return;
-			
-		boolean[] channels = new boolean[]{gd.getNextBoolean(), 
-						gd.getNextBoolean(), 
+
+		boolean[] channels = new boolean[]{gd.getNextBoolean(),
+						gd.getNextBoolean(),
 						gd.getNextBoolean()};
 		if(gd.getNextBoolean())
 			c.setChannels(channels);
@@ -744,7 +893,7 @@ public class Executer {
 			return;
 		}
 		// in case we've not a mesh, change it interactively
-		final GenericDialog gd = 
+		final GenericDialog gd =
 				new GenericDialog("Adjust threshold...");
 		gd.addSlider("Threshold", 0, 255, oldTr);
 		((Scrollbar)gd.getSliders().get(0)).
@@ -814,6 +963,31 @@ public class Executer {
 			ci.setShaded(b);
 	}
 
+	public void applySurfaceColors(Content c) {
+		if(!checkSel(c))
+			return;
+		int t = c.getType();
+		if(t != Content.SURFACE && t != Content.CUSTOM)
+			return;
+
+		GenericDialog gd = new GenericDialog("Apply color from image");
+		int[] ids = WindowManager.getIDList();
+		String[] titles = new String[ids.length];
+		for(int i = 0; i < ids.length; i++)
+			titles[i] = WindowManager.getImage(ids[i]).getTitle();
+
+		gd.addChoice("Color image", titles, titles[0]);
+		gd.addCheckbox("Apply to all timepoints", true);
+		gd.showDialog();
+		if(gd.wasCanceled())
+			return;
+
+		ImagePlus colorImage = WindowManager.getImage(gd.getNextChoice());
+		if(gd.getNextBoolean())
+			c.applySurfaceColors(colorImage);
+		else if(c.getCurrent() != null)
+			c.getCurrent().applySurfaceColors(colorImage);
+	}
 
 	/* ----------------------------------------------------------
 	 * Hide/Show submenu
@@ -834,7 +1008,7 @@ public class Executer {
 	public void showContent(Content c, boolean b) {
 		if(!checkSel(c))
 			return;
-		univ.getSelected().setVisible(b);
+		c.setVisible(b);
 		if(!b)
 			univ.clearSelection();
 	}
@@ -863,14 +1037,26 @@ public class Executer {
 	public void changePointSize(final Content c) {
 		if(!checkSel(c))
 			return;
-		final GenericDialog gd = 
+		final GenericDialog gd =
 			new GenericDialog("Point size", univ.getWindow());
 		final float oldS = (float)(c.getLandmarkPointSize());
-		gd.addSlider("Size", 0, 20, oldS);
+		final float minS = oldS / 10f;
+		final float maxS = oldS * 10f;
+		gd.addSlider("Size", minS, maxS, oldS);
+		final TextField textField = (TextField)gd.getNumericFields().get(0);
+		textField.addTextListener(new TextListener() {
+			public void textValueChanged(TextEvent e2) {
+				try {
+					c.setLandmarkPointSize(Float.parseFloat(textField.getText()));
+				} catch (NumberFormatException e) {
+					// ignore
+				}
+			}
+		});
 		((Scrollbar)gd.getSliders().get(0)).
 			addAdjustmentListener(new AdjustmentListener() {
 			public void adjustmentValueChanged(AdjustmentEvent e) {
-				float newS = (float)e.getValue();
+				float newS = Float.parseFloat(textField.getText());
 				c.setLandmarkPointSize(newS);
 			}
 		});
@@ -917,7 +1103,7 @@ public class Executer {
 		c.getContent().getMax(max);
 		c.getContent().getCenter(center);
 
-		TextWindow tw = new TextWindow(c.getName(), 
+		TextWindow tw = new TextWindow(c.getName(),
 			" \tx\ty\tz",
 			"min\t" + (float)min.x + "\t"
 				+ (float)min.y + "\t"
@@ -1019,11 +1205,12 @@ public class Executer {
 	public void exportTransformed(final Content c) {
 		if(!checkSel(c))
 			return;
-		new Thread(new Runnable() {
+		new Thread() {
+			{ setPriority(Thread.NORM_PRIORITY); }
 			public void run() {
 				exportTr(c);
 			}
-		}).start();
+		}.start();
 	}
 
 	private void exportTr(Content c) {
@@ -1057,6 +1244,8 @@ public class Executer {
 			}
 		}
 		out.getImage().setTitle(orig.getTitle() + "_transformed");
+		out.getImage().getProcessor().setColorModel(
+			orig.getProcessor().getColorModel());
 		out.getImage().show();
 	}
 
@@ -1099,10 +1288,14 @@ public class Executer {
 	}
 
 	public void record360() {
-		ImagePlus movie = univ.record360();
-		if(movie != null)
-			movie.show();
-		record(RECORD_360);
+		new Thread() {
+			public void run() {
+				ImagePlus movie = univ.record360();
+				if(movie != null)
+					movie.show();
+				record(RECORD_360);
+			}
+		}.start();
 	}
 
 	public void startFreehandRecording() {
@@ -1159,8 +1352,43 @@ public class Executer {
 		univ.setRotationInterval(interval);
 	}
 
+	public void snapshot() {
+		int w = univ.getCanvas().getWidth();
+		int h = univ.getCanvas().getHeight();
+
+		GenericDialog gd = new GenericDialog("Snapshot",
+				univ.getWindow());
+		gd.addNumericField("Target_width", w, 0);
+		gd.addNumericField("Target_height", h, 0);
+		gd.showDialog();
+		if(gd.wasCanceled())
+			return;
+		w = (int)gd.getNextNumber();
+		h = (int)gd.getNextNumber();
+
+		Map props = univ.getCanvas().queryProperties();
+		int maxW = (Integer)props.get("textureWidthMax");
+		int maxH = (Integer)props.get("textureHeightMax");
+
+		if(w < 0 || w >= maxW || h < 0 || h >= maxH) {
+			IJ.error("Width must be between 0 and " + maxW +
+				",\nheight between 0 and " + maxH);
+			return;
+		}
+		univ.takeSnapshot(w, h).show();
+	}
+
+
 	public void viewPreferences() {
 		UniverseSettings.initFromDialog(univ);
+	}
+
+	public void sync(boolean b) {
+		univ.sync(b);
+	}
+
+	public void setFullScreen(boolean b) {
+		univ.setFullScreen(b);
 	}
 
 	public void editScalebar() {
@@ -1171,14 +1399,14 @@ public class Executer {
 		gd.addNumericField("y position", sc.getY(), 2);
 		gd.addNumericField("length", sc.getLength(), 2);
 		gd.addStringField("Units", sc.getUnit(), 5);
-		gd.addChoice("Color", ColorTable.colorNames, 
+		gd.addChoice("Color", ColorTable.colorNames,
 				ColorTable.getColorName(sc.getColor()));
 		gd.addCheckbox("show", univ.isAttributeVisible(
 				Image3DUniverse.ATTRIBUTE_SCALEBAR));
 		gd.showDialog();
 		if(gd.wasCanceled())
 			return;
-		sc.setPosition((float)gd.getNextNumber(), 
+		sc.setPosition((float)gd.getNextNumber(),
 				(float)gd.getNextNumber());
 		sc.setLength((float)gd.getNextNumber());
 		sc.setUnit(gd.getNextString());
@@ -1193,7 +1421,7 @@ public class Executer {
 	 * Help menu
 	 * *********************************************************/
 	public void j3dproperties() {
-		TextWindow tw = new TextWindow("Java 3D Properties", 
+		TextWindow tw = new TextWindow("Java 3D Properties",
 			"Key\tValue", "", 512, 512);
 		Map props = Image3DUniverse.getProperties();
 		tw.append("Java 3D properties\n \n");
@@ -1252,7 +1480,7 @@ public class Executer {
 		Matrix4d m = new Matrix4d();
 		t3d.get(m);
 		return new FastMatrix(new double[][] {
-			{m.m00, m.m01, m.m02, m.m03}, 
+			{m.m00, m.m01, m.m02, m.m03},
 			{m.m10, m.m11, m.m12, m.m13},
 			{m.m20, m.m21, m.m22, m.m23}});
 	}
@@ -1342,7 +1570,7 @@ public class Executer {
 			this.go = false;
 			synchronized (this) { notify(); }
 		}
-		
+
 		/*
 		 * This class has to be implemented by subclasses, to define
 		 * the specific updating function.

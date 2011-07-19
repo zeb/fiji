@@ -32,7 +32,7 @@ import ij.plugin.PlugIn;
  * <b>Requires</b>: 
  * <ul>
  * 		<li>Source folder: a directory with images, of any size and type (8, 16, 32-bit gray-scale or RGB color)</li>
- * 		<li>Transform folder: a directory with the transform files (from a <a target="_blank" href="http://pacific.mpi-cbg.de/wiki/Register_Virtual_Stack_Slices">Register_Virtual_Stack_Slices</a> execution). </li>
+ * 		<li>Transform folder: a directory with the transform files (from a <a target="_blank" href="http://fiji.sc/wiki/Register_Virtual_Stack_Slices">Register_Virtual_Stack_Slices</a> execution). </li>
  * </ul>
  * <p>
  * <b>Performs</b>: transformation of the sequence of images by applying the transform files.
@@ -41,7 +41,7 @@ import ij.plugin.PlugIn;
  * <p>
  * For a detailed documentation, please visit the plugin website at:
  * <p>
- * <A target="_blank" href="http://pacific.mpi-cbg.de/wiki/Transform_Virtual_Stack_Slices">http://pacific.mpi-cbg.de/wiki/Transform_Virtual_Stack_Slices</A>
+ * <A target="_blank" href="http://fiji.sc/wiki/Transform_Virtual_Stack_Slices">http://fiji.sc/wiki/Transform_Virtual_Stack_Slices</A>
  * 
  * @version 11/30/2009
  * @author Ignacio Arganda-Carreras (ignacio.arganda@gmail.com), Stephan Saalfeld and Albert Cardona
@@ -54,6 +54,9 @@ public class Transform_Virtual_Stack_MT implements PlugIn
 	public static String outputDirectory="";
 	/** transforms directory **/
 	public static String transformsDirectory="";
+	/** interpolate? **/
+	public static boolean interpolate=true;
+   
 
 	//---------------------------------------------------------------------------------
 	/**
@@ -68,6 +71,7 @@ public class Transform_Virtual_Stack_MT implements PlugIn
 		gd.addDirectoryField("Source directory", sourceDirectory, 50);
 		gd.addDirectoryField("Output directory", outputDirectory, 50);
 		gd.addDirectoryField("Transforms directory", transformsDirectory, 50);
+		gd.addCheckbox( "interpolate", interpolate );
 		
 		gd.showDialog();
 		
@@ -78,6 +82,7 @@ public class Transform_Virtual_Stack_MT implements PlugIn
 		sourceDirectory = gd.getNextString();
 		outputDirectory = gd.getNextString();
 		transformsDirectory = gd.getNextString();
+		interpolate = gd.getNextBoolean();
 				
 
 		String source_dir = sourceDirectory;
@@ -163,22 +168,15 @@ public class Transform_Virtual_Stack_MT implements PlugIn
 		}
 		
 		// Apply transforms
-		
-		// Executor service to run concurrent tasks
-		final ExecutorService exe = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
-		
+			
 		// Create transformed images
 		IJ.showStatus("Calculating transformed images...");
-		if(Register_Virtual_Stack_MT.createResults(source_dir, src_names, target_dir, null, exe, transform) == false)
+		if(Register_Virtual_Stack_MT.createResults(source_dir, src_names, target_dir, null, transform, interpolate) == false)
 		{
 			IJ.log("Error when creating transformed images");
-			exe.shutdownNow();
 			return false;
 		}
-		
-		exe.shutdownNow();
-		
-		
+				
 		return true;
 	}
 	

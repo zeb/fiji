@@ -17,8 +17,12 @@ public class SimpleExecuter {
 		public void handleLine(String line);
 	}
 
-	public SimpleExecuter(String[] cmdarray) throws IOException {
+	public SimpleExecuter(String... cmdarray) throws IOException {
 		this(cmdarray, null, null, null);
+	}
+
+	public SimpleExecuter(File workingDirectory, String... cmdarray) throws IOException {
+		this(cmdarray, null, null, workingDirectory);
 	}
 
 	public SimpleExecuter(String[] cmdarray, File workingDirectory) throws IOException {
@@ -61,6 +65,22 @@ public class SimpleExecuter {
 			stderr.join();
 			break;
 		} catch (InterruptedException e) { /* ignore */ }
+	}
+
+	public static void exec(String... args) {
+		LineHandler ijLogHandler = new LineHandler() {
+			public void handleLine(String line) {
+				IJ.log(line);
+			}
+		};
+		try {
+			SimpleExecuter executer = new SimpleExecuter(args, ijLogHandler, ijLogHandler);
+			if (executer.getExitCode() != 0)
+				throw new RuntimeException("exit status: " + executer.getExitCode());
+		}
+		catch (IOException e) {
+			throw new RuntimeException("Could not execute", e);
+		}
 	}
 
 	public int getExitCode() {
