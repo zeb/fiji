@@ -197,6 +197,11 @@ public class Reconstruction
 			if ( viewStructure == null )
 				continue;
 			
+			for ( ViewDataBeads view : viewStructure.getViews() )
+			{
+				IOFunctions.println( view.getUseForRegistration() + " " + view.getUseForFusion() );
+			}
+			
 			//
 			// Segmentation
 			//
@@ -214,7 +219,7 @@ public class Reconstruction
 			        if ( viewStructure.getDebugLevel() <= ViewStructure.DEBUG_ERRORONLY )
 			        	IOFunctions.println( "Cannot find files for " + viewStructure );
 			        
-					System.exit(0);
+					return;
 				}
 				
 				segSuccess = viewStructure.loadSegmentations();
