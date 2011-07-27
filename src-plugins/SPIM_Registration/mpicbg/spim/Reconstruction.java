@@ -26,10 +26,16 @@ public class Reconstruction
 	final protected SPIMConfiguration conf;
 	public SPIMConfiguration getSPIMConfiguration() { return conf; }
 	
+	ArrayList<RegistrationStatistics> stats;
+	public ArrayList<RegistrationStatistics> getRegistrationStatistics() { return stats; }
+
 	public Reconstruction( final SPIMConfiguration conf )
 	{
 		this.conf = conf; 
 		
+		if ( conf.collectRegistrationStatistics )
+			stats = new ArrayList<RegistrationStatistics>();
+
 		if ( conf.timeLapseRegistration )
 			processTimeLapse( conf );
 		else
@@ -189,18 +195,13 @@ public class Reconstruction
 	
 	protected void processIndividualViewStructure( SPIMConfiguration conf )
 	{
-		for (int timePointIndex = 0; timePointIndex < conf.file.length; timePointIndex++)
+		for ( int timePointIndex = 0; timePointIndex < conf.file.length; timePointIndex++ )
 		{
 			final ViewStructure viewStructure = ViewStructure.initViewStructure( conf, timePointIndex, new AffineModel3D(), "ViewStructure Timepoint " + timePointIndex, conf.debugLevelInt );						
 			
 			// no file found
 			if ( viewStructure == null )
 				continue;
-			
-			for ( ViewDataBeads view : viewStructure.getViews() )
-			{
-				IOFunctions.println( view.getUseForRegistration() + " " + view.getUseForFusion() );
-			}
 			
 			//
 			// Segmentation
@@ -293,6 +294,10 @@ public class Reconstruction
 			for ( ViewDataBeads view : viewStructure.getViews() )
 				view.closeImage();
 			
+			// collect some information if wanted
+			if ( conf.collectRegistrationStatistics )
+				stats.add( new RegistrationStatistics( viewStructure ) );
+
 			IOFunctions.println( "Finished processing." );
 		}
 	}

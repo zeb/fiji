@@ -182,22 +182,25 @@ public class BeadSegmentation
 		final Image<FloatType> img = view.getImage();
 
         float imageSigma = conf.imageSigma;
-        float initialSigma = conf.initialSigma;
+        float initialSigma = view.getInitialSigma();
 
         final float minPeakValue;
         final float minInitialPeakValue;
 
         // adjust for 12bit images
+        // we stop doing that for now...
         if ( view.getMaxValueUnnormed() > 256 )
         {
-        	minPeakValue = conf.minPeakValue/3;
-        	minInitialPeakValue = conf.minInitialPeakValue/3;
+		minPeakValue = view.getMinPeakValue();///3;
+		minInitialPeakValue = view.getMinInitialPeakValue();///3;
         }
         else
         {
-            minPeakValue = conf.minPeakValue;
-            minInitialPeakValue = conf.minInitialPeakValue;        	
+            minPeakValue = view.getMinPeakValue();
+            minInitialPeakValue = view.getMinInitialPeakValue();
         }        
+
+        IOFunctions.println( view.getName() + " sigma: " + initialSigma + " minPeakValue: " + minPeakValue );
 
         final float k = LaPlaceFunctions.computeK(conf.stepsPerOctave);
         final float K_MIN1_INV = LaPlaceFunctions.computeKWeight(k);
