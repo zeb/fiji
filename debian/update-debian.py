@@ -114,7 +114,11 @@ package_name_to_file_matchers = {
           "jars/jai_core.jar" ],
 
     "fiji-imglib" :
-        [ "jars/imglib.jar" ],
+        [ "jars/imglib.jar",
+          "jars/imglib-scripting.jar",
+          "jars/imglib-algorithms.jar",
+          "jars/imglib-ij.jar",
+          "jars/imglib-io.jar" ],
 
     "fiji-vib" :
         [ "plugins/VIB_.jar",
@@ -188,7 +192,8 @@ package_name_to_file_matchers = {
 # version of another package - this is almost always because a file
 # has been moved from one package to another.
 conflicts_and_replaces = {
-    'fiji-3d-viewer' : ( 'fiji-plugins (< 20100821202529)', )
+    'fiji-3d-viewer' : ( 'fiji-plugins (<= 20100821202528)', ),
+    'fiji-imglib' : ( 'fiji-plugins (<= 20110609134243)', )
 }
 
 # A dictionary whose keys are regular expressions that match files in
@@ -213,8 +218,9 @@ map_to_external_dependencies = {
     'jars/jcommon.*\.jar' : ( 'libjcommon-java', ),
     'jars/jsch.*\.jar' : ( 'libjsch-java', ),
     'jars/postgresql.*\.jar' : ( 'libpg-java', ),
-    'jars/ant.*\.jar' : ( 'ant', 'ant-optional' ),
-    'jars/javassist.*\.jar' : ( 'libjavassist-java' )
+    'jars/ant.*\.jar' : ( 'ant', 'ant-optional', ),
+    'jars/javassist.*\.jar' : ( 'libjavassist-java', ),
+    'jars/jna\.jar' : ( 'libjna-java', )
 }
 
 # A dictionary that maps a file in the Fiji build tree to tuples of
@@ -233,7 +239,8 @@ replacement_files =  {
     'jars/junit-4.5.jar' : ( '/usr/share/java/junit4.jar', ),
     'jars/jzlib-1.0.7.jar' : ( '/usr/share/java/jzlib.jar', ),
     'jars/postgresql-8.2-506.jdbc3.jar' : ( '/usr/share/java/postgresql.jar', ),
-    'jars/javassist.jar' : ( '/usr/share/java/javassist.jar' ),
+    'jars/javassist.jar' : ( '/usr/share/java/javassist.jar', ),
+    'jars/jna.jar' : ( '/usr/share/java/jna.jar', ),
     '$TOOLS_JAR' : ('/usr/lib/jvm/java-6-openjdk/lib/tools.jar', ),
     '$JAVA3D_JARS' : ('/usr/share/java/j3dcore.jar', '/usr/share/java/vecmath.jar', '/usr/share/java/j3dutils.jar', )
 }
@@ -700,6 +707,8 @@ if options.clean:
                 continue
             if re.search("(^\s*jars|precompiled)/batik.jar",line):
                 continue
+            if re.search("imagej2",line):
+                continue
         if re.search("^\s*missingPrecompiledFallBack",line):
             skip_next_line = True
             continue
@@ -725,7 +734,9 @@ if options.clean:
         with NamedTemporaryFile(delete=False) as tfp:
             with open(filename) as original:
                 for line in original:
-                    tfp.write(re.sub('fiji\s+--ant',"fiji --java-home '%s' --ant"%(java_home,),line))
+                    line = re.sub('../../fiji\s+',"../../fiji --java-home '%s' "%(java_home,),line)
+                    line = re.sub('/../bin/jar','/bin/jar',line)
+                    tfp.write(line)
         os.chmod(tfp.name, original_permissions)
         os.rename(tfp.name, original.name)
 

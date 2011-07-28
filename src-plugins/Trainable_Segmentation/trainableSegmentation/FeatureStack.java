@@ -50,6 +50,12 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
+import mpicbg.imglib.image.Image;
+import mpicbg.imglib.image.ImagePlusAdapter;
+import mpicbg.imglib.image.display.imagej.ImageJFunctions;
+import mpicbg.imglib.type.numeric.real.FloatType;
+import mpicbg.imglib.algorithm.fft.FourierConvolution;
+
 import anisotropic_diffusion.Anisotropic_Diffusion_2D;
 
 import stitching.FloatArray2D;
@@ -139,7 +145,7 @@ public class FeatureStack
 	/** size of the patch to use to enhance membranes (in pixels, NxN) */
 	private int membranePatchSize = 19;
 	/** number of rotating angles for membrane, Kuwahara and Gabor features */
-	private int nAngles = 30;
+	private int nAngles = 10;
 	
 	/** executor service to produce concurrent threads */
 	ExecutorService exe = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
@@ -216,8 +222,9 @@ public class FeatureStack
 	}
 	
 	/**
+	 * Check the use of the neighbors as features
 	 * 
-	 * @return
+	 * @return true if the neighbors are being used
 	 */
 	public boolean useNeighborhood()
 	{
@@ -225,10 +232,10 @@ public class FeatureStack
 	}
 	
 	/**
-	 * 
-	 * @param useNeighbors
+	 * Set the use of the neighbors as features
+	 * @param useNeighbors flag to decide the use of neighbors
 	 */
-	public void setUseNeighbors( boolean useNeighbors)
+	public void setUseNeighbors( boolean useNeighbors )
 	{
 		this.useNeighbors = useNeighbors;
 	}
@@ -588,7 +595,14 @@ public class FeatureStack
 		};
 	}
 	
-	
+	/**
+	 * Add Hessian features from original image (single thread version).
+	 * The features include a scalar representing the Hessian, the trace, determinant, 
+	 * 1st eigenvalue, 2nd eigenvalue, orientation, gamma-normalized square eigenvalue difference
+	 * and the square of Gamma-normalized eigenvalue difference
+	 * 
+	 * @param sigma radius of the Gaussian filter to use
+	 */
 	public void addHessian(float sigma)
 	{
 		float[] sobelFilter_x = {1f,2f,1f,0f,0f,0f,-1f,-2f,-1f};
@@ -620,35 +634,78 @@ public class FeatureStack
 		ImageProcessor ip = new FloatProcessor(width, height);
 		ImageProcessor ipTr = new FloatProcessor(width, height);
 		ImageProcessor ipDet = new FloatProcessor(width, height);
+		//ImageProcessor ipRatio = new FloatProcessor(width, height);
 		ImageProcessor ipEig1 = new FloatProcessor(width, height);
 		ImageProcessor ipEig2 = new FloatProcessor(width, height);
+		ImageProcessor ipOri = new FloatProcessor(width, height);
+		ImageProcessor ipSed = new FloatProcessor(width, height);
+		ImageProcessor ipNed = new FloatProcessor(width, height);
 				
+		final double t = Math.pow(1, 0.75);
+		
 		for (int x=0; x<width; x++){
-			for (int y=0; y<height; y++){
+			for (int y=0; y<height; y++)
+			{
 				float s_xx = ip_xx.getf(x,y);
 				float s_xy = ip_xy.getf(x,y);
 				float s_yy = ip_yy.getf(x,y);
+				// Hessian module: sqrt (a^2 + b*c + d^2)
+				ip.setf(x,y, (float) Math.sqrt(s_xx*s_xx + s_xy*s_xy+ s_yy*s_yy));
+				// Trace: a + d
+				final float trace = (float) s_xx + s_yy;
+				ipTr.setf(x,y,  trace);
+				// Determinant: a*d - c*b
+				final float determinant = (float) s_xx*s_yy-s_xy*s_xy;
+				ipDet.setf(x,y, determinant);
+				// Ratio
+				//ipRatio.setf(x,y, (float)(trace*trace) / determinant);
 				ip.setf(x,y, (float) Math.sqrt(s_xx*s_xx + s_xy*s_xy+ s_yy*s_yy));
 				ipTr.setf(x,y, (float) s_xx + s_yy);
 				ipDet.setf(x,y, (float) s_xx*s_yy-s_xy*s_xy);
-				// First eigenvalue
-				ipEig1.setf(x,y, (float) ( (s_xx+s_yy)/2.0 + Math.sqrt((4*s_xy*s_xy + (s_xx - s_yy)*(s_xx - s_yy)) / 2.0 ) ) );
-				// Second eigenvalue
-				ipEig2.setf(x,y, (float) ( (s_xx+s_yy)/2.0 - Math.sqrt((4*s_xy*s_xy + (s_xx - s_yy)*(s_xx - s_yy)) / 2.0 ) ) );
+				// First eigenvalue: (a + d) / 2 + sqrt( ( 4*b^2 + (a - d)^2) ) / 2 )
+				ipEig1.setf(x,y, (float) ( trace/2.0 + Math.sqrt((4*s_xy*s_xy + (s_xx - s_yy)*(s_xx - s_yy)) / 2.0 ) ) );
+				// Second eigenvalue: (a + d) / 2 - sqrt( ( 4*b^2 + (a - d)^2) ) / 2 )
+				ipEig2.setf(x,y, (float) ( trace/2.0 - Math.sqrt((4*s_xy*s_xy + (s_xx - s_yy)*(s_xx - s_yy)) / 2.0 ) ) );
+				// Orientation
+				if (s_xy < 0.0) // -0.5 * acos( (a-d) / sqrt( 4*b^2 + (a - d)^2)) )
+				{
+					float orientation =(float)( -0.5 * Math.acos((s_xx	- s_yy) 
+							/ Math.sqrt(4.0 * s_xy * s_xy + (s_xx - s_yy) * (s_xx - s_yy)) ));							
+					if (Float.isNaN(orientation))
+						orientation = 0;
+					ipOri.setf(x, y,  orientation);
+				}
+				else 	// 0.5 * acos( (a-d) / sqrt( 4*b^2 + (a - d)^2)) )
+				{
+					float orientation =(float)( 0.5 * Math.acos((s_xx	- s_yy) 
+							/ Math.sqrt(4.0 * s_xy * s_xy + (s_xx - s_yy) * (s_xx - s_yy)) ));							
+					if (Float.isNaN(orientation))
+						orientation = 0;
+					ipOri.setf(x, y,  orientation);
+				}
+				// Gamma-normalized square eigenvalue difference
+				ipSed.setf(x, y, (float) ( Math.pow(t,4) * trace*trace * ( (s_xx - s_yy)*(s_xx - s_yy) + 4*s_xy*s_xy ) ) );
+				// Square of Gamma-normalized eigenvalue difference
+				ipNed.setf(x, y, (float) ( Math.pow(t,2) * ( (s_xx - s_yy)*(s_xx - s_yy) + 4*s_xy*s_xy ) ) );
 			}
 		}
 		
 		wholeStack.addSlice(availableFeatures[HESSIAN] + "_"  + sigma, ip);
 		wholeStack.addSlice(availableFeatures[HESSIAN]+ "_Trace_"+sigma, ipTr);
 		wholeStack.addSlice(availableFeatures[HESSIAN]+ "_Determinant_"+sigma, ipDet);
+		//wholeStack.addSlice(availableFeatures[HESSIAN]+ "_Eignevalue_Ratio_"+sigma, ipRatio);
 		wholeStack.addSlice(availableFeatures[HESSIAN]+ "_Eigenvalue_1_"+sigma, ipEig1);
 		wholeStack.addSlice(availableFeatures[HESSIAN]+ "_Eigenvalue_2_"+sigma, ipEig2);
+		wholeStack.addSlice(availableFeatures[HESSIAN]+ "_Orientation_"+sigma, ipOri);
+		wholeStack.addSlice(availableFeatures[HESSIAN]+ "_Square_Eigenvalue_Difference_"+sigma, ipSed);
+		wholeStack.addSlice(availableFeatures[HESSIAN]+ "_Normalized_Eigenvalue_Difference_"+sigma, ipNed);
 	}
 	
 	/**
 	 * Get Hessian features from original image (to be submitted in an ExecutorService).
 	 * The features include a scalar representing the Hessian, the trace, determinant, 
-	 * 1st eigenvalue and 2nd eigenvalue.
+	 * 1st eigenvalue, 2nd eigenvalue, orientation, gamma-normalized square eigenvalue difference
+	 * and the square of Gamma-normalized eigenvalue difference
 	 * 
 	 * @param originalImage input image
 	 * @param sigma radius of the Gaussian filter to use
@@ -955,7 +1012,13 @@ public class FeatureStack
 	
 	
 
-
+	/**
+	 * Apply a filter to the original image (to be submitted to an ExecutorService)
+	 * @param originalImage original image
+	 * @param filter filter kernel
+	 * @param title filter name
+	 * @return filtered image
+	 */
 	public Callable<ImagePlus> getFilter(
 			final ImagePlus originalImage,
 			final ImageProcessor filter,
@@ -986,11 +1049,11 @@ public class FeatureStack
 	/**
 	 * Get Gabor features (to be submitted in an ExecutorService)
 	 * @param originalImage input image
-	 * @param sigma
-	 * @param gamma
-	 * @param psi
-	 * @param frequency
-	 * @param nAngles
+	 * @param sigma size of the Gaussian envelope
+	 * @param gamma spatial aspect ratio, it specifies the ellipticity of the support of the Gabor function
+	 * @param psi phase offset
+	 * @param frequency frequency of the sinusoidal component
+	 * @param nAngles number of filter orientations
 	 * @return image stack with Gabor filter projections using "Max Intensity" and "Min Intensity"
 	 */
 	public Callable<ImagePlus> getGabor(
@@ -1061,16 +1124,27 @@ public class FeatureStack
 				
 				final ImageStack is = new ImageStack(width, height);
 				// Apply kernels
+				//FourierConvolution<FloatType, FloatType> fourierConvolution = null;
+				//Image<FloatType> image2 = ImagePlusAdapter.wrap(originalImage);
 				for (int i=0; i<nAngles; i++)
 				{
-					//final double theta = rotationAngle * i;		
-					final Convolver c = new Convolver();				
+					Image<FloatType> kernel = ImagePlusAdapter.wrap( new ImagePlus("", kernels.getProcessor(i+1)) );
+					Image<FloatType> image2 = ImagePlusAdapter.wrap(originalImage);
 					
-					final float[] kernel = (float[]) kernels.getProcessor(i+1).getPixels();
-					final ImageProcessor ip = originalImage.getProcessor().duplicate();		
-					c.convolveFloat(ip, kernel, filterSizeX, filterSizeY);		
-
-					is.addSlice("gabor angle = " + i, ip);
+					// compute Fourier convolution
+					FourierConvolution<FloatType, FloatType> fourierConvolution = new FourierConvolution<FloatType, FloatType>( image2, kernel );
+					//if (fourierConvolution == null || !fourierConvolution.replaceKernel( kernel ) )
+					//	fourierConvolution = new FourierConvolution<FloatType, FloatType>( image2, kernel );
+					
+					if ( !fourierConvolution.checkInput() || !fourierConvolution.process() )
+					{
+						IJ.log( "Cannot compute fourier convolution: " + fourierConvolution.getErrorMessage() );
+						return null;
+					}
+						
+					Image<FloatType>  convolved = fourierConvolution.getResult();
+								
+					is.addSlice("gabor angle = " + i, ImageJFunctions.copyToImagePlus( convolved ).getProcessor() );					
 				}
 				
 				
@@ -1103,11 +1177,11 @@ public class FeatureStack
 	/**
 	 * Add Gabor features to current stack
 	 * @param originalImage input image
-	 * @param sigma
-	 * @param gamma
-	 * @param psi
-	 * @param frequency
-	 * @param nAngles
+	 * @param sigma size of the Gaussian envelope
+	 * @param gamma spatial aspect ratio, it specifies the ellipticity of the support of the Gabor function
+	 * @param psi phase offset
+	 * @param frequency frequency of the sinusoidal component
+	 * @param nAngles number of filter orientations
 	 */
 	public void addGabor(
 			final ImagePlus originalImage,
@@ -1405,7 +1479,6 @@ public class FeatureStack
 	 * Apply Lipschitz filter in a concurrent way (to be submitted in an ExecutorService)
 	 * 
 	 * @param originalImage input image
- 
 	 * @return result image
 	 */
 	public Callable<ImagePlus> getLipschitzFilter(
@@ -1730,7 +1803,7 @@ public class FeatureStack
 				}
 		}
 
-		// Bilateral filter
+		// Lipschitz filter
 		if(enableFeatures[LIPSCHITZ])			
 		{
 			for(double i = 5; i < 30; i += 5)					
@@ -1756,29 +1829,29 @@ public class FeatureStack
 
 		// Gabor filters
 		if ( enableFeatures[ GABOR ] )
-		{
+		{				
 			// elongated filters in y- axis (sigma = 1.0, gamma = [1.0 - 0.25])
-			for(int i=0; i < 3; i++)
+			for(int i=0; i < 2; i++)
 				for(double gamma = 1; gamma >= 0.25; gamma /= 2)						
-					for(int frequency = 2; frequency<=3; frequency ++)
+					for(int frequency = 2; frequency<3; frequency ++)
 					{
 						if (Thread.currentThread().isInterrupted()) 
 							return false;
-						final double psi = Math.PI / 4 * i;
+						final double psi = Math.PI / 2 * i;
 						//IJ.log( n++ +": Calculating Gabor filter (1.0, " + gamma + ", " + psi + ", " + frequency + ", " + nAngles + ")");
-						addGabor(originalImage, 1.0, gamma, psi, frequency, nAngles);
+						addGabor( originalImage, 1.0, gamma, psi, frequency, nAngles ) ;
 					}
 			// elongated filters in x- axis (sigma = [2.0 - 4.0], gamma = [1.0 - 2.0])
-			for(int i=0; i < 3; i++)
+			for(int i=0; i < 2; i++)
 				for(double sigma = 2.0; sigma <= 4.0; sigma *= 2)					
 					for(double gamma = 1.0; gamma <= 2.0; gamma *= 2)
 						for(int frequency = 2; frequency<=3; frequency ++)
 						{
 							if (Thread.currentThread().isInterrupted()) 
 								return false;
-							final double psi = Math.PI / 4 * i;
+							final double psi = Math.PI / 2 * i;
 							//IJ.log( n++ +": Calculating Gabor filter (" + sigma + " , " + gamma + ", " + psi + ", " + frequency + ", " + nAngles + ")");
-							addGabor(originalImage, sigma, gamma, psi, frequency, nAngles);
+							addGabor( originalImage, sigma, gamma, psi, frequency, nAngles ) ;
 						}								
 		}
 
@@ -1893,9 +1966,18 @@ public class FeatureStack
 		exe = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
 		wholeStack = new ImageStack(width, height);
 		wholeStack.addSlice("original", originalImage.getProcessor().duplicate());
+		
+		// Count the number of enabled features
+		int finalIndex = 0;
+		for(int i=0; i<enableFeatures.length; i++)
+			if(enableFeatures[i])
+				finalIndex ++;
 
 		final ArrayList< Future<ImagePlus> > futures = new ArrayList< Future<ImagePlus> >();
 		//int n=0;
+		
+		int currentIndex = 0;
+		IJ.showStatus("Updating features...");
 		try{
 			
 			// Anisotropic Diffusion
@@ -1912,7 +1994,7 @@ public class FeatureStack
 						//for(float k = 0.5f; k < 6f; k+= 1f)
 							futures.add(exe.submit( getAnisotropicDiffusion(originalImage, 20, 20,(int) i, j, 0.9f, (float) membraneSize) ) );
 							//futures.add(exe.submit( getAnisotropicDiffusion(originalImage, 20, 20, (int) i, j, 0.9f, k) ) );
-					}
+					}				
 			}
 			
 			// Bilateral filter
@@ -1928,7 +2010,7 @@ public class FeatureStack
 					}
 			}
 			
-			// Bilateral filter
+			// Lipschitz filter
 			if(enableFeatures[LIPSCHITZ])			
 			{
 				for(double i = 5; i < 30; i += 5)					
@@ -1954,27 +2036,27 @@ public class FeatureStack
 			
 			// Gabor filters
 			if ( enableFeatures[ GABOR ] )
-			{
+			{				
 				// elongated filters in y- axis (sigma = 1.0, gamma = [1.0 - 0.25])
-				for(int i=0; i < 3; i++)
+				for(int i=0; i < 2; i++)
 					for(double gamma = 1; gamma >= 0.25; gamma /= 2)						
-						for(int frequency = 2; frequency<=3; frequency ++)
+						for(int frequency = 2; frequency<3; frequency ++)
 						{
 							if (Thread.currentThread().isInterrupted()) 
 								return false;
-							final double psi = Math.PI / 4 * i;
+							final double psi = Math.PI / 2 * i;
 							//IJ.log( n++ +": Calculating Gabor filter (1.0, " + gamma + ", " + psi + ", " + frequency + ", " + nAngles + ")");
 							futures.add(exe.submit( getGabor(originalImage, 1.0, gamma, psi, frequency, nAngles) ) );
 						}
 				// elongated filters in x- axis (sigma = [2.0 - 4.0], gamma = [1.0 - 2.0])
-				for(int i=0; i < 3; i++)
+				for(int i=0; i < 2; i++)
 					for(double sigma = 2.0; sigma <= 4.0; sigma *= 2)					
 						for(double gamma = 1.0; gamma <= 2.0; gamma *= 2)
 							for(int frequency = 2; frequency<=3; frequency ++)
 							{
 								if (Thread.currentThread().isInterrupted()) 
 									return false;
-								final double psi = Math.PI / 4 * i;
+								final double psi = Math.PI / 2 * i;
 								//IJ.log( n++ +": Calculating Gabor filter (" + sigma + " , " + gamma + ", " + psi + ", " + frequency + ", " + nAngles + ")");
 								futures.add(exe.submit( getGabor(originalImage, sigma, gamma, psi, frequency, nAngles) ) );
 							}								
@@ -2089,6 +2171,9 @@ public class FeatureStack
 			for(Future<ImagePlus> f : futures)
 			{
 				final ImagePlus res = f.get();
+				currentIndex ++;
+				IJ.showStatus("Updating features...");
+				IJ.showProgress(currentIndex, finalIndex);
 				if(res.getImageStackSize() == 1)
 				{
 					this.wholeStack.addSlice(res.getTitle(), res.getProcessor());
@@ -2250,11 +2335,11 @@ public class FeatureStack
 	}
 	
 	/**
-	 * 
-	 * @param ip
-	 * @param x
-	 * @param y
-	 * @return
+	 * Get pixel value from an ImageProcessor with mirror boundary conditions
+	 * @param ip input image
+	 * @param x x- pixel coordinate
+	 * @param y y- pixel coordinate
+	 * @return pixel vale
 	 */
 	double getPixelMirrorConditions(ImageProcessor ip, int x, int y)
 	{
@@ -2269,5 +2354,16 @@ public class FeatureStack
 		
 		return ip.getPixelValue(x2, y2);
 	}
+
+	/**
+	 * Set an arbitrary stack as feature stack. Note: this method is not 
+	 * compatible with the plugin GUI use since the feature names will not match.
+	 * @param stack new stack of image features
+	 */
+	public void setStack(ImageStack stack)
+	{
+		this.wholeStack = stack;
+	}
+	
 	
 }
