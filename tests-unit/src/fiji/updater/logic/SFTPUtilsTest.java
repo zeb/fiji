@@ -121,7 +121,7 @@ public final class SFTPUtilsTest {
 
 
     @Test
-    public void createDirectory() throws SftpException {
+    public void createDirectory() throws IOException {
         final String uploadDest = "/home/frs/project/i/ij/ij-plugins/fiji_update/";
         final InputStream in = new ByteArrayInputStream("".getBytes());
         final String destFile = uploadDest + "one/two/three/timestamp";
