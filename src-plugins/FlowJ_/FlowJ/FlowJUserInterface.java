@@ -259,8 +259,13 @@ public class FlowJUserInterface extends ImagePlus implements ActionListener, Cli
                                 FlowJFlow flow = (FlowJFlow) flows.elementAt(frame);
                                 if (flow != null)
                                 {
-                                        ip = flow.mapImage(stack.getProcessor(frame+1),
-                                                mapping, 0, scale, rho);
+                                        if (staticCheckbox.getState())
+                                                // include the static background (grayscale) image.
+                                                ip = flow.mapImage(stack.getProcessor(frame+1),
+                                                        mapping, 0, scale, rho);
+                                        else
+                                                // Only display the flow.
+                                                ip = flow.mapImage(null, mapping, 0, scale, rho);
 				        is.addSlice(""+frame, ip);
                                 }
                         }
