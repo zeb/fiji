@@ -83,6 +83,14 @@ public class FlowJFlow
                 is.addSlice("y", fp);
                 return is;
         }
+        public ImageProcessor toMagnitudeProcessor() {
+                int w = getWidth(), h = getHeight();
+                float[] magnitude = new float[w * h];
+                for (int y = 0; y < h; y++)
+			for (int x = 0; x < w; x++)
+				magnitude[x + y * w] = (float)Math.sqrt(v.v[y][x][0] * v.v[y][x][0] + v.v[y][x][1] * v.v[y][x][1]);
+		return new FloatProcessor(w, h, magnitude, null);
+        }
         public void setCalibration(Calibration c) { this.c = c; }
         public boolean valid(int x, int y) { return v.valid(x, y); }
         public void set(int x, int y, float vx, float vy)

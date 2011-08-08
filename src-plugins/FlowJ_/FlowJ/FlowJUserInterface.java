@@ -35,7 +35,7 @@ import volume.*;
 public class FlowJUserInterface extends ImagePlus implements ActionListener, ClipboardOwner
 {
         private static          String version = "1.29";
-        private Button          save, copy, error, read, rotate, display, centralImage, graph;
+        private Button          save, copy, error, read, rotate, display, displayMagnitude, centralImage, graph;
         private Button          compute, computeAll, trans, indexButton;
         private Label           rLabel, sLabel, alphaField, posLabel;
         private Choice          gradientChoice, regularizationChoice, algorithmChoice, mappingChoice;
@@ -108,6 +108,9 @@ public class FlowJUserInterface extends ImagePlus implements ActionListener, Cli
 		  display = new Button("Display");
 		  display.addActionListener(this);
 		  buttons.add(display);
+		  displayMagnitude = new Button("Display Magnitude");
+		  displayMagnitude.addActionListener(this);
+		  buttons.add(displayMagnitude);
 		  read = new Button("Open flow-field... ");
 		  read.addActionListener(this);
 		  buttons.add(read);
@@ -190,6 +193,8 @@ public class FlowJUserInterface extends ImagePlus implements ActionListener, Cli
                         doCompute(true);
                 else if (e.getSource()==display)
                         display();
+                else if (e.getSource()==displayMagnitude)
+                        displayMagnitude();
                 else if (e.getSource()==rotate)
                         doRotation();
                 else if (e.getSource()==error)
@@ -272,6 +277,23 @@ public class FlowJUserInterface extends ImagePlus implements ActionListener, Cli
                         nimp = new ImagePlus("All flows", is);
                 }
                 nimp.show();
+	}
+        /** Display the magnitude of the flow field */
+	private void displayMagnitude()
+	{
+                if (flows.size() < 1)
+                        return;
+                ImageStack is = null;
+		for (int frame = 0; frame < flows.size(); frame++)
+		{
+			FlowJFlow flow = (FlowJFlow) flows.elementAt(frame);
+			if (flow != null)
+			{
+				if (is == null) is = new ImageStack(flow.getWidth(), flow.getHeight());
+				is.addSlice(""+frame, flow.toMagnitudeProcessor());
+			}
+		}
+		new ImagePlus("Magnitude", is).show();
 	}
 	/**
          * Make a dynamic color index image.
