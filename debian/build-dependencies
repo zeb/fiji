@@ -11,7 +11,7 @@ libbatik-java
 libxml-commons-external-java
 junit4 (>= 4.3)
 weka
-libitext1-java
+libitext-java
 libjzlib-java
 clojure
 rhino
@@ -28,4 +28,3 @@ python2.6-minimal
 python-lxml
 zip
 libjna-java
-
