@@ -21,24 +21,29 @@ public class AnistotropicDiffusion_TestDrive {
 		ij.ImageJ.main(args);
 		
 		ImagePlus imp = IJ.openImage(file.getAbsolutePath());
-		imp.show();
 		
 		Image<? extends RealType> source = ImageJFunctions.wrap(imp);
 		
-		AnisotropicDiffusion<?> algo = new AnisotropicDiffusion(source, 1, 15, 2, 10);
+		AnisotropicDiffusion<?> algo = new AnisotropicDiffusion(source, 2, 10);
 		algo.setNumThreads(1);
 		
-		if (!(algo.checkInput() && algo.process())) {
-			System.out.println("Failed! With: "+algo.getErrorMessage());
+		if (!algo.checkInput()) {
+			System.out.println("Check input failed! With: "+algo.getErrorMessage());
 			return;
 		}
 		
-		System.out.println("Done in "+algo.getProcessingTime()+"ms.");// DEBUG
+		imp.show();
+
+		int niter = 10;
+		for (int i = 0; i < niter; i++) {
+			System.out.println("Iteration "+(i+1)+" of "+niter+".");
+			algo.process();
+			imp.updateAndDraw();
+		}
 		
-		ImagePlus result = ImageJFunctions.copyToImagePlus(algo.getResult());
-		result.show();
-		result.getProcessor().resetMinAndMax();
-		result.updateAndDraw();
+		System.out.println("Done in "+algo.getProcessingTime()+" ms.");
+
+		
 
 	}
 }
