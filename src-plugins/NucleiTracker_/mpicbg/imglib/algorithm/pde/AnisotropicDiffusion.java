@@ -43,6 +43,9 @@ import mpicbg.imglib.type.numeric.RealType;
  * interface. Users can specify their own function. Two functions are offered, taken from 
  * Perona and Malik original paper: {@link StrongEdgeEnhancer} and {@link WideRegionEnhancer}.
  * <p>
+ * On top of that, one can specify what dimensions to parse when calculating laplacian and gradient. 
+ * This allow to do smoothin only in some directions. See {@link #setDimensions(int[])}.
+ * <p>
  * This implementation is multithreaded; the number of used thread can
  * be specified with the {@link #setNumThreads(int)} or {@link #setNumThreads()} methods.
  * 
@@ -59,6 +62,7 @@ public class AnisotropicDiffusion <T extends RealType<T>> extends MultiThreadedB
 	private Image<T> image;
 	private double deltat;
 	private DiffusionFunction fun;
+	private int[] dimensions;
 	
 	/*
 	 * CONSTRUCTORS
@@ -78,6 +82,11 @@ public class AnisotropicDiffusion <T extends RealType<T>> extends MultiThreadedB
 		this.deltat = deltat;
 		this.fun = function;
 		this.processingTime = 0;
+		this.dimensions = new int[image.getNumDimensions()];
+		// By default, we consider neighborhood in all dimensions
+		for (int i = 0; i < dimensions.length; i++) {
+			dimensions[i] = i;
+		}
 	}
 	
 	
@@ -116,7 +125,8 @@ public class AnisotropicDiffusion <T extends RealType<T>> extends MultiThreadedB
 	public boolean process() {
 		long start = System.currentTimeMillis();
 
-		final int ndim = image.getNumDimensions();
+		final int ndim = dimensions.length;
+		
 		final double nneighbors = Math.pow(3, ndim) - 1 ;
 
 		final AtomicInteger ai = new AtomicInteger(0);			
@@ -142,15 +152,16 @@ public class AnisotropicDiffusion <T extends RealType<T>> extends MultiThreadedB
 
 					for ( long j = 0; j < chunk.getLoopSize(); ++j ) {
 
-						mainCursor.fwd();		
+						mainCursor.fwd();
+						cursor.setPosition(mainCursor);
 						T centralValue = mainCursor.getType();
-						mainCursor.getPosition(centralPosition);
 
 						// Init neighbor cursor position
-						position[0] = -2;
-						for (int dim = 1; dim < ndim; dim++) {
+						for (int dim = 0; dim < ndim; dim++) {
+							centralPosition[dim] = mainCursor.getPosition( dimensions [ dim ] );
 							position[dim] = -1;
 						}
+						position[0] = -2;
 
 						// Loop over all neighbors
 						double amount = 0;
@@ -168,7 +179,7 @@ public class AnisotropicDiffusion <T extends RealType<T>> extends MultiThreadedB
 							}
 
 							for (int dim = 0; dim < ndim; dim++) {
-								cursor.setPosition(centralPosition[dim] + position[dim], dim);
+								cursor.setPosition(centralPosition[dim] + position[dim], dimensions [ dim ] );
 							}
 
 							// Lattice length
@@ -237,6 +248,20 @@ public class AnisotropicDiffusion <T extends RealType<T>> extends MultiThreadedB
 	 */
 	public void setDiffusionFunction(DiffusionFunction function) {
 		this.fun = function;
+	}
+	
+	/**
+	 * Set the dimensions to be considered in neighborhood.
+	 * <p>
+	 * By default, all dimensions are parsed when iterating around a pixel to compute gradient and laplacian.
+	 * However, there might be situations where one wants to limit that. For instance, when given a 3D 
+	 * volume that is a 2D+time movie, it is sometimes desirable to do the anisotropic diffusion in the
+	 * 2D planes, and not to incorporate the derivatives in the time direction. It is possible to do
+	 * that by specifying the desired dimensions with this method. In the aforementioned example,
+	 * to limit the diffusion in the X & Y directions only, the array {0, 1} has to be given.
+	 */
+	public void setDimensions(int[] dimensions) {
+		this.dimensions = dimensions;
 	}
 
 	

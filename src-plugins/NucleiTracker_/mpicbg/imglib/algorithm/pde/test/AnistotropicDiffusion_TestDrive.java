@@ -16,7 +16,7 @@ public class AnistotropicDiffusion_TestDrive {
 	private static final File file = new File("/Users/tinevez/Desktop/Data/boats.tif");
 	
 	@SuppressWarnings({ "unchecked", "rawtypes" })
-	public static void main(String[] args) {
+	public static void main(String[] args) throws InterruptedException {
 	
 		ij.ImageJ.main(args);
 		
@@ -24,7 +24,7 @@ public class AnistotropicDiffusion_TestDrive {
 		
 		Image<? extends RealType> source = ImageJFunctions.wrap(imp);
 		
-		AnisotropicDiffusion<?> algo = new AnisotropicDiffusion(source, 1, 20);
+		AnisotropicDiffusion<?> algo = new AnisotropicDiffusion(source, 2, 10);
 //		AnisotropicDiffusion<?> algo = new AnisotropicDiffusion(source, 1, new AnisotropicDiffusion.WideRegionEnhancer(20));
 		algo.setNumThreads();
 		
@@ -36,10 +36,12 @@ public class AnistotropicDiffusion_TestDrive {
 		imp.show();
 
 		int niter = 10;
+		algo.setDimensions(new int[] { 1 } );
 		for (int i = 0; i < niter; i++) {
 			System.out.println("Iteration "+(i+1)+" of "+niter+".");
 			algo.process();
 			imp.updateAndDraw();
+			Thread.sleep(500);
 		}
 		
 		System.out.println("Done in "+algo.getProcessingTime()+" ms.");
