@@ -24,8 +24,9 @@ public class AnistotropicDiffusion_TestDrive {
 		
 		Image<? extends RealType> source = ImageJFunctions.wrap(imp);
 		
-		AnisotropicDiffusion<?> algo = new AnisotropicDiffusion(source, 2, 10);
-		algo.setNumThreads(1);
+		AnisotropicDiffusion<?> algo = new AnisotropicDiffusion(source, 1, 20);
+//		AnisotropicDiffusion<?> algo = new AnisotropicDiffusion(source, 1, new AnisotropicDiffusion.WideRegionEnhancer(20));
+		algo.setNumThreads();
 		
 		if (!algo.checkInput()) {
 			System.out.println("Check input failed! With: "+algo.getErrorMessage());
