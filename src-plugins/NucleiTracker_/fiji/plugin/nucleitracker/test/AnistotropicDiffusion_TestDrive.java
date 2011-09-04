@@ -1,9 +1,10 @@
-package mpicbg.imglib.algorithm.pde.test;
+package fiji.plugin.nucleitracker.test;
 
 import ij.IJ;
 import ij.ImagePlus;
 
-import java.io.File;
+import java.net.MalformedURLException;
+import java.net.URISyntaxException;
 
 import mpicbg.imglib.algorithm.pde.AnisotropicDiffusion;
 import mpicbg.imglib.image.Image;
@@ -12,15 +13,13 @@ import mpicbg.imglib.type.numeric.RealType;
 
 public class AnistotropicDiffusion_TestDrive {
 
-//	private static final File file = new File("/Users/tinevez/Desktop/Data/blobs.tif");
-	private static final File file = new File("/Users/tinevez/Desktop/Data/boats.tif");
 	
 	@SuppressWarnings({ "unchecked", "rawtypes" })
-	public static void main(String[] args) throws InterruptedException {
+	public static void main(String[] args) throws InterruptedException, URISyntaxException, MalformedURLException {
 	
 		ij.ImageJ.main(args);
 		
-		ImagePlus imp = IJ.openImage(file.getAbsolutePath());
+		ImagePlus imp = IJ.openImage("http://rsb.info.nih.gov/ij/images/boats.gif");
 		
 		Image<? extends RealType> source = ImageJFunctions.wrap(imp);
 		
