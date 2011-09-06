@@ -2,22 +2,17 @@ package mpicbg.imglib.algorithm;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Vector;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import mpicbg.imglib.algorithm.gauss.GaussianConvolutionReal2D;
 import mpicbg.imglib.algorithm.math.ImageConverter;
 import mpicbg.imglib.cursor.Cursor;
-import mpicbg.imglib.cursor.LocalizableByDimCursor;
-import mpicbg.imglib.cursor.LocalizableCursor;
 import mpicbg.imglib.function.RealTypeConverter;
 import mpicbg.imglib.image.Image;
 import mpicbg.imglib.image.ImageFactory;
-import mpicbg.imglib.multithreading.Chunk;
-import mpicbg.imglib.multithreading.SimpleMultiThreading;
 import mpicbg.imglib.outofbounds.OutOfBoundsStrategyMirrorFactory;
 import mpicbg.imglib.type.numeric.RealType;
 import mpicbg.imglib.type.numeric.real.FloatType;
+import mpicbg.imglib.util.Util;
 
 public class GaussianGradient2D <T extends RealType<T>> extends MultiThreadedBenchmarkAlgorithm implements OutputAlgorithm<FloatType> {
 
@@ -54,75 +49,78 @@ public class GaussianGradient2D <T extends RealType<T>> extends MultiThreadedBen
 	public boolean process() {
 		long start = System.currentTimeMillis();
 
-		// Filter by a 2D gaussian
-		GaussianConvolutionReal2D<T> gaussFilter = new GaussianConvolutionReal2D<T>(
-				source, 
-				new OutOfBoundsStrategyMirrorFactory<T>(), 
-				new double[] { sigma, sigma} );
-
-		boolean check = gaussFilter.checkInput() && gaussFilter.process();
-		Image<T> filtered;
+		// Convert to float; needed to handle negative value properly
+        final Image<FloatType> floatImage;
+        if (source.createType().getClass().equals(FloatType.class)) {
+                floatImage = (Image<FloatType>) source;
+        } else {
+                ImageConverter<T, FloatType> converter = new ImageConverter<T, FloatType>(
+                		source,
+                                new ImageFactory<FloatType>(new FloatType(), source.getContainerFactory()),
+                                new RealTypeConverter<T, FloatType>());
+                converter.setNumThreads();
+                converter.checkInput();
+                converter.process();
+                floatImage = converter.getResult();
+        }
+		
+		// In X
+		GaussianConvolutionReal2D<FloatType> gx = new GaussianConvolutionReal2D<FloatType>(
+				floatImage, 
+				new OutOfBoundsStrategyMirrorFactory<FloatType>(), 
+				new double[] { sigma, sigma} ) {
+			
+			protected void computeKernel() {
+			
+				double[][] kernel = getKernel();
+				kernel[0] = Util.createGaussianKernel1DDouble( sigma, false );		
+				kernel[1] = Util.createGaussianKernel1DDouble( sigma, true );
+				int kSize = kernel[1].length;
+				for (int i = 0; i < kSize; i++) {
+					kernel[0][i] = kernel[0][i] * (i - (kSize-1)/2) * 2 / sigma;
+				}
+				
+			};
+			
+		};
+		
+		boolean check = gx.checkInput() && gx.process();
 		if (check) {
-			filtered = gaussFilter.getResult();
+			Dx = gx.getResult();
+			Dx.setName("Gx");
 		} else {
-			errorMessage = gaussFilter.getErrorMessage();
+			errorMessage = gx.getErrorMessage();
 			return false;
 		}
-
-		// Compute gradients 
-
-		// Convert to float; needed to handle negative value properly
-		final Image<FloatType> floatImage;
-		if (filtered.createType().getClass().equals(FloatType.class)) {
-			floatImage = (Image<FloatType>) filtered;
-		} else {
-			ImageConverter<T, FloatType> converter = new ImageConverter<T, FloatType>(
-					filtered,
-					new ImageFactory<FloatType>(new FloatType(), filtered.getContainerFactory()),
-					new RealTypeConverter<T, FloatType>());
-			converter.setNumThreads();
-			converter.checkInput();
-			converter.process();
-			floatImage = converter.getResult();
-		}
-
-		final long imageSize = floatImage.getNumPixels();
-		Dx = floatImage.createNewImage("Gx");
-		Dy = floatImage.createNewImage("Gy");
-
-		// divide the image into chunks
-		final Vector<Chunk> threadChunks = SimpleMultiThreading.divideIntoChunks( imageSize, numThreads );
-		final AtomicInteger ai = new AtomicInteger(0);
-		final Thread[] threads = SimpleMultiThreading.newThreads( numThreads );
-
-		for (int ithread = 0; ithread < threads.length; ++ithread)
-
-			// Build Thread array
-			threads[ithread] = new Thread(new Runnable() {
-
-				public void run() {
-
-					// Thread ID
-					final int myNumber = ai.getAndIncrement();
-
-					// Get chunk of pixels to process
-					final Chunk myChunk = threadChunks.get( myNumber );
-
-					final LocalizableByDimCursor<FloatType> inputIterator = floatImage.createLocalizableByDimCursor(new OutOfBoundsStrategyMirrorFactory<FloatType>());
-					final LocalizableByDimCursor<FloatType> cx = Dx.createLocalizableByDimCursor();
-					final LocalizableCursor<FloatType> cy = Dy.createLocalizableCursor();
-
-					// Convolve the image in the current dimension using the given cursors
-					convolve( inputIterator, cx, cy, myChunk.getStartPosition(), myChunk.getLoopSize() );
-
-					inputIterator.close();
-					cx.close();
-					cy.close();
-
+		
+		// In Y
+		GaussianConvolutionReal2D<FloatType> gy = new GaussianConvolutionReal2D<FloatType>(
+				floatImage, 
+				new OutOfBoundsStrategyMirrorFactory<FloatType>(), 
+				new double[] { sigma, sigma} ) {
+			
+			protected void computeKernel() {
+			
+				double[][] kernel = getKernel();
+				kernel[0] = Util.createGaussianKernel1DDouble( sigma, true );		
+				kernel[1] = Util.createGaussianKernel1DDouble( sigma, false );
+				int kSize = kernel[0].length;
+				for (int i = 0; i < kSize; i++) {
+					kernel[1][i] = kernel[1][i] * (i - (kSize-1)/2) * 2 / sigma; 
 				}
-			}, "GaussianGradient2D thread "+ithread);
-
-		SimpleMultiThreading.startAndJoin(threads);
+				
+			};
+			
+		};
+		
+		check = gy.checkInput() && gy.process();
+		if (check) {
+			Dy = gy.getResult();
+			Dy.setName("Gy");
+		} else {
+			errorMessage = gy.getErrorMessage();
+			return false;
+		}
 
 		components.clear();
 		components.add(Dx);
@@ -132,53 +130,8 @@ public class GaussianGradient2D <T extends RealType<T>> extends MultiThreadedBen
 		processingTime = end-start;
 		return true;
 	}
-
-	private final void convolve(
-			final LocalizableByDimCursor<FloatType> inputIterator, 
-			final LocalizableByDimCursor<FloatType> ix,
-			final LocalizableCursor<FloatType> iy,
-			final long startPos, final long loopSize )  {
-
-		// move to the starting position of the current thread
-		iy.fwd( startPos );
-
-		final int[] to = new int[ source.getNumDimensions() ];
-
-		for ( long j = 0; j < loopSize; ++j ) {
-
-			iy.fwd();
-			iy.getPosition(to);
-			ix.setPosition(iy);
-
-			// The more simple and stupid we can do: iterate "manually" over the kernel,
-			// which is just -1 0 1;
-
-			// Along X
-			to[0]--;
-			inputIterator.setPosition(to);
-			ix.getType().sub(inputIterator.getType());
-
-			to[0]++;
-			to[0]++;
-			inputIterator.setPosition(to);
-			ix.getType().add(inputIterator.getType());
-
-			to[0]--;
-
-			// Along Y
-			to[1]--;
-			inputIterator.setPosition(to);
-			iy.getType().sub(inputIterator.getType());
-
-			to[1]++;
-			to[1]++;
-			inputIterator.setPosition(to);
-			iy.getType().add(inputIterator.getType());
-
-		}
-	}
-
-
+	
+	
 	public List<Image<FloatType>> getGradientComponents() {
 		return components;
 	}

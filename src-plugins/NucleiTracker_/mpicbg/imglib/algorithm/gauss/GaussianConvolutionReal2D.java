@@ -17,4 +17,9 @@ public class GaussianConvolutionReal2D< T extends RealType<T> > extends Gaussian
 		for ( int d = 0; d < sigma.length; ++d )
 			this.kernel[ d ] = Util.createGaussianKernel1DDouble( sigma[ d ], true );		
 	}
+	
+	
+	protected double[][] getKernel() {
+		return kernel;
+	}
 }
