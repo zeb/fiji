@@ -308,16 +308,15 @@ public class NucleiMasker <T extends RealType<T>> extends MultiThreadedBenchmark
 						cl.fwd();
 						ch.fwd();
 
-						m = 0.5 * Math.tanh(
+						m = 0.5 * ( Math.tanh(
 								gamma 
 								- (
-										( alpha * cg.getType().get()
+										( 		alpha * cg.getType().get()
 												+ beta * cl.getType().get()
-												+ epsilon * ch.getType().get()
-												) / delta
-										)
-										+ 1
-								) + 0.5 ;
+												+ epsilon * ch.getType().get() / delta
+										) 
+								)
+							)	+ 1		);
 
 						cm.getType().setReal(m);
 					}
@@ -450,6 +449,8 @@ public class NucleiMasker <T extends RealType<T>> extends MultiThreadedBenchmark
 				}
 			};
 		}
+		
+		SimpleMultiThreading.startAndJoin(threads);
 		floatTarget = L;
 		return true;
 	}
@@ -582,4 +583,6 @@ public class NucleiMasker <T extends RealType<T>> extends MultiThreadedBenchmark
 		filtered = target; // Store for last step.
 		return check;
 	}
+
+	
 }

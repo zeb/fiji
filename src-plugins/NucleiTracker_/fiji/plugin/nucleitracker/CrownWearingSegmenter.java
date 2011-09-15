@@ -91,6 +91,9 @@ public class CrownWearingSegmenter<T extends IntegerType<T>>  extends MultiThrea
 	}
 
 
+	public Image<T> getMaskedImage() {
+		return masked;
+	}
 	
 	
 	
