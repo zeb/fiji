@@ -21,6 +21,9 @@ public class TestDrive {
 		File testImage = new File("E:/Users/JeanYves/Documents/Projects/BRajaseka/Data/Meta-nov7mdb18ssplus-embryo2-1.tif");
 //		File testImage = new File("/Users/tinevez/Projects/BRajaseka/Data/Meta-nov7mdb18ssplus-embryo2-1.tif");
 		
+		
+		
+		 /* http://stackoverflow.com/questions/1548606/java-link-jslider-and-jtextfield-for-float-value */
 		ImageJ.main(args);
 		ImagePlus imp = IJ.openImage(testImage.getAbsolutePath());
 		imp.show();

@@ -22,6 +22,7 @@ public class CrownWearingSegmenter<T extends IntegerType<T>>  extends MultiThrea
 	private Image<T> source;
 	private Image<BitType> thresholded;
 	private Labeling<Integer> labeling;
+	private double[] param;
 
 	/*
 	 * CONSTRUCTOR	
@@ -36,6 +37,11 @@ public class CrownWearingSegmenter<T extends IntegerType<T>>  extends MultiThrea
 	/*
 	 * METHODS
 	 */
+	
+	public void setParameters(double[] param) {
+		this.param = param;
+	}
+
 
 	@Override
 	public boolean checkInput() {
@@ -50,6 +56,7 @@ public class CrownWearingSegmenter<T extends IntegerType<T>>  extends MultiThrea
 		// Crown wearing mask
 		NucleiMasker<T> masker = new NucleiMasker<T>(source);
 		masker.setNumThreads(numThreads);
+		masker.setParameters(param);
 		check = masker.process();
 		if (check) {
 			masked = masker.getResult();
@@ -69,7 +76,7 @@ public class CrownWearingSegmenter<T extends IntegerType<T>>  extends MultiThrea
 			return false;
 		}
 		
-		// Labelling
+		// Labeling
 		Iterator<Integer> labelGenerator = AllConnectedComponents.getIntegerNames(0);
 		
 		PlanarContainerFactory containerFactory = new PlanarContainerFactory();
@@ -231,5 +238,7 @@ public class CrownWearingSegmenter<T extends IntegerType<T>>  extends MultiThrea
 			return position == 0;
 		}
 	}
+
+
 	
 }

@@ -21,28 +21,27 @@ import mpicbg.imglib.type.numeric.real.FloatType;
 
 public class NucleiMasker <T extends RealType<T>> extends MultiThreadedBenchmarkAlgorithm implements OutputAlgorithm<T> {
 
-	private static final boolean DEBUG = true;
+	private static final boolean DEBUG = false;
 	/** The source image (left unchanged). */
 	private Image<T> image;
 	/** The target image for the pre-processing steps. */
 	private Image<T> target;
-	private Image<FloatType> floatTarget;
-	/** The image containing the gradient components and norm. */
-	private Image<FloatType> Gx;
-	private Image<FloatType> Gy;
-	private Image<FloatType> Gnorm;
-	private Image<T> filtered;
-	private Image<FloatType> scaled;
-
+	
 	// Step 1
+	private Image<T> filtered;
 	private double gaussFilterSigma = 0.5;
 
 	// Step 2
+	private Image<T> anDiffImage;
+	private Image<FloatType> scaled;
 	private double kappa = 50;
 	private int nIterAnDiff = 5;
 
 	// Step 3
 	private double gaussGradSigma = 1;
+	private Image<FloatType> Gx;
+	private Image<FloatType> Gy;
+	private Image<FloatType> Gnorm;
 	private Image<FloatType> Gxx;
 	private Image<FloatType> Gxy;
 	private Image<FloatType> Gyx;
@@ -52,11 +51,12 @@ public class NucleiMasker <T extends RealType<T>> extends MultiThreadedBenchmark
 
 	// Step 4
 	private Image<FloatType> M;
-	private int gamma = 1;
-	private float beta = 14.9f;
-	private float alpha = 2.7f;
-	private float epsilon = 16.9f;
-	private float delta = 0.5f;
+	private double gamma = 1;
+	private double beta = 14.9;
+	private double alpha = 2.7;
+	private double epsilon = 16.9;
+	private double delta = 0.5;
+	
 
 
 	/*
@@ -71,13 +71,53 @@ public class NucleiMasker <T extends RealType<T>> extends MultiThreadedBenchmark
 	/*
 	 * METHODS
 	 */
+	
+	public Image<T> getGaussianFilteredImage() {
+		return filtered;
+	}
+	
+	public Image<T> getAnisotropicDiffusionImage() {
+		return anDiffImage;
+	}
+	
+	public Image<FloatType> getGradientNorm() {
+		return Gnorm;
+	}
+	
+	public Image<FloatType> getLaplacianMagnitude() {
+		return L;
+	}
+	
+	public Image<FloatType> getHessianDeterminant() {
+		return H;
+	}
+	
+	public Image<FloatType> getMask() {
+		return M;
+	}
+	
+	@Override
+	public Image<T> getResult() {
+		return target;
+	}
+	
+	public void setParameters(double[] params) {
+		gaussFilterSigma 	= params[0];
+		nIterAnDiff 		= (int) params[1];
+		kappa				= params[2];
+		gaussGradSigma		= params[3];
+		gamma 				= params[4];
+		alpha				= params[5];
+		beta				= params[6];
+		epsilon				= params[7];
+		delta				= params[8];
+	}
 
-	public boolean process() {
+
+	public boolean execStep1() {
 		long top = System.currentTimeMillis();
 		long dt = 0;
-
 		boolean check;
-		System.out.println();
 		/*
 		 * Step 1: Low pass filter.
 		 * So as to damper the noise. We simply do a gaussian filtering.
@@ -85,7 +125,7 @@ public class NucleiMasker <T extends RealType<T>> extends MultiThreadedBenchmark
 		if (DEBUG) {
 			System.out.print("Low pass filter... ");
 		}
-		check = execGaussianFiltering(image);
+		check = execGaussianFiltering();
 		if (!check) {
 			return false;
 		}
@@ -95,6 +135,12 @@ public class NucleiMasker <T extends RealType<T>> extends MultiThreadedBenchmark
 			System.out.println(dt/1e3+" s.");
 		}
 
+		return check;
+	}
+	
+	public boolean execStep2() {
+		long top = System.currentTimeMillis();
+		long dt = 0;
 		/*
 		 * Step 2a: Anisotropic diffusion
 		 * To have nuclei of approximative constant intensity.
@@ -102,7 +148,7 @@ public class NucleiMasker <T extends RealType<T>> extends MultiThreadedBenchmark
 		if (DEBUG) {
 			System.out.print("Anisotropic diffusion... ");
 		}
-		check = execAnisotropicDiffusion(target);
+		boolean check = execAnisotropicDiffusion();
 		if (!check) {
 			return false;
 		}
@@ -119,7 +165,7 @@ public class NucleiMasker <T extends RealType<T>> extends MultiThreadedBenchmark
 		if (DEBUG) {
 			System.out.print("Intensity scaling... ");
 		}
-		check = execIntensityScaling(target);
+		check = execIntensityScaling();
 		if (!check) {
 			return false;
 		}
@@ -128,14 +174,20 @@ public class NucleiMasker <T extends RealType<T>> extends MultiThreadedBenchmark
 		if (DEBUG) {
 			System.out.println(dt/1e3+" s.");
 		}
-
+		
+		return check;
+	}
+	
+	public boolean execStep3() {
+		long top = System.currentTimeMillis();
+		long dt = 0;
 		/*
 		 * Step 3a: Gaussian gradient
 		 */
 		if (DEBUG) {
 			System.out.print("Gaussian gradient... ");
 		}
-		check = execComputeGradient(floatTarget);
+		boolean check = execComputeGradient();
 		if (!check) {
 			return false;
 		}
@@ -151,7 +203,7 @@ public class NucleiMasker <T extends RealType<T>> extends MultiThreadedBenchmark
 		if (DEBUG) {
 			System.out.print("Laplacian... ");
 		}
-		check = execComputeLaplacian(Gx, Gy);
+		check = execComputeLaplacian();
 		if (!check) {
 			return false;
 		}
@@ -167,7 +219,7 @@ public class NucleiMasker <T extends RealType<T>> extends MultiThreadedBenchmark
 		if (DEBUG) {
 			System.out.print("Hessian... ");
 		}
-		check = execComputeHessian(Gxx, Gxy, Gyx, Gyy);
+		check = execComputeHessian();
 		if (!check) {
 			return false;
 		}
@@ -176,14 +228,20 @@ public class NucleiMasker <T extends RealType<T>> extends MultiThreadedBenchmark
 		if (DEBUG) {
 			System.out.println(dt/1e3+" s.");
 		}
-
+		
+		return check;
+	}
+	
+	public boolean execStep4() {
+		long top = System.currentTimeMillis();
+		long dt = 0;
 		/*
 		 * Step 4a: Create masking function
 		 */
 		if (DEBUG) {
 			System.out.print("Creating mask function... ");
 		}
-		check = execCreateMask(Gnorm, L, H);
+		boolean check = execCreateMask();
 		if (!check) {
 			return false;
 		}
@@ -199,7 +257,7 @@ public class NucleiMasker <T extends RealType<T>> extends MultiThreadedBenchmark
 		if (DEBUG) {
 			System.out.print("Masking... ");
 		}
-		check = execMasking(filtered, M);
+		check = execMasking();
 		if (!check) {
 			return false;
 		}
@@ -209,6 +267,32 @@ public class NucleiMasker <T extends RealType<T>> extends MultiThreadedBenchmark
 			System.out.println(dt/1e3+" s.");
 		}
 
+		return check;
+	}
+	
+	public boolean process() {
+		boolean check;
+		System.out.println();
+		
+		check = execStep1();
+		if (!check) {
+			return false;
+		}
+		
+		check = execStep2();
+		if (!check) {
+			return false;
+		}
+		
+		check = execStep3();
+		if (!check) {
+			return false;
+		}
+		
+		check = execStep4();
+		if (!check) {
+			return false;
+		}
 
 		return true;
 
@@ -222,24 +306,17 @@ public class NucleiMasker <T extends RealType<T>> extends MultiThreadedBenchmark
 
 	@Override
 	public String getErrorMessage() {
-		return null;
+		return errorMessage;
 	}
 
-	@Override
-	public Image<T> getResult() {
-		return target;
-	}
-
-	public Image<FloatType> getFloatResult() {
-		return floatTarget;
-	}
+	
 
 	/*
 	 * PRIVATE METHODS
 	 */
 	
-	private boolean execMasking(final Image<T> source, final Image<FloatType> mask) {
-		target = source.createNewImage("Masked "+source.getName());
+	private boolean execMasking() {
+		target = filtered.createNewImage("Masked "+filtered.getName());
 		final Vector<Chunk> chunks = SimpleMultiThreading.divideIntoChunks(target.getNumPixels(), numThreads);
 		final AtomicInteger ai = new AtomicInteger();
 
@@ -250,8 +327,8 @@ public class NucleiMasker <T extends RealType<T>> extends MultiThreadedBenchmark
 
 					Chunk chunk = chunks.get(ai.getAndIncrement());
 					Cursor<T> ct = target.createCursor();
-					Cursor<T> cs = source.createCursor();
-					Cursor<FloatType> cm = mask.createCursor();
+					Cursor<T> cs = filtered.createCursor();
+					Cursor<FloatType> cm = M.createCursor();
 					
 					cm.fwd(chunk.getStartPosition());
 					ct.fwd(chunk.getStartPosition());
@@ -277,9 +354,9 @@ public class NucleiMasker <T extends RealType<T>> extends MultiThreadedBenchmark
 		return true;
 	}
 
-	private boolean execCreateMask(final Image<FloatType> gradMag, final Image<FloatType> laplacianMag, final Image<FloatType> hessianDet) {
+	private boolean execCreateMask() {
 
-		M = gradMag.createNewImage("Masking function");
+		M = Gnorm.createNewImage("Masking function");
 		final Vector<Chunk> chunks = SimpleMultiThreading.divideIntoChunks(M.getNumPixels(), numThreads);
 		final AtomicInteger ai = new AtomicInteger();
 
@@ -291,9 +368,9 @@ public class NucleiMasker <T extends RealType<T>> extends MultiThreadedBenchmark
 					Chunk chunk = chunks.get(ai.getAndIncrement());
 
 					Cursor<FloatType> cm = M.createCursor();
-					Cursor<FloatType> cg = gradMag.createCursor();
-					Cursor<FloatType> cl = laplacianMag.createCursor();
-					Cursor<FloatType> ch = hessianDet.createCursor();
+					Cursor<FloatType> cg = Gnorm.createCursor();
+					Cursor<FloatType> cl = L.createCursor();
+					Cursor<FloatType> ch = H.createCursor();
 
 					cm.fwd(chunk.getStartPosition());
 					cg.fwd(chunk.getStartPosition());
@@ -310,12 +387,11 @@ public class NucleiMasker <T extends RealType<T>> extends MultiThreadedBenchmark
 
 						m = 0.5 * ( Math.tanh(
 								gamma 
-								- (
-										( 		alpha * cg.getType().get()
-												+ beta * cl.getType().get()
-												+ epsilon * ch.getType().get() / delta
-										) 
-								)
+								- (		alpha * cg.getType().get()
+										+ beta * cl.getType().get()
+										+ epsilon * ch.getType().get()
+									)  / delta
+								
 							)	+ 1		);
 
 						cm.getType().setReal(m);
@@ -331,13 +407,12 @@ public class NucleiMasker <T extends RealType<T>> extends MultiThreadedBenchmark
 		}
 
 		SimpleMultiThreading.startAndJoin(threads);
-		floatTarget = M;
 		return true;
 	}
 
-	private boolean execComputeHessian(final Image<FloatType> Dxx, final Image<FloatType> Dxy, final Image<FloatType> Dyx, final Image<FloatType> Dyy) {
+	private boolean execComputeHessian() {
 
-		H = Dxx.createNewImage("Negative part of Hessian");
+		H = Gxx.createNewImage("Negative part of Hessian");
 		final Vector<Chunk> chunks = SimpleMultiThreading.divideIntoChunks(H.getNumPixels(), numThreads);
 		final AtomicInteger ai = new AtomicInteger();
 
@@ -383,13 +458,12 @@ public class NucleiMasker <T extends RealType<T>> extends MultiThreadedBenchmark
 		}
 
 		SimpleMultiThreading.startAndJoin(threads);
-		floatTarget = H;
 		return true;
 	}
 
-	private boolean execComputeLaplacian(final Image<FloatType> Dx, final Image<FloatType> Dy) {
+	private boolean execComputeLaplacian() {
 
-		GaussianGradient2D<FloatType> gradX = new GaussianGradient2D<FloatType>(Dx, gaussGradSigma);
+		GaussianGradient2D<FloatType> gradX = new GaussianGradient2D<FloatType>(Gx, gaussGradSigma);
 		gradX.setNumThreads(numThreads);
 		boolean check = gradX.checkInput() && gradX.process();
 		if (check) {
@@ -401,7 +475,7 @@ public class NucleiMasker <T extends RealType<T>> extends MultiThreadedBenchmark
 			return false;
 		}
 
-		GaussianGradient2D<FloatType> gradY = new GaussianGradient2D<FloatType>(Dy, gaussGradSigma);
+		GaussianGradient2D<FloatType> gradY = new GaussianGradient2D<FloatType>(Gy, gaussGradSigma);
 		gradY.setNumThreads(numThreads);
 		check = gradY.checkInput() && gradY.process();
 		if (check) {
@@ -451,14 +525,13 @@ public class NucleiMasker <T extends RealType<T>> extends MultiThreadedBenchmark
 		}
 		
 		SimpleMultiThreading.startAndJoin(threads);
-		floatTarget = L;
 		return true;
 	}
 
 
 
-	private boolean execComputeGradient(final Image<FloatType> source) {
-		GaussianGradient2D<FloatType> grad = new GaussianGradient2D<FloatType>(source, gaussGradSigma);
+	private boolean execComputeGradient() {
+		GaussianGradient2D<FloatType> grad = new GaussianGradient2D<FloatType>(scaled, gaussGradSigma);
 		grad.setNumThreads(numThreads);
 		boolean check = grad.checkInput() && grad.process();
 		if (check) {
@@ -466,7 +539,6 @@ public class NucleiMasker <T extends RealType<T>> extends MultiThreadedBenchmark
 			Gx = gc.get(0);
 			Gy = gc.get(1);
 			Gnorm = grad.getResult();
-			floatTarget = Gnorm;
 			return true;
 		} else {
 			errorMessage = grad.getErrorMessage();
@@ -475,15 +547,15 @@ public class NucleiMasker <T extends RealType<T>> extends MultiThreadedBenchmark
 
 	}
 
-	private boolean execIntensityScaling(final Image<T> source) {
+	private boolean execIntensityScaling() {
 
-		ImageFactory<FloatType> factory = new ImageFactory<FloatType>(new FloatType(), source.getContainerFactory());
-		scaled = factory.createImage(source.getDimensions(), "Scaled");
+		ImageFactory<FloatType> factory = new ImageFactory<FloatType>(new FloatType(), anDiffImage.getContainerFactory());
+		scaled = factory.createImage(filtered.getDimensions(), "Scaled");
 
 		final int width = scaled.getDimension(0);
 		final int height = scaled.getDimension(1);
 		final int nslices = scaled.getDimension(2);
-
+		
 		final AtomicInteger aj = new AtomicInteger();
 
 		Thread[] threads = SimpleMultiThreading.newThreads(numThreads);
@@ -493,21 +565,23 @@ public class NucleiMasker <T extends RealType<T>> extends MultiThreadedBenchmark
 
 				public void run() {
 
-					LocalizableByDimCursor<T> cs = source.createLocalizableByDimCursor();
+					LocalizableByDimCursor<T> cs = anDiffImage.createLocalizableByDimCursor();
 					LocalizableByDimCursor<FloatType> ct = scaled.createLocalizableByDimCursor();
 
 					float val;
 					for (int z=aj.getAndIncrement(); z<nslices; z=aj.getAndIncrement()) {
 
-						cs.setPosition(z, 2);
-						ct.setPosition(z, 2);
+						if (nslices > 1) { // If we get a 2D image
+							cs.setPosition(z, 2);
+							ct.setPosition(z, 2);
+						}
 
 						// Find min & max
 
-						double val_min = source.createType().getMaxValue();
-						double val_max = source.createType().getMinValue();
-						T min = source.createType();
-						T max = source.createType();
+						double val_min = anDiffImage.createType().getMaxValue();
+						double val_max = anDiffImage.createType().getMinValue();
+						T min = anDiffImage.createType();
+						T max = anDiffImage.createType();
 						min.setReal(val_min);
 						max.setReal(val_max);
 
@@ -552,14 +626,13 @@ public class NucleiMasker <T extends RealType<T>> extends MultiThreadedBenchmark
 		}
 		
 		SimpleMultiThreading.startAndJoin(threads);
-		floatTarget = scaled;
-
 		return true;
 	}
 
 
-	private boolean execAnisotropicDiffusion(final Image<T> source) {
-		AnisotropicDiffusion<T> andiff = new AnisotropicDiffusion<T>(source, 1, kappa);
+	private boolean execAnisotropicDiffusion() {
+		anDiffImage = filtered.clone();
+		AnisotropicDiffusion<T> andiff = new AnisotropicDiffusion<T>(anDiffImage, 1, kappa);
 		andiff.setDimensions(new int[] { 0, 1 }); // We only do it in 2D
 		andiff.setNumThreads(numThreads);
 		boolean check = andiff.checkInput();
@@ -570,10 +643,10 @@ public class NucleiMasker <T extends RealType<T>> extends MultiThreadedBenchmark
 	}
 
 
-	private boolean execGaussianFiltering(final Image<T> source) {
+	private boolean execGaussianFiltering() {
 		double[] sigmas = new double[] { gaussFilterSigma, gaussFilterSigma  };
 		GaussianConvolutionReal2D<T> gaussFilter = new GaussianConvolutionReal2D<T>(
-				source, 
+				image, 
 				new OutOfBoundsStrategyMirrorFactory<T>(), 
 				sigmas );
 
@@ -583,6 +656,7 @@ public class NucleiMasker <T extends RealType<T>> extends MultiThreadedBenchmark
 		filtered = target; // Store for last step.
 		return check;
 	}
+
 
 	
 }
