@@ -52,7 +52,8 @@ public class GaussianGradient2D <T extends RealType<T>> extends MultiThreadedBen
 		// Convert to float; needed to handle negative value properly
         final Image<FloatType> floatImage;
         if (source.createType().getClass().equals(FloatType.class)) {
-                floatImage = (Image<FloatType>) source;
+        		Object tmp = source;
+                floatImage = (Image<FloatType>) tmp;
         } else {
                 ImageConverter<T, FloatType> converter = new ImageConverter<T, FloatType>(
                 		source,

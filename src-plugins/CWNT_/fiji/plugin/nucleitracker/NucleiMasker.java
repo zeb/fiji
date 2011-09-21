@@ -272,7 +272,6 @@ public class NucleiMasker <T extends RealType<T>> extends MultiThreadedBenchmark
 	
 	public boolean process() {
 		boolean check;
-		System.out.println();
 		
 		check = execStep1();
 		if (!check) {
