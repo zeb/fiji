@@ -775,7 +775,11 @@ public class SimpleNeuriteTracer extends ThreePanes
 				last_start_point_z,
 				x_end,
 				y_end,
-				z_end );
+				z_end,
+				x_spacing,
+				y_spacing,
+				z_spacing,
+				spacing_units);
 
 			addThreadToDraw( fethallahTracerThread );
 

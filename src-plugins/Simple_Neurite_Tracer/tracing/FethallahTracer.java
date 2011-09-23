@@ -31,72 +31,180 @@ import java.awt.Graphics;
 import java.io.File;
 import java.util.ArrayList;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+
+import ij.IJ;
+
 public class FethallahTracer extends Thread implements SearchInterface {
 
-    public FethallahTracer( File oofFile,
-                            float start_x_image,
-                            float start_y_image,
-                            float start_z_image,
-                            float end_x_image,
-                            float end_y_image,
-                            float end_z_image ) {
+	public FethallahTracer( File oofFile,
+				float start_x_image,
+				float start_y_image,
+				float start_z_image,
+				float end_x_image,
+				float end_y_image,
+				float end_z_image,
+				double x_spacing,
+				double y_spacing,
+				double z_spacing,
+				String spacing_units
+		) {
 
-        this.oofFile = oofFile;
-        this.start_x_image = start_x_image;
-        this.start_y_image = start_y_image;
-        this.start_z_image = start_z_image;
-        this.end_x_image = end_x_image;
-        this.end_y_image = end_y_image;
-        this.end_z_image = end_z_image;
-    }
+		this.oofFile = oofFile;
+		this.start_x_image = start_x_image;
+		this.start_y_image = start_y_image;
+		this.start_z_image = start_z_image;
+		this.end_x_image = end_x_image;
+		this.end_y_image = end_y_image;
+		this.end_z_image = end_z_image;
+		this.x_spacing = x_spacing;
+		this.y_spacing = y_spacing;
+		this.z_spacing = z_spacing;
+		this.spacing_units = spacing_units;
+	}
 
-    protected File oofFile;
+	protected double x_spacing;
+	protected double y_spacing;
+	protected double z_spacing;
+	protected String spacing_units;
 
-    protected float start_x_image;
-    protected float start_y_image;
-    protected float start_z_image;
+	protected File oofFile;
 
-    protected float end_x_image;
-    protected float end_y_image;
-    protected float end_z_image;
+	protected float start_x_image;
+	protected float start_y_image;
+	protected float start_z_image;
 
-    public Path getResult() {
-        throw new RuntimeException("FethallahTracer:getResult: Not implemented yet...");
-    }
+	protected float end_x_image;
+	protected float end_y_image;
+	protected float end_z_image;
 
+	protected PathResult lastPathResult;
+
+	@Override
+	public Path getResult() {
+		if (! lastPathResult.getSuccess())
+			return null;
+
+		float [] points = lastPathResult.getPath();
+		int numberOfPoints = lastPathResult.getNumberOfPoints();
+
+		Path realResult = new Path(x_spacing,
+					   y_spacing,
+					   z_spacing,
+					   spacing_units);
+		realResult.createCircles();
+		for( int i = 0; i < numberOfPoints; ++i ) {
+			int start = i * 4;
+			realResult.addPointDouble( points[start],
+						   points[start+1],
+						   points[start+2] );
+			realResult.radiuses[i] = points[start+3];
+		}
+		return realResult;
+	}
+
+	@Override
 	public void drawProgressOnSlice( int plane,
-                                     int currentSliceInPlane,
-                                     TracerCanvas canvas,
-                                     Graphics g ) {
-    }
+					 int currentSliceInPlane,
+					 TracerCanvas canvas,
+					 Graphics g ) {
+	}
 
-    protected ArrayList< SearchProgressCallback > progressListeners;
+	protected ArrayList< SearchProgressCallback > progressListeners;
 
 	public void addProgressListener( SearchProgressCallback callback ) {
 		progressListeners.add( callback );
 	}
 
-    public void requestStop() {
-        // FIXME: should probably add a "stoppable" query method to SearchInterface
-        throw new RuntimeException("FethallahTracer:requestStop: Not implemented yet...");
-    }
-
+	@Override
+	public void requestStop() {
+		// FIXME: should probably add a "stoppable" query method to SearchInterface
+		throw new RuntimeException("FethallahTracer:requestStop: Not implemented yet...");
+	}
 
 	@Override
 	public void run( ) {
 
-        // Call the JNI here:
+		float [] p1 = new float[3];
+		float [] p2 = new float[3];
 
+		p1[0] = start_x_image;
+		p1[1] = start_y_image;
+		p1[2] = start_z_image;
 
+		p2[0] = end_x_image;
+		p2[1] = end_y_image;
+		p2[2] = end_z_image;
 
-        reportFinished( true );
-    }
+		PathResult result = new PathResult();
+
+		// Call the JNI here:
+
+		ClassLoader loader = IJ.getClassLoader();
+		if (loader == null)
+			throw new RuntimeException("IJ.getClassLoader() failed (!)");
+
+		try {
+
+			/* Unfortunately, we can't be sure that the tubularity plugin
+			   will be available at compile- or run-time, so we have to
+			   try to load it via reflection. */
+
+			Class<?> c = loader.loadClass("FijiITKInterface.MultiScaleTubularityMeasure");
+			Object newInstance = c.newInstance();
+
+			Class [] parameterTypes = { String.class,
+						    float[].class,
+						    float[].class,
+						    PathResult.class };
+
+			Method m = c.getMethod( "getPathResult", parameterTypes );
+			Object [] parameters = new Object[4];
+			parameters[0] = oofFile.getAbsolutePath();
+			parameters[1] = p1;
+			parameters[2] = p2;
+			parameters[3] = result;
+
+			m.invoke(newInstance,parameters);
+
+		} catch (IllegalArgumentException e) {
+			reportFinished(false);
+			throw new RuntimeException("There was an illegal argument when trying to invoke getPathResult: " + e);
+		} catch (InvocationTargetException e) {
+			reportFinished(false);
+			Throwable realException = e.getTargetException();
+			throw new RuntimeException("There was an exception thrown by getPathResult: " + realException);
+		} catch (ClassNotFoundException e) {
+			reportFinished(false);
+			throw new RuntimeException("The FijiITKInterface.MultiScaleTubularityMeasure class was not found: " + e);
+		} catch (InstantiationException e) {
+			reportFinished(false);
+			throw new RuntimeException("Failed to instantiate the FijiITKInterface.MultiScaleTubularityMeasure object: " + e);
+		} catch ( IllegalAccessException e ) {
+			reportFinished(false);
+			throw new RuntimeException("IllegalAccessException when trying to create an instance of FijiITKInterface.MultiScaleTubularityMeasure: "+e);
+		} catch (NoSuchMethodException e) {
+			reportFinished(false);
+			throw new RuntimeException("There was a NoSuchMethodException when trying to invoke getPathResult: " + e);
+		} catch (SecurityException e) {
+			reportFinished(false);
+			throw new RuntimeException("There was a SecurityException when trying to invoke getPathResult: " + e);
+		}
+
+		if(!result.getSuccess()) {
+			reportFinished( false );
+			throw new RuntimeException("getPathResult failed, reporting the error: "+result.getErrorMessage());
+		}
+
+		lastPathResult = result;
+
+		reportFinished( true );
+	}
 
 	public void reportFinished( boolean success ) {
 		for( SearchProgressCallback progress : progressListeners )
 			progress.finished( this, success );
 	}
-
-            
 
 }
