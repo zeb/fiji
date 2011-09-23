@@ -218,7 +218,7 @@ public class SimpleNeuriteTracer extends ThreePanes
 		   so distinguish these cases: */
 
 		if( source == currentSearchThread ||
-		    source == fethallahTracerThread ) {
+		    source == tubularGeodesicsThread ) {
 
 			removeSphere(targetBallName);
 
@@ -715,7 +715,7 @@ public class SimpleNeuriteTracer extends ThreePanes
 	/* If non-null, holds a reference to the currently searching thread: */
 
 	TracerThread currentSearchThread;
-	FethallahTracer fethallahTracerThread = null;
+	TubularGeodesicsTracer tubularGeodesicsThread = null;
 
 	/* Start a search thread looking for the goal in the arguments: */
 
@@ -758,7 +758,7 @@ public class SimpleNeuriteTracer extends ThreePanes
 		y_end = (int)Math.round( real_y_end / y_spacing );
 		z_end = (int)Math.round( real_z_end / z_spacing );
 
-		if (fethallahTracingEnabled) {
+		if (tubularGeodesicsTracingEnabled) {
 
 			// Then useful values are:
 			// oofFile.getAbsolutePath() - the filename of the OOF file
@@ -767,7 +767,7 @@ public class SimpleNeuriteTracer extends ThreePanes
 
 			// [xyz]_spacing
 
-			fethallahTracerThread = new FethallahTracer(
+			tubularGeodesicsThread = new TubularGeodesicsTracer(
 				oofFile,
 				last_start_point_x,
 				last_start_point_y,
@@ -780,11 +780,11 @@ public class SimpleNeuriteTracer extends ThreePanes
 				z_spacing,
 				spacing_units);
 
-			addThreadToDraw( fethallahTracerThread );
+			addThreadToDraw( tubularGeodesicsThread );
 
-			fethallahTracerThread.addProgressListener( this );
+			tubularGeodesicsThread.addProgressListener( this );
 
-			fethallahTracerThread.start();
+			tubularGeodesicsThread.start();
 
 		} else {
 
@@ -1293,14 +1293,14 @@ public class SimpleNeuriteTracer extends ThreePanes
 
 	/* If there appears to be a local file called
 	   <image-basename>.oof.nrrd then we assume that we can use
-	   Fethallah's tracing method.  This variable null if not such
-	   file was found. */
+	   the Tubular Geodesics tracing method.  This variable null
+	   if not such file was found. */
 
 	protected File oofFile = null;
-	protected boolean fethallahTracingEnabled = false;
+	protected boolean tubularGeodesicsTracingEnabled = false;
 
-	public synchronized void enableFethallahTracing( boolean enable ) {
-		fethallahTracingEnabled = enable;
+	public synchronized void enableTubularGeodesicsTracing( boolean enable ) {
+		tubularGeodesicsTracingEnabled = enable;
 	}
 
 	public synchronized void enableHessian( boolean enable ) {
