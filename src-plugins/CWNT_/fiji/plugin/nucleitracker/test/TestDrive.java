@@ -2,6 +2,7 @@ package fiji.plugin.nucleitracker.test;
 
 import fiji.plugin.nucleitracker.CrownWearingSegmenter;
 import fiji.plugin.nucleitracker.NucleiMasker;
+import fiji.plugin.nucleitracker.splitting.NucleiSplitter;
 import ij.IJ;
 import ij.ImageJ;
 import ij.ImagePlus;
@@ -10,6 +11,7 @@ import java.io.File;
 
 import mpicbg.imglib.image.Image;
 import mpicbg.imglib.image.display.imagej.ImageJFunctions;
+import mpicbg.imglib.labeling.Labeling;
 import mpicbg.imglib.type.numeric.RealType;
 
 @SuppressWarnings("unused")
@@ -31,15 +33,12 @@ public class TestDrive {
 		Image<? extends RealType> source = ImageJFunctions.wrap(imp);
 		
 		CrownWearingSegmenter algo = new CrownWearingSegmenter(source);
-//		NucleiMasker algo = new NucleiMasker(source);
 		algo.setNumThreads();
 		System.out.println("Using "+algo.getNumThreads()+" threads:");
-		
+		Labeling results = null ;
 		boolean check = algo.checkInput() && algo.process();
 		if (check) {
-			Image results = algo.getResult();
-//			Image results = algo.getFloatResult();
-//			Image results = algo.getMaskedImage();
+			results = algo.getResult();
 			ImagePlus impres = ImageJFunctions.copyToImagePlus(results);
 			impres.getProcessor().resetMinAndMax();
 			impres.updateAndDraw();
@@ -47,6 +46,22 @@ public class TestDrive {
 		} else {
 			System.err.println("Process failed: "+algo.getErrorMessage());
 		}
+
+		NucleiSplitter splitter = new NucleiSplitter(results);
+		splitter.setNumThreads();
+		Labeling results2;
+		
+		check = algo.checkInput() && algo.process();
+		if (check) {
+			results2 = algo.getResult();
+			ImagePlus impres = ImageJFunctions.copyToImagePlus(results2);
+			impres.getProcessor().resetMinAndMax();
+			impres.updateAndDraw();
+			impres.show();
+		} else {
+			System.err.println("Process failed: "+algo.getErrorMessage());
+		}
+
 		
 		System.out.println("Total processing time: "+(algo.getProcessingTime()/1000)+" s");
 		
