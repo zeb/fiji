@@ -20,6 +20,8 @@ import javax.swing.SwingConstants;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 
+import fiji.plugin.nucleitracker.NucleiMasker;
+
 public class TuneParametersPanel extends JPanel {
 
 	private static final long serialVersionUID = -1739705351534814574L;
@@ -86,30 +88,12 @@ public class TuneParametersPanel extends JPanel {
 	private final static Font BIG_LABEL_FONT = new Font("Arial", Font.PLAIN, 20);
 	private final static Font TEXT_FIELD_FONT = new Font("Arial", Font.PLAIN, 11);
 
-
 	/*
 	 * PARAMETERS
 	 */
 	
 	private double[] oldParams;
 
-	// Step 1
-	private double gaussFilterSigma = 0.5;
-
-	// Step 2
-	private int nIterAnDiff = 5;
-	private double kappa = 50;
-
-	// Step 3
-	private double gaussGradSigma = 1;
-
-	// Step 4
-	private double gamma = 1;
-	private double beta = 14.9f;
-	private double alpha = 2.7f;
-	private double epsilon = 16.9f;
-	private double delta = 0.5f;
-	
 	/*
 	 *  GUI elements
 	 */
@@ -134,8 +118,23 @@ public class TuneParametersPanel extends JPanel {
 	private DoubleJSlider epsilonSlider;
 	private JTextField deltaText;
 	private DoubleJSlider deltaSlider;
+	/**
+	 * In the array, the parameters are ordered as follow:
+	 * <ol start="0">
+	 * 	<li> the σ for the gaussian filtering in step 1
+	 *  <li> the number of iteration for anisotropic filtering in step 2
+	 *  <li> κ, the gradient threshold for anisotropic filtering in step 2
+	 * 	<li> the σ for the gaussian derivatives in step 3
+	 *  <li> γ, the <i>tanh</i> shift in step 4
+	 *  <li> α, the gradient prefactor in step 4
+	 *  <li> β, the laplacian positive magnitude prefactor in step 4
+	 *  <li> ε, the hessian negative magnitude prefactor in step 4
+	 *  <li> δ, the derivative sum scale in step 4
+	 * </ol>
+	 */
+	private double[] params = NucleiMasker.DEFAULT_MASKING_PARAMETERS;
 
-	private double[] params;
+	private JTabbedPane tabbedPane;
 
 	/*
 	 * CONSTRUCTORS
@@ -188,15 +187,11 @@ public class TuneParametersPanel extends JPanel {
 	}
 	
 	public void setParameters(double[] params) {
-		gaussFilterSigma 	= params[0];
-		nIterAnDiff 		= (int) params[1];
-		kappa				= params[2];
-		gaussGradSigma		= params[3];
-		gamma 				= params[4];
-		alpha				= params[5];
-		beta				= params[6];
-		epsilon				= params[7];
-		delta				= params[8];
+		System.arraycopy(params, 0, this.params, 0, params.length);
+	}
+	
+	public int getSelectedIndex() {
+		return tabbedPane.getSelectedIndex();
 	}
 	
 	/*
@@ -204,15 +199,15 @@ public class TuneParametersPanel extends JPanel {
 	 */
 	
 	private double[] collectParameters() throws NumberFormatException {
-		gaussFilterSigma 	= Double.parseDouble(gaussFiltSigmaText.getText());
-		nIterAnDiff 		= (int)  Double.parseDouble(aniDiffNIterText.getText());
-		kappa 				=  Double.parseDouble(aniDiffKappaText.getText());
-		gaussGradSigma 		=  Double.parseDouble(gaussGradSigmaText.getText());
-		gamma				=  Double.parseDouble(gammaText.getText());
-		alpha 				=  Double.parseDouble(alphaText.getText());
-		beta				=  Double.parseDouble(betaText.getText());
-		epsilon 			=  Double.parseDouble(epsilonText.getText());
-		delta 				=  Double.parseDouble(deltaText.getText());
+		double gaussFilterSigma = Double.parseDouble(gaussFiltSigmaText.getText());
+		double nIterAnDiff = (int)  Double.parseDouble(aniDiffNIterText.getText());
+		double kappa = Double.parseDouble(aniDiffKappaText.getText());
+		double gaussGradSigma = Double.parseDouble(gaussGradSigmaText.getText());
+		double gamma = Double.parseDouble(gammaText.getText());
+		double alpha = Double.parseDouble(alphaText.getText());
+		double beta = Double.parseDouble(betaText.getText());
+		double epsilon = Double.parseDouble(epsilonText.getText());
+		double delta = Double.parseDouble(deltaText.getText());
 		return new double[] {
 				gaussFilterSigma,
 				nIterAnDiff,
@@ -244,7 +239,7 @@ public class TuneParametersPanel extends JPanel {
 	private void initGUI() {
 		setLayout(new BorderLayout());
 
-		JTabbedPane tabbedPane = new JTabbedPane(JTabbedPane.TOP);
+		tabbedPane = new JTabbedPane(JTabbedPane.TOP);
 		add(tabbedPane);
 
 		{
@@ -269,11 +264,11 @@ public class TuneParametersPanel extends JPanel {
 				lblGaussianFilter.setBounds(10, 104, 325, 14);
 				panel1.add(lblGaussianFilter);
 
-				gaussFiltSigmaSlider = new DoubleJSlider(0, 5*scale, (int) (gaussFilterSigma*scale), scale);
+				gaussFiltSigmaSlider = new DoubleJSlider(0, 5*scale, (int) (params[0]*scale), scale);
 				gaussFiltSigmaSlider.setBounds(10, 129, 255, 23);
 				panel1.add(gaussFiltSigmaSlider);
 
-				gaussFiltSigmaText = new JTextField(""+gaussFilterSigma);
+				gaussFiltSigmaText = new JTextField(""+params[0]);
 				gaussFiltSigmaText.setHorizontalAlignment(SwingConstants.CENTER);
 				gaussFiltSigmaText.setBounds(275, 129, 60, 23);
 				gaussFiltSigmaText.setFont(TEXT_FIELD_FONT);
@@ -297,12 +292,12 @@ public class TuneParametersPanel extends JPanel {
 
 				aniDiffNIterText = new JTextField();
 				aniDiffNIterText.setHorizontalAlignment(SwingConstants.CENTER);
-				aniDiffNIterText.setText(""+nIterAnDiff);
+				aniDiffNIterText.setText(""+params[1]);
 				aniDiffNIterText.setFont(TEXT_FIELD_FONT);
 				aniDiffNIterText.setBounds(275, 246, 60, 23);
 				panel1.add(aniDiffNIterText);
 
-				aniDiffNIterSlider = new DoubleJSlider(1, 10, nIterAnDiff, 1);
+				aniDiffNIterSlider = new DoubleJSlider(1, 10, (int) params[1], 1);
 				aniDiffNIterSlider.setBounds(10, 246, 255, 23);
 				panel1.add(aniDiffNIterSlider);
 
@@ -320,12 +315,12 @@ public class TuneParametersPanel extends JPanel {
 
 				aniDiffKappaText = new JTextField();
 				aniDiffKappaText.setHorizontalAlignment(SwingConstants.CENTER);
-				aniDiffKappaText.setText(""+kappa);
+				aniDiffKappaText.setText(""+params[2]);
 				aniDiffKappaText.setFont(TEXT_FIELD_FONT);
 				aniDiffKappaText.setBounds(275, 305, 60, 23);
 				panel1.add(aniDiffKappaText);
 
-				aniDiffKappaSlider = new DoubleJSlider(1, 100, (int) kappa, 1);
+				aniDiffKappaSlider = new DoubleJSlider(1, 100, (int) params[2], 1);
 				aniDiffKappaSlider.setBounds(10, 305, 255, 23);
 				panel1.add(aniDiffKappaSlider);
 
@@ -347,11 +342,11 @@ public class TuneParametersPanel extends JPanel {
 
 				gaussGradSigmaText = new JTextField();
 				gaussGradSigmaText.setHorizontalAlignment(SwingConstants.CENTER);
-				gaussGradSigmaText.setText(""+gaussGradSigma);
+				gaussGradSigmaText.setText(""+params[3]);
 				gaussGradSigmaText.setBounds(275, 416, 60, 23);
 				panel1.add(gaussGradSigmaText);
 
-				gaussGradSigmaSlider = new DoubleJSlider(0, 5*scale, (int) (gaussGradSigma*scale), scale);
+				gaussGradSigmaSlider = new DoubleJSlider(0, 5*scale, (int) (params[3]*scale), scale);
 				gaussGradSigmaSlider.setBounds(10, 416, 255, 23);
 				panel1.add(gaussGradSigmaSlider);
 
@@ -385,12 +380,12 @@ public class TuneParametersPanel extends JPanel {
 				gammeLabel.setBounds(10, 106, 325, 14);
 				panel2.add(gammeLabel);
 
-				gammaSlider = new DoubleJSlider(-5*scale, 5*scale, (int) (gamma*scale), scale);
+				gammaSlider = new DoubleJSlider(-5*scale, 5*scale, (int) (params[4]*scale), scale);
 				gammaSlider.setBounds(10, 131, 255, 23);
 				panel2.add(gammaSlider);
 
 				gammaText = new JTextField();
-				gammaText.setText(""+gamma);
+				gammaText.setText(""+params[4]);
 				gammaText.setFont(TEXT_FIELD_FONT);
 				gammaText.setBounds(275, 131, 60, 23);
 				panel2.add(gammaText);
@@ -405,11 +400,11 @@ public class TuneParametersPanel extends JPanel {
 				lblNewLabel_3.setBounds(10, 165, 325, 14);
 				panel2.add(lblNewLabel_3);
 
-				alphaSlider = new DoubleJSlider(0, 20*scale, (int) (alpha*scale), scale);
+				alphaSlider = new DoubleJSlider(0, 20*scale, (int) (params[5]*scale), scale);
 				alphaSlider.setBounds(10, 190, 255, 23);
 				panel2.add(alphaSlider);
 
-				alphaText = new JTextField(""+alpha);
+				alphaText = new JTextField(""+params[5]);
 				alphaText.setFont(TEXT_FIELD_FONT);
 				alphaText.setBounds(275, 190, 60, 23);
 				panel2.add(alphaText);
@@ -424,13 +419,13 @@ public class TuneParametersPanel extends JPanel {
 				betaLabel.setBounds(10, 224, 325, 14);
 				panel2.add(betaLabel);
 
-				betaSlider = new DoubleJSlider(0, 20*scale, (int) (beta*scale), scale);
+				betaSlider = new DoubleJSlider(0, 20*scale, (int) (params[6]*scale), scale);
 				betaSlider.setBounds(10, 249, 255, 23);
 				panel2.add(betaSlider);
 
 				betaText = new JTextField();
 				betaText.setFont(TEXT_FIELD_FONT);
-				betaText.setText(""+beta);
+				betaText.setText(""+params[6]);
 				betaText.setBounds(275, 249, 60, 23);
 				panel2.add(betaText);
 
@@ -444,13 +439,13 @@ public class TuneParametersPanel extends JPanel {
 				epsilonLabel.setBounds(10, 283, 325, 14);
 				panel2.add(epsilonLabel);
 
-				epsilonSlider = new DoubleJSlider(0, 20*scale, (int) (scale*epsilon), scale);
+				epsilonSlider = new DoubleJSlider(0, 20*scale, (int) (scale*params[7]), scale);
 				epsilonSlider.setBounds(10, 308, 255, 23);
 				panel2.add(epsilonSlider);
 
 				epsilonText = new JTextField();
 				epsilonText.setFont(TEXT_FIELD_FONT);
-				epsilonText.setText(""+epsilon);
+				epsilonText.setText(""+params[7]);
 				epsilonText.setBounds(275, 308, 60, 23);
 				panel2.add(epsilonText);
 
@@ -466,11 +461,11 @@ public class TuneParametersPanel extends JPanel {
 
 				deltaText = new JTextField();
 				deltaText.setFont(TEXT_FIELD_FONT);
-				deltaText.setText(""+delta);
+				deltaText.setText(""+params[8]);
 				deltaText.setBounds(275, 367, 60, 23);
 				panel2.add(deltaText);
 
-				deltaSlider = new DoubleJSlider(0, 5*scale, (int) (delta*scale), scale);
+				deltaSlider = new DoubleJSlider(0, 5*scale, (int) (params[8]*scale), scale);
 				deltaSlider.setBounds(10, 367, 255, 23);
 				panel2.add(deltaSlider);
 

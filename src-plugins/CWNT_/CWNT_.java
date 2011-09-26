@@ -37,18 +37,7 @@ public class CWNT_ implements PlugIn {
 	private TuneParametersPanel panel;
 	private final static int WIDTH = 360;
 	private final static int HEIGHT = 530;
-	private static final double[] DEFAULT_PARAM = new double[] {
-		0.5,
-		5,
-		50,
-		1,
-		1,
-		2.7,
-		14.9,
-		16.9,
-		0.5
-	};
-
+	private static final double[] DEFAULT_PARAM = NucleiMasker.DEFAULT_MASKING_PARAMETERS;
 	private int stepUpdateToPerform = Integer.MAX_VALUE;
 	private DisplayUpdater updater = new DisplayUpdater();
 
@@ -62,22 +51,25 @@ public class CWNT_ implements PlugIn {
 		if (null == imp)
 			return;
 
+		// Create Panel silently
+		panel = new TuneParametersPanel(DEFAULT_PARAM);
+
+		// Prepare target imps
 		recomputeSampleWindows(imp);
 
 		// Create GUI
-		panel = new TuneParametersPanel(DEFAULT_PARAM);
 		JFrame frame = new JFrame("Test parameters for CWNT");
 		frame.getContentPane().add(panel);
 		frame.setBounds(100, 100, WIDTH, HEIGHT);
 		frame.setVisible(true);
 
 		// Add listeners
-
 		imp.getCanvas().addMouseListener(new MouseAdapter() {
 
 			@Override
 			public void mouseReleased(MouseEvent e) {
-				recomputeSampleWindows(imp);
+				if (panel.getSelectedIndex() <= 1)
+					recomputeSampleWindows(imp);
 			}
 		});
 
@@ -244,7 +236,7 @@ public class CWNT_ implements PlugIn {
 
 		// Prepare algo
 		algo = new NucleiMasker(img);
-		algo.setParameters(DEFAULT_PARAM);
+		algo.setParameters(panel.getParameters());
 		boolean check = algo.checkInput() && algo.process();
 		if (!check) {
 			System.err.println("Problem with the segmenter: "+algo.getErrorMessage());
@@ -332,8 +324,8 @@ public class CWNT_ implements PlugIn {
 
 	public static void main(String[] args) {
 
-		//		File testImage = new File("E:/Users/JeanYves/Documents/Projects/BRajaseka/Data/Meta-nov7mdb18ssplus-embryo2-1.tif");
-		File testImage = new File("/Users/tinevez/Projects/BRajaseka/Data/Meta-nov7mdb18ssplus-embryo2-1.tif");
+		File testImage = new File("E:/Users/JeanYves/Documents/Projects/BRajaseka/Data/Meta-nov7mdb18ssplus-embryo2-1.tif");
+//		File testImage = new File("/Users/tinevez/Projects/BRajaseka/Data/Meta-nov7mdb18ssplus-embryo2-1.tif");
 
 		ImageJ.main(args);
 		ImagePlus imp = IJ.openImage(testImage.getAbsolutePath());

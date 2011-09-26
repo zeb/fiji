@@ -18,6 +18,7 @@ import mpicbg.imglib.type.logic.BitType;
 import mpicbg.imglib.type.numeric.IntegerType;
 
 public class CrownWearingSegmenter<T extends IntegerType<T>>  extends MultiThreadedBenchmarkAlgorithm implements OutputAlgorithm<LabelingType<Integer>> {
+	
 	private Image<T> masked;
 	private Image<T> source;
 	private Image<BitType> thresholded;
@@ -27,7 +28,6 @@ public class CrownWearingSegmenter<T extends IntegerType<T>>  extends MultiThrea
 	/*
 	 * CONSTRUCTOR	
 	 */
-
 
 	public CrownWearingSegmenter(final Image<T> source) {
 		super();

@@ -22,7 +22,7 @@ import org.apache.commons.math.stat.clustering.KMeansPlusPlusClusterer;
 
 public class NucleiSplitter extends MultiThreadedBenchmarkAlgorithm implements OutputAlgorithm<LabelingType<Integer>> {
 
-	private static final boolean DEBUG = true;
+	private static final boolean DEBUG = false;
 
 
 	/** The labelled image contained the nuclei to split. */
@@ -52,6 +52,7 @@ public class NucleiSplitter extends MultiThreadedBenchmarkAlgorithm implements O
 
 
 	public NucleiSplitter(Labeling<Integer> source) {
+		super();
 		this.source = source;
 		this.target = source.createNewLabeling("Splitted "+source.getName());
 	}
@@ -59,7 +60,6 @@ public class NucleiSplitter extends MultiThreadedBenchmarkAlgorithm implements O
 	/*
 	 * METHODS
 	 */
-
 
 	@Override
 	public Labeling<Integer> getResult() {
