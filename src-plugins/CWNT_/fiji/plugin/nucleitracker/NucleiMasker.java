@@ -21,7 +21,36 @@ import mpicbg.imglib.type.numeric.real.FloatType;
 
 public class NucleiMasker <T extends RealType<T>> extends MultiThreadedBenchmarkAlgorithm implements OutputAlgorithm<T> {
 
-	private static final boolean DEBUG = false;
+	private static final boolean DEBUG = true;
+	
+	/** A set of default parameters suitable for masking, as determined
+	 * by Bhavna Rajaseka.
+	 * In the array,
+	 * the parameters are ordered as follow:
+	 * <ol start="0">
+	 * 	<li> the σ for the gaussian filtering in step 1
+	 *  <li> the number of iteration for anisotropic filtering in step 2
+	 *  <li> κ, the gradient threshold for anisotropic filtering in step 2
+	 * 	<li> the σ for the gaussian derivatives in step 3
+	 *  <li> γ, the <i>tanh</i> shift in step 4
+	 *  <li> α, the gradient prefactor in step 4
+	 *  <li> β, the laplacian positive magnitude prefactor in step 4
+	 *  <li> ε, the hessian negative magnitude prefactor in step 4
+	 *  <li> δ, the derivative sum scale in step 4
+	 * </ol>
+	 */
+	public static final double[] DEFAULT_MASKING_PARAMETERS = new double[] {
+		0.5,		// 0. σf
+		5,			// 1. nAD
+		50,			// 2. κAD
+		1,			// 3. σg
+		1,			// 4. γ
+		2.7, 		// 5. α
+		14.9,		// 6. β
+		16.9,		// 7. ε
+		0.5			// 8. δ
+	};
+	
 	/** The source image (left unchanged). */
 	private Image<T> image;
 	/** The target image for the pre-processing steps. */
@@ -29,16 +58,16 @@ public class NucleiMasker <T extends RealType<T>> extends MultiThreadedBenchmark
 	
 	// Step 1
 	private Image<T> filtered;
-	private double gaussFilterSigma = 0.5;
+	private double gaussFilterSigma = DEFAULT_MASKING_PARAMETERS[0];
 
 	// Step 2
 	private Image<T> anDiffImage;
 	private Image<FloatType> scaled;
-	private double kappa = 50;
-	private int nIterAnDiff = 5;
+	private int nIterAnDiff = (int) DEFAULT_MASKING_PARAMETERS[1];
+	private double kappa 	= DEFAULT_MASKING_PARAMETERS[2];
 
 	// Step 3
-	private double gaussGradSigma = 1;
+	private double gaussGradSigma = DEFAULT_MASKING_PARAMETERS[3];
 	private Image<FloatType> Gx;
 	private Image<FloatType> Gy;
 	private Image<FloatType> Gnorm;
@@ -51,11 +80,11 @@ public class NucleiMasker <T extends RealType<T>> extends MultiThreadedBenchmark
 
 	// Step 4
 	private Image<FloatType> M;
-	private double gamma = 1;
-	private double beta = 14.9;
-	private double alpha = 2.7;
-	private double epsilon = 16.9;
-	private double delta = 0.5;
+	private double gamma 	= DEFAULT_MASKING_PARAMETERS[4];
+	private double alpha 	= DEFAULT_MASKING_PARAMETERS[5];
+	private double beta 	= DEFAULT_MASKING_PARAMETERS[6];
+	private double epsilon 	= DEFAULT_MASKING_PARAMETERS[7];
+	private double delta 	= DEFAULT_MASKING_PARAMETERS[8];
 	
 
 
@@ -101,6 +130,21 @@ public class NucleiMasker <T extends RealType<T>> extends MultiThreadedBenchmark
 		return target;
 	}
 	
+	/** 
+	 * Set the parameters used by this instance to compute the cell mask.
+	 * In the array, the parameters must be ordered as follow:
+	 * <ol start="0">
+	 * 	<li> the σ for the gaussian filtering in step 1
+	 *  <li> the number of iteration for anisotropic filtering in step 2
+	 *  <li> κ, the gradient threshold for anisotropic filtering in step 2
+	 * 	<li> the σ for the gaussian derivatives in step 3
+	 *  <li> γ, the <i>tanh</i> shift in step 4
+	 *  <li> α, the gradient prefactor in step 4
+	 *  <li> β, the laplacian positive magnitude prefactor in step 4
+	 *  <li> ε, the hessian negative magnitude prefactor in step 4
+	 *  <li> δ, the derivative sum scale in step 4
+	 * </ol>
+	 */
 	public void setParameters(double[] params) {
 		gaussFilterSigma 	= params[0];
 		nIterAnDiff 		= (int) params[1];
@@ -115,47 +159,45 @@ public class NucleiMasker <T extends RealType<T>> extends MultiThreadedBenchmark
 
 
 	public boolean execStep1() {
-		long top = System.currentTimeMillis();
-		long dt = 0;
-		boolean check;
 		/*
 		 * Step 1: Low pass filter.
 		 * So as to damper the noise. We simply do a gaussian filtering.
 		 */
+		long top = System.currentTimeMillis();
+		boolean check;
 		if (DEBUG) {
-			System.out.print("Low pass filter... ");
+			System.out.print(String.format("Low pass filter, with σf = %.1f ... ", gaussFilterSigma));
 		}
 		check = execGaussianFiltering();
 		if (!check) {
 			return false;
 		}
-		dt =  (System.currentTimeMillis()-top);
+		long dt =  (System.currentTimeMillis()-top);
 		processingTime += dt;
 		if (DEBUG) {
-			System.out.println(dt/1e3+" s.");
+			System.out.println("dt = "+dt/1e3+" s.");
 		}
 
 		return check;
 	}
 	
 	public boolean execStep2() {
-		long top = System.currentTimeMillis();
-		long dt = 0;
 		/*
 		 * Step 2a: Anisotropic diffusion
 		 * To have nuclei of approximative constant intensity.
 		 */
 		if (DEBUG) {
-			System.out.print("Anisotropic diffusion... ");
+			System.out.print(String.format("Anisotropic diffusion with n = %d and κ = %.1f ... ", nIterAnDiff, kappa));
 		}
+		long top = System.currentTimeMillis();
 		boolean check = execAnisotropicDiffusion();
 		if (!check) {
 			return false;
 		}
-		dt = (System.currentTimeMillis()-top-processingTime);
+		long dt = (System.currentTimeMillis()-top);
 		processingTime += dt;
 		if (DEBUG) {
-			System.out.println(dt/1e3+" s.");
+			System.out.println("dt = "+dt/1e3+" s.");
 		}
 
 		/*
@@ -165,36 +207,36 @@ public class NucleiMasker <T extends RealType<T>> extends MultiThreadedBenchmark
 		if (DEBUG) {
 			System.out.print("Intensity scaling... ");
 		}
+		top = System.currentTimeMillis();
 		check = execIntensityScaling();
 		if (!check) {
 			return false;
 		}
-		dt = (System.currentTimeMillis()-top-processingTime);
+		dt = (System.currentTimeMillis()-top);
 		processingTime += dt;
 		if (DEBUG) {
-			System.out.println(dt/1e3+" s.");
+			System.out.println("dt = "+dt/1e3+" s.");
 		}
 		
 		return check;
 	}
 	
 	public boolean execStep3() {
-		long top = System.currentTimeMillis();
-		long dt = 0;
 		/*
 		 * Step 3a: Gaussian gradient
 		 */
 		if (DEBUG) {
-			System.out.print("Gaussian gradient... ");
+			System.out.print(String.format("Gaussian gradient with %.1f ... ", gaussGradSigma));
 		}
+		long top = System.currentTimeMillis();
 		boolean check = execComputeGradient();
 		if (!check) {
 			return false;
 		}
-		dt = (System.currentTimeMillis()-top-processingTime);
+		long dt = (System.currentTimeMillis()-top);
 		processingTime += dt;
 		if (DEBUG) {
-			System.out.println(dt/1e3+" s.");
+			System.out.println("dt = "+dt/1e3+" s.");
 		}
 
 		/*
@@ -203,14 +245,15 @@ public class NucleiMasker <T extends RealType<T>> extends MultiThreadedBenchmark
 		if (DEBUG) {
 			System.out.print("Laplacian... ");
 		}
+		top = System.currentTimeMillis();
 		check = execComputeLaplacian();
 		if (!check) {
 			return false;
 		}
-		dt = (System.currentTimeMillis()-top-processingTime);
+		dt = (System.currentTimeMillis()-top);
 		processingTime += dt;
 		if (DEBUG) {
-			System.out.println(dt/1e3+" s.");
+			System.out.println("dt = "+dt/1e3+" s.");
 		}
 
 		/*
@@ -219,36 +262,36 @@ public class NucleiMasker <T extends RealType<T>> extends MultiThreadedBenchmark
 		if (DEBUG) {
 			System.out.print("Hessian... ");
 		}
+		top = System.currentTimeMillis();
 		check = execComputeHessian();
 		if (!check) {
 			return false;
 		}
-		dt = (System.currentTimeMillis()-top-processingTime);
+		dt = (System.currentTimeMillis()-top);
 		processingTime += dt;
 		if (DEBUG) {
-			System.out.println(dt/1e3+" s.");
+			System.out.println("dt = "+dt/1e3+" s.");
 		}
 		
 		return check;
 	}
 	
 	public boolean execStep4() {
-		long top = System.currentTimeMillis();
-		long dt = 0;
 		/*
 		 * Step 4a: Create masking function
 		 */
 		if (DEBUG) {
-			System.out.print("Creating mask function... ");
+			System.out.print(String.format("Creating mask function with γ = %.1f, α = %.1f, β = %.1f, ε = %.1f, δ = %.1f ... ", gamma, alpha, beta, epsilon, delta));
 		}
+		long top = System.currentTimeMillis();
 		boolean check = execCreateMask();
 		if (!check) {
 			return false;
 		}
-		dt = (System.currentTimeMillis()-top-processingTime);
+		long dt = (System.currentTimeMillis()-top);
 		processingTime += dt;
 		if (DEBUG) {
-			System.out.println(dt/1e3+" s.");
+			System.out.println("dt = "+dt/1e3+" s.");
 		}
 		
 		/*
@@ -257,14 +300,15 @@ public class NucleiMasker <T extends RealType<T>> extends MultiThreadedBenchmark
 		if (DEBUG) {
 			System.out.print("Masking... ");
 		}
+		top = System.currentTimeMillis();
 		check = execMasking();
 		if (!check) {
 			return false;
 		}
-		dt = (System.currentTimeMillis()-top-processingTime);
+		dt = (System.currentTimeMillis()-top);
 		processingTime += dt;
 		if (DEBUG) {
-			System.out.println(dt/1e3+" s.");
+			System.out.println("dt = "+dt/1e3+" s.");
 		}
 
 		return check;

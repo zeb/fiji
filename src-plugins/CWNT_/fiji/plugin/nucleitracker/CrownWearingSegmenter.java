@@ -56,7 +56,7 @@ public class CrownWearingSegmenter<T extends IntegerType<T>>  extends MultiThrea
 		// Crown wearing mask
 		NucleiMasker<T> masker = new NucleiMasker<T>(source);
 		masker.setNumThreads(numThreads);
-//		masker.setParameters(param);
+		masker.setParameters(param);
 		check = masker.process();
 		if (check) {
 			masked = masker.getResult();
