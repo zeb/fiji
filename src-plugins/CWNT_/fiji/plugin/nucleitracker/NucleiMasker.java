@@ -166,7 +166,7 @@ public class NucleiMasker <T extends RealType<T>> extends MultiThreadedBenchmark
 		long top = System.currentTimeMillis();
 		boolean check;
 		if (DEBUG) {
-			System.out.print(String.format("Low pass filter, with σf = %.1f ... ", gaussFilterSigma));
+			System.out.print(String.format("[NucleiMasker] Low pass filter, with σf = %.1f ... ", gaussFilterSigma));
 		}
 		check = execGaussianFiltering();
 		if (!check) {
@@ -187,7 +187,7 @@ public class NucleiMasker <T extends RealType<T>> extends MultiThreadedBenchmark
 		 * To have nuclei of approximative constant intensity.
 		 */
 		if (DEBUG) {
-			System.out.print(String.format("Anisotropic diffusion with n = %d and κ = %.1f ... ", nIterAnDiff, kappa));
+			System.out.print(String.format("[NucleiMasker] Anisotropic diffusion with n = %d and κ = %.1f ... ", nIterAnDiff, kappa));
 		}
 		long top = System.currentTimeMillis();
 		boolean check = execAnisotropicDiffusion();
@@ -205,7 +205,7 @@ public class NucleiMasker <T extends RealType<T>> extends MultiThreadedBenchmark
 		 * Scale intensities in each plane to the range 0 - 1
 		 */
 		if (DEBUG) {
-			System.out.print("Intensity scaling... ");
+			System.out.print("[NucleiMasker] Intensity scaling... ");
 		}
 		top = System.currentTimeMillis();
 		check = execIntensityScaling();
@@ -226,7 +226,7 @@ public class NucleiMasker <T extends RealType<T>> extends MultiThreadedBenchmark
 		 * Step 3a: Gaussian gradient
 		 */
 		if (DEBUG) {
-			System.out.print(String.format("Gaussian gradient with %.1f ... ", gaussGradSigma));
+			System.out.print(String.format("[NucleiMasker] Gaussian gradient with %.1f ... ", gaussGradSigma));
 		}
 		long top = System.currentTimeMillis();
 		boolean check = execComputeGradient();
@@ -243,7 +243,7 @@ public class NucleiMasker <T extends RealType<T>> extends MultiThreadedBenchmark
 		 * Step 3b: Laplacian
 		 */
 		if (DEBUG) {
-			System.out.print("Laplacian... ");
+			System.out.print("[NucleiMasker] Laplacian... ");
 		}
 		top = System.currentTimeMillis();
 		check = execComputeLaplacian();
@@ -260,7 +260,7 @@ public class NucleiMasker <T extends RealType<T>> extends MultiThreadedBenchmark
 		 * Step 3c: Hessian
 		 */
 		if (DEBUG) {
-			System.out.print("Hessian... ");
+			System.out.print("[NucleiMasker] Hessian... ");
 		}
 		top = System.currentTimeMillis();
 		check = execComputeHessian();
@@ -281,7 +281,7 @@ public class NucleiMasker <T extends RealType<T>> extends MultiThreadedBenchmark
 		 * Step 4a: Create masking function
 		 */
 		if (DEBUG) {
-			System.out.print(String.format("Creating mask function with γ = %.1f, α = %.1f, β = %.1f, ε = %.1f, δ = %.1f ... ", gamma, alpha, beta, epsilon, delta));
+			System.out.print(String.format("[NucleiMasker] Creating mask function with γ = %.1f, α = %.1f, β = %.1f, ε = %.1f, δ = %.1f ... ", gamma, alpha, beta, epsilon, delta));
 		}
 		long top = System.currentTimeMillis();
 		boolean check = execCreateMask();
@@ -298,7 +298,7 @@ public class NucleiMasker <T extends RealType<T>> extends MultiThreadedBenchmark
 		 * Step 4b: Do masking, with the gaussian filtered image
 		 */
 		if (DEBUG) {
-			System.out.print("Masking... ");
+			System.out.print("[NucleiMasker] Masking... ");
 		}
 		top = System.currentTimeMillis();
 		check = execMasking();

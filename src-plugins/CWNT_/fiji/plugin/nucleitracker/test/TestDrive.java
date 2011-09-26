@@ -28,11 +28,18 @@ public class TestDrive {
 		
 		Image<? extends RealType> source = ImageJFunctions.wrap(imp);
 		
+		
+		/*
+		 * INITIAL SEGMENTING
+		 */
+		
 		CrownWearingSegmenter algo = new CrownWearingSegmenter(source);
 		algo.setNumThreads();
-		algo.setParameters(NucleiMasker.DEFAULT_MASKING_PARAMETERS);
 		System.out.println("Using "+algo.getNumThreads()+" threads:");
+
+		algo.setParameters(NucleiMasker.DEFAULT_MASKING_PARAMETERS);
 		Labeling results = null ;
+		
 		boolean check = algo.checkInput() && algo.process();
 		if (check) {
 			results = algo.getResult();
@@ -43,14 +50,19 @@ public class TestDrive {
 		} else {
 			System.err.println("Process failed: "+algo.getErrorMessage());
 		}
+		System.out.println("Initial segmenting processing time: "+(algo.getProcessingTime()/1000)+" s");
 
+		/*
+		 * NUCLEI SPLITTING
+		 */
+		
 		NucleiSplitter splitter = new NucleiSplitter(results);
 		splitter.setNumThreads();
 		Labeling results2;
 		
-		check = algo.checkInput() && algo.process();
+		check = splitter.checkInput() && splitter.process();
 		if (check) {
-			results2 = algo.getResult();
+			results2 = splitter.getResult();
 			ImagePlus impres = ImageJFunctions.copyToImagePlus(results2);
 			impres.getProcessor().resetMinAndMax();
 			impres.updateAndDraw();
@@ -58,9 +70,9 @@ public class TestDrive {
 		} else {
 			System.err.println("Process failed: "+algo.getErrorMessage());
 		}
+		System.out.println("Nuclei splitting processing time: "+(splitter.getProcessingTime()/1000)+" s");
 
 		
-		System.out.println("Total processing time: "+(algo.getProcessingTime()/1000)+" s");
 		
 		
 	}
