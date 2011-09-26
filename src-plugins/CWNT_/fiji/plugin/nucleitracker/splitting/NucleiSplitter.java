@@ -73,6 +73,11 @@ public class NucleiSplitter extends MultiThreadedBenchmarkAlgorithm implements O
 
 	@Override
 	public boolean process() {
+		
+		if (DEBUG) {
+			System.out.println("[NucleiSplitter] Starting nuclei splitting with calibration: "+Util.printCoordinates(source.getCalibration()));
+		}
+		
 		long start = System.currentTimeMillis();
 
 		final long volumeEstimate = getVolumeEstimate();

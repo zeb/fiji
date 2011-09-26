@@ -82,6 +82,7 @@ public class CrownWearingSegmenter<T extends IntegerType<T>>  extends MultiThrea
 		PlanarContainerFactory containerFactory = new PlanarContainerFactory();
 		ImageFactory<LabelingType<Integer>> imageFactory = new ImageFactory<LabelingType<Integer>>(new LabelingType<Integer>(), containerFactory);
 		labeling = new Labeling<Integer>(imageFactory, thresholded.getDimensions(), "Labels");
+		labeling.setCalibration(source.getCalibration());
 		
 		// 6-connected structuring element
 		int[][] structuringElement = new int[][] { {-1, 0, 0}, {1, 0, 0}, {0, -1, 0}, {0, 1, 0}, {0, 0, -1}, {0, 0, 1} };
