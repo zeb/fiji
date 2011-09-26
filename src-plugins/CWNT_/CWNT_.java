@@ -1,5 +1,5 @@
 import fiji.plugin.nucleitracker.NucleiMasker;
-import fiji.plugin.nucleitracker.gui.TuneParametersPanel;
+import fiji.plugin.nucleitracker.gui.CwntGui;
 import ij.IJ;
 import ij.ImageJ;
 import ij.ImagePlus;
@@ -34,7 +34,7 @@ public class CWNT_ implements PlugIn {
 	private NucleiMasker<? extends IntegerType<?>> algo;
 	private ImagePlus comp2;
 	private ImagePlus comp1;
-	private TuneParametersPanel panel;
+	private CwntGui panel;
 	private final static int WIDTH = 360;
 	private final static int HEIGHT = 530;
 	private static final double[] DEFAULT_PARAM = NucleiMasker.DEFAULT_MASKING_PARAMETERS;
@@ -52,7 +52,7 @@ public class CWNT_ implements PlugIn {
 			return;
 
 		// Create Panel silently
-		panel = new TuneParametersPanel(DEFAULT_PARAM);
+		panel = new CwntGui(DEFAULT_PARAM);
 
 		// Prepare target imps
 		recomputeSampleWindows(imp);

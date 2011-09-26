@@ -22,7 +22,7 @@ import javax.swing.event.ChangeListener;
 
 import fiji.plugin.nucleitracker.NucleiMasker;
 
-public class TuneParametersPanel extends JPanel {
+public class CwntGui extends JPanel {
 
 	private static final long serialVersionUID = -1739705351534814574L;
 	
@@ -140,11 +140,11 @@ public class TuneParametersPanel extends JPanel {
 	 * CONSTRUCTORS
 	 */
 	
-	public TuneParametersPanel() {
+	public CwntGui() {
 		initGUI();
 	}
 
-	public TuneParametersPanel(double[] params) {
+	public CwntGui(double[] params) {
 		setParameters(params);
 		initGUI();
 	}
