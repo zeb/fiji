@@ -1,6 +1,7 @@
 package fiji.plugin.nucleitracker;
 
 import fiji.plugin.nucleitracker.gui.CwntGui;
+import fiji.plugin.nucleitracker.splitting.NucleiSplitter;
 import ij.IJ;
 import ij.ImageJ;
 import ij.ImagePlus;
@@ -25,6 +26,7 @@ import java.io.File;
 import mpicbg.imglib.image.Image;
 import mpicbg.imglib.image.ImagePlusAdapter;
 import mpicbg.imglib.image.display.imagej.ImageJVirtualStack;
+import mpicbg.imglib.labeling.Labeling;
 import mpicbg.imglib.type.numeric.IntegerType;
 import mpicbg.imglib.type.numeric.real.FloatType;
 
@@ -115,7 +117,12 @@ public class CWNT_ implements PlugIn {
 				} else if  (e == gui.GO_BUTTON_PRESSED) {
 					new Thread("CWNT computation thread") {
 						public void run() {
-							process(imp);
+							gui.btnGo.setEnabled(false);
+							try {
+								process(imp);
+							} 	finally {
+								gui.btnGo.setEnabled(true);
+							}
 						};
 					}.start();
 
@@ -132,9 +139,128 @@ public class CWNT_ implements PlugIn {
 
 
 
+	@SuppressWarnings({ "unchecked", "rawtypes" })
 	private void process(final ImagePlus imp) {
 
+		Duplicator duplicator = new Duplicator();
+		ImagePlus frame;
+		
+		for (int i = 0; i < imp.getNFrames(); i++) {
+			
+			frame = duplicator.run(imp, imp.getChannel(), imp.getChannel(), 1, imp.getNSlices(), i+1, i+1);
+			
+			// Copy to Imglib
+			Image<? extends IntegerType<?>> img = null;
+			switch( imp.getType() )	{		
+			case ImagePlus.GRAY8 : 
+				img =  ImagePlusAdapter.wrapByte( frame );
+				break;
+			case ImagePlus.GRAY16 : 
+				img = ImagePlusAdapter.wrapShort( frame );
+				break;
+			default:
+				System.err.println("Image type not handled: "+imp.getType());
+				return;
+			}
+			
+			// Segment
+			CrownWearingSegmenter segmenter = new CrownWearingSegmenter(img);
+			segmenter.setParameters(gui.getParameters());
+			if (!(segmenter.checkInput() && segmenter.process())) {
+				IJ.error("Problem with segmenter: "+segmenter.getErrorMessage());
+				return;
+			}
+			Labeling segmented = segmenter.getResult();
+			System.out.println("Segmentation finished, found "+segmented.getLabels().size()+" nuclei.");
+			
+			// Split
+			NucleiSplitter splitter = new NucleiSplitter(segmented);
+			if (!(splitter.checkInput() && splitter.process())) {
+				IJ.error("Problem with splitter: "+splitter.getErrorMessage());
+				return;
+			}
+			Labeling splitted = splitter.getResult();
+			System.out.println("Splitting finished, found "+splitted.getLabels().size()+" nuclei.");
+			
+		}
 	}
+	
+
+	@SuppressWarnings({ "rawtypes", "unchecked" })
+	private void recomputeSampleWindows(ImagePlus imp) {
+
+		ImagePlus snip = new Duplicator().run(imp, imp.getSlice(), imp.getSlice());
+
+		// Copy to Imglib
+		Image<? extends IntegerType<?>> img = null;
+		switch( imp.getType() )	{		
+		case ImagePlus.GRAY8 : 
+			img =  ImagePlusAdapter.wrapByte( snip );
+			break;
+		case ImagePlus.GRAY16 : 
+			img = ImagePlusAdapter.wrapShort( snip );
+			break;
+		default:
+			System.err.println("Image type not handled: "+imp.getType());
+			return;
+		}
+
+		// Prepare algo
+		algo = new NucleiMasker(img);
+		algo.setParameters(gui.getParameters());
+		boolean check = algo.checkInput() && algo.process();
+		if (!check) {
+			System.err.println("Problem with the segmenter: "+algo.getErrorMessage());
+			return;
+		}
+
+		double snipPixels = snip.getWidth() * snip.getHeight() * snip.getNSlices() * snip.getNFrames();
+		double allPixels = imp.getWidth() * imp.getHeight() * imp.getNSlices() * imp.getNFrames();
+		double dt = algo.getProcessingTime();
+		double tmin = Math.ceil(dt * allPixels / snipPixels / 1e3 / 60); //min 
+		gui.setDurationEstimate(tmin);
+		
+		// Prepare results holder;
+		Image 				F 	= algo.getGaussianFilteredImage();
+		Image 				AD	= algo.getAnisotropicDiffusionImage();
+		Image<FloatType> 	G 	= algo.getGradientNorm();
+		Image<FloatType> 	L 	= algo.getLaplacianMagnitude();
+		Image<FloatType> 	H 	= algo.getHessianDeterminant();
+		Image<FloatType> 	M 	= algo.getMask();
+		Image 				R 	= algo.getResult();
+
+		int width = F.getDimension(0);
+		int height = F.getDimension(1);
+
+		ImageStack floatStack = new ImageStack(width, height); // The stack of ips that scales roughly from 0 to 1
+		floatStack.addSlice("Gradient norm", toFloatProcessor(G));
+		floatStack.addSlice("Laplacian mangitude", toFloatProcessor(L));
+		floatStack.addSlice("Hessian determintant", toFloatProcessor(H));
+		floatStack.addSlice("Mask", toFloatProcessor(M));
+		if (comp2 == null) {
+			comp2 = new ImagePlus("Scaled derivatives", floatStack);
+		} else {
+			comp2.setStack(floatStack); 
+		}
+		comp2.show();
+		comp2.getProcessor().resetMinAndMax();
+
+		ImageStack tStack = new ImageStack(width, height); // The stack of ips that scales roughly like source image
+		tStack.addSlice("Gaussian filtered", toFloatProcessor(F));
+		tStack.addSlice("Anisotropic diffusion", toFloatProcessor(AD));
+		tStack.addSlice("Masked image", toFloatProcessor(R));
+		if (comp1 == null) {
+			comp1 = new ImagePlus("Components", tStack);
+		} else {
+			comp1.setStack(tStack);
+		}
+		comp1.show();
+		
+		positionComponentRelativeTo(comp1.getWindow(), imp.getWindow(), 3);
+		positionComponentRelativeTo(comp2.getWindow(), comp1.getWindow(), 2);
+	}
+
+
 
 
 	private FloatProcessor toFloatProcessor(@SuppressWarnings("rawtypes") Image img) {
@@ -241,75 +367,6 @@ public class CWNT_ implements PlugIn {
 		comp2.getProcessor().setMinAndMax(0, 2);
 	}
 
-	@SuppressWarnings({ "rawtypes", "unchecked" })
-	private void recomputeSampleWindows(ImagePlus imp) {
-
-		ImagePlus snip = new Duplicator().run(imp, imp.getSlice(), imp.getSlice());
-
-		// Copy to Imglib
-		Image<? extends IntegerType<?>> img = null;
-		switch( imp.getType() )	{		
-		case ImagePlus.GRAY8 : 
-			img =  ImagePlusAdapter.wrapByte( snip );
-			break;
-		case ImagePlus.GRAY16 : 
-			img = ImagePlusAdapter.wrapShort( snip );
-			break;
-		default:
-			System.err.println("Image type not handled: "+imp.getType());
-			return;
-		}
-
-		// Prepare algo
-		algo = new NucleiMasker(img);
-		algo.setParameters(gui.getParameters());
-		boolean check = algo.checkInput() && algo.process();
-		if (!check) {
-			System.err.println("Problem with the segmenter: "+algo.getErrorMessage());
-			return;
-		}
-
-		// Prepare results holder;
-		Image 				F 	= algo.getGaussianFilteredImage();
-		Image 				AD	= algo.getAnisotropicDiffusionImage();
-		Image<FloatType> 	G 	= algo.getGradientNorm();
-		Image<FloatType> 	L 	= algo.getLaplacianMagnitude();
-		Image<FloatType> 	H 	= algo.getHessianDeterminant();
-		Image<FloatType> 	M 	= algo.getMask();
-		Image 				R 	= algo.getResult();
-
-		int width = F.getDimension(0);
-		int height = F.getDimension(1);
-
-		ImageStack floatStack = new ImageStack(width, height); // The stack of ips that scales roughly from 0 to 1
-		floatStack.addSlice("Gradient norm", toFloatProcessor(G));
-		floatStack.addSlice("Laplacian mangitude", toFloatProcessor(L));
-		floatStack.addSlice("Hessian determintant", toFloatProcessor(H));
-		floatStack.addSlice("Mask", toFloatProcessor(M));
-		if (comp2 == null) {
-			comp2 = new ImagePlus("Scaled derivatives", floatStack);
-		} else {
-			comp2.setStack(floatStack); 
-		}
-		comp2.show();
-		comp2.getProcessor().resetMinAndMax();
-
-		ImageStack tStack = new ImageStack(width, height); // The stack of ips that scales roughly like source image
-		tStack.addSlice("Gaussian filtered", toFloatProcessor(F));
-		tStack.addSlice("Anisotropic diffusion", toFloatProcessor(AD));
-		tStack.addSlice("Masked image", toFloatProcessor(R));
-		if (comp1 == null) {
-			comp1 = new ImagePlus("Components", tStack);
-		} else {
-			comp1.setStack(tStack);
-		}
-		comp1.show();
-		
-		positionComponentRelativeTo(comp1.getWindow(), imp.getWindow(), 3);
-		positionComponentRelativeTo(comp2.getWindow(), comp1.getWindow(), 2);
-	}
-
-
 
 	/**
 	 * Grab parameters from panel and execute the masking process on the sample image.
@@ -356,8 +413,8 @@ public class CWNT_ implements PlugIn {
 
 	public static void main(String[] args) {
 
-		//		File testImage = new File("E:/Users/JeanYves/Documents/Projects/BRajaseka/Data/Meta-nov7mdb18ssplus-embryo2-1.tif");
-		File testImage = new File("/Users/tinevez/Projects/BRajaseka/Data/Meta-nov7mdb18ssplus-embryo2-1.tif");
+		File testImage = new File("E:/Users/JeanYves/Documents/Projects/BRajaseka/Data/Meta-nov7mdb18ssplus-embryo2-1.tif");
+//		File testImage = new File("/Users/tinevez/Projects/BRajaseka/Data/Meta-nov7mdb18ssplus-embryo2-1.tif");
 
 		ImageJ.main(args);
 		ImagePlus imp = IJ.openImage(testImage.getAbsolutePath());

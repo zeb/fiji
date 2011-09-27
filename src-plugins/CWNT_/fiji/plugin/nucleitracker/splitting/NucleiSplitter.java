@@ -142,8 +142,9 @@ public class NucleiSplitter extends MultiThreadedBenchmarkAlgorithm implements O
 		LocalizableByDimCursor<LabelingType<Integer>> tc = target.createLocalizableByDimCursor();
 		for (Cluster<CalibratedEuclideanIntegerPoint> cluster : clusters) {
 			for(CalibratedEuclideanIntegerPoint point : cluster.getPoints()) {
+				List<Integer> labeling = tc.getType().intern(nextAvailableLabel);
 				tc.setPosition(point.getPoint());
-				tc.getType().setLabel(nextAvailableLabel);
+				tc.getType().setLabeling(labeling);
 			}
 			nextAvailableLabel = nextAvailableLabel + 1;
 		}
@@ -221,14 +222,14 @@ public class NucleiSplitter extends MultiThreadedBenchmarkAlgorithm implements O
 			threads[i] = new Thread("Nuclei splitter thread "+i) {
 				public void run() {
 					LocalizableByDimCursor<LabelingType<Integer>> targetCursor = target.createLocalizableByDimCursor();
-					Integer goodLabel;
+					List<Integer> goodLabel;
 					for(int j = ai.getAndIncrement(); j < nonSuspiciousNuclei.size(); j = ai.getAndIncrement()) {
-						goodLabel = nonSuspiciousNuclei.get(j);
-						LocalizableCursor<FakeType> cursor = source.createLocalizableLabelCursor(goodLabel);
+						goodLabel = targetCursor.getType().intern(nonSuspiciousNuclei.get(j));
+						LocalizableCursor<FakeType> cursor = source.createLocalizableLabelCursor(nonSuspiciousNuclei.get(j));
 						while (cursor.hasNext()) {
 							cursor.fwd();
 							targetCursor.setPosition(cursor);
-							targetCursor.getType().setLabel(goodLabel);
+							targetCursor.getType().setLabeling(goodLabel);
 						}
 						cursor.close();
 					}

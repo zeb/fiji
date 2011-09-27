@@ -130,6 +130,10 @@ public class CwntGui extends JFrame {
 	private DoubleJSlider epsilonSlider;
 	private JTextField deltaText;
 	private DoubleJSlider deltaSlider;
+	private JLabel lblEstimatedTime;
+	/** The go button that launches the whole segmentation. */
+	public JButton btnGo;
+
 	/**
 	 * In the array, the parameters are ordered as follow:
 	 * <ol start="0">
@@ -184,6 +188,11 @@ public class CwntGui extends JFrame {
 	public List<ActionListener> getActionListeners() {
 		return listeners;
 	}
+	
+	public void setDurationEstimate(double t) {
+		lblEstimatedTime.setText(String.format("Processing duration estimate: %.0f min.", t));
+	}
+
 
 	/**
 	 * Return the parameters set by this GUI as a 9-elemts double array. In the array,
@@ -551,12 +560,12 @@ public class CwntGui extends JFrame {
 			lblLaunchComputation.setBounds(10, 11, 325, 31);
 			panelRun.add(lblLaunchComputation);
 
-			JLabel lblEstimatedTimeFor = new JLabel("Estimated time for completion:");
-			lblEstimatedTimeFor.setFont(SMALL_LABEL_FONT);
-			lblEstimatedTimeFor.setBounds(10, 71, 325, 23);
-			panelRun.add(lblEstimatedTimeFor);
+			lblEstimatedTime = new JLabel("Tune parameters to get a duration estimate");
+			lblEstimatedTime.setFont(SMALL_LABEL_FONT);
+			lblEstimatedTime.setBounds(10, 71, 325, 23);
+			panelRun.add(lblEstimatedTime);
 
-			JButton btnGo = new JButton("Go!");
+			btnGo = new JButton("Go!");
 			btnGo.setFont(MEDIUM_LABEL_FONT);
 			btnGo.setIcon(new ImageIcon(CwntGui.class.getResource("resources/plugin_go.png")));
 			btnGo.setBounds(120, 135, 100, 50);
@@ -627,5 +636,6 @@ public class CwntGui extends JFrame {
 			"</div>" +
 			"</html>" +
 			"";
+
 
 }
