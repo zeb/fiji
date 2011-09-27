@@ -21,7 +21,7 @@ import mpicbg.imglib.type.numeric.real.FloatType;
 
 public class NucleiMasker <T extends RealType<T>> extends MultiThreadedBenchmarkAlgorithm implements OutputAlgorithm<T> {
 
-	private static final boolean DEBUG = true;
+	private static final boolean DEBUG = false;
 	
 	/** A set of default parameters suitable for masking, as determined
 	 * by Bhavna Rajaseka.

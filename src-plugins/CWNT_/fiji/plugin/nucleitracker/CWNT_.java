@@ -1,4 +1,5 @@
-import fiji.plugin.nucleitracker.NucleiMasker;
+package fiji.plugin.nucleitracker;
+
 import fiji.plugin.nucleitracker.gui.CwntGui;
 import ij.IJ;
 import ij.ImageJ;
@@ -9,6 +10,10 @@ import ij.plugin.Duplicator;
 import ij.plugin.PlugIn;
 import ij.process.FloatProcessor;
 
+import java.awt.Component;
+import java.awt.Dimension;
+import java.awt.Rectangle;
+import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
@@ -16,8 +21,6 @@ import java.awt.event.MouseEvent;
 import java.awt.event.WindowEvent;
 import java.awt.event.WindowListener;
 import java.io.File;
-
-import javax.swing.JFrame;
 
 import mpicbg.imglib.image.Image;
 import mpicbg.imglib.image.ImagePlusAdapter;
@@ -34,15 +37,14 @@ public class CWNT_ implements PlugIn {
 	private NucleiMasker<? extends IntegerType<?>> algo;
 	private ImagePlus comp2;
 	private ImagePlus comp1;
-	private CwntGui panel;
-	private final static int WIDTH = 360;
-	private final static int HEIGHT = 530;
+	private CwntGui gui;
 	private static final double[] DEFAULT_PARAM = NucleiMasker.DEFAULT_MASKING_PARAMETERS;
+	public static final String PLUGIN_NAME = "Crown-Wearing Nuclei Tracker ß";
 	private int stepUpdateToPerform = Integer.MAX_VALUE;
 	private DisplayUpdater updater = new DisplayUpdater();
 
-	
-	
+
+
 	@Override
 	public void run(String arg) {
 
@@ -52,28 +54,24 @@ public class CWNT_ implements PlugIn {
 			return;
 
 		// Create Panel silently
-		panel = new CwntGui(DEFAULT_PARAM);
-
-		// Prepare target imps
-		recomputeSampleWindows(imp);
-
-		// Create GUI
-		JFrame frame = new JFrame("Test parameters for CWNT");
-		frame.getContentPane().add(panel);
-		frame.setBounds(100, 100, WIDTH, HEIGHT);
-		frame.setVisible(true);
+		gui = new CwntGui(imp.getShortTitle(), DEFAULT_PARAM);
 
 		// Add listeners
 		imp.getCanvas().addMouseListener(new MouseAdapter() {
 
 			@Override
 			public void mouseReleased(MouseEvent e) {
-				if (panel.getSelectedIndex() <= 1)
-					recomputeSampleWindows(imp);
+				if (gui.getSelectedIndex() == gui.indexPanelParameters2 || gui.getSelectedIndex() == gui.indexPanelParameters1) {
+					new Thread("CWNT tuning thread") {
+						public void run() {
+							recomputeSampleWindows(imp);
+						};
+					}.start();
+				}
 			}
 		});
 
-		frame.addWindowListener(new WindowListener() {
+		gui.addWindowListener(new WindowListener() {
 			public void windowOpened(WindowEvent e) { }
 			public void windowIconified(WindowEvent e) { }
 			public void windowDeiconified(WindowEvent e) { }
@@ -83,22 +81,45 @@ public class CWNT_ implements PlugIn {
 			public void windowActivated(WindowEvent e) {}
 		});
 
-		panel.addActionListener(new ActionListener() {
+		gui.addActionListener(new ActionListener() {
 
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				if (e == panel.STEP1_PARAMETER_CHANGED) {
+
+				if (e == gui.STEP1_PARAMETER_CHANGED) {
 					stepUpdateToPerform = Math.min(1, stepUpdateToPerform);
 					updater.doUpdate();
-				} else if (e == panel.STEP2_PARAMETER_CHANGED) {
+
+				} else if (e == gui.STEP2_PARAMETER_CHANGED) {
 					stepUpdateToPerform = Math.min(2, stepUpdateToPerform);
 					updater.doUpdate();
-				} else if (e == panel.STEP3_PARAMETER_CHANGED) {
+
+				} else if (e == gui.STEP3_PARAMETER_CHANGED) {
 					stepUpdateToPerform = Math.min(3, stepUpdateToPerform);
 					updater.doUpdate();
-				} else if (e == panel.STEP4_PARAMETER_CHANGED) {
+
+				} else if (e == gui.STEP4_PARAMETER_CHANGED) {
 					stepUpdateToPerform = Math.min(4, stepUpdateToPerform);
 					updater.doUpdate();
+
+				} else if (e == gui.TAB_CHANGED) {
+
+					if (comp1 == null && comp2 == null && (gui.getSelectedIndex() == gui.indexPanelParameters2 || gui.getSelectedIndex() == gui.indexPanelParameters1)) {
+						new Thread("CWNT tuning thread") {
+							public void run() {
+								recomputeSampleWindows(imp);
+							};
+						}.start();
+					}
+
+				} else if  (e == gui.GO_BUTTON_PRESSED) {
+					new Thread("CWNT computation thread") {
+						public void run() {
+							process(imp);
+						};
+					}.start();
+
+
 				} else {
 					System.err.println("Unknwon event caught: "+e);
 				}
@@ -109,8 +130,13 @@ public class CWNT_ implements PlugIn {
 
 	}
 
-	
-	
+
+
+	private void process(final ImagePlus imp) {
+
+	}
+
+
 	private FloatProcessor toFloatProcessor(@SuppressWarnings("rawtypes") Image img) {
 		@SuppressWarnings("unchecked")
 		FloatProcessor fip = new FloatProcessor( img.getDimension(0), img.getDimension(1), 
@@ -122,7 +148,7 @@ public class CWNT_ implements PlugIn {
 
 	private void paramStep1Changed() {
 		// We have to redo all.
-		algo.setParameters(panel.getParameters());
+		algo.setParameters(gui.getParameters());
 		algo.execStep1(); 
 		algo.execStep2(); 
 		algo.execStep3(); 
@@ -151,7 +177,7 @@ public class CWNT_ implements PlugIn {
 	}
 
 	private void paramStep2Changed() {
-		algo.setParameters(panel.getParameters());
+		algo.setParameters(gui.getParameters());
 		algo.execStep2(); 
 		algo.execStep3(); 
 		algo.execStep4(); 
@@ -177,7 +203,7 @@ public class CWNT_ implements PlugIn {
 	}
 
 	private void paramStep3Changed() {
-		algo.setParameters(panel.getParameters());
+		algo.setParameters(gui.getParameters());
 		algo.execStep3(); 
 		algo.execStep4(); 
 
@@ -200,7 +226,7 @@ public class CWNT_ implements PlugIn {
 	}
 
 	private void paramStep4Changed() {
-		algo.setParameters(panel.getParameters());
+		algo.setParameters(gui.getParameters());
 		algo.execStep4(); 
 
 		int slice1 = comp1.getSlice();
@@ -214,10 +240,10 @@ public class CWNT_ implements PlugIn {
 		comp2.setSlice(slice2);
 		comp2.getProcessor().setMinAndMax(0, 2);
 	}
-	
+
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	private void recomputeSampleWindows(ImagePlus imp) {
-		
+
 		ImagePlus snip = new Duplicator().run(imp, imp.getSlice(), imp.getSlice());
 
 		// Copy to Imglib
@@ -236,7 +262,7 @@ public class CWNT_ implements PlugIn {
 
 		// Prepare algo
 		algo = new NucleiMasker(img);
-		algo.setParameters(panel.getParameters());
+		algo.setParameters(gui.getParameters());
 		boolean check = algo.checkInput() && algo.process();
 		if (!check) {
 			System.err.println("Problem with the segmenter: "+algo.getErrorMessage());
@@ -261,7 +287,7 @@ public class CWNT_ implements PlugIn {
 		floatStack.addSlice("Hessian determintant", toFloatProcessor(H));
 		floatStack.addSlice("Mask", toFloatProcessor(M));
 		if (comp2 == null) {
-			comp2 = new ImagePlus("Scaled derivatives", floatStack);	
+			comp2 = new ImagePlus("Scaled derivatives", floatStack);
 		} else {
 			comp2.setStack(floatStack); 
 		}
@@ -273,16 +299,22 @@ public class CWNT_ implements PlugIn {
 		tStack.addSlice("Anisotropic diffusion", toFloatProcessor(AD));
 		tStack.addSlice("Masked image", toFloatProcessor(R));
 		if (comp1 == null) {
-			comp1 = new ImagePlus("Components", tStack);	
+			comp1 = new ImagePlus("Components", tStack);
 		} else {
 			comp1.setStack(tStack);
 		}
 		comp1.show();
+		
+		positionComponentRelativeTo(comp1.getWindow(), imp.getWindow(), 3);
+		positionComponentRelativeTo(comp2.getWindow(), comp1.getWindow(), 2);
 	}
-	
-	
 
-	public void refresh() {
+
+
+	/**
+	 * Grab parameters from panel and execute the masking process on the sample image.
+	 */
+	private void refresh() {
 		switch (stepUpdateToPerform) {
 		case 1: 
 			paramStep1Changed();
@@ -324,8 +356,8 @@ public class CWNT_ implements PlugIn {
 
 	public static void main(String[] args) {
 
-		File testImage = new File("E:/Users/JeanYves/Documents/Projects/BRajaseka/Data/Meta-nov7mdb18ssplus-embryo2-1.tif");
-//		File testImage = new File("/Users/tinevez/Projects/BRajaseka/Data/Meta-nov7mdb18ssplus-embryo2-1.tif");
+		//		File testImage = new File("E:/Users/JeanYves/Documents/Projects/BRajaseka/Data/Meta-nov7mdb18ssplus-embryo2-1.tif");
+		File testImage = new File("/Users/tinevez/Projects/BRajaseka/Data/Meta-nov7mdb18ssplus-embryo2-1.tif");
 
 		ImageJ.main(args);
 		ImagePlus imp = IJ.openImage(testImage.getAbsolutePath());
@@ -348,7 +380,7 @@ public class CWNT_ implements PlugIn {
 
 		// Constructor autostarts thread
 		DisplayUpdater() {
-			super("NucleiTracker updater thread");
+			super("CWNT updater thread");
 			setPriority(Thread.NORM_PRIORITY);
 			start();
 		}
@@ -391,6 +423,41 @@ public class CWNT_ implements PlugIn {
 				}
 			}
 		}
+	}
+
+	public static void positionComponentRelativeTo(final Component target, final Component anchor, final int direction) {
+
+		int x, y;
+		switch (direction) {
+		case 0:
+			x = anchor.getX();
+			y = anchor.getY() - target.getHeight();
+			break;
+		case 1:
+		default:
+			x = anchor.getX() + anchor.getWidth();
+			y = anchor.getY();
+			break;
+		case 2:
+			x = anchor.getX();
+			y = anchor.getY() + anchor.getHeight();
+			break;
+		case 3:
+			x = anchor.getX() - target.getWidth();
+			y = anchor.getY();
+			break;
+		}
+
+		// make sure the dialog fits completely on the screen...
+		final Dimension sd = Toolkit.getDefaultToolkit().getScreenSize();
+		final Rectangle s =  new Rectangle (0, 0, sd.width, sd.height);
+		x = Math.min(x, (s.width - target.getWidth()));
+		x = Math.max(x, 0);
+		y = Math.min(y, (s.height - target.getHeight()));
+		y = Math.max(y, 0);
+
+		target.setBounds(x + s.x, y + s.y, target.getWidth(), target.getHeight());
+
 	}
 
 }

@@ -13,6 +13,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import javax.swing.ImageIcon;
+import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTabbedPane;
@@ -21,12 +22,15 @@ import javax.swing.SwingConstants;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 
+import fiji.plugin.nucleitracker.CWNT_;
 import fiji.plugin.nucleitracker.NucleiMasker;
 import javax.swing.JButton;
 
-public class CwntGui extends JPanel {
+public class CwntGui extends JFrame {
 
 	private static final long serialVersionUID = -1739705351534814574L;
+	private final static int WIDTH = 360;
+	private final static int HEIGHT = 530;
 
 	/*
 	 * EVENTS
@@ -40,8 +44,10 @@ public class CwntGui extends JPanel {
 	public final ActionEvent STEP3_PARAMETER_CHANGED = new ActionEvent(this, 2, "DerivativesParameterChanged");
 	/** This event is fired whenever parameters specifying how to combine the final mask in step 4 is changed by this GUI. */
 	public final ActionEvent STEP4_PARAMETER_CHANGED = new ActionEvent(this, 3, "MaskingParameterChanged");
-	/** This event is fired when the suer presses the 'go' button in the 4th tab. */
+	/** This event is fired when the user presses the 'go' button in the 4th tab. */
 	public final ActionEvent GO_BUTTON_PRESSED = new ActionEvent(this, 4, "GoButtonPressed");
+	/** This event is fired when the user changes the current tab. */
+	public final ActionEvent TAB_CHANGED = new ActionEvent(this, 5, "TabChanged");
 
 	/*
 	 * LOCAL LISTENERS
@@ -102,6 +108,8 @@ public class CwntGui extends JPanel {
 	 *  GUI elements
 	 */
 
+	private JTabbedPane tabbedPane;
+
 	private int scale = 10;
 	private final DecimalFormat df2d = new DecimalFormat("0.####");
 	private JTextField gaussFiltSigmaText;
@@ -138,17 +146,17 @@ public class CwntGui extends JPanel {
 	 */
 	private double[] params = NucleiMasker.DEFAULT_MASKING_PARAMETERS;
 
-	private JTabbedPane tabbedPane;
-
 	private String targetImageName;
+
+	/** The index of the tab that tune the second set of parameters. */
+	public int indexPanelParameters2 = 2;
+	/** The index of the tab that tune the first set of parameters. */
+	public int indexPanelParameters1 = 1;
 
 	/*
 	 * CONSTRUCTORS
 	 */
 
-	/**
-	 * @wbp.parser.constructor
-	 */
 	public CwntGui(String targetImageName) {
 		this.targetImageName = targetImageName;
 		initGUI();
@@ -176,7 +184,7 @@ public class CwntGui extends JPanel {
 	public List<ActionListener> getActionListeners() {
 		return listeners;
 	}
-	
+
 	/**
 	 * Return the parameters set by this GUI as a 9-elemts double array. In the array,
 	 * the parameters are ordered as follow:
@@ -233,25 +241,37 @@ public class CwntGui extends JPanel {
 	}
 
 	private void fireEvent(final ActionEvent event) {
-		try {
-			params = collectParameters();
-		} catch (NumberFormatException nfe) {
-			return;
+		if ( event == STEP1_PARAMETER_CHANGED ||
+				event == STEP2_PARAMETER_CHANGED ||
+				event == STEP3_PARAMETER_CHANGED ||
+				event == STEP4_PARAMETER_CHANGED) {
+			try {
+				params = collectParameters();
+			} catch (NumberFormatException nfe) {
+				return;
+			}
+			if (Arrays.equals(params, oldParams)) {
+				return; // We do not fire event if params did not change
+			}
+
+			oldParams = Arrays.copyOf(params, params.length);
 		}
-		if (Arrays.equals(params, oldParams)) {
-			return; // We do not fire event if params did not change
-		}
-		oldParams = Arrays.copyOf(params, params.length);
 		for (ActionListener listener : listeners) {
 			listener.actionPerformed(event);
 		}
 	}
 
 	private void initGUI() {
-		setLayout(new BorderLayout());
+		
+		JPanel mainPanel = new JPanel();
+		mainPanel.setLayout(new BorderLayout());
 
 		tabbedPane = new JTabbedPane(JTabbedPane.TOP);
-		add(tabbedPane);
+		tabbedPane.addChangeListener(new ChangeListener() {
+			public void stateChanged(ChangeEvent e) { fireEvent(TAB_CHANGED);	}
+		});
+		mainPanel.add(tabbedPane);
+
 		{
 			JPanel panelIntroduction = new JPanel();
 			tabbedPane.addTab("Intro", null, panelIntroduction, null);
@@ -280,8 +300,8 @@ public class CwntGui extends JPanel {
 			panelIntroduction.add(labelIntro);
 		}
 
+		JPanel panelParams1 = new JPanel();
 		{
-			JPanel panelParams1 = new JPanel();
 			tabbedPane.addTab("Param set 1", null, panelParams1, null);
 			panelParams1.setLayout(null);
 
@@ -395,9 +415,9 @@ public class CwntGui extends JPanel {
 
 		}
 
+		JPanel panelParams2 = new JPanel();
 		{
-			JPanel panelParams2 = new JPanel();
-			tabbedPane.addTab("Param set 2", null, panelParams2, null);
+			tabbedPane.addTab("Param set 2", panelParams2);
 			panelParams2.setLayout(null);
 
 			JLabel lblParameterSet = new JLabel("Parameter set 2");
@@ -519,7 +539,7 @@ public class CwntGui extends JPanel {
 			panelParams2.add(lblEquation);
 
 		}
-		
+
 		{
 			JPanel panelRun = new JPanel();
 			tabbedPane.addTab("Run", null, panelRun, null);
@@ -545,9 +565,13 @@ public class CwntGui extends JPanel {
 			});
 			panelRun.add(btnGo);
 		}
+		
+		// Create GUI
+		setTitle(CWNT_.PLUGIN_NAME);
+		getContentPane().add(mainPanel);
+		setBounds(100, 100, WIDTH, HEIGHT);
+		setVisible(true);
 	}
-
-
 
 	private void link(final DoubleJSlider slider, final JTextField text) {
 		slider.addChangeListener(new ChangeListener(){
@@ -568,8 +592,8 @@ public class CwntGui extends JPanel {
 			}
 		});
 	}
-	
-	
+
+
 	private static final String INTRO_TEXT = "<html>" +
 			"<div align=\"justify\">" +
 			"This plugin allows the segmentation and tracking of bright blobs objects, " +
@@ -603,4 +627,5 @@ public class CwntGui extends JPanel {
 			"</div>" +
 			"</html>" +
 			"";
+
 }
