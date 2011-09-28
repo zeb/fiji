@@ -13,6 +13,7 @@ import fiji.plugin.trackmate.tracking.TrackerType;
 import fiji.plugin.trackmate.visualization.TrackMateModelView;
 import fiji.plugin.trackmate.visualization.hyperstack.HyperStackDisplayer;
 import fiji.plugin.trackmate.visualization.hyperstack.SpotOverlay;
+import fiji.plugin.trackmate.visualization.hyperstack.TrackOverlay;
 import ij.IJ;
 import ij.ImageJ;
 import ij.ImagePlus;
@@ -267,9 +268,12 @@ public class CWNT_ implements PlugIn {
 	private void launchDisplayer(TrackMateModel model) {
 
 		HyperStackDisplayer view = new HyperStackDisplayer(model) {
+			
 			@Override
 			protected SpotOverlay createSpotOverlay() {
+				
 				return new SpotOverlay(model, model.getSettings().imp, displaySettings) {
+					
 					public void drawSpot(final Graphics2D g2d, final Spot spot, final float zslice, 
 							final int xcorner, final int ycorner, final float magnification) {
 
@@ -302,7 +306,52 @@ public class CWNT_ implements PlugIn {
 					}
 				};
 			}
+			
+			@Override
+			protected TrackOverlay createTrackOverlay() {
+			
+				return new TrackOverlay(model, model.getSettings().imp, displaySettings) {
+					
+					@Override
+					protected void drawEdge(Graphics2D g2d, Spot source, Spot target, int xcorner, int ycorner,	float magnification) {
+						// Find x & y in physical coordinates
+						final float x0i = source.getFeature(SpotFeature.POSITION_X);
+						final float y0i = source.getFeature(SpotFeature.POSITION_Y);
+						final float z0i = source.getFeature(SpotFeature.POSITION_Z);
+						final float x1i = target.getFeature(SpotFeature.POSITION_X);
+						final float y1i = target.getFeature(SpotFeature.POSITION_Y);
+						final float z1i = target.getFeature(SpotFeature.POSITION_Z);
+						// In pixel units
+						final float x0p = x0i / calibration[0];
+						final float y0p = y0i / calibration[1];
+						final float z0p = z0i / calibration[2];
+						final float x1p = x1i / calibration[0];
+						final float y1p = y1i / calibration[1];
+						final float z1p = z1i / calibration[2];
+						// Check if we are nearing their plane
+						final int czp = (imp.getSlice()-1);
+						if (Math.abs(czp-z1p) > 3 && Math.abs(czp-z0p) > 3) {
+							return;
+						}
+						// Scale to image zoom
+						final float x0s = (x0p - xcorner) * magnification ;
+						final float y0s = (y0p - ycorner) * magnification ;
+						final float x1s = (x1p - xcorner) * magnification ;
+						final float y1s = (y1p - ycorner) * magnification ;
+						// Round
+						final int x0 = Math.round(x0s);
+						final int y0 = Math.round(y0s);
+						final int x1 = Math.round(x1s);
+						final int y1 = Math.round(y1s);
+
+						g2d.drawLine(x0, y0, x1, y1);
+					}
+				};
+				
+			}
+			
 		};
+		view.setDisplaySettings(TrackMateModelView.KEY_TRACK_DISPLAY_MODE, TrackMateModelView.TRACK_DISPLAY_MODE_LOCAL_QUICK);
 		view.render();
 
 	}
