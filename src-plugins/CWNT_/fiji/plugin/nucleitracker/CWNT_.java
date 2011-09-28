@@ -7,6 +7,9 @@ import fiji.plugin.trackmate.Spot;
 import fiji.plugin.trackmate.SpotCollection;
 import fiji.plugin.trackmate.SpotFeature;
 import fiji.plugin.trackmate.TrackMateModel;
+import fiji.plugin.trackmate.tracking.FastLAPTracker;
+import fiji.plugin.trackmate.tracking.TrackerSettings;
+import fiji.plugin.trackmate.tracking.TrackerType;
 import fiji.plugin.trackmate.visualization.TrackMateModelView;
 import fiji.plugin.trackmate.visualization.hyperstack.HyperStackDisplayer;
 import fiji.plugin.trackmate.visualization.hyperstack.SpotOverlay;
@@ -150,8 +153,41 @@ public class CWNT_ implements PlugIn {
 
 
 
+	public void process(final ImagePlus imp) {
+		TrackMateModel model = execSegmentation(imp);
+		launchDisplayer(model);
+		execTracking(model);
+		
+	}
+	
+	private void execTracking(TrackMateModel model) {
+		
+		/*
+		 * CAN'T BE DONE LIKE THAT: IT TAKES FOREVER TO BUILD THE MATRICES
+		 */
+		
+		
+		TrackerSettings ts = new TrackerSettings();
+		ts.trackerType = TrackerType.FAST_LAPT;
+		
+		ts.allowGapClosing 	= true;
+		ts.allowMerging 	= false;
+		ts.allowSplitting 	= false;
+		ts.linkingDistanceCutOff = 5;
+		
+		FastLAPTracker tracker = new FastLAPTracker(model.getFilteredSpots(), ts);
+		tracker.setNumThreads(1); // For memory preservation
+		if (!(tracker.checkInput() && tracker.process())) {
+			System.err.println(tracker.getErrorMessage());
+			return;
+		}
+		
+		model.setGraph(tracker.getResult());
+	}
+
+
 	@SuppressWarnings({ "unchecked", "rawtypes" })
-	private void process(final ImagePlus imp) {
+	private TrackMateModel execSegmentation(ImagePlus imp) {
 
 		Duplicator duplicator = new Duplicator();
 		ImagePlus frame;
@@ -173,7 +209,7 @@ public class CWNT_ implements PlugIn {
 				break;
 			default:
 				System.err.println("Image type not handled: "+imp.getType());
-				return;
+				return null;
 			}
 
 			// Segment
@@ -181,7 +217,7 @@ public class CWNT_ implements PlugIn {
 			segmenter.setParameters(gui.getParameters());
 			if (!(segmenter.checkInput() && segmenter.process())) {
 				IJ.error("Problem with segmenter: "+segmenter.getErrorMessage());
-				return;
+				return null;
 			}
 			Labeling segmented = segmenter.getResult();
 			System.out.println("Segmentation finished, found "+segmented.getLabels().size()+" nuclei.");
@@ -190,9 +226,27 @@ public class CWNT_ implements PlugIn {
 			NucleiSplitter splitter = new NucleiSplitter(segmented);
 			if (!(splitter.checkInput() && splitter.process())) {
 				IJ.error("Problem with splitter: "+splitter.getErrorMessage());
-				return;
+				return null;
 			}
 			List<Spot> spots = splitter.getResult();
+			
+			// Tune spots position and time features
+			float t;
+			t = (float) (i * imp.getCalibration().frameInterval);
+			if (imp.getRoi() == null) {
+				for(Spot spot : spots) {
+					spot.putFeature(SpotFeature.POSITION_T, t);
+				}	
+			} else {
+				float dx = (float) (imp.getRoi().getBounds().x * imp.getCalibration().pixelWidth);
+				float dy = (float) (imp.getRoi().getBounds().y * imp.getCalibration().pixelHeight);
+				for(Spot spot : spots) {
+					spot.putFeature(SpotFeature.POSITION_T, t);
+					spot.putFeature(SpotFeature.POSITION_X, spot.getFeature(SpotFeature.POSITION_X) + dx);
+					spot.putFeature(SpotFeature.POSITION_Y, spot.getFeature(SpotFeature.POSITION_Y) + dy);
+				}
+			}
+			
 			allSpots.put(i, spots);
 			System.out.println("Splitting finished, found "+spots.size()+" nuclei.");
 
@@ -205,11 +259,17 @@ public class CWNT_ implements PlugIn {
 		model.setSpots(allSpots, false);
 		model.setFilteredSpots(allSpots, false);
 
+		return model;
+
+	}
+
+
+	private void launchDisplayer(TrackMateModel model) {
 
 		HyperStackDisplayer view = new HyperStackDisplayer(model) {
 			@Override
 			protected SpotOverlay createSpotOverlay() {
-				return new SpotOverlay(model, imp, displaySettings) {
+				return new SpotOverlay(model, model.getSettings().imp, displaySettings) {
 					public void drawSpot(final Graphics2D g2d, final Spot spot, final float zslice, 
 							final int xcorner, final int ycorner, final float magnification) {
 
@@ -476,7 +536,7 @@ public class CWNT_ implements PlugIn {
 	public static void main(String[] args) {
 
 		//		File testImage = new File("E:/Users/JeanYves/Documents/Projects/BRajaseka/Data/Meta-nov7mdb18ssplus-embryo2-1.tif");
-		File testImage = new File("/Users/tinevez/Projects/BRajaseka/Data/Meta-nov7mdb18ssplus-embryo2-1.tif");
+		File testImage = new File("/Users/tinevez/Projects/BRajaseka/Data/Meta-nov7mdb18ssplus-embryo2-2.tif");
 
 		ImageJ.main(args);
 		ImagePlus imp = IJ.openImage(testImage.getAbsolutePath());

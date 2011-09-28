@@ -237,13 +237,15 @@ public class NucleiSplitter extends MultiThreadedBenchmarkAlgorithm  {
 		}
 	
 		// Estimate most probable nucleus volume from non-suspicious nuclei
-		long[] volumes = new long[nonSuspiciousNuclei.size()];
-		int index = 0;
-		for (Integer label : nonSuspiciousNuclei) {
-			volumes[index] = source.getArea(label);
-			index++;
-		}
-		long volumeEstimate = Util.computeMedian(volumes);
+//		long[] volumes = new long[nonSuspiciousNuclei.size()];
+//		int index = 0;
+//		for (Integer label : nonSuspiciousNuclei) {
+//			volumes[index] = source.getArea(label);
+//			index++;
+//		}
+//		long volumeEstimate = Util.computeMedian(volumes);
+		long volumeEstimate = mean;
+		
 		if (DEBUG) {
 			System.out.println("[NucleiSplitter] Single nucleus volume estimate: "+volumeEstimate+" voxels");
 		}

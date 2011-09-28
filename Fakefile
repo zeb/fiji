@@ -467,7 +467,7 @@ CLASSPATH(plugins/Reconstruct_Reader.jar)=jars/ij.jar:plugins/TrakEM2_.jar
 CLASSPATH(plugins/Colour_Deconvolution.jar)=jars/ij.jar
 CLASSPATH(plugins/Dichromacy_.jar)=jars/ij.jar
 CLASSPATH(plugins/Threshold_Colour.jar)=jars/ij.jar
-CLASSPATH(plugins/CWNT_.jar)=jars/ij.jar:jars/imglib-ij.jar:jars/imglib.jar:jars/imglib-algorithms.jar:jars/commons-math.jar:plugins/TrackMate_.jar
+CLASSPATH(plugins/CWNT_.jar)=jars/ij.jar:jars/imglib-ij.jar:jars/imglib.jar:jars/imglib-algorithms.jar:jars/commons-math.jar:plugins/TrackMate_.jar:jars/jgrapht-jdk1.6.jar:jars/fiji-lib.jar
 
 # pre-Java5 generics ;-)
 
