@@ -4,15 +4,11 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Random;
-import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import mpicbg.imglib.algorithm.MultiThreadedBenchmarkAlgorithm;
-import mpicbg.imglib.algorithm.OutputAlgorithm;
-import mpicbg.imglib.cursor.LocalizableByDimCursor;
 import mpicbg.imglib.cursor.LocalizableCursor;
 import mpicbg.imglib.labeling.Labeling;
-import mpicbg.imglib.labeling.LabelingType;
 import mpicbg.imglib.multithreading.SimpleMultiThreading;
 import mpicbg.imglib.type.label.FakeType;
 import mpicbg.imglib.util.Util;
@@ -20,13 +16,17 @@ import mpicbg.imglib.util.Util;
 import org.apache.commons.math.stat.clustering.Cluster;
 import org.apache.commons.math.stat.clustering.KMeansPlusPlusClusterer;
 
-public class NucleiSplitter extends MultiThreadedBenchmarkAlgorithm implements OutputAlgorithm<LabelingType<Integer>> {
+import fiji.plugin.trackmate.Spot;
+import fiji.plugin.trackmate.SpotFeature;
+import fiji.plugin.trackmate.SpotImp;
+
+public class NucleiSplitter extends MultiThreadedBenchmarkAlgorithm  {
 
 	private static final boolean DEBUG = false;
 
 
 	/** The labelled image contained the nuclei to split. */
-	private Labeling<Integer> source;
+	private final Labeling<Integer> source;
 
 	/** Nuclei volume top threshold. Nuclei with a volume larger than this threshold will
 	 * be discarded and not considered for splitting. */
@@ -42,9 +42,12 @@ public class NucleiSplitter extends MultiThreadedBenchmarkAlgorithm implements O
 
 	private ArrayList<Integer> thrashedLabels;
 
-	private Labeling<Integer> target;
 
-	private Integer nextAvailableLabel;
+	private final ArrayList<Spot> spots;
+
+
+	private final float[] calibration;
+
 
 	/*
 	 * CONSTRUCTOR
@@ -54,16 +57,16 @@ public class NucleiSplitter extends MultiThreadedBenchmarkAlgorithm implements O
 	public NucleiSplitter(Labeling<Integer> source) {
 		super();
 		this.source = source;
-		this.target = source.createNewLabeling("Splitted "+source.getName());
+		this.calibration = source.getCalibration();
+		this.spots = new ArrayList<Spot>((int) 1.5 * source.getLabels().size());
 	}
 
 	/*
 	 * METHODS
 	 */
 
-	@Override
-	public Labeling<Integer> getResult() {
-		return target;
+	public List<Spot> getResult() {
+		return spots;
 	}
 
 	@Override
@@ -138,17 +141,24 @@ public class NucleiSplitter extends MultiThreadedBenchmarkAlgorithm implements O
 		KMeansPlusPlusClusterer<CalibratedEuclideanIntegerPoint> clusterer = new KMeansPlusPlusClusterer<CalibratedEuclideanIntegerPoint>(new Random());
 		List<Cluster<CalibratedEuclideanIntegerPoint>> clusters = clusterer.cluster(pixels, n, -1);
 
-		// Update source image labels
-		LocalizableByDimCursor<LabelingType<Integer>> tc = target.createLocalizableByDimCursor();
+		// Create spots from clusters 
+		final double voxelVolume = calibration[0] * calibration[1] * calibration[2] ; 
 		for (Cluster<CalibratedEuclideanIntegerPoint> cluster : clusters) {
-			for(CalibratedEuclideanIntegerPoint point : cluster.getPoints()) {
-				List<Integer> labeling = tc.getType().intern(nextAvailableLabel);
-				tc.setPosition(point.getPoint());
-				tc.getType().setLabeling(labeling);
+			float[] centroid = new float[3];
+			for (CalibratedEuclideanIntegerPoint p : cluster.getPoints()) {
+				for (int i = 0; i < centroid.length; i++) {
+					centroid[i] += p.getPoint()[i] * calibration[i];
+				}
 			}
-			nextAvailableLabel = nextAvailableLabel + 1;
+			for (int i = 0; i < centroid.length; i++) {
+				centroid[i] /= cluster.getPoints().size();
+			}
+			double nucleusVol = cluster.getPoints().size() * voxelVolume;
+			float radius = (float) Math.pow( 3 * nucleusVol / (4 * Math.PI), 0.33333);
+			Spot spot = new SpotImp(centroid);
+			spot.putFeature(SpotFeature.RADIUS, radius);
+			spots.add(spot);
 		}
-		tc.close();
 	}
 
 	/**
@@ -215,34 +225,17 @@ public class NucleiSplitter extends MultiThreadedBenchmarkAlgorithm implements O
 			System.out.println("[NucleiSplitter] Found "+nucleiToSplit.size()+" nuclei to split out of "+labels.size());
 		}
 
-		// Copy non-suspicious labeling to target image
-		Thread[] threads = new Thread[numThreads];
-		final AtomicInteger ai = new AtomicInteger();
-		for (int i = 0; i < threads.length; i++) {
-			threads[i] = new Thread("Nuclei splitter thread "+i) {
-				public void run() {
-					LocalizableByDimCursor<LabelingType<Integer>> targetCursor = target.createLocalizableByDimCursor();
-					List<Integer> goodLabel;
-					for(int j = ai.getAndIncrement(); j < nonSuspiciousNuclei.size(); j = ai.getAndIncrement()) {
-						goodLabel = targetCursor.getType().intern(nonSuspiciousNuclei.get(j));
-						LocalizableCursor<FakeType> cursor = source.createLocalizableLabelCursor(nonSuspiciousNuclei.get(j));
-						while (cursor.hasNext()) {
-							cursor.fwd();
-							targetCursor.setPosition(cursor);
-							targetCursor.getType().setLabeling(goodLabel);
-						}
-						cursor.close();
-					}
-					targetCursor.close();
-				}
-			};
+		// Harvest non-suspicious nuclei as spots
+		double voxelVolume = calibration[0] * calibration[1] * calibration[2] ; 
+		for (Integer label : nonSuspiciousNuclei) {
+			double nucleusVol = source.getArea(label) * voxelVolume;
+			float radius = (float) Math.pow( 3 * nucleusVol / (4 * Math.PI), 0.33333);
+			float[] coordinates = getCentroid(label);
+			Spot spot = new SpotImp(coordinates);
+			spot.putFeature(SpotFeature.RADIUS, radius);
+			spots.add(spot);
 		}
-		SimpleMultiThreading.startAndJoin(threads);
-
-		// Prepare and determine next available label
-		TreeSet<Integer> sorted = new TreeSet<Integer>(nonSuspiciousNuclei);
-		nextAvailableLabel = sorted.last() + 1;
-
+	
 		// Estimate most probable nucleus volume from non-suspicious nuclei
 		long[] volumes = new long[nonSuspiciousNuclei.size()];
 		int index = 0;
@@ -258,5 +251,23 @@ public class NucleiSplitter extends MultiThreadedBenchmarkAlgorithm implements O
 		return volumeEstimate;
 	}
 
+	private float[] getCentroid(final Integer label) {
+		final float[] centroid = new float[3];
+		final int[] position = source.createPositionArray();
+		LocalizableCursor<FakeType> cursor = source.createLocalizableLabelCursor(label);
+		int npixels = 0;
+		while(cursor.hasNext()) {
+			cursor.fwd();
+			cursor.getPosition(position);
+			for (int i = 0; i < position.length; i++) {
+				centroid[i] += position[i] * calibration[i];
+			}
+			npixels++;
+		}
+		for (int i = 0; i < centroid.length; i++) {
+			centroid [i] /= npixels;
+		}
+		return centroid;
+	}
 
 }

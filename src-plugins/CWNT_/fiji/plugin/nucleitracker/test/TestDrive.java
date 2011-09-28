@@ -62,11 +62,7 @@ public class TestDrive {
 		
 		check = splitter.checkInput() && splitter.process();
 		if (check) {
-			results2 = splitter.getResult();
-			ImagePlus impres = ImageJFunctions.copyToImagePlus(results2);
-			impres.getProcessor().resetMinAndMax();
-			impres.updateAndDraw();
-			impres.show();
+			
 		} else {
 			System.err.println("Process failed: "+algo.getErrorMessage());
 		}

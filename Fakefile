@@ -157,7 +157,7 @@ PLUGIN_TARGETS=plugins/Jython_Interpreter.jar \
 	plugins/ToAST_.jar \
 	plugins/MTrack2_.jar \
 	plugins/Time_Stamper.jar \
-        plugins/Series_Labeler.jar \
+  plugins/Series_Labeler.jar \
 	plugins/Statistical_Region_Merging.jar \
 	plugins/Refresh_Javas.jar \
 	plugins/Auto_Threshold.jar \
@@ -218,6 +218,7 @@ PLUGIN_TARGETS=plugins/Jython_Interpreter.jar \
 	plugins/Action_Bar.jar \
 	plugins/Multi_Kymograph.jar \
 	plugins/Reconstruct_Reader.jar \
+  plugins/TrackMate_.jar \
 	plugins/Colour_Deconvolution.jar \
 	plugins/Dichromacy_.jar \
 	plugins/Threshold_Colour.jar \
@@ -373,6 +374,7 @@ MAINCLASS(plugins/Interactive_3D_Surface_Plot.jar)=Interactive_3D_Surface_Plot
 CLASSPATH(plugins/Stitching_.jar)=jars/ij.jar:plugins/loci_tools.jar:jars/fiji-lib.jar:jars/imglib.jar:jars/edu_mines_jtk.jar
 CLASSPATH(plugins/Fiji_Plugins.jar)=jars/ij.jar:jars/jsch-0.1.44.jar:jars/fiji-lib.jar:jars/VIB-lib.jar
 MAINCLASS(plugins/Fiji_Updater.jar)=fiji.updater.Main
+CLASSPATH(plugins/TrackMate_.jar)=jars/itextpdf-5.1.1.jar:jars/batik.jar:jars/ij.jar:plugins/3D_Viewer.jar:plugins/loci_tools.jar:jars/fiji-lib.jar:jars/imglib.jar:jars/imglib-ij.jar:jars/imglib-io.jar:jars/imglib-algorithms.jar:jars/jdom.jar:jars/jdom-contrib.jar:jars/jgraphx.jar:jars/jgrapht-jdk1.6.jar:jars/jfreechart-1.0.13.jar:jars/jcommon-1.0.12.jar:jars/Jama-1.0.2.jar
 CLASSPATH(plugins/Fiji_Updater.jar)=jars/ij.jar:jars/jsch-0.1.44.jar
 CLASSPATH(plugins/IO_.jar)=jars/ij.jar:jars/batik.jar:jars/jpedalSTD.jar:jars/itextpdf-5.1.1.jar:jars/jzlib-1.0.7.jar
 CLASSPATH(plugins/Sync_Win.jar)=jars/ij.jar:plugins/Image_5D.jar
@@ -465,7 +467,7 @@ CLASSPATH(plugins/Reconstruct_Reader.jar)=jars/ij.jar:plugins/TrakEM2_.jar
 CLASSPATH(plugins/Colour_Deconvolution.jar)=jars/ij.jar
 CLASSPATH(plugins/Dichromacy_.jar)=jars/ij.jar
 CLASSPATH(plugins/Threshold_Colour.jar)=jars/ij.jar
-CLASSPATH(plugins/CWNT_.jar)=jars/ij.jar:jars/imglib-ij.jar:jars/imglib.jar:jars/imglib-algorithms.jar:jars/commons-math.jar
+CLASSPATH(plugins/CWNT_.jar)=jars/ij.jar:jars/imglib-ij.jar:jars/imglib.jar:jars/imglib-algorithms.jar:jars/commons-math.jar:plugins/TrackMate_.jar
 
 # pre-Java5 generics ;-)
 

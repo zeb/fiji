@@ -2,6 +2,11 @@ package fiji.plugin.nucleitracker;
 
 import fiji.plugin.nucleitracker.gui.CwntGui;
 import fiji.plugin.nucleitracker.splitting.NucleiSplitter;
+import fiji.plugin.trackmate.Settings;
+import fiji.plugin.trackmate.Spot;
+import fiji.plugin.trackmate.SpotCollection;
+import fiji.plugin.trackmate.TrackMateModel;
+import fiji.plugin.trackmate.visualization.hyperstack.HyperStackDisplayer;
 import ij.IJ;
 import ij.ImageJ;
 import ij.ImagePlus;
@@ -22,6 +27,7 @@ import java.awt.event.MouseEvent;
 import java.awt.event.WindowEvent;
 import java.awt.event.WindowListener;
 import java.io.File;
+import java.util.List;
 
 import mpicbg.imglib.image.Image;
 import mpicbg.imglib.image.ImagePlusAdapter;
@@ -44,6 +50,7 @@ public class CWNT_ implements PlugIn {
 	public static final String PLUGIN_NAME = "Crown-Wearing Nuclei Tracker ß";
 	private int stepUpdateToPerform = Integer.MAX_VALUE;
 	private DisplayUpdater updater = new DisplayUpdater();
+	private TrackMateModel model;
 
 
 
@@ -141,9 +148,11 @@ public class CWNT_ implements PlugIn {
 
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	private void process(final ImagePlus imp) {
-
+		
 		Duplicator duplicator = new Duplicator();
 		ImagePlus frame;
+		
+		SpotCollection allSpots = new SpotCollection();
 		
 		for (int i = 0; i < imp.getNFrames(); i++) {
 			
@@ -179,10 +188,23 @@ public class CWNT_ implements PlugIn {
 				IJ.error("Problem with splitter: "+splitter.getErrorMessage());
 				return;
 			}
-			Labeling splitted = splitter.getResult();
-			System.out.println("Splitting finished, found "+splitted.getLabels().size()+" nuclei.");
+			List<Spot> spots = splitter.getResult();
+			allSpots.put(i, spots);
+			System.out.println("Splitting finished, found "+spots.size()+" nuclei.");
 			
 		}
+		
+		Settings settings = new Settings(imp);
+		
+		model = new TrackMateModel();
+		model.setSettings(settings);
+		model.setSpots(allSpots, false);
+		model.setFilteredSpots(allSpots, false);
+		
+		
+		HyperStackDisplayer view = new HyperStackDisplayer(model);
+		view.render();
+		
 	}
 	
 
@@ -413,8 +435,8 @@ public class CWNT_ implements PlugIn {
 
 	public static void main(String[] args) {
 
-		File testImage = new File("E:/Users/JeanYves/Documents/Projects/BRajaseka/Data/Meta-nov7mdb18ssplus-embryo2-1.tif");
-//		File testImage = new File("/Users/tinevez/Projects/BRajaseka/Data/Meta-nov7mdb18ssplus-embryo2-1.tif");
+//		File testImage = new File("E:/Users/JeanYves/Documents/Projects/BRajaseka/Data/Meta-nov7mdb18ssplus-embryo2-1.tif");
+		File testImage = new File("/Users/tinevez/Projects/BRajaseka/Data/Meta-nov7mdb18ssplus-embryo2-1.tif");
 
 		ImageJ.main(args);
 		ImagePlus imp = IJ.openImage(testImage.getAbsolutePath());
