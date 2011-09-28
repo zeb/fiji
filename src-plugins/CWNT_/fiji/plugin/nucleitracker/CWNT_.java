@@ -5,8 +5,11 @@ import fiji.plugin.nucleitracker.splitting.NucleiSplitter;
 import fiji.plugin.trackmate.Settings;
 import fiji.plugin.trackmate.Spot;
 import fiji.plugin.trackmate.SpotCollection;
+import fiji.plugin.trackmate.SpotFeature;
 import fiji.plugin.trackmate.TrackMateModel;
+import fiji.plugin.trackmate.visualization.TrackMateModelView;
 import fiji.plugin.trackmate.visualization.hyperstack.HyperStackDisplayer;
+import fiji.plugin.trackmate.visualization.hyperstack.SpotOverlay;
 import ij.IJ;
 import ij.ImageJ;
 import ij.ImagePlus;
@@ -18,6 +21,7 @@ import ij.process.FloatProcessor;
 
 import java.awt.Component;
 import java.awt.Dimension;
+import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
@@ -148,16 +152,16 @@ public class CWNT_ implements PlugIn {
 
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	private void process(final ImagePlus imp) {
-		
+
 		Duplicator duplicator = new Duplicator();
 		ImagePlus frame;
-		
+
 		SpotCollection allSpots = new SpotCollection();
-		
+
 		for (int i = 0; i < imp.getNFrames(); i++) {
-			
+
 			frame = duplicator.run(imp, imp.getChannel(), imp.getChannel(), 1, imp.getNSlices(), i+1, i+1);
-			
+
 			// Copy to Imglib
 			Image<? extends IntegerType<?>> img = null;
 			switch( imp.getType() )	{		
@@ -171,7 +175,7 @@ public class CWNT_ implements PlugIn {
 				System.err.println("Image type not handled: "+imp.getType());
 				return;
 			}
-			
+
 			// Segment
 			CrownWearingSegmenter segmenter = new CrownWearingSegmenter(img);
 			segmenter.setParameters(gui.getParameters());
@@ -181,7 +185,7 @@ public class CWNT_ implements PlugIn {
 			}
 			Labeling segmented = segmenter.getResult();
 			System.out.println("Segmentation finished, found "+segmented.getLabels().size()+" nuclei.");
-			
+
 			// Split
 			NucleiSplitter splitter = new NucleiSplitter(segmented);
 			if (!(splitter.checkInput() && splitter.process())) {
@@ -191,22 +195,58 @@ public class CWNT_ implements PlugIn {
 			List<Spot> spots = splitter.getResult();
 			allSpots.put(i, spots);
 			System.out.println("Splitting finished, found "+spots.size()+" nuclei.");
-			
+
 		}
-		
+
 		Settings settings = new Settings(imp);
-		
+
 		model = new TrackMateModel();
 		model.setSettings(settings);
 		model.setSpots(allSpots, false);
 		model.setFilteredSpots(allSpots, false);
-		
-		
-		HyperStackDisplayer view = new HyperStackDisplayer(model);
+
+
+		HyperStackDisplayer view = new HyperStackDisplayer(model) {
+			@Override
+			protected SpotOverlay createSpotOverlay() {
+				return new SpotOverlay(model, imp, displaySettings) {
+					public void drawSpot(final Graphics2D g2d, final Spot spot, final float zslice, 
+							final int xcorner, final int ycorner, final float magnification) {
+
+						final float x = spot.getFeature(SpotFeature.POSITION_X);
+						final float y = spot.getFeature(SpotFeature.POSITION_Y);
+						final float z = spot.getFeature(SpotFeature.POSITION_Z);
+						final float dz2 = (z - zslice) * (z - zslice);
+						float radiusRatio = (Float) displaySettings.get(TrackMateModelView.KEY_SPOT_RADIUS_RATIO);
+						final float radius = spot.getFeature(SpotFeature.RADIUS)*radiusRatio;
+						if (dz2 >= radius * radius)
+							return;
+
+						// In pixel units
+						final float xp = x / calibration[0];
+						final float yp = y / calibration[1];
+						// Scale to image zoom
+						final float xs = (xp - xcorner) * magnification ;
+						final float ys = (yp - ycorner) * magnification ;
+
+						final float apparentRadius =  (float) (Math.sqrt(radius*radius - dz2) / calibration[0] * magnification); 
+						g2d.drawOval(Math.round(xs - apparentRadius), Math.round(ys - apparentRadius), 
+								Math.round(2 * apparentRadius), Math.round(2 * apparentRadius));		
+						boolean spotNameVisible = (Boolean) displaySettings.get(TrackMateModelView.KEY_DISPLAY_SPOT_NAMES);
+						if (spotNameVisible ) {
+							String str = spot.toString();
+							int xindent = fm.stringWidth(str) / 2;
+							int yindent = fm.getAscent() / 2;
+							g2d.drawString(spot.toString(), xs-xindent, ys+yindent);
+						}
+					}
+				};
+			}
+		};
 		view.render();
-		
+
 	}
-	
+
 
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	private void recomputeSampleWindows(ImagePlus imp) {
@@ -241,7 +281,7 @@ public class CWNT_ implements PlugIn {
 		double dt = algo.getProcessingTime();
 		double tmin = Math.ceil(dt * allPixels / snipPixels / 1e3 / 60); //min 
 		gui.setDurationEstimate(tmin);
-		
+
 		// Prepare results holder;
 		Image 				F 	= algo.getGaussianFilteredImage();
 		Image 				AD	= algo.getAnisotropicDiffusionImage();
@@ -277,7 +317,7 @@ public class CWNT_ implements PlugIn {
 			comp1.setStack(tStack);
 		}
 		comp1.show();
-		
+
 		positionComponentRelativeTo(comp1.getWindow(), imp.getWindow(), 3);
 		positionComponentRelativeTo(comp2.getWindow(), comp1.getWindow(), 2);
 	}
@@ -435,7 +475,7 @@ public class CWNT_ implements PlugIn {
 
 	public static void main(String[] args) {
 
-//		File testImage = new File("E:/Users/JeanYves/Documents/Projects/BRajaseka/Data/Meta-nov7mdb18ssplus-embryo2-1.tif");
+		//		File testImage = new File("E:/Users/JeanYves/Documents/Projects/BRajaseka/Data/Meta-nov7mdb18ssplus-embryo2-1.tif");
 		File testImage = new File("/Users/tinevez/Projects/BRajaseka/Data/Meta-nov7mdb18ssplus-embryo2-1.tif");
 
 		ImageJ.main(args);
