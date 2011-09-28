@@ -7,9 +7,11 @@ import fiji.plugin.trackmate.Spot;
 import fiji.plugin.trackmate.SpotCollection;
 import fiji.plugin.trackmate.SpotFeature;
 import fiji.plugin.trackmate.TrackMateModel;
+import fiji.plugin.trackmate.io.TmXmlWriter;
 import fiji.plugin.trackmate.tracking.FastLAPTracker;
 import fiji.plugin.trackmate.tracking.TrackerSettings;
 import fiji.plugin.trackmate.tracking.TrackerType;
+import fiji.plugin.trackmate.util.TMUtils;
 import fiji.plugin.trackmate.visualization.TrackMateModelView;
 import fiji.plugin.trackmate.visualization.hyperstack.HyperStackDisplayer;
 import fiji.plugin.trackmate.visualization.hyperstack.SpotOverlay;
@@ -35,6 +37,8 @@ import java.awt.event.MouseEvent;
 import java.awt.event.WindowEvent;
 import java.awt.event.WindowListener;
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.util.List;
 
 import mpicbg.imglib.image.Image;
@@ -152,21 +156,31 @@ public class CWNT_ implements PlugIn {
 
 	}
 
-
-
 	public void process(final ImagePlus imp) {
 		TrackMateModel model = execSegmentation(imp);
 		launchDisplayer(model);
 		execTracking(model);
+		saveResults(model);
 		
 	}
 	
+	private void saveResults(TrackMateModel model) {
+		
+		ImagePlus imp = model.getSettings().imp;
+		String dir = imp.getFileInfo().directory;
+		String name = imp.getFileInfo().fileName;
+		name = TMUtils.renameFileExtension(name, "xml");
+		TmXmlWriter writer = new TmXmlWriter(model);
+		try {
+			writer.writeToFile(new File(dir, name));
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+	
 	private void execTracking(TrackMateModel model) {
-		
-		/*
-		 * CAN'T BE DONE LIKE THAT: IT TAKES FOREVER TO BUILD THE MATRICES
-		 */
-		
 		
 		TrackerSettings ts = new TrackerSettings();
 		ts.trackerType = TrackerType.FAST_LAPT;
