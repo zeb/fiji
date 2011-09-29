@@ -1,4 +1,4 @@
-package fiji.plugin.nucleitracker;
+package fiji.plugin.cwnt.segmentation;
 
 import java.util.ArrayList;
 

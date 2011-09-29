@@ -1,13 +1,13 @@
-package fiji.plugin.nucleitracker;
+package fiji.plugin.cwnt.segmentation;
 
 import java.util.List;
 import java.util.Vector;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import mpicbg.imglib.algorithm.GaussianGradient2D;
 import mpicbg.imglib.algorithm.MultiThreadedBenchmarkAlgorithm;
 import mpicbg.imglib.algorithm.OutputAlgorithm;
 import mpicbg.imglib.algorithm.gauss.GaussianConvolutionReal2D;
+import mpicbg.imglib.algorithm.gauss.GaussianGradient2D;
 import mpicbg.imglib.algorithm.pde.AnisotropicDiffusion;
 import mpicbg.imglib.cursor.Cursor;
 import mpicbg.imglib.cursor.LocalizableByDimCursor;

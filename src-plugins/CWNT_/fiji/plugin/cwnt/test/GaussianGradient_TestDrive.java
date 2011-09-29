@@ -1,4 +1,4 @@
-package fiji.plugin.nucleitracker.test;
+package fiji.plugin.cwnt.test;
 
 import ij.IJ;
 import ij.ImageJ;
@@ -7,7 +7,7 @@ import ij.ImagePlus;
 import java.io.File;
 import java.util.List;
 
-import mpicbg.imglib.algorithm.GaussianGradient2D;
+import mpicbg.imglib.algorithm.gauss.GaussianGradient2D;
 import mpicbg.imglib.algorithm.math.ImageConverter;
 import mpicbg.imglib.function.RealTypeConverter;
 import mpicbg.imglib.image.Image;

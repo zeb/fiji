@@ -1,13 +1,16 @@
-package fiji.plugin.nucleitracker;
+package fiji.plugin.cwnt;
 
-import fiji.plugin.nucleitracker.gui.CwntGui;
-import fiji.plugin.nucleitracker.splitting.NucleiSplitter;
+import fiji.plugin.cwnt.gui.CwntGui;
+import fiji.plugin.cwnt.segmentation.CrownWearingSegmenter;
+import fiji.plugin.cwnt.segmentation.NucleiMasker;
 import fiji.plugin.trackmate.Settings;
 import fiji.plugin.trackmate.Spot;
 import fiji.plugin.trackmate.SpotCollection;
 import fiji.plugin.trackmate.SpotFeature;
 import fiji.plugin.trackmate.TrackMateModel;
 import fiji.plugin.trackmate.io.TmXmlWriter;
+import fiji.plugin.trackmate.segmentation.SegmenterSettings;
+import fiji.plugin.trackmate.segmentation.SegmenterType;
 import fiji.plugin.trackmate.tracking.FastLAPTracker;
 import fiji.plugin.trackmate.tracking.TrackerSettings;
 import fiji.plugin.trackmate.tracking.TrackerType;
@@ -44,7 +47,6 @@ import java.util.List;
 import mpicbg.imglib.image.Image;
 import mpicbg.imglib.image.ImagePlusAdapter;
 import mpicbg.imglib.image.display.imagej.ImageJVirtualStack;
-import mpicbg.imglib.labeling.Labeling;
 import mpicbg.imglib.type.numeric.IntegerType;
 import mpicbg.imglib.type.numeric.real.FloatType;
 
@@ -167,12 +169,23 @@ public class CWNT_ implements PlugIn {
 	private void saveResults(TrackMateModel model) {
 		
 		ImagePlus imp = model.getSettings().imp;
-		String dir = imp.getFileInfo().directory;
-		String name = imp.getFileInfo().fileName;
+		String dir = imp.getOriginalFileInfo().directory;
+		String name = imp.getOriginalFileInfo().fileName;
 		name = TMUtils.renameFileExtension(name, "xml");
+		
 		TmXmlWriter writer = new TmXmlWriter(model);
+		writer.appendBasicSettings();
+		writer.appendSegmenterSettings();
+		writer.appendTrackerSettings();
+		writer.appendInitialSpotFilter();
+		writer.appendSpotFilters();
+		writer.appendFilteredSpots();
+		writer.appendTracks();
+		writer.appendSpots();
+		File file = new File(dir, name);
 		try {
-			writer.writeToFile(new File(dir, name));
+			System.out.println("Saving to file "+file.getAbsolutePath());// DEBUG
+			writer.writeToFile(file);
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
 		} catch (IOException e) {
@@ -184,8 +197,10 @@ public class CWNT_ implements PlugIn {
 		
 		TrackerSettings ts = new TrackerSettings();
 		ts.trackerType = TrackerType.FAST_LAPT;
+		ts.spaceUnits = model.getSettings().spaceUnits;
+		ts.timeUnits = model.getSettings().timeUnits;
 		
-		ts.allowGapClosing 	= true;
+		ts.allowGapClosing 	= false;
 		ts.allowMerging 	= false;
 		ts.allowSplitting 	= false;
 		ts.linkingDistanceCutOff = 5;
@@ -197,6 +212,8 @@ public class CWNT_ implements PlugIn {
 			return;
 		}
 		
+		model.getSettings().trackerSettings = ts;
+		model.getSettings().trackerType = ts.trackerType;
 		model.setGraph(tracker.getResult());
 	}
 
@@ -207,7 +224,21 @@ public class CWNT_ implements PlugIn {
 		Duplicator duplicator = new Duplicator();
 		ImagePlus frame;
 
-		SpotCollection allSpots = new SpotCollection();
+		// Build (dummy) settings object. Required for spot translation and saving/loading
+		final Settings settings = new Settings(imp); // will set the crop rectangle
+		settings.imageFileName = imp.getOriginalFileInfo().fileName;
+		settings.imageFolder = "";
+		settings.spaceUnits = imp.getCalibration().getUnit();
+		settings.timeUnits = imp.getCalibration().getTimeUnit();
+		
+		SegmenterSettings ss = new SegmenterSettings();
+		ss.segmenterType = SegmenterType.PEAKPICKER_SEGMENTER;
+		ss.spaceUnits = imp.getCalibration().getUnit();
+		settings.segmenterType = ss.segmenterType;
+		settings.segmenterSettings = ss;
+		
+		final float[] calibration = settings.getCalibration();
+		final SpotCollection allSpots = new SpotCollection();
 
 		for (int i = 0; i < imp.getNFrames(); i++) {
 
@@ -227,51 +258,33 @@ public class CWNT_ implements PlugIn {
 				return null;
 			}
 
-			// Segment
-			CrownWearingSegmenter segmenter = new CrownWearingSegmenter(img);
+			// Instantiate segmenter
+			CrownWearingSegmenter segmenter = new CrownWearingSegmenter();
+			segmenter.setImage(img);
+			segmenter.setCalibration(calibration);
 			segmenter.setParameters(gui.getParameters());
+			
+			// Exec
 			if (!(segmenter.checkInput() && segmenter.process())) {
 				IJ.error("Problem with segmenter: "+segmenter.getErrorMessage());
 				return null;
 			}
-			Labeling segmented = segmenter.getResult();
-			System.out.println("Segmentation finished, found "+segmented.getLabels().size()+" nuclei.");
-
-			// Split
-			NucleiSplitter splitter = new NucleiSplitter(segmented);
-			if (!(splitter.checkInput() && splitter.process())) {
-				IJ.error("Problem with splitter: "+splitter.getErrorMessage());
-				return null;
-			}
-			List<Spot> spots = splitter.getResult();
+			List<Spot> spots = segmenter.getResult();
 			
-			// Tune spots position and time features
-			float t;
-			t = (float) (i * imp.getCalibration().frameInterval);
-			if (imp.getRoi() == null) {
-				for(Spot spot : spots) {
-					spot.putFeature(SpotFeature.POSITION_T, t);
-				}	
-			} else {
-				float dx = (float) (imp.getRoi().getBounds().x * imp.getCalibration().pixelWidth);
-				float dy = (float) (imp.getRoi().getBounds().y * imp.getCalibration().pixelHeight);
-				for(Spot spot : spots) {
-					spot.putFeature(SpotFeature.POSITION_T, t);
-					spot.putFeature(SpotFeature.POSITION_X, spot.getFeature(SpotFeature.POSITION_X) + dx);
-					spot.putFeature(SpotFeature.POSITION_Y, spot.getFeature(SpotFeature.POSITION_Y) + dy);
-				}
-			}
+			// Tune time features
+			final float t = (float) (i * imp.getCalibration().frameInterval);
+			for(Spot spot : spots) {
+				spot.putFeature(SpotFeature.POSITION_T, t);
+			}	
 			
 			allSpots.put(i, spots);
-			System.out.println("Splitting finished, found "+spots.size()+" nuclei.");
-
+			System.out.println("Frame "+i+" finished, found "+spots.size()+" nuclei.");
 		}
-
-		Settings settings = new Settings(imp);
 
 		model = new TrackMateModel();
 		model.setSettings(settings);
 		model.setSpots(allSpots, false);
+		model.setInitialSpotFilterValue(0f);
 		model.setFilteredSpots(allSpots, false);
 
 		return model;

@@ -1,4 +1,4 @@
-package fiji.plugin.nucleitracker.gui;
+package fiji.plugin.cwnt.gui;
 
 import java.awt.BorderLayout;
 import java.awt.Font;
@@ -22,8 +22,9 @@ import javax.swing.SwingConstants;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 
-import fiji.plugin.nucleitracker.CWNT_;
-import fiji.plugin.nucleitracker.NucleiMasker;
+import fiji.plugin.cwnt.CWNT_;
+import fiji.plugin.cwnt.segmentation.NucleiMasker;
+
 import javax.swing.JButton;
 
 public class CwntGui extends JFrame {

@@ -1,4 +1,4 @@
-package fiji.plugin.nucleitracker.splitting;
+package fiji.plugin.cwnt.segmentation;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -54,10 +54,10 @@ public class NucleiSplitter extends MultiThreadedBenchmarkAlgorithm  {
 	 */
 
 
-	public NucleiSplitter(Labeling<Integer> source) {
+	public NucleiSplitter(Labeling<Integer> source, float[] calibration) {
 		super();
 		this.source = source;
-		this.calibration = source.getCalibration();
+		this.calibration = calibration;
 		this.spots = new ArrayList<Spot>((int) 1.5 * source.getLabels().size());
 	}
 

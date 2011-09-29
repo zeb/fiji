@@ -1,4 +1,4 @@
-package mpicbg.imglib.algorithm;
+package mpicbg.imglib.algorithm.gauss;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -7,7 +7,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.math.util.FastMath;
 
-import mpicbg.imglib.algorithm.gauss.GaussianConvolutionReal2D;
+import mpicbg.imglib.algorithm.MultiThreadedBenchmarkAlgorithm;
+import mpicbg.imglib.algorithm.OutputAlgorithm;
 import mpicbg.imglib.algorithm.math.ImageConverter;
 import mpicbg.imglib.cursor.Cursor;
 import mpicbg.imglib.function.RealTypeConverter;
@@ -80,11 +81,11 @@ public class GaussianGradient2D <T extends RealType<T>> extends MultiThreadedBen
 			protected void computeKernel() {
 
 				double[][] kernel = getKernel();
-				kernel[0] = Util.createGaussianKernel1DDouble( sigma, false );		
-				kernel[1] = Util.createGaussianKernel1DDouble( sigma, true );
+				kernel[0] = Util.createGaussianKernel1DDouble( GaussianGradient2D.this.sigma, false );		
+				kernel[1] = Util.createGaussianKernel1DDouble( GaussianGradient2D.this.sigma, true );
 				int kSize = kernel[1].length;
 				for (int i = 0; i < kSize; i++) {
-					kernel[0][i] = kernel[0][i] * (i - (kSize-1)/2) * 2 / sigma;
+					kernel[0][i] = kernel[0][i] * (i - (kSize-1)/2) * 2 / GaussianGradient2D.this.sigma;
 				}
 
 			};
@@ -110,11 +111,11 @@ public class GaussianGradient2D <T extends RealType<T>> extends MultiThreadedBen
 			protected void computeKernel() {
 
 				double[][] kernel = getKernel();
-				kernel[0] = Util.createGaussianKernel1DDouble( sigma, true );		
-				kernel[1] = Util.createGaussianKernel1DDouble( sigma, false );
+				kernel[0] = Util.createGaussianKernel1DDouble( GaussianGradient2D.this.sigma, true );		
+				kernel[1] = Util.createGaussianKernel1DDouble( GaussianGradient2D.this.sigma, false );
 				int kSize = kernel[0].length;
 				for (int i = 0; i < kSize; i++) {
-					kernel[1][i] = kernel[1][i] * (i - (kSize-1)/2) * 2 / sigma; 
+					kernel[1][i] = kernel[1][i] * (i - (kSize-1)/2) * 2 / GaussianGradient2D.this.sigma; 
 				}
 
 			};

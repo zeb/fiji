@@ -1,11 +1,12 @@
-package fiji.plugin.nucleitracker;
+package fiji.plugin.cwnt.segmentation;
+
+import ij.IJ;
 
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 
 import mpicbg.imglib.algorithm.MultiThreadedBenchmarkAlgorithm;
-import mpicbg.imglib.algorithm.OutputAlgorithm;
 import mpicbg.imglib.algorithm.labeling.AllConnectedComponents;
 import mpicbg.imglib.container.planar.PlanarContainerFactory;
 import mpicbg.imglib.cursor.LocalizableByDimCursor;
@@ -16,28 +17,64 @@ import mpicbg.imglib.labeling.Labeling;
 import mpicbg.imglib.labeling.LabelingType;
 import mpicbg.imglib.type.logic.BitType;
 import mpicbg.imglib.type.numeric.IntegerType;
+import fiji.plugin.trackmate.Settings;
+import fiji.plugin.trackmate.Spot;
+import fiji.plugin.trackmate.segmentation.SegmenterSettings;
+import fiji.plugin.trackmate.segmentation.SpotSegmenter;
+import fiji.plugin.trackmate.util.TMUtils;
 
-public class CrownWearingSegmenter<T extends IntegerType<T>>  extends MultiThreadedBenchmarkAlgorithm implements OutputAlgorithm<LabelingType<Integer>> {
+public class CrownWearingSegmenter<T extends IntegerType<T>>  extends MultiThreadedBenchmarkAlgorithm implements SpotSegmenter<T> {
 	
 	private Image<T> masked;
 	private Image<T> source;
 	private Image<BitType> thresholded;
 	private Labeling<Integer> labeling;
 	private double[] param;
+	private List<Spot> spots;
+	private float[] calibration;
 
 	/*
 	 * CONSTRUCTOR	
 	 */
 
-	public CrownWearingSegmenter(final Image<T> source) {
+	public CrownWearingSegmenter() {
 		super();
-		this.source = source;
 	}
 	
 	/*
 	 * METHODS
 	 */
 	
+
+	@Override
+	public void setImage(Image<T> image) {
+		this.source = image;
+	}
+
+	@Override
+	public void setCalibration(float[] calibration) {
+		this.calibration = calibration;
+	}
+
+	@Override
+	public List<Spot> getResult(Settings settings) {
+		return TMUtils.translateSpots(spots, settings);
+	}
+
+	@Override
+	public Image<T> getIntermediateImage() {
+		return masked;
+	}
+
+	/**
+	 * Not implemented.
+	 * @see #setParameters(double[])
+	 */
+	@Override
+	public SegmenterSettings getSettings() {
+		return null;
+	}
+
 	public void setParameters(double[] param) {
 		this.param = param;
 	}
@@ -86,26 +123,34 @@ public class CrownWearingSegmenter<T extends IntegerType<T>>  extends MultiThrea
 		
 		// 6-connected structuring element
 		int[][] structuringElement = new int[][] { {-1, 0, 0}, {1, 0, 0}, {0, -1, 0}, {0, 1, 0}, {0, 0, -1}, {0, 0, 1} };
-		
 		labelAllConnectedComponents(labeling , thresholded, labelGenerator, structuringElement);
+		
+		// Splitting and spot creation
+		NucleiSplitter splitter = new NucleiSplitter(labeling, calibration);
+		if (!(splitter.checkInput() && splitter.process())) {
+			IJ.error("Problem with splitter: "+splitter.getErrorMessage());
+			return false;
+		}
+		spots = splitter.getResult();
+		
 		
 		processingTime = System.currentTimeMillis() - start;
 		return true;
 	}
 
 	@Override
-	public Labeling<Integer> getResult() {
+	public List<Spot> getResult() {
+		return spots;
+	}
+
+	public Labeling<Integer> getLabeling() {
 		return labeling;
 	}
-
-
-	public Image<T> getMaskedImage() {
-		return masked;
-	}
 	
 	
-	
-	
+	/*
+	 * STATIC METHODS
+	 */
 	
 
 	
@@ -120,6 +165,8 @@ public class CrownWearingSegmenter<T extends IntegerType<T>>  extends MultiThrea
 	 * pixels which are considered connected. For instance, a 4-connected
 	 * structuring element would be "new int [][] {{-1,0},{1,0},{0,-1},{0,1}}".
 	 * @throws NoSuchElementException if there are not enough names
+	 * @author Lee Klaminsky - I took it from its imglib package to fix a bug in
+	 * imglib1.
 	 */
 	private static final <T extends Comparable<T>> void labelAllConnectedComponents(
 			Labeling<T> labeling, 
@@ -239,7 +286,6 @@ public class CrownWearingSegmenter<T extends IntegerType<T>>  extends MultiThrea
 			return position == 0;
 		}
 	}
-
 
 	
 }

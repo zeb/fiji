@@ -1,4 +1,4 @@
-package fiji.plugin.nucleitracker.gui;
+package fiji.plugin.cwnt.gui;
 
 import javax.swing.JSlider;
 
