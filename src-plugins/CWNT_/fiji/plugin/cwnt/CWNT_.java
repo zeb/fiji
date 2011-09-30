@@ -221,15 +221,30 @@ public class CWNT_ implements PlugIn {
 	
 	private void execTracking(TrackMateModel model) {
 		
+		// Prepare tracking settings
 		TrackerSettings ts = new TrackerSettings();
 		ts.trackerType = TrackerType.FAST_LAPT;
 		ts.spaceUnits = model.getSettings().spaceUnits;
 		ts.timeUnits = model.getSettings().timeUnits;
 		
 		ts.allowGapClosing 	= false;
+		ts.gapClosingFeaturePenalties.clear();
 		ts.allowMerging 	= false;
 		ts.allowSplitting 	= false;
-		ts.linkingDistanceCutOff = 5;
+		
+		// Evaluate max dist
+		logger.log("Evaluating max linking distance...\n");
+		double maxDist = 0;
+		for (Spot spot : model.getSpots().getAllSpots()) {
+			maxDist += spot.getFeature(SpotFeature.RADIUS);
+		}
+		maxDist /= model.getSpots().getNSpots();
+		maxDist *= 2;
+		logger.log(String.format("Max linking distance evaluated to %.1f %s.\n", maxDist, model.getSettings().spaceUnits));
+		
+		ts.linkingDistanceCutOff = maxDist;
+		ts.gapClosingDistanceCutoff = 2 * maxDist;
+		ts.gapClosingTimeCutoff = 2 * model.getSettings().dt;
 		
 		logger.log("Performing track linking...\n");
 		logger.setStatus("Tracking...");
@@ -246,6 +261,7 @@ public class CWNT_ implements PlugIn {
 		model.getSettings().trackerType = ts.trackerType;
 		model.setGraph(tracker.getResult());
 		logger.log(String.format("Track linking completed in %.1f s.\n", (tracker.getProcessingTime()/1e3)));
+		logger.log(String.format("Found %d tracks.\n", model.getNTracks()));
 	}
 
 
