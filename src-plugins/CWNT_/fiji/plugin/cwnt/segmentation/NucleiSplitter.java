@@ -2,6 +2,7 @@ package fiji.plugin.cwnt.segmentation;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -43,7 +44,7 @@ public class NucleiSplitter extends MultiThreadedBenchmarkAlgorithm  {
 	private ArrayList<Integer> thrashedLabels;
 
 
-	private final ArrayList<Spot> spots;
+	private final List<Spot> spots;
 
 
 	private final float[] calibration;
@@ -58,7 +59,7 @@ public class NucleiSplitter extends MultiThreadedBenchmarkAlgorithm  {
 		super();
 		this.source = source;
 		this.calibration = calibration;
-		this.spots = new ArrayList<Spot>((int) 1.5 * source.getLabels().size());
+		this.spots = Collections.synchronizedList(new ArrayList<Spot>((int) 1.5 * source.getLabels().size()));
 	}
 
 	/*
@@ -157,7 +158,9 @@ public class NucleiSplitter extends MultiThreadedBenchmarkAlgorithm  {
 			float radius = (float) Math.pow( 3 * nucleusVol / (4 * Math.PI), 0.33333);
 			Spot spot = new SpotImp(centroid);
 			spot.putFeature(SpotFeature.RADIUS, radius);
-			spots.add(spot);
+			synchronized (spots) {
+				spots.add(spot);
+			}
 		}
 	}
 

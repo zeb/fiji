@@ -27,6 +27,9 @@ import fiji.plugin.cwnt.segmentation.NucleiMasker;
 
 import javax.swing.JButton;
 
+import fiji.plugin.trackmate.Logger;
+import fiji.plugin.trackmate.gui.LogPanel;
+
 public class CwntGui extends JFrame {
 
 	private static final long serialVersionUID = -1739705351534814574L;
@@ -157,11 +160,16 @@ public class CwntGui extends JFrame {
 	public int indexPanelParameters2 = 2;
 	/** The index of the tab that tune the first set of parameters. */
 	public int indexPanelParameters1 = 1;
+	private Logger logger;
 
 	/*
 	 * CONSTRUCTORS
 	 */
 
+	public CwntGui() {
+		this("");
+	}
+	
 	public CwntGui(String targetImageName) {
 		this.targetImageName = targetImageName;
 		initGUI();
@@ -192,6 +200,10 @@ public class CwntGui extends JFrame {
 	
 	public void setDurationEstimate(double t) {
 		lblEstimatedTime.setText(String.format("Processing duration estimate: %.0f min.", t));
+	}
+	
+	public Logger getLogger() {
+		return logger;
 	}
 
 
@@ -574,6 +586,11 @@ public class CwntGui extends JFrame {
 				public void actionPerformed(ActionEvent e) { fireEvent(GO_BUTTON_PRESSED);	}
 			});
 			panelRun.add(btnGo);
+			
+			LogPanel logPanel = new LogPanel();
+			logPanel.setBounds(10, 197, 323, 259);
+			panelRun.add(logPanel);
+			logger = logPanel.getLogger();
 		}
 		
 		// Create GUI
@@ -637,6 +654,4 @@ public class CwntGui extends JFrame {
 			"</div>" +
 			"</html>" +
 			"";
-
-
 }

@@ -3,6 +3,7 @@ package fiji.plugin.cwnt;
 import fiji.plugin.cwnt.gui.CwntGui;
 import fiji.plugin.cwnt.segmentation.CrownWearingSegmenter;
 import fiji.plugin.cwnt.segmentation.NucleiMasker;
+import fiji.plugin.trackmate.Logger;
 import fiji.plugin.trackmate.Settings;
 import fiji.plugin.trackmate.Spot;
 import fiji.plugin.trackmate.SpotCollection;
@@ -42,6 +43,8 @@ import java.awt.event.WindowListener;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.List;
 
 import mpicbg.imglib.image.Image;
@@ -65,6 +68,7 @@ public class CWNT_ implements PlugIn {
 	private int stepUpdateToPerform = Integer.MAX_VALUE;
 	private DisplayUpdater updater = new DisplayUpdater();
 	private TrackMateModel model;
+	private Logger logger;
 
 
 
@@ -78,6 +82,7 @@ public class CWNT_ implements PlugIn {
 
 		// Create Panel silently
 		gui = new CwntGui(imp.getShortTitle(), DEFAULT_PARAM);
+		logger = gui.getLogger();
 
 		// Add listeners
 		imp.getCanvas().addMouseListener(new MouseAdapter() {
@@ -157,13 +162,33 @@ public class CWNT_ implements PlugIn {
 
 
 	}
+	
+	
+	
+	/*
+	 * BATCH PROCESS METHODS
+	 */
 
 	public void process(final ImagePlus imp) {
+		
+		SimpleDateFormat ft = new SimpleDateFormat ("yyyy-MM-dd 'at' HH:mm:ss");
+		Date dNow = new Date( );
+		logger.log("Crown-Wearing Nuclei Tracker\n");
+		logger.log("----------------------------\n");
+		logger.log(ft.format(dNow)+"\n");
+
 		TrackMateModel model = execSegmentation(imp);
 		launchDisplayer(model);
 		execTracking(model);
 		saveResults(model);
 		
+		logger.setStatus("");
+		logger.setProgress(0f);
+		dNow = new Date( );
+		logger.log("CWNT process finished.\n");
+		logger.log(ft.format(dNow)+"\n");
+		logger.log("----------------------------\n");
+
 	}
 	
 	private void saveResults(TrackMateModel model) {
@@ -172,7 +197,9 @@ public class CWNT_ implements PlugIn {
 		String dir = imp.getOriginalFileInfo().directory;
 		String name = imp.getOriginalFileInfo().fileName;
 		name = TMUtils.renameFileExtension(name, "xml");
+		File file = new File(dir, name);
 		
+		logger.log("Saving to file "+file.getAbsolutePath()+"...\n");
 		TmXmlWriter writer = new TmXmlWriter(model);
 		writer.appendBasicSettings();
 		writer.appendSegmenterSettings();
@@ -182,15 +209,14 @@ public class CWNT_ implements PlugIn {
 		writer.appendFilteredSpots();
 		writer.appendTracks();
 		writer.appendSpots();
-		File file = new File(dir, name);
 		try {
-			System.out.println("Saving to file "+file.getAbsolutePath());// DEBUG
 			writer.writeToFile(file);
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+		logger.log("Saving done.\n");
 	}
 	
 	private void execTracking(TrackMateModel model) {
@@ -205,16 +231,21 @@ public class CWNT_ implements PlugIn {
 		ts.allowSplitting 	= false;
 		ts.linkingDistanceCutOff = 5;
 		
+		logger.log("Performing track linking...\n");
+		logger.setStatus("Tracking...");
+		
 		FastLAPTracker tracker = new FastLAPTracker(model.getFilteredSpots(), ts);
+		tracker.setLogger(logger);
 		tracker.setNumThreads(1); // For memory preservation
 		if (!(tracker.checkInput() && tracker.process())) {
-			System.err.println(tracker.getErrorMessage());
+			logger.error(tracker.getErrorMessage());
 			return;
 		}
 		
 		model.getSettings().trackerSettings = ts;
 		model.getSettings().trackerType = ts.trackerType;
 		model.setGraph(tracker.getResult());
+		logger.log(String.format("Track linking completed in %.1f s.\n", (tracker.getProcessingTime()/1e3)));
 	}
 
 
@@ -231,6 +262,11 @@ public class CWNT_ implements PlugIn {
 		settings.spaceUnits = imp.getCalibration().getUnit();
 		settings.timeUnits = imp.getCalibration().getTimeUnit();
 		
+		if (settings.dt == 0) {
+			settings.dt = 1;
+			settings.timeUnits = "frame";
+		}
+		
 		SegmenterSettings ss = new SegmenterSettings();
 		ss.segmenterType = SegmenterType.PEAKPICKER_SEGMENTER;
 		ss.spaceUnits = imp.getCalibration().getUnit();
@@ -240,6 +276,8 @@ public class CWNT_ implements PlugIn {
 		final float[] calibration = settings.getCalibration();
 		final SpotCollection allSpots = new SpotCollection();
 
+		logger.log(settings.toString());
+		logger.setStatus("Segmenting...");
 		for (int i = 0; i < imp.getNFrames(); i++) {
 
 			frame = duplicator.run(imp, imp.getChannel(), imp.getChannel(), 1, imp.getNSlices(), i+1, i+1);
@@ -254,7 +292,7 @@ public class CWNT_ implements PlugIn {
 				img = ImagePlusAdapter.wrapShort( frame );
 				break;
 			default:
-				System.err.println("Image type not handled: "+imp.getType());
+				logger.error("Image type not handled: "+imp.getType());
 				return null;
 			}
 
@@ -266,21 +304,26 @@ public class CWNT_ implements PlugIn {
 			
 			// Exec
 			if (!(segmenter.checkInput() && segmenter.process())) {
-				IJ.error("Problem with segmenter: "+segmenter.getErrorMessage());
+				logger.error("Problem with segmenter: "+segmenter.getErrorMessage());
 				return null;
 			}
-			List<Spot> spots = segmenter.getResult();
+			List<Spot> spots = segmenter.getResult(settings);
 			
 			// Tune time features
-			final float t = (float) (i * imp.getCalibration().frameInterval);
+			final float t = (float) (i * settings.dt);
 			for(Spot spot : spots) {
 				spot.putFeature(SpotFeature.POSITION_T, t);
 			}	
 			
 			allSpots.put(i, spots);
-			System.out.println("Frame "+i+" finished, found "+spots.size()+" nuclei.");
+			logger.setProgress((float) (i+1) / imp.getNFrames());
+			logger.log(String.format("Frame %3d: found %d nuclei in %.1f s.\n",
+					(i+1), spots.size(), (segmenter.getProcessingTime()/1e3)));
 		}
 
+		logger.setProgress(0);
+		logger.setStatus("");
+		
 		model = new TrackMateModel();
 		model.setSettings(settings);
 		model.setSpots(allSpots, false);
@@ -378,11 +421,19 @@ public class CWNT_ implements PlugIn {
 			}
 			
 		};
+		
+		logger.log("Rendering segmentation results...\n");
 		view.setDisplaySettings(TrackMateModelView.KEY_TRACK_DISPLAY_MODE, TrackMateModelView.TRACK_DISPLAY_MODE_LOCAL_QUICK);
 		view.render();
+		logger.log("Rendering done.\n");
 
 	}
 
+	
+	
+	/*
+	 * PREVIEW METHODS
+	 */
 
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	private void recomputeSampleWindows(ImagePlus imp) {

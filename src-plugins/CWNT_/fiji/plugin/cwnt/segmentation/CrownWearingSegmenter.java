@@ -45,7 +45,6 @@ public class CrownWearingSegmenter<T extends IntegerType<T>>  extends MultiThrea
 	 * METHODS
 	 */
 	
-
 	@Override
 	public void setImage(Image<T> image) {
 		this.source = image;
@@ -132,8 +131,6 @@ public class CrownWearingSegmenter<T extends IntegerType<T>>  extends MultiThrea
 			return false;
 		}
 		spots = splitter.getResult();
-		
-		
 		processingTime = System.currentTimeMillis() - start;
 		return true;
 	}
