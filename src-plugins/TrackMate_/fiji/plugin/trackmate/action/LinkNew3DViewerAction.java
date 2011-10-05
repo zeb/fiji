@@ -25,7 +25,7 @@ public class LinkNew3DViewerAction extends AbstractTMAction {
 				final Image3DUniverse universe = new Image3DUniverse();
 				universe.show();
 				SpotDisplayer3D newDisplayer = new SpotDisplayer3D(universe, model);
-				DisplayerPanel displayerPanel = (DisplayerPanel) view.getPanelFor(TrackMateFrame.PanelCard.ACTION_PANEL_KEY);
+				DisplayerPanel displayerPanel = (DisplayerPanel) view.getPanelFor(TrackMateFrame.PanelCard.DISPLAYER_PANEL_KEY);
 				if (null != displayerPanel) {
 					displayerPanel.register(newDisplayer);
 					displayerPanel.updateDisplaySettings(newDisplayer.getDisplaySettings());

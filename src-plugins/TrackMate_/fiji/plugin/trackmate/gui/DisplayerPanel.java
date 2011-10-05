@@ -53,7 +53,7 @@ public class DisplayerPanel extends ActionListenablePanel {
 
 	public ActionEvent TRACK_SCHEME_BUTTON_PRESSED 	= new ActionEvent(this, 0, "TrackSchemeButtonPushed");
 
-	JButton jButtonShowTrackScheme;
+	public JButton jButtonShowTrackScheme;
 	private JLabel jLabelTrackDisplayMode;
 	private JComboBox jComboBoxDisplayMode;
 	private JLabel jLabelDisplayOptions;
