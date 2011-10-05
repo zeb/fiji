@@ -28,7 +28,11 @@ import fiji.plugin.cwnt.segmentation.NucleiMasker;
 import javax.swing.JButton;
 
 import fiji.plugin.trackmate.Logger;
+import fiji.plugin.trackmate.gui.ActionChooserPanel;
 import fiji.plugin.trackmate.gui.LogPanel;
+import fiji.plugin.trackmate.gui.DisplayerPanel;
+import fiji.plugin.trackmate.visualization.TrackMateModelView;
+import fiji.plugin.trackmate.TrackMateModel;
 
 public class CwntGui extends JFrame {
 
@@ -169,7 +173,7 @@ public class CwntGui extends JFrame {
 	public CwntGui() {
 		this("");
 	}
-	
+
 	public CwntGui(String targetImageName) {
 		this.targetImageName = targetImageName;
 		initGUI();
@@ -197,11 +201,11 @@ public class CwntGui extends JFrame {
 	public List<ActionListener> getActionListeners() {
 		return listeners;
 	}
-	
+
 	public void setDurationEstimate(double t) {
 		lblEstimatedTime.setText(String.format("Processing duration estimate: %.0f min.", t));
 	}
-	
+
 	public Logger getLogger() {
 		return logger;
 	}
@@ -284,7 +288,7 @@ public class CwntGui extends JFrame {
 	}
 
 	private void initGUI() {
-		
+
 		JPanel mainPanel = new JPanel();
 		mainPanel.setLayout(new BorderLayout());
 
@@ -586,18 +590,43 @@ public class CwntGui extends JFrame {
 				public void actionPerformed(ActionEvent e) { fireEvent(GO_BUTTON_PRESSED);	}
 			});
 			panelRun.add(btnGo);
-			
+
 			LogPanel logPanel = new LogPanel();
 			logPanel.setBounds(10, 197, 323, 259);
-			panelRun.add(logPanel);
 			logger = logPanel.getLogger();
+			panelRun.add(logPanel);
+
+			{
+								
+				{
+					
+				}
+			}
 		}
-		
+
 		// Create GUI
 		setTitle(CWNT_.PLUGIN_NAME);
 		getContentPane().add(mainPanel);
 		setBounds(100, 100, WIDTH, HEIGHT);
 		setVisible(true);
+	}
+	
+	public void setModelAndView(TrackMateModel model, TrackMateModelView view) {
+		
+		if (tabbedPane.getTabCount() > 4) {
+			tabbedPane.removeTabAt(4);
+		}
+		DisplayerPanel displayerPanel = new DisplayerPanel(model);
+		displayerPanel.jButtonShowTrackScheme.setVisible(false);
+		displayerPanel.register(view);
+		tabbedPane.addTab("Display settings", null, displayerPanel, null);
+
+		if (tabbedPane.getTabCount() > 5) {
+			tabbedPane.removeTabAt(5);
+		}
+		ActionChooserPanel actionPanel = new ActionChooserPanel(model, null);
+		tabbedPane.addTab("Actions", null, actionPanel, null);
+		
 	}
 
 	private void link(final DoubleJSlider slider, final JTextField text) {
@@ -654,4 +683,6 @@ public class CwntGui extends JFrame {
 			"</div>" +
 			"</html>" +
 			"";
+
+
 }

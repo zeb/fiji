@@ -69,6 +69,7 @@ public class CWNT_ implements PlugIn {
 	private DisplayUpdater updater = new DisplayUpdater();
 	private TrackMateModel model;
 	private Logger logger;
+	private HyperStackDisplayer view;
 
 
 
@@ -181,6 +182,7 @@ public class CWNT_ implements PlugIn {
 		launchDisplayer(model);
 		execTracking(model);
 		saveResults(model);
+		gui.setModelAndView(model, view);
 		
 		logger.setStatus("");
 		logger.setProgress(0f);
@@ -353,7 +355,7 @@ public class CWNT_ implements PlugIn {
 
 	private void launchDisplayer(TrackMateModel model) {
 
-		HyperStackDisplayer view = new HyperStackDisplayer(model) {
+		view = new HyperStackDisplayer(model) {
 			
 			@Override
 			protected SpotOverlay createSpotOverlay() {
@@ -678,8 +680,8 @@ public class CWNT_ implements PlugIn {
 
 	public static void main(String[] args) {
 
-		//		File testImage = new File("E:/Users/JeanYves/Documents/Projects/BRajaseka/Data/Meta-nov7mdb18ssplus-embryo2-1.tif");
-		File testImage = new File("/Users/tinevez/Projects/BRajaseka/Data/Meta-nov7mdb18ssplus-embryo2-2.tif");
+		File testImage = new File("E:/Users/JeanYves/Documents/Projects/BRajaseka/Data/Meta-nov7mdb18ssplus-embryo2-1.tif");
+//		File testImage = new File("/Users/tinevez/Projects/BRajaseka/Data/Meta-nov7mdb18ssplus-embryo2-2.tif");
 
 		ImageJ.main(args);
 		ImagePlus imp = IJ.openImage(testImage.getAbsolutePath());
