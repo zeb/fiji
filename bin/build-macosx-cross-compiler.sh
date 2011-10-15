@@ -106,7 +106,7 @@ then
 	fi &&
 	if test ! -d odcctools
 	then
-		git clone git://fiji.sc/iphone-dev odcctools &&
+		git clone git://fiji.sc/odcctools odcctools &&
 		(cd odcctools && git checkout -t origin/fiji)
 	fi &&
 	mkdir -p build-odcctools &&
@@ -114,6 +114,7 @@ then
 	 CFLAGS="-m32" LDFLAGS="-m32 -L/usr/lib32 -L$SYSROOT/lib" \
 	 ../odcctools/configure \
 		--target=$TARGET --enable-ld64 \
+		--enable-as-targets="ppc ppc64 i386 x86_64" \
 		--enable-targets=$TARGET,$TARGET64,$TARGET_PPC \
 		--with-sysroot="$SYSROOT" --prefix="$SYSROOT" &&
 	 make $PARALLEL &&
@@ -309,5 +310,6 @@ do
 done
 if test ! -h "$SYSROOT"/usr/lib/libstdc++.dylib
 then
+	mkdir -p "$SYSROOT"/usr/lib &&
 	ln -s libstdc++.6.dylib "$SYSROOT"/usr/lib/libstdc++.dylib
 fi

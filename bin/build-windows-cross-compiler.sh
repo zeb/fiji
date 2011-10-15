@@ -62,11 +62,13 @@ then
 			case $d in
 			mpc*)
 				f=$d.tar.gz &&
-				taropt=xzvf
+				taropt=xzvf &&
+				CFLAGS_EXTRA="-DGMP_RNDA=GMP_RNDZ"
 				;;
 			*)
 				f=$d.tar.bz2 &&
-				taropt=xjvf
+				taropt=xjvf &&
+				CFLAGS_EXTRA=
 				;;
 			esac &&
 			if test ! -f $f
@@ -75,16 +77,16 @@ then
 			fi &&
 			tar $taropt $f &&
 			(cd $d &&
-			 CFLAGS="-I$SYSROOT/include" \
+			 CFLAGS="-I$SYSROOT/include $CFLAGS_EXTRA" \
 			 LDFLAGS="-L$SYSROOT/lib" \
 			./configure --prefix="$SYSROOT" \
 				--enable-static --disable-shared &&
-			 make $PARALLEL install) || break
-		fi || break
+			 make $PARALLEL install) || exit
+		fi || exit
 	 done &&
 	 mkdir -p build-gcc &&
 	 cd build-gcc &&
-	 ../gcc/configure --target=$TARGET --enable-targets=all \
+	 ../gcc/configure --target=$TARGET --enable-targets="gcc g++" \
 		--with-gmp="$SYSROOT" --with-mpfr="$SYSROOT" \
 		--with-mpc="$SYSROOT" \
 		--with-sysroot="$SYSROOT" --prefix="$SYSROOT" &&
