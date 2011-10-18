@@ -22,8 +22,6 @@ import org.jfree.chart.renderer.InterpolatePaintScale;
 import org.jgrapht.graph.DefaultWeightedEdge;
 
 import fiji.plugin.trackmate.Spot;
-import fiji.plugin.trackmate.SpotFeature;
-import fiji.plugin.trackmate.TrackFeature;
 import fiji.plugin.trackmate.TrackMateModel;
 import fiji.plugin.trackmate.visualization.TrackMateModelView;
 import fiji.util.gui.OverlayedImageCanvas.Overlay;
@@ -63,19 +61,19 @@ public class TrackOverlay implements Overlay {
 		Color defaultColor = (Color) displaySettings.get(TrackMateModelView.KEY_COLOR);
 		edgeColors = new HashMap<Integer, Color>(ntracks);
 
-		final TrackFeature feature = (TrackFeature) displaySettings.get(TrackMateModelView.KEY_TRACK_COLOR_FEATURE);
+		final String feature = (String) displaySettings.get(TrackMateModelView.KEY_TRACK_COLOR_FEATURE);
 		if (feature != null) {
 
 			// Get min & max
 			double min = Float.POSITIVE_INFINITY;
 			double max = Float.NEGATIVE_INFINITY;
-			for (double val : model.getTrackFeatureValues().get(feature)) {
+			for (double val : model.getFeatureModel().getTrackFeatureValues().get(feature)) {
 				if (val > max) max = val;
 				if (val < min) min = val;
 			}
 
 			for(int i : model.getVisibleTrackIndices()) {
-				Float val = model.getTrackFeature(i, feature);
+				Float val = model.getFeatureModel().getTrackFeature(i, feature);
 				if (null == val) {
 					edgeColors.put(i, defaultColor); // if feature is not calculated
 				} else {
@@ -189,7 +187,7 @@ public class TrackOverlay implements Overlay {
 						continue;
 
 					source = model.getEdgeSource(edge);
-					sourceFrame = source.getFeature(SpotFeature.POSITION_T) / dt;
+					sourceFrame = source.getFeature(Spot.POSITION_T) / dt;
 					if (sourceFrame < minT || sourceFrame >= maxT)
 						continue;
 
@@ -215,7 +213,7 @@ public class TrackOverlay implements Overlay {
 						continue;
 
 					source = model.getEdgeSource(edge);
-					sourceFrame = source.getFeature(SpotFeature.POSITION_T) / dt;
+					sourceFrame = source.getFeature(Spot.POSITION_T) / dt;
 					if (sourceFrame < minT || sourceFrame >= maxT)
 						continue;
 
@@ -247,10 +245,10 @@ public class TrackOverlay implements Overlay {
 	protected void drawEdge(final Graphics2D g2d, final Spot source, final Spot target,
 			final int xcorner, final int ycorner, final float magnification, final float transparency) {
 		// Find x & y in physical coordinates
-		final float x0i = source.getFeature(SpotFeature.POSITION_X);
-		final float y0i = source.getFeature(SpotFeature.POSITION_Y);
-		final float x1i = target.getFeature(SpotFeature.POSITION_X);
-		final float y1i = target.getFeature(SpotFeature.POSITION_Y);
+		final float x0i = source.getFeature(Spot.POSITION_X);
+		final float y0i = source.getFeature(Spot.POSITION_Y);
+		final float x1i = target.getFeature(Spot.POSITION_X);
+		final float y1i = target.getFeature(Spot.POSITION_Y);
 		// In pixel units
 		final float x0p = x0i / calibration[0];
 		final float y0p = y0i / calibration[1];
@@ -275,10 +273,10 @@ public class TrackOverlay implements Overlay {
 	protected void drawEdge(final Graphics2D g2d, final Spot source, final Spot target,
 			final int xcorner, final int ycorner, final float magnification) {
 		// Find x & y in physical coordinates
-		final float x0i = source.getFeature(SpotFeature.POSITION_X);
-		final float y0i = source.getFeature(SpotFeature.POSITION_Y);
-		final float x1i = target.getFeature(SpotFeature.POSITION_X);
-		final float y1i = target.getFeature(SpotFeature.POSITION_Y);
+		final float x0i = source.getFeature(Spot.POSITION_X);
+		final float y0i = source.getFeature(Spot.POSITION_Y);
+		final float x1i = target.getFeature(Spot.POSITION_X);
+		final float y1i = target.getFeature(Spot.POSITION_Y);
 		// In pixel units
 		final float x0p = x0i / calibration[0];
 		final float y0p = y0i / calibration[1];

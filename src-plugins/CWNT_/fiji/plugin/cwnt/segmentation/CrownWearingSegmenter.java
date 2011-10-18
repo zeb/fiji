@@ -17,11 +17,9 @@ import mpicbg.imglib.labeling.Labeling;
 import mpicbg.imglib.labeling.LabelingType;
 import mpicbg.imglib.type.logic.BitType;
 import mpicbg.imglib.type.numeric.IntegerType;
-import fiji.plugin.trackmate.Settings;
 import fiji.plugin.trackmate.Spot;
 import fiji.plugin.trackmate.segmentation.SegmenterSettings;
 import fiji.plugin.trackmate.segmentation.SpotSegmenter;
-import fiji.plugin.trackmate.util.TMUtils;
 
 public class CrownWearingSegmenter<T extends IntegerType<T>>  extends MultiThreadedBenchmarkAlgorithm implements SpotSegmenter<T> {
 	
@@ -29,9 +27,9 @@ public class CrownWearingSegmenter<T extends IntegerType<T>>  extends MultiThrea
 	private Image<T> source;
 	private Image<BitType> thresholded;
 	private Labeling<Integer> labeling;
-	private double[] param;
 	private List<Spot> spots;
 	private float[] calibration;
+	private CWSettings settings;
 
 	/*
 	 * CONSTRUCTOR	
@@ -46,38 +44,36 @@ public class CrownWearingSegmenter<T extends IntegerType<T>>  extends MultiThrea
 	 */
 	
 	@Override
-	public void setImage(Image<T> image) {
+	public String getInfoText() {
+		return INTRO_TEXT;
+	}
+
+	@Override
+	public void setTarget(Image<T> image, float[] calibration, SegmenterSettings settings) {
 		this.source = image;
-	}
-
-	@Override
-	public void setCalibration(float[] calibration) {
 		this.calibration = calibration;
+		this.settings = (CWSettings) settings;
 	}
 
 	@Override
-	public List<Spot> getResult(Settings settings) {
-		return TMUtils.translateSpots(spots, settings);
+	public SegmenterSettings createDefaultSettings() {
+		return new CWSettings();
 	}
 
 	@Override
-	public Image<T> getIntermediateImage() {
-		return masked;
+	public SpotSegmenter<T> createNewSegmenter() {
+		return new CrownWearingSegmenter<T>();
 	}
 
-	/**
-	 * Not implemented.
-	 * @see #setParameters(double[])
-	 */
 	@Override
-	public SegmenterSettings getSettings() {
-		return null;
+	public List<Spot> getResult() {
+		return spots;
 	}
 
-	public void setParameters(double[] param) {
-		this.param = param;
+	@Override
+	public String toString() {
+		return "Crown-Wearing Segmenter";
 	}
-
 
 	@Override
 	public boolean checkInput() {
@@ -92,7 +88,7 @@ public class CrownWearingSegmenter<T extends IntegerType<T>>  extends MultiThrea
 		// Crown wearing mask
 		NucleiMasker<T> masker = new NucleiMasker<T>(source);
 		masker.setNumThreads(numThreads);
-		masker.setParameters(param);
+		masker.setParameters(settings.getMaskingParameters());
 		check = masker.process();
 		if (check) {
 			masked = masker.getResult();
@@ -102,7 +98,7 @@ public class CrownWearingSegmenter<T extends IntegerType<T>>  extends MultiThrea
 		}
 		
 		// Thresholding
-		OtsuThresholder2D<T> thresholder = new OtsuThresholder2D<T>(masked);
+		OtsuThresholder2D<T> thresholder = new OtsuThresholder2D<T>(masked, settings.thresholdFactor);
 		thresholder.setNumThreads(numThreads);
 		check = thresholder.process();
 		if (check) {
@@ -133,11 +129,6 @@ public class CrownWearingSegmenter<T extends IntegerType<T>>  extends MultiThrea
 		spots = splitter.getResult();
 		processingTime = System.currentTimeMillis() - start;
 		return true;
-	}
-
-	@Override
-	public List<Spot> getResult() {
-		return spots;
 	}
 
 	public Labeling<Integer> getLabeling() {
@@ -284,5 +275,39 @@ public class CrownWearingSegmenter<T extends IntegerType<T>>  extends MultiThrea
 		}
 	}
 
+
+	public static final String INTRO_TEXT = "<html>" +
+			"<div align=\"justify\">" +
+			"This plugin allows the segmentation and tracking of bright blobs objects, " +
+			"typically nuclei imaged in 3D over time. " +
+			"<p> " +
+			"It is specially designed to deal with the case the developing zebra-fish " +
+			"embryogenesis, where nuclei are densily packed, which complicates their detection. " +
+			"To do so, this plugin operates in 2 steps:" +
+			"<p>" +
+			" - The image is first pre-processed, by computing a special mask that stresses" +
+			"the nuclei boundaries. A crown-like mak is computed from the 2D spatial derivatives " +
+			"of the image, and a masked image where the nuclei are better separated is generated. " +
+			"<br>" +
+			" - Then the nuclei are thresholded from the background of the masked image, " +
+			"labeled in 3D and tracked over time. " +
+			"<p>" +
+			"Because the crown-like mask needs 9 parameters to be specified, this plugin offers " +
+			"to test the value of paramters in the 2nd and 3rd tab of this GUI. The resulting masked" +
+			"image and intermediate images will be computed over a limited area of the source image, " +
+			"specified by the ROI. " +
+			"<p> " +
+			"Once you are happy with the parameters, mode to the 4th tab to launch the computation " +
+			"in batch." +
+			"</div>" +
+			"<div align=\"right\"> " +
+			"<tt>" +
+			"Bhavna Rajasekaran <br>" +
+			"Jean-Yves Tinevez <br>" +
+			"Andrew Oates lab - MPI-CBG, Dresden, 2011 " +
+			"</tt>" +
+			"</div>" +
+			"</html>" +
+			"";
 	
 }

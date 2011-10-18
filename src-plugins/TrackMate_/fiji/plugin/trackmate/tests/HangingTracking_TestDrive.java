@@ -6,18 +6,18 @@ import java.io.IOException;
 import org.jdom.JDOMException;
 
 import fiji.plugin.trackmate.SpotCollection;
-import fiji.plugin.trackmate.SpotFeature;
 import fiji.plugin.trackmate.TrackMateModel;
+import fiji.plugin.trackmate.features.spot.BlobMorphology;
 import fiji.plugin.trackmate.io.TmXmlReader;
 import fiji.plugin.trackmate.tracking.LAPTracker;
 import fiji.plugin.trackmate.tracking.TrackerSettings;
-import fiji.plugin.trackmate.visualization.AbstractTrackMateModelView;
-import fiji.plugin.trackmate.visualization.AbstractTrackMateModelView.ViewType;
+import fiji.plugin.trackmate.visualization.TrackMateModelView;
+import fiji.plugin.trackmate.visualization.hyperstack.HyperStackDisplayer;
 
 public class HangingTracking_TestDrive {
 
-	private static final File file = new File("E:/Users/JeanYves/Desktop/Data/Scoobidoo.xml");
-
+//	private static final File file = new File("E:/Users/JeanYves/Desktop/Data/Scoobidoo.xml");
+	private static final File file = new File("/Users/tinevez/Desktop/Data/Scoobidoo.xml");
 
 	public static void main(String[] args) throws JDOMException, IOException {
 
@@ -33,22 +33,28 @@ public class HangingTracking_TestDrive {
 		System.out.println("Without feature condition:");
 		TrackerSettings trackerSettings = reader.getTrackerSettings();
 		trackerSettings.linkingDistanceCutOff = 60;
+		model.getSettings().trackerSettings = trackerSettings;
 		
-
-		LAPTracker tracker = new LAPTracker(filteredSpots, trackerSettings);
+		LAPTracker tracker = new LAPTracker();
+		tracker.setModel(model);
 		System.out.println("For frame pair "+frame+" -> "+(frame+1)+":");
 		System.out.println("There are "+filteredSpots.getNSpots(frame)+" spots to link to "+filteredSpots.getNSpots(frame+1));
+		tracker.solveLAPForTrackSegments();
 
 		System.out.println();
 		System.out.println("With feature condition:");
-		trackerSettings.linkingFeaturePenalties.put(SpotFeature.MORPHOLOGY, (double) 1);
-		tracker = new LAPTracker(filteredSpots, trackerSettings);
+		trackerSettings.linkingFeaturePenalties.put(BlobMorphology.MORPHOLOGY, 1d);
+		tracker = new LAPTracker();
+		tracker.setModel(model);
 		System.out.println("For frame pair "+frame+" -> "+(frame+1)+":");
 		System.out.println("There are "+filteredSpots.getNSpots(frame)+" spots to link to "+filteredSpots.getNSpots(frame+1));
 
 		tracker.solveLAPForTrackSegments();
 		model.setGraph(tracker.getResult());
-		AbstractTrackMateModelView.instantiateView(ViewType.HYPERSTACK_DISPLAYER, model);
+		
+		TrackMateModelView view = new HyperStackDisplayer();
+		view.setModel(model);
+		view.render();
 		
 	}
 

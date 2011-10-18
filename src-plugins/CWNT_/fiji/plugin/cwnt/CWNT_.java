@@ -7,14 +7,11 @@ import fiji.plugin.trackmate.Logger;
 import fiji.plugin.trackmate.Settings;
 import fiji.plugin.trackmate.Spot;
 import fiji.plugin.trackmate.SpotCollection;
-import fiji.plugin.trackmate.SpotFeature;
 import fiji.plugin.trackmate.TrackMateModel;
 import fiji.plugin.trackmate.io.TmXmlWriter;
 import fiji.plugin.trackmate.segmentation.SegmenterSettings;
-import fiji.plugin.trackmate.segmentation.SegmenterType;
 import fiji.plugin.trackmate.tracking.FastLAPTracker;
 import fiji.plugin.trackmate.tracking.TrackerSettings;
-import fiji.plugin.trackmate.tracking.TrackerType;
 import fiji.plugin.trackmate.util.TMUtils;
 import fiji.plugin.trackmate.visualization.TrackMateModelView;
 import fiji.plugin.trackmate.visualization.hyperstack.HyperStackDisplayer;
@@ -47,6 +44,8 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 
+import javax.swing.JFrame;
+
 import mpicbg.imglib.image.Image;
 import mpicbg.imglib.image.ImagePlusAdapter;
 import mpicbg.imglib.image.display.imagej.ImageJVirtualStack;
@@ -63,8 +62,7 @@ public class CWNT_ implements PlugIn {
 	private ImagePlus comp2;
 	private ImagePlus comp1;
 	private CwntGui gui;
-	private static final double[] DEFAULT_PARAM = NucleiMasker.DEFAULT_MASKING_PARAMETERS;
-	public static final String PLUGIN_NAME = "Crown-Wearing Nuclei Tracker ß";
+	public static final String PLUGIN_NAME = "Crown-Wearing Nuclei Tracker ß2";
 	private int stepUpdateToPerform = Integer.MAX_VALUE;
 	private DisplayUpdater updater = new DisplayUpdater();
 	private TrackMateModel model;
@@ -82,8 +80,8 @@ public class CWNT_ implements PlugIn {
 			return;
 
 		// Create Panel silently
-		gui = new CwntGui(imp.getShortTitle(), DEFAULT_PARAM);
-		logger = gui.getLogger();
+		gui = new CwntGui();
+		logger = Logger.DEFAULT_LOGGER;
 
 		// Add listeners
 		imp.getCanvas().addMouseListener(new MouseAdapter() {
@@ -100,7 +98,10 @@ public class CWNT_ implements PlugIn {
 			}
 		});
 
-		gui.addWindowListener(new WindowListener() {
+		
+		JFrame frame = new JFrame(PLUGIN_NAME);
+		frame.setSize(300, 400);
+		frame.addWindowListener(new WindowListener() {
 			public void windowOpened(WindowEvent e) { }
 			public void windowIconified(WindowEvent e) { }
 			public void windowDeiconified(WindowEvent e) { }
@@ -160,8 +161,8 @@ public class CWNT_ implements PlugIn {
 			}
 		});
 
-
-
+		frame.getContentPane().add(gui);
+		frame.setVisible(true);
 	}
 	
 	
@@ -225,10 +226,6 @@ public class CWNT_ implements PlugIn {
 		
 		// Prepare tracking settings
 		TrackerSettings ts = new TrackerSettings();
-		ts.trackerType = TrackerType.FAST_LAPT;
-		ts.spaceUnits = model.getSettings().spaceUnits;
-		ts.timeUnits = model.getSettings().timeUnits;
-		
 		ts.allowGapClosing 	= false;
 		ts.gapClosingFeaturePenalties.clear();
 		ts.allowMerging 	= false;
@@ -238,7 +235,7 @@ public class CWNT_ implements PlugIn {
 		logger.log("Evaluating max linking distance...\n");
 		double maxDist = 0;
 		for (Spot spot : model.getSpots().getAllSpots()) {
-			maxDist += spot.getFeature(SpotFeature.RADIUS);
+			maxDist += spot.getFeature(Spot.RADIUS);
 		}
 		maxDist /= model.getSpots().getNSpots();
 		maxDist *= 2;
@@ -247,11 +244,14 @@ public class CWNT_ implements PlugIn {
 		ts.linkingDistanceCutOff = maxDist;
 		ts.gapClosingDistanceCutoff = 2 * maxDist;
 		ts.gapClosingTimeCutoff = 2 * model.getSettings().dt;
+		model.getSettings().trackerSettings = ts;
+		
 		
 		logger.log("Performing track linking...\n");
 		logger.setStatus("Tracking...");
 		
-		FastLAPTracker tracker = new FastLAPTracker(model.getFilteredSpots(), ts);
+		FastLAPTracker tracker = new FastLAPTracker();
+		tracker.setModel(model);
 		tracker.setLogger(logger);
 		tracker.setNumThreads(1); // For memory preservation
 		if (!(tracker.checkInput() && tracker.process())) {
@@ -260,7 +260,6 @@ public class CWNT_ implements PlugIn {
 		}
 		
 		model.getSettings().trackerSettings = ts;
-		model.getSettings().trackerType = ts.trackerType;
 		model.setGraph(tracker.getResult());
 		logger.log(String.format("Track linking completed in %.1f s.\n", (tracker.getProcessingTime()/1e3)));
 		logger.log(String.format("Found %d tracks.\n", model.getNTracks()));
@@ -284,12 +283,6 @@ public class CWNT_ implements PlugIn {
 			settings.dt = 1;
 			settings.timeUnits = "frame";
 		}
-		
-		SegmenterSettings ss = new SegmenterSettings();
-		ss.segmenterType = SegmenterType.PEAKPICKER_SEGMENTER;
-		ss.spaceUnits = imp.getCalibration().getUnit();
-		settings.segmenterType = ss.segmenterType;
-		settings.segmenterSettings = ss;
 		
 		final float[] calibration = settings.getCalibration();
 		final SpotCollection allSpots = new SpotCollection();
@@ -316,21 +309,26 @@ public class CWNT_ implements PlugIn {
 
 			// Instantiate segmenter
 			CrownWearingSegmenter segmenter = new CrownWearingSegmenter();
-			segmenter.setImage(img);
-			segmenter.setCalibration(calibration);
-			segmenter.setParameters(gui.getParameters());
+			SegmenterSettings ss = gui.getSegmenterSettings();
+			segmenter.setTarget(img, calibration, ss);
+			settings.segmenterSettings = ss;
 			
 			// Exec
 			if (!(segmenter.checkInput() && segmenter.process())) {
 				logger.error("Problem with segmenter: "+segmenter.getErrorMessage());
 				return null;
 			}
-			List<Spot> spots = segmenter.getResult(settings);
+			List<Spot> spots = segmenter.getResult();
+			
+			TMUtils.translateSpots(spots, 
+					settings.xstart * calibration[0], 
+					settings.ystart * calibration[1], 
+					settings.zstart * calibration[2]);
 			
 			// Tune time features
 			final float t = (float) (i * settings.dt);
 			for(Spot spot : spots) {
-				spot.putFeature(SpotFeature.POSITION_T, t);
+				spot.putFeature(Spot.POSITION_T, t);
 			}	
 			
 			allSpots.put(i, spots);
@@ -354,8 +352,18 @@ public class CWNT_ implements PlugIn {
 
 
 	private void launchDisplayer(TrackMateModel model) {
+		view = createLocalSliceDisplayer(); 
+		logger.log("Rendering segmentation results...\n");
+		view.setModel(model);
+		view.setDisplaySettings(TrackMateModelView.KEY_TRACK_DISPLAY_MODE, TrackMateModelView.TRACK_DISPLAY_MODE_LOCAL_QUICK);
+		view.render();
+		logger.log("Rendering done.\n");
 
-		view = new HyperStackDisplayer(model) {
+	}
+	
+	public static HyperStackDisplayer createLocalSliceDisplayer() {
+		
+		return new HyperStackDisplayer() {
 			
 			@Override
 			protected SpotOverlay createSpotOverlay() {
@@ -365,12 +373,12 @@ public class CWNT_ implements PlugIn {
 					public void drawSpot(final Graphics2D g2d, final Spot spot, final float zslice, 
 							final int xcorner, final int ycorner, final float magnification) {
 
-						final float x = spot.getFeature(SpotFeature.POSITION_X);
-						final float y = spot.getFeature(SpotFeature.POSITION_Y);
-						final float z = spot.getFeature(SpotFeature.POSITION_Z);
+						final float x = spot.getFeature(Spot.POSITION_X);
+						final float y = spot.getFeature(Spot.POSITION_Y);
+						final float z = spot.getFeature(Spot.POSITION_Z);
 						final float dz2 = (z - zslice) * (z - zslice);
 						float radiusRatio = (Float) displaySettings.get(TrackMateModelView.KEY_SPOT_RADIUS_RATIO);
-						final float radius = spot.getFeature(SpotFeature.RADIUS)*radiusRatio;
+						final float radius = spot.getFeature(Spot.RADIUS)*radiusRatio;
 						if (dz2 >= radius * radius)
 							return;
 
@@ -403,12 +411,12 @@ public class CWNT_ implements PlugIn {
 					@Override
 					protected void drawEdge(Graphics2D g2d, Spot source, Spot target, int xcorner, int ycorner,	float magnification) {
 						// Find x & y in physical coordinates
-						final float x0i = source.getFeature(SpotFeature.POSITION_X);
-						final float y0i = source.getFeature(SpotFeature.POSITION_Y);
-						final float z0i = source.getFeature(SpotFeature.POSITION_Z);
-						final float x1i = target.getFeature(SpotFeature.POSITION_X);
-						final float y1i = target.getFeature(SpotFeature.POSITION_Y);
-						final float z1i = target.getFeature(SpotFeature.POSITION_Z);
+						final float x0i = source.getFeature(Spot.POSITION_X);
+						final float y0i = source.getFeature(Spot.POSITION_Y);
+						final float z0i = source.getFeature(Spot.POSITION_Z);
+						final float x1i = target.getFeature(Spot.POSITION_X);
+						final float y1i = target.getFeature(Spot.POSITION_Y);
+						final float z1i = target.getFeature(Spot.POSITION_Z);
 						// In pixel units
 						final float x0p = x0i / calibration[0];
 						final float y0p = y0i / calibration[1];
@@ -440,11 +448,6 @@ public class CWNT_ implements PlugIn {
 			
 		};
 		
-		logger.log("Rendering segmentation results...\n");
-		view.setDisplaySettings(TrackMateModelView.KEY_TRACK_DISPLAY_MODE, TrackMateModelView.TRACK_DISPLAY_MODE_LOCAL_QUICK);
-		view.render();
-		logger.log("Rendering done.\n");
-
 	}
 
 	
@@ -680,8 +683,8 @@ public class CWNT_ implements PlugIn {
 
 	public static void main(String[] args) {
 
-		File testImage = new File("E:/Users/JeanYves/Documents/Projects/BRajaseka/Data/Meta-nov7mdb18ssplus-embryo2-1.tif");
-//		File testImage = new File("/Users/tinevez/Projects/BRajaseka/Data/Meta-nov7mdb18ssplus-embryo2-2.tif");
+//		File testImage = new File("E:/Users/JeanYves/Documents/Projects/BRajaseka/Data/Meta-nov7mdb18ssplus-embryo2-1.tif");
+		File testImage = new File("/Users/tinevez/Projects/BRajasekaran/Data/Meta-nov7mdb18ssplus-embryo2-2.tif");
 
 		ImageJ.main(args);
 		ImagePlus imp = IJ.openImage(testImage.getAbsolutePath());

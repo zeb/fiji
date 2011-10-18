@@ -1,29 +1,23 @@
 package fiji.plugin.trackmate.gui;
 
-import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Stack;
 
 import javax.swing.BoxLayout;
-import javax.swing.JButton;
-
 import javax.swing.ImageIcon;
-import javax.swing.JScrollPane;
-import javax.swing.WindowConstants;
-import javax.swing.JFrame;
+import javax.swing.JButton;
 import javax.swing.JPanel;
-
-import fiji.plugin.trackmate.SpotFeature;
 
 public class JPanelFeatureSelectionGui extends javax.swing.JPanel {
 
-	private static final long serialVersionUID = 7567178804475300833L;
+	private static final long serialVersionUID = -891462567905389989L;
 	private static final String ADD_ICON = "images/add.png";
 	private static final String REMOVE_ICON = "images/delete.png";
 
@@ -31,22 +25,31 @@ public class JPanelFeatureSelectionGui extends javax.swing.JPanel {
 	private JButton jButtonRemove;
 	private JButton jButtonAdd;
 	
-	private Stack<JPanelFeatureRatioThreshold> featurePanels = new Stack<JPanelFeatureRatioThreshold>();
+	private Stack<JPanelFeaturePenalty> featurePanels = new Stack<JPanelFeaturePenalty>();
+	private List<String> features;
+	private Map<String, String> featureNames;
+	private int index;
 	
 	public JPanelFeatureSelectionGui() {
-		super();
 		initGUI();
+		index = -1;
 	}
 	
 	/*
 	 * PUBLIC METHODS
 	 */
 	
-	public Map<SpotFeature, Double>	 getFeatureRatios() {
-		Map<SpotFeature, Double> ratios = new HashMap<SpotFeature, Double>(featurePanels.size());
-		for (JPanelFeatureRatioThreshold panel : featurePanels) 
-			ratios.put(panel.getSelectedFeature(), panel.getRatioThreshold());
-		return ratios;
+	public void setDisplayFeatures(List<String> features, Map<String, String> featureNames) {
+		this.features = features;
+		this.featureNames = featureNames;
+	}
+	
+	
+	public Map<String, Double>	getFeatureWeights() {
+		Map<String, Double> weights = new HashMap<String, Double>(featurePanels.size());
+		for (JPanelFeaturePenalty panel : featurePanels) 
+			weights.put(panel.getSelectedFeature(), panel.getPenaltyWeight());
+		return weights;
 	}
 	
 	@Override
@@ -66,7 +69,10 @@ public class JPanelFeatureSelectionGui extends javax.swing.JPanel {
 	 */
 	
 	private void addButtonPushed() {
-		JPanelFeatureRatioThreshold panel = new JPanelFeatureRatioThreshold();
+		index = index + 1;
+		if (index >= features.size())
+			index = 0;
+		JPanelFeaturePenalty panel = new JPanelFeaturePenalty(features, featureNames, index);
 		featurePanels.push(panel);
 		remove(jPanelButtons);
 		add(panel);
@@ -79,7 +85,7 @@ public class JPanelFeatureSelectionGui extends javax.swing.JPanel {
 	private void removeButtonPushed() {
 		if (featurePanels.isEmpty())
 			return;
-		JPanelFeatureRatioThreshold panel = featurePanels.pop();
+		JPanelFeaturePenalty panel = featurePanels.pop();
 		remove(panel);
 		Dimension size = getSize();
 		setSize(size.width, size.height - panel.getSize().height);
@@ -122,30 +128,5 @@ public class JPanelFeatureSelectionGui extends javax.swing.JPanel {
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-	}
-
-	/*
-	 * MAIN METHOD
-	 */
-
-
-	/**
-	 * Auto-generated main method to display this 
-	 * JPanel inside a new JFrame.
-	 */
-	public static void main(String[] args) {
-		JFrame frame = new JFrame();
-		JPanel mainPanel = new JPanel();
-		mainPanel.setLayout(new BorderLayout());
-		mainPanel.setSize(260, 300);
-		JScrollPane scrollPane = new JScrollPane();
-		scrollPane.setSize(260, 300);
-		JPanelFeatureSelectionGui instance = new JPanelFeatureSelectionGui();
-		scrollPane.setViewportView(instance);
-		mainPanel.add(scrollPane, BorderLayout.CENTER);
-		frame.getContentPane().add(mainPanel);
-		frame.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
-		frame.pack();
-		frame.setVisible(true);
 	}
 }

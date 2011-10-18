@@ -1,5 +1,7 @@
 package fiji.plugin.trackmate.io;
 
+import static fiji.plugin.trackmate.io.TmXmlKeys.*;
+
 import ij.IJ;
 import ij.ImagePlus;
 
@@ -27,16 +29,14 @@ import fiji.plugin.trackmate.Logger;
 import fiji.plugin.trackmate.Settings;
 import fiji.plugin.trackmate.Spot;
 import fiji.plugin.trackmate.SpotCollection;
-import fiji.plugin.trackmate.SpotFeature;
 import fiji.plugin.trackmate.SpotImp;
-import fiji.plugin.trackmate.TrackFeature;
 import fiji.plugin.trackmate.TrackMateModel;
+import fiji.plugin.trackmate.segmentation.LogSegmenterSettings;
 import fiji.plugin.trackmate.segmentation.SegmenterSettings;
-import fiji.plugin.trackmate.segmentation.SegmenterType;
 import fiji.plugin.trackmate.tracking.TrackerSettings;
-import fiji.plugin.trackmate.tracking.TrackerType;
 
-public class TmXmlReader implements TmXmlKeys {
+
+public class TmXmlReader {
 
 
 	private Document document = null;
@@ -88,8 +88,8 @@ public class TmXmlReader implements TmXmlKeys {
 		settings.imp = getImage();
 		model.setSettings(settings);
 		// Spot Filters
-		List<FeatureFilter<SpotFeature>> spotFilters = getSpotFeatureFilters();
-		FeatureFilter<SpotFeature> initialFilter = getInitialFilter();
+		List<FeatureFilter> spotFilters = getSpotFeatureFilters();
+		FeatureFilter initialFilter = getInitialFilter();
 		model.setInitialSpotFilterValue(initialFilter.value);
 		model.setSpotFilters(spotFilters);
 		// Spots
@@ -102,7 +102,7 @@ public class TmXmlReader implements TmXmlKeys {
 		if (null != graph)
 			model.setGraph(graph);
 		// Track Filters
-		List<FeatureFilter<TrackFeature>> trackFilters = getTrackFeatureFilters();
+		List<FeatureFilter> trackFilters = getTrackFeatureFilters();
 		model.setTrackFilters(trackFilters);
 		// Filtered tracks
 		Set<Integer> filteredTrackIndices = getFilteredTracks();
@@ -118,14 +118,14 @@ public class TmXmlReader implements TmXmlKeys {
 	 * Return the initial threshold on quality stored in this file.
 	 * Return <code>null</code> if the initial threshold data cannot be found in the file.
 	 */
-	public FeatureFilter<SpotFeature> getInitialFilter() throws DataConversionException {
+	public FeatureFilter getInitialFilter() throws DataConversionException {
 		Element itEl = root.getChild(INITIAL_SPOT_FILTER_ELEMENT_KEY);
 		if (null == itEl)
 			return null;
-		SpotFeature feature = SpotFeature.valueOf(itEl.getAttributeValue(FILTER_FEATURE_ATTRIBUTE_NAME));
+		String feature 	= itEl.getAttributeValue(FILTER_FEATURE_ATTRIBUTE_NAME);
 		Float value 	= itEl.getAttribute(FILTER_VALUE_ATTRIBUTE_NAME).getFloatValue();
 		boolean isAbove	= itEl.getAttribute(FILTER_ABOVE_ATTRIBUTE_NAME).getBooleanValue();
-		FeatureFilter<SpotFeature> ft = new FeatureFilter<SpotFeature>(feature, value, isAbove);
+		FeatureFilter ft = new FeatureFilter(feature, value, isAbove);
 		return ft;
 	}
 
@@ -135,17 +135,17 @@ public class TmXmlReader implements TmXmlKeys {
 	 * Return <code>null</code> if the spot feature filters data cannot be found in the file.
 	 */
 	@SuppressWarnings("unchecked")
-	public List<FeatureFilter<SpotFeature>> getSpotFeatureFilters() throws DataConversionException {
-		List<FeatureFilter<SpotFeature>> featureThresholds = new ArrayList<FeatureFilter<SpotFeature>>();
+	public List<FeatureFilter> getSpotFeatureFilters() throws DataConversionException {
+		List<FeatureFilter> featureThresholds = new ArrayList<FeatureFilter>();
 		Element ftCollectionEl = root.getChild(SPOT_FILTER_COLLECTION_ELEMENT_KEY);
 		if (null == ftCollectionEl)
 			return null;
 		List<Element> ftEls = ftCollectionEl.getChildren(FILTER_ELEMENT_KEY);
 		for (Element ftEl : ftEls) {
-			SpotFeature feature = SpotFeature.valueOf(ftEl.getAttributeValue(FILTER_FEATURE_ATTRIBUTE_NAME));
+			String feature 	= ftEl.getAttributeValue(FILTER_FEATURE_ATTRIBUTE_NAME);
 			Float value 	= ftEl.getAttribute(FILTER_VALUE_ATTRIBUTE_NAME).getFloatValue();
 			boolean isAbove	= ftEl.getAttribute(FILTER_ABOVE_ATTRIBUTE_NAME).getBooleanValue();
-			FeatureFilter<SpotFeature> ft = new FeatureFilter<SpotFeature>(feature, value, isAbove);
+			FeatureFilter ft = new FeatureFilter(feature, value, isAbove);
 			featureThresholds.add(ft);
 		}
 		return featureThresholds;
@@ -156,17 +156,17 @@ public class TmXmlReader implements TmXmlKeys {
 	 * Return <code>null</code> if the track feature filters data cannot be found in the file.
 	 */
 	@SuppressWarnings("unchecked")
-	public List<FeatureFilter<TrackFeature>> getTrackFeatureFilters() throws DataConversionException {
-		List<FeatureFilter<TrackFeature>> featureThresholds = new ArrayList<FeatureFilter<TrackFeature>>();
+	public List<FeatureFilter> getTrackFeatureFilters() throws DataConversionException {
+		List<FeatureFilter> featureThresholds = new ArrayList<FeatureFilter>();
 		Element ftCollectionEl = root.getChild(TRACK_FILTER_COLLECTION_ELEMENT_KEY);
 		if (null == ftCollectionEl)
 			return null;
 		List<Element> ftEls = ftCollectionEl.getChildren(FILTER_ELEMENT_KEY);
 		for (Element ftEl : ftEls) {
-			TrackFeature feature = TrackFeature.valueOf(ftEl.getAttributeValue(FILTER_FEATURE_ATTRIBUTE_NAME));
+			String feature 	= ftEl.getAttributeValue(FILTER_FEATURE_ATTRIBUTE_NAME);
 			Float value 	= ftEl.getAttribute(FILTER_VALUE_ATTRIBUTE_NAME).getFloatValue();
 			boolean isAbove	= ftEl.getAttribute(FILTER_ABOVE_ATTRIBUTE_NAME).getBooleanValue();
-			FeatureFilter<TrackFeature> ft = new FeatureFilter<TrackFeature>(feature, value, isAbove);
+			FeatureFilter ft = new FeatureFilter(feature, value, isAbove);
 			featureThresholds.add(ft);
 		}
 		return featureThresholds;
@@ -215,17 +215,17 @@ public class TmXmlReader implements TmXmlKeys {
 	}
 
 	public SegmenterSettings getSegmenterSettings() throws DataConversionException {
-		SegmenterSettings segSettings = null;
+		LogSegmenterSettings segSettings = new LogSegmenterSettings();
 		Element segSettingsEl = root.getChild(SEGMENTER_SETTINGS_ELEMENT_KEY);
 		if (null != segSettingsEl) {
-			String segmenterTypeStr = segSettingsEl.getAttributeValue(SEGMENTER_SETTINGS_SEGMENTER_TYPE_ATTRIBUTE_NAME);
-			SegmenterType segmenterType = SegmenterType.valueOf(segmenterTypeStr);
-			segSettings = segmenterType.createSettings();
-			segSettings.segmenterType 		= segmenterType;
+//			String segmenterTypeStr = segSettingsEl.getAttributeValue(SEGMENTER_SETTINGS_SEGMENTER_TYPE_ATTRIBUTE_NAME);
+//			SegmenterType segmenterType = SegmenterType.valueOf(segmenterTypeStr);
+//			segSettings = segmenterType.createSettings();
+//			segSettings.segmenterType 		= segmenterType;
 			segSettings.expectedRadius 		= segSettingsEl.getAttribute(SEGMENTER_SETTINGS_EXPECTED_RADIUS_ATTRIBUTE_NAME).getFloatValue();
 			segSettings.threshold			= segSettingsEl.getAttribute(SEGMENTER_SETTINGS_THRESHOLD_ATTRIBUTE_NAME).getFloatValue();
 			segSettings.useMedianFilter		= segSettingsEl.getAttribute(SEGMENTER_SETTINGS_USE_MEDIAN_ATTRIBUTE_NAME).getBooleanValue();
-			segSettings.spaceUnits			= segSettingsEl.getAttributeValue(SEGMENTER_SETTINGS_UNITS_ATTRIBUTE_NAME);			
+//			segSettings.spaceUnits			= segSettingsEl.getAttributeValue(SEGMENTER_SETTINGS_UNITS_ATTRIBUTE_NAME);			
 		}
 		return segSettings;
 	}
@@ -236,12 +236,7 @@ public class TmXmlReader implements TmXmlKeys {
 		TrackerSettings trackerSettings = null;
 		Element trackerSettingsEl = root.getChild(TRACKER_SETTINGS_ELEMENT_KEY);
 		if (null != trackerSettingsEl) {
-			String trackerTypeStr 			= trackerSettingsEl.getAttributeValue(TRACKER_SETTINGS_TRACKER_TYPE_ATTRIBUTE_NAME);
-			TrackerType trackerType 		= TrackerType.valueOf(trackerTypeStr);
-			trackerSettings = trackerType.createSettings();
-			trackerSettings.trackerType		= trackerType;
-			trackerSettings.timeUnits		= trackerSettingsEl.getAttributeValue(TRACKER_SETTINGS_TIME_UNITS_ATTNAME);
-			trackerSettings.spaceUnits		= trackerSettingsEl.getAttributeValue(TRACKER_SETTINGS_SPACE_UNITS_ATTNAME);
+			trackerSettings = new TrackerSettings(); // FIXME How to be generic? Delegate marshalling to concrete implementation
 			trackerSettings.alternativeObjectLinkingCostFactor = trackerSettingsEl.getAttribute(TRACKER_SETTINGS_ALTERNATE_COST_FACTOR_ATTNAME).getDoubleValue();
 			trackerSettings.cutoffPercentile = trackerSettingsEl.getAttribute(TRACKER_SETTINGS_CUTOFF_PERCENTILE_ATTNAME).getDoubleValue();
 			trackerSettings.blockingValue	=  trackerSettingsEl.getAttribute(TRACKER_SETTINGS_BLOCKING_VALUE_ATTNAME).getDoubleValue();
@@ -488,14 +483,13 @@ public class TmXmlReader implements TmXmlKeys {
 	 * fetch the feature attributes from them, and returns them in a map.
 	 */
 	@SuppressWarnings("unchecked")
-	private static final Map<SpotFeature, Double> readTrackerFeatureMap(final Element element) throws DataConversionException {
-		Map<SpotFeature, Double> map = new HashMap<SpotFeature, Double>();
+	private static final Map<String, Double> readTrackerFeatureMap(final Element element) throws DataConversionException {
+		Map<String, Double> map = new HashMap<String, Double>();
 		List<Element> featurelinkingElements = element.getChildren(TRACKER_SETTINGS_FEATURE_ELEMENT);
 		for (Element el : featurelinkingElements) {
 			List<Attribute> atts = el.getAttributes();
 			for (Attribute att : atts) {
-				String featureStr = att.getName();
-				SpotFeature feature = SpotFeature.valueOf(featureStr);
+				String feature = att.getName();
 				Double cutoff = att.getDoubleValue();
 				map.put(feature, cutoff);
 			}
@@ -507,15 +501,22 @@ public class TmXmlReader implements TmXmlKeys {
 	private static Spot createSpotFrom(Element spotEl) throws DataConversionException {
 		int ID = spotEl.getAttribute(SPOT_ID_ATTRIBUTE_NAME).getIntValue();
 		Spot spot = new SpotImp(ID);
+
+		@SuppressWarnings("unchecked")
+		List<Attribute> atts = spotEl.getAttributes();
+		atts.remove(SPOT_ID_ATTRIBUTE_NAME);
+		
 		String name = spotEl.getAttributeValue(SPOT_NAME_ATTRIBUTE_NAME);
 		if (null == name || name.equals(""))
 			name = "ID"+ID;
 		spot.setName(name);
-		for (SpotFeature feature : SpotFeature.values()) {
-			Attribute att = spotEl.getAttribute(feature.name());
-			if (null == att)
+		atts.remove(SPOT_NAME_ATTRIBUTE_NAME);
+		
+		for (Attribute att : atts) {
+			if (att.getName().equals(SPOT_NAME_ATTRIBUTE_NAME) || att.getName().equals(SPOT_ID_ATTRIBUTE_NAME)) {
 				continue;
-			spot.putFeature(feature, att.getFloatValue());
+			}
+			spot.putFeature(att.getName(), att.getFloatValue());
 		}
 		return spot;
 	}

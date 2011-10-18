@@ -18,17 +18,17 @@ public class OtsuThresholder2D <T extends IntegerType<T>> extends MultiThreadedB
 
 	private Image<T> source;
 	private Image<BitType> target;
-	/** A pre-factor, introduced by Bhavna, to increase the threshold in each slice,
-	 * and have a more stringent thresholding.  */
-	private double  levelFactor = 1.6;
+	private double levelFactor;
+	
 
 	/*
 	 * CONSTRUCTOR
 	 */
 
-	public OtsuThresholder2D(Image<T> source) {
+	public OtsuThresholder2D(Image<T> source, double thresholdFactor) {
 		super();
 		this.source = source;
+		this.levelFactor = thresholdFactor;
 	}
 
 

@@ -1,5 +1,7 @@
 package fiji.plugin.cwnt.gui;
 
+import static fiji.plugin.cwnt.segmentation.CrownWearingSegmenter.INTRO_TEXT;
+
 import java.awt.BorderLayout;
 import java.awt.Font;
 import java.awt.event.ActionEvent;
@@ -12,8 +14,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import javax.swing.ImageIcon;
-import javax.swing.JFrame;
+import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTabbedPane;
@@ -22,28 +23,22 @@ import javax.swing.SwingConstants;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 
-import fiji.plugin.cwnt.CWNT_;
+import fiji.plugin.cwnt.segmentation.CWSettings;
 import fiji.plugin.cwnt.segmentation.NucleiMasker;
-
-import javax.swing.JButton;
-
-import fiji.plugin.trackmate.Logger;
-import fiji.plugin.trackmate.gui.ActionChooserPanel;
-import fiji.plugin.trackmate.gui.LogPanel;
-import fiji.plugin.trackmate.gui.DisplayerPanel;
-import fiji.plugin.trackmate.visualization.TrackMateModelView;
 import fiji.plugin.trackmate.TrackMateModel;
+import fiji.plugin.trackmate.gui.ActionChooserPanel;
+import fiji.plugin.trackmate.gui.DisplayerPanel;
+import fiji.plugin.trackmate.gui.SegmenterConfigurationPanel;
+import fiji.plugin.trackmate.segmentation.SegmenterSettings;
+import fiji.plugin.trackmate.visualization.TrackMateModelView;
 
-public class CwntGui extends JFrame {
+public class CwntGui extends SegmenterConfigurationPanel {
 
-	private static final long serialVersionUID = -1739705351534814574L;
-	private final static int WIDTH = 360;
-	private final static int HEIGHT = 530;
+	private static final long serialVersionUID = 8311893056188053483L;
 
 	/*
 	 * EVENTS
 	 */
-
 	/** This event is fired whenever the value of σ for the gaussian filtering in step 1 is changed by this GUI. */
 	public final ActionEvent STEP1_PARAMETER_CHANGED = new ActionEvent(this, 0, "GaussianFilteringParameterChanged");
 	/** This event is fired whenever parameters defining the anisotropic diffusion step 2 is changed by this GUI. */
@@ -158,40 +153,27 @@ public class CwntGui extends JFrame {
 	 */
 	private double[] params = NucleiMasker.DEFAULT_MASKING_PARAMETERS;
 
-	private String targetImageName;
-
 	/** The index of the tab that tune the second set of parameters. */
 	public int indexPanelParameters2 = 2;
 	/** The index of the tab that tune the first set of parameters. */
 	public int indexPanelParameters1 = 1;
-	private Logger logger;
+
+	private JLabel labelTargetImage;
 
 	/*
-	 * CONSTRUCTORS
+	 * CONSTRUCTOR
 	 */
 
 	public CwntGui() {
-		this("");
-	}
-
-	public CwntGui(String targetImageName) {
-		this.targetImageName = targetImageName;
 		initGUI();
 	}
-
-	public CwntGui(String targetImageName, double[] params) {
-		this.targetImageName = targetImageName;
-		setParameters(params);
-		initGUI();
-	}
-
 
 	/*
 	 * PUBLIC METHODS
 	 */
 
-	public boolean addActionListener(ActionListener listener) {
-		return listeners.add(listener);
+	public void addActionListener(ActionListener listener) {
+		listeners.add(listener);
 	}
 
 	public boolean removeActionListener(ActionListener listener) {
@@ -206,9 +188,20 @@ public class CwntGui extends JFrame {
 		lblEstimatedTime.setText(String.format("Processing duration estimate: %.0f min.", t));
 	}
 
-	public Logger getLogger() {
-		return logger;
+	@Override
+	public void setSegmenterSettings(TrackMateModel model) {
+		CWSettings settings = (CWSettings) model.getSettings().segmenterSettings;
+		setParameters(settings.getMaskingParameters());
+		labelTargetImage.setText(model.getSettings().imp.getShortTitle());
 	}
+
+	@Override
+	public SegmenterSettings getSegmenterSettings() {
+		CWSettings settings = new CWSettings();
+		settings.putMaskingParameters(params);
+		return settings;
+	}
+
 
 
 	/**
@@ -225,13 +218,12 @@ public class CwntGui extends JFrame {
 	 *  <li> ε, the hessian negative magnitude prefactor in step 4
 	 *  <li> δ, the derivative sum scale in step 4
 	 * </ol>
-	 * @return
 	 */
 	public double[] getParameters() {
 		return params;
 	}
 
-	public void setParameters(double[] params) {
+	private void setParameters(double[] params) {
 		System.arraycopy(params, 0, this.params, 0, params.length);
 	}
 
@@ -289,14 +281,13 @@ public class CwntGui extends JFrame {
 
 	private void initGUI() {
 
-		JPanel mainPanel = new JPanel();
-		mainPanel.setLayout(new BorderLayout());
+		setLayout(new BorderLayout());
 
 		tabbedPane = new JTabbedPane(JTabbedPane.TOP);
 		tabbedPane.addChangeListener(new ChangeListener() {
 			public void stateChanged(ChangeEvent e) { fireEvent(TAB_CHANGED);	}
 		});
-		mainPanel.add(tabbedPane);
+		add(tabbedPane);
 
 		{
 			JPanel panelIntroduction = new JPanel();
@@ -314,7 +305,7 @@ public class CwntGui extends JFrame {
 			lblTargetImage.setBounds(10, 52, 325, 19);
 			panelIntroduction.add(lblTargetImage);
 
-			JLabel labelTargetImage = new JLabel(targetImageName);
+			labelTargetImage = new JLabel();
 			labelTargetImage.setHorizontalAlignment(SwingConstants.CENTER);
 			labelTargetImage.setFont(MEDIUM_LABEL_FONT);
 			labelTargetImage.setBounds(10, 82, 325, 19);
@@ -564,51 +555,38 @@ public class CwntGui extends JFrame {
 			lblEquation.setBounds(10, 413, 325, 35);
 			panelParams2.add(lblEquation);
 
-		}
-
-		{
-			JPanel panelRun = new JPanel();
-			tabbedPane.addTab("Run", null, panelRun, null);
-			panelRun.setLayout(null);
-
-			JLabel lblLaunchComputation = new JLabel("Launch computation");
-			lblLaunchComputation.setFont(BIG_LABEL_FONT);
-			lblLaunchComputation.setHorizontalAlignment(SwingConstants.CENTER);
-			lblLaunchComputation.setBounds(10, 11, 325, 31);
-			panelRun.add(lblLaunchComputation);
-
 			lblEstimatedTime = new JLabel("Tune parameters to get a duration estimate");
 			lblEstimatedTime.setFont(SMALL_LABEL_FONT);
 			lblEstimatedTime.setBounds(10, 71, 325, 23);
-			panelRun.add(lblEstimatedTime);
-
-			btnGo = new JButton("Go!");
-			btnGo.setFont(MEDIUM_LABEL_FONT);
-			btnGo.setIcon(new ImageIcon(CwntGui.class.getResource("resources/plugin_go.png")));
-			btnGo.setBounds(120, 135, 100, 50);
-			btnGo.addActionListener(new ActionListener() {
-				public void actionPerformed(ActionEvent e) { fireEvent(GO_BUTTON_PRESSED);	}
-			});
-			panelRun.add(btnGo);
-
-			LogPanel logPanel = new LogPanel();
-			logPanel.setBounds(10, 197, 323, 259);
-			logger = logPanel.getLogger();
-			panelRun.add(logPanel);
-
-			{
-								
-				{
-					
-				}
-			}
+			panelParams2.add(lblEstimatedTime);
 		}
 
-		// Create GUI
-		setTitle(CWNT_.PLUGIN_NAME);
-		getContentPane().add(mainPanel);
-		setBounds(100, 100, WIDTH, HEIGHT);
-		setVisible(true);
+//		{
+//			JPanel panelRun = new JPanel();
+//			tabbedPane.addTab("Run", null, panelRun, null);
+//			panelRun.setLayout(null);
+//
+//			JLabel lblLaunchComputation = new JLabel("Launch computation");
+//			lblLaunchComputation.setFont(BIG_LABEL_FONT);
+//			lblLaunchComputation.setHorizontalAlignment(SwingConstants.CENTER);
+//			lblLaunchComputation.setBounds(10, 11, 325, 31);
+//			panelRun.add(lblLaunchComputation);
+//
+//			lblEstimatedTime = new JLabel("Tune parameters to get a duration estimate");
+//			lblEstimatedTime.setFont(SMALL_LABEL_FONT);
+//			lblEstimatedTime.setBounds(10, 71, 325, 23);
+//			panelRun.add(lblEstimatedTime);
+//
+//			btnGo = new JButton("Go!");
+//			btnGo.setFont(MEDIUM_LABEL_FONT);
+//			btnGo.setIcon(new ImageIcon(CwntGui.class.getResource("resources/plugin_go.png")));
+//			btnGo.setBounds(120, 135, 100, 50);
+//			btnGo.addActionListener(new ActionListener() {
+//				public void actionPerformed(ActionEvent e) { fireEvent(GO_BUTTON_PRESSED);	}
+//			});
+//			panelRun.add(btnGo);
+//
+//		}
 	}
 	
 	public void setModelAndView(TrackMateModel model, TrackMateModelView view) {
@@ -624,7 +602,7 @@ public class CwntGui extends JFrame {
 		if (tabbedPane.getTabCount() > 5) {
 			tabbedPane.removeTabAt(5);
 		}
-		ActionChooserPanel actionPanel = new ActionChooserPanel(model, null);
+		ActionChooserPanel actionPanel = new ActionChooserPanel(model, null, null);
 		tabbedPane.addTab("Actions", null, actionPanel, null);
 		
 	}
@@ -649,40 +627,6 @@ public class CwntGui extends JFrame {
 		});
 	}
 
-
-	private static final String INTRO_TEXT = "<html>" +
-			"<div align=\"justify\">" +
-			"This plugin allows the segmentation and tracking of bright blobs objects, " +
-			"typically nuclei imaged in 3D over time. " +
-			"<p> " +
-			"It is specially designed to deal with the case the developing zebra-fish " +
-			"embryogenesis, where nuclei are densily packed, which complicates their detection. " +
-			"To do so, this plugin operates in 2 steps:" +
-			"<p>" +
-			" - The image is first pre-processed, by computing a special mask that stresses" +
-			"the nuclei boundaries. A crown-like mak is computed from the 2D spatial derivatives " +
-			"of the image, and a masked image where the nuclei are better separated is generated. " +
-			"<br>" +
-			" - Then the nuclei are thresholded from the background of the masked image, " +
-			"labeled in 3D and tracked over time. " +
-			"<p>" +
-			"Because the crown-like mask needs 9 parameters to be specified, this plugin offers " +
-			"to test the value of paramters in the 2nd and 3rd tab of this GUI. The resulting masked" +
-			"image and intermediate images will be computed over a limited area of the source image, " +
-			"specified by the ROI. " +
-			"<p> " +
-			"Once you are happy with the parameters, mode to the 4th tab to launch the computation " +
-			"in batch." +
-			"</div>" +
-			"<div align=\"right\"> " +
-			"<tt>" +
-			"Bhavna Rajasekaran <br>" +
-			"Jean-Yves Tinevez <br>" +
-			"Andrew Oates lab - MPI-CBG, Dresden, 2011 " +
-			"</tt>" +
-			"</div>" +
-			"</html>" +
-			"";
 
 
 }

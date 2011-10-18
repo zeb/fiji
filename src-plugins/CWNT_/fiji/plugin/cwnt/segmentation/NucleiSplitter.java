@@ -18,7 +18,6 @@ import org.apache.commons.math.stat.clustering.Cluster;
 import org.apache.commons.math.stat.clustering.KMeansPlusPlusClusterer;
 
 import fiji.plugin.trackmate.Spot;
-import fiji.plugin.trackmate.SpotFeature;
 import fiji.plugin.trackmate.SpotImp;
 
 public class NucleiSplitter extends MultiThreadedBenchmarkAlgorithm  {
@@ -157,7 +156,8 @@ public class NucleiSplitter extends MultiThreadedBenchmarkAlgorithm  {
 			double nucleusVol = cluster.getPoints().size() * voxelVolume;
 			float radius = (float) Math.pow( 3 * nucleusVol / (4 * Math.PI), 0.33333);
 			Spot spot = new SpotImp(centroid);
-			spot.putFeature(SpotFeature.RADIUS, radius);
+			spot.putFeature(Spot.RADIUS, radius);
+			spot.putFeature(Spot.QUALITY, (float) 1/n); // split spot get a quality of 1 over the number of spots in the initial cluster
 			synchronized (spots) {
 				spots.add(spot);
 			}
@@ -235,7 +235,8 @@ public class NucleiSplitter extends MultiThreadedBenchmarkAlgorithm  {
 			float radius = (float) Math.pow( 3 * nucleusVol / (4 * Math.PI), 0.33333);
 			float[] coordinates = getCentroid(label);
 			Spot spot = new SpotImp(coordinates);
-			spot.putFeature(SpotFeature.RADIUS, radius);
+			spot.putFeature(Spot.RADIUS, radius);
+			spot.putFeature(Spot.QUALITY, 1); // non-suspicious spots get a quality of 1
 			spots.add(spot);
 		}
 	

@@ -24,15 +24,14 @@ import fiji.plugin.trackmate.Logger;
 import fiji.plugin.trackmate.Settings;
 import fiji.plugin.trackmate.Spot;
 import fiji.plugin.trackmate.SpotCollection;
-import fiji.plugin.trackmate.SpotFeature;
 import fiji.plugin.trackmate.TrackMateModel;
 import fiji.plugin.trackmate.TrackMate_;
 import fiji.plugin.trackmate.gui.TrackMateFrameController.GuiState;
 import fiji.plugin.trackmate.io.TmXmlReader;
 import fiji.plugin.trackmate.segmentation.SegmenterSettings;
 import fiji.plugin.trackmate.tracking.TrackerSettings;
-import fiji.plugin.trackmate.visualization.AbstractTrackMateModelView;
-import fiji.plugin.trackmate.visualization.AbstractTrackMateModelView.ViewType;
+import fiji.plugin.trackmate.visualization.TrackMateModelView;
+import fiji.plugin.trackmate.visualization.hyperstack.HyperStackDisplayer;
 
 /**
  * This class is in charge of reading a whole TrackMate file, and return a  
@@ -137,7 +136,7 @@ public class GuiReader {
 				// Fill in defaults
 				segmenterSettings = new SegmenterSettings();
 				settings.segmenterSettings = segmenterSettings;
-				settings.segmenterType = segmenterSettings.segmenterType;
+//				settings.segmenterType = segmenterSettings.segmenterType;
 //				settings.trackerSettings = new TrackerSettings();
 //				settings.trackerType = settings.trackerSettings.trackerType;
 				model.setSettings(settings);
@@ -154,7 +153,7 @@ public class GuiReader {
 			}
 
 			settings.segmenterSettings = segmenterSettings;
-			settings.segmenterType = segmenterSettings.segmenterType;
+//			settings.segmenterType = segmenterSettings.segmenterType;
 //			settings.trackerSettings = new TrackerSettings(); // put defaults for now
 //			settings.trackerType = settings.trackerSettings.trackerType;
 			model.setSettings(settings);
@@ -190,7 +189,7 @@ public class GuiReader {
 		
 		
 		{ // Try to read the initial threshold
-			FeatureFilter<SpotFeature> initialThreshold = null;
+			FeatureFilter initialThreshold = null;
 			try {
 				initialThreshold = reader.getInitialFilter();
 			} catch (DataConversionException e) {
@@ -217,7 +216,7 @@ public class GuiReader {
 		}		
 		
 		{ // Try to read feature thresholds
-			List<FeatureFilter<SpotFeature>> featureThresholds = null;
+			List<FeatureFilter> featureThresholds = null;
 			try {
 				featureThresholds = reader.getSpotFeatureFilters();
 			} catch (DataConversionException e) {
@@ -232,7 +231,10 @@ public class GuiReader {
 					view.setModel(model);
 					controller.setState(GuiState.CALCULATE_FEATURES);
 					controller.actionFlag = true;
-					controller.setModelView(AbstractTrackMateModelView.instantiateView(ViewType.HYPERSTACK_DISPLAYER, model));	
+					TrackMateModelView displayer = new HyperStackDisplayer();
+					displayer.setModel(model);
+					displayer.render();
+					controller.setModelView(displayer);	
 					if (!imp.isVisible())
 						imp.show();
 				}
@@ -262,7 +264,10 @@ public class GuiReader {
 					view.setModel(model);
 					controller.setState(GuiState.CALCULATE_FEATURES);
 					controller.actionFlag = true;
-					controller.setModelView(AbstractTrackMateModelView.instantiateView(ViewType.HYPERSTACK_DISPLAYER, model));
+					TrackMateModelView displayer = new HyperStackDisplayer();
+					displayer.setModel(model);
+					displayer.render();
+					controller.setModelView(displayer);
 					if (!imp.isVisible())
 						imp.show();
 				}
@@ -287,13 +292,16 @@ public class GuiReader {
 				// Fill in defaults
 				trackerSettings = new TrackerSettings();
 				settings.trackerSettings = trackerSettings;
-				settings.trackerType = trackerSettings.trackerType;
+//				settings.trackerType = trackerSettings.trackerType;
 				model.setSettings(settings);
 				if (null != controller) {
 					view.setModel(model);
 					// Stop at tune tracker panel
 					controller.setState(GuiState.TUNE_TRACKER);
-					controller.setModelView(AbstractTrackMateModelView.instantiateView(ViewType.HYPERSTACK_DISPLAYER, model));
+					TrackMateModelView displayer = new HyperStackDisplayer();
+					displayer.setModel(model);
+					displayer.render();
+					controller.setModelView(displayer);
 					if (!imp.isVisible())
 						imp.show();
 				}
@@ -302,7 +310,7 @@ public class GuiReader {
 			}
 
 			settings.trackerSettings = trackerSettings;
-			settings.trackerType = trackerSettings.trackerType;
+//			settings.trackerType = trackerSettings.trackerType;
 			model.setSettings(settings);
 			logger.log("  Reading tracker settings done.\n");
 		}
@@ -321,7 +329,10 @@ public class GuiReader {
 					view.setModel(model);
 					// Stop at tune tracker panel
 					controller.setState(GuiState.TUNE_TRACKER);
-					controller.setModelView(AbstractTrackMateModelView.instantiateView(ViewType.HYPERSTACK_DISPLAYER, model));
+					TrackMateModelView displayer = new HyperStackDisplayer();
+					displayer.setModel(model);
+					displayer.render();
+					controller.setModelView(displayer);
 					if (!imp.isVisible())
 						imp.show();
 				}
@@ -344,7 +355,10 @@ public class GuiReader {
 					view.setModel(model);
 					// Stop at tune track filter panel
 					controller.setState(GuiState.TUNE_TRACK_FILTERS);
-					controller.setModelView(AbstractTrackMateModelView.instantiateView(ViewType.HYPERSTACK_DISPLAYER, model));
+					TrackMateModelView displayer = new HyperStackDisplayer();
+					displayer.setModel(model);
+					displayer.render();
+					controller.setModelView(displayer);
 					if (!imp.isVisible())
 						imp.show();
 				}
@@ -366,7 +380,10 @@ public class GuiReader {
 					view.setModel(model);
 					// Stop at tune track filter panel
 					controller.setState(GuiState.TUNE_TRACK_FILTERS);
-					controller.setModelView(AbstractTrackMateModelView.instantiateView(ViewType.HYPERSTACK_DISPLAYER, model));
+					TrackMateModelView displayer = new HyperStackDisplayer();
+					displayer.setModel(model);
+					displayer.render();
+					controller.setModelView(displayer);
 					if (!imp.isVisible())
 						imp.show();
 				}
@@ -379,7 +396,10 @@ public class GuiReader {
 		view.setModel(model);
 		controller.actionFlag = false;
 		controller.setState(GuiState.TUNE_DISPLAY);
-		controller.setModelView(AbstractTrackMateModelView.instantiateView(ViewType.HYPERSTACK_DISPLAYER, model));
+		TrackMateModelView displayer = new HyperStackDisplayer();
+		displayer.setModel(model);
+		displayer.render();
+		controller.setModelView(displayer);
 		if (!imp.isVisible())
 			imp.show();
 		logger.log("Loading data finished.\n");
