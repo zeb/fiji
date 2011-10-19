@@ -6,7 +6,6 @@ import java.util.List;
 import org.jdom.Attribute;
 import org.jdom.Element;
 
-import fiji.plugin.cwnt.gui.CwntGui;
 import fiji.plugin.trackmate.Logger;
 import fiji.plugin.trackmate.gui.SegmenterConfigurationPanel;
 import fiji.plugin.trackmate.segmentation.BasicSegmenterSettings;
@@ -103,7 +102,7 @@ public class CWSettings extends BasicSegmenterSettings {
 
 	@Override
 	public SegmenterConfigurationPanel createConfigurationPanel() {
-		return new CwntGui();
+		return new CWNTPanel();
 	}
 
 	@Override

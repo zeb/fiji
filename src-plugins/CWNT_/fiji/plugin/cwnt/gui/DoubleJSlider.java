@@ -11,7 +11,7 @@ import javax.swing.JSlider;
 public class DoubleJSlider extends JSlider {
 
 	private static final long serialVersionUID = 1719710761678017866L;
-	final int scale;
+	public final int scale;
 
     public DoubleJSlider(int min, int max, int value, int scale) {
         super(min, max, value);
