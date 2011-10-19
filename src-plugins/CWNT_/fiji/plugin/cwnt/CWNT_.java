@@ -11,7 +11,7 @@ import fiji.plugin.trackmate.TrackMateModel;
 import fiji.plugin.trackmate.io.TmXmlWriter;
 import fiji.plugin.trackmate.segmentation.SegmenterSettings;
 import fiji.plugin.trackmate.tracking.FastLAPTracker;
-import fiji.plugin.trackmate.tracking.TrackerSettings;
+import fiji.plugin.trackmate.tracking.LAPTrackerSettings;
 import fiji.plugin.trackmate.util.TMUtils;
 import fiji.plugin.trackmate.visualization.TrackMateModelView;
 import fiji.plugin.trackmate.visualization.hyperstack.HyperStackDisplayer;
@@ -225,7 +225,7 @@ public class CWNT_ implements PlugIn {
 	private void execTracking(TrackMateModel model) {
 		
 		// Prepare tracking settings
-		TrackerSettings ts = new TrackerSettings();
+		LAPTrackerSettings ts = new LAPTrackerSettings();
 		ts.allowGapClosing 	= false;
 		ts.gapClosingFeaturePenalties.clear();
 		ts.allowMerging 	= false;
