@@ -203,7 +203,7 @@ public class CWNT_ implements PlugIn {
 		File file = new File(dir, name);
 		
 		logger.log("Saving to file "+file.getAbsolutePath()+"...\n");
-		TmXmlWriter writer = new TmXmlWriter(model);
+		TmXmlWriter writer = new TmXmlWriter(model, logger);
 		writer.appendBasicSettings();
 		writer.appendSegmenterSettings();
 		writer.appendTrackerSettings();
