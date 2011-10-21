@@ -1,21 +1,14 @@
 package fiji.plugin.trackmate;
 
-import java.awt.Rectangle;
-
-import fiji.plugin.trackmate.segmentation.DogSegmenter;
-import fiji.plugin.trackmate.segmentation.LogSegmenter;
-import fiji.plugin.trackmate.segmentation.LogSegmenterSettings;
-import fiji.plugin.trackmate.segmentation.PeakPickerSegmenter;
 import fiji.plugin.trackmate.segmentation.SegmenterSettings;
-import fiji.plugin.trackmate.segmentation.SegmenterType;
 import fiji.plugin.trackmate.segmentation.SpotSegmenter;
-import fiji.plugin.trackmate.tracking.FastLAPTracker;
-import fiji.plugin.trackmate.tracking.LAPTracker;
 import fiji.plugin.trackmate.tracking.SpotTracker;
 import fiji.plugin.trackmate.tracking.TrackerSettings;
-import fiji.plugin.trackmate.tracking.TrackerType;
 import ij.ImagePlus;
 import ij.gui.Roi;
+
+import java.awt.Rectangle;
+
 import mpicbg.imglib.type.numeric.RealType;
 
 /**
@@ -51,8 +44,8 @@ public class Settings {
 	public String timeUnits 		= "frames";
 	public String spaceUnits 		= "pixels";
 	
-	public SegmenterType segmenterType = SegmenterType.PEAKPICKER_SEGMENTER;
-	public TrackerType trackerType = TrackerType.LAP_TRACKER;
+	public SpotSegmenter<? extends RealType<?>> segmenter;
+	public SpotTracker tracker;
 	
 	public SegmenterSettings segmenterSettings = null;
 	public TrackerSettings trackerSettings = null;
@@ -85,6 +78,14 @@ public class Settings {
 		this.dy = (float) imp.getCalibration().pixelHeight;
 		this.dz = (float) imp.getCalibration().pixelDepth;
 		this.dt = (float) imp.getCalibration().frameInterval;
+		this.spaceUnits = imp.getCalibration().getUnit();
+		this.timeUnits = imp.getCalibration().getTimeUnit();
+		
+		if (dt == 0) {
+			dt = 1;
+			timeUnits = "frame";
+		}
+		
 		// Crop cube
 		this.zstart = 1;
 		this.zend = imp.getNSlices();
@@ -109,37 +110,7 @@ public class Settings {
 	/*
 	 * METHODS
 	 */
-	
-	/**
-	 * Return a new {@link SpotSegmenter} as selected in this settings object.
-	 */
-	public <T extends RealType<T>> SpotSegmenter<T> getSpotSegmenter() {
-		switch(segmenterType) {
-		case LOG_SEGMENTER:
-			return new LogSegmenter<T>((LogSegmenterSettings) segmenterSettings);
-		case PEAKPICKER_SEGMENTER:
-			return new PeakPickerSegmenter<T>(segmenterSettings);
-		case DOG_SEGMENTER:
-			return new DogSegmenter<T>(segmenterSettings);
-		}
-		return null;
-	}
-	
-	/**
-	 * Return a new {@link SpotTracker} as selected in this settings object, initialized for the given model.
-	 */
-	public SpotTracker getSpotTracker(TrackMateModel model) {
-		switch(trackerType) {
-		case LAP_TRACKER:
-		case SIMPLE_LAP_TRACKER:
-			return new LAPTracker(model.getFilteredSpots(), model.getSettings().trackerSettings);
-		case FAST_LAPT:
-		case SIMPLE_FAST_LAPT:
-			return new FastLAPTracker(model.getFilteredSpots(), model.getSettings().trackerSettings);
-		}
-		return null;
-	}
-	
+		
 	/**
 	 * A utility method that returns a new float array with the 3 elements building the spatial calibration
 	 * (pixel size).

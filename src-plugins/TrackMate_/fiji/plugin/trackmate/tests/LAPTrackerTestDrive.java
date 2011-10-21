@@ -9,15 +9,14 @@ import fiji.plugin.trackmate.Logger;
 import fiji.plugin.trackmate.TrackMateModel;
 import fiji.plugin.trackmate.io.TmXmlReader;
 import fiji.plugin.trackmate.tracking.LAPTracker;
-import fiji.plugin.trackmate.tracking.TrackerSettings;
-import fiji.plugin.trackmate.tracking.TrackerType;
+import fiji.plugin.trackmate.tracking.LAPTrackerSettings;
 import fiji.plugin.trackmate.visualization.TrackMateModelView;
 import fiji.plugin.trackmate.visualization.hyperstack.HyperStackDisplayer;
 
 public class LAPTrackerTestDrive {
 	
-//	private static final File SPLITTING_CASE_3 = new File("/Users/tinevez/Desktop/Data/FakeTracks.xml");
-	private static final File SPLITTING_CASE_3 = new File("E:/Users/JeanYves/Desktop/Data/FakeTracks.xml");
+	private static final File SPLITTING_CASE_3 = new File("/Users/tinevez/Desktop/Data/FakeTracks.xml");
+//	private static final File SPLITTING_CASE_3 = new File("E:/Users/JeanYves/Desktop/Data/FakeTracks.xml");
 
 	/*
 	 * MAIN METHOD
@@ -29,7 +28,7 @@ public class LAPTrackerTestDrive {
 		
 		// 1 - Load test spots
 		System.out.println("Opening file: "+file.getAbsolutePath());		
-		TmXmlReader reader = new TmXmlReader(file);
+		TmXmlReader reader = new TmXmlReader(file, Logger.DEFAULT_LOGGER);
 		TrackMateModel model = null;
 		// Parse
 		try {
@@ -49,8 +48,7 @@ public class LAPTrackerTestDrive {
 		System.out.println();
 		
 		// 1.5 - Set the tracking settings
-		TrackerSettings settings = new TrackerSettings();
-		settings.trackerType = TrackerType.LAP_TRACKER;
+		LAPTrackerSettings settings = new LAPTrackerSettings();
 		settings.linkingDistanceCutOff = 10;
 		settings.allowGapClosing = true;
 		settings.gapClosingDistanceCutoff = 15;
@@ -70,8 +68,10 @@ public class LAPTrackerTestDrive {
 		// 2 - Track the test spots
 		long start = System.currentTimeMillis();
 		LAPTracker lap;
-		lap = new LAPTracker(model.getFilteredSpots(), model.getSettings().trackerSettings); //model.getSettings().trackerSettings);
+		lap = new LAPTracker();
+		lap.setModel(model);
 		lap.setLogger(Logger.DEFAULT_LOGGER);
+
 		if (!lap.checkInput())
 			System.err.println("Error checking input: "+lap.getErrorMessage());
 		if (!lap.process())
@@ -102,7 +102,8 @@ public class LAPTrackerTestDrive {
 		// Load Image
 		ij.ImageJ.main(args);
 		
-		TrackMateModelView sd2d = new HyperStackDisplayer(model);
+		TrackMateModelView sd2d = new HyperStackDisplayer();
+		sd2d.setModel(model);
 		sd2d.render();
 		sd2d.setDisplaySettings(TrackMateModelView.KEY_TRACK_DISPLAY_MODE, TrackMateModelView.TRACK_DISPLAY_MODE_WHOLE);
 	}

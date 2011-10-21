@@ -1,17 +1,10 @@
 package fiji.plugin.trackmate;
 
-import java.awt.image.BufferedImage;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.util.EnumMap;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import javax.imageio.ImageIO;
-
-import com.mxgraph.util.mxBase64;
-
 import mpicbg.imglib.util.Util;
-import fiji.plugin.trackmate.gui.TrackMateFrame;
 
 /**
  * Plain implementation of the {@link Spot} interface.
@@ -25,22 +18,11 @@ public class SpotImp implements Spot {
 	 */
 	
 	private static String DEFAULT_IMAGE_STRING = "";
-	static {
-		try {
-			BufferedImage img = ImageIO.read(TrackMateFrame.class.getResource("images/spot_icon.png"));
-			ByteArrayOutputStream bos = new ByteArrayOutputStream();
-			ImageIO.write(img, "png", bos);
-			DEFAULT_IMAGE_STRING = mxBase64.encodeToString(bos.toByteArray(), false);
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-	}
 	
-//	public static int IDcounter = 0; 
 	public static AtomicInteger IDcounter = new AtomicInteger(0); 
 	
 	/** Store the individual features, and their values. */
-	private EnumMap<SpotFeature, Float> features = new EnumMap<SpotFeature, Float>(SpotFeature.class);
+	private HashMap<String, Float> features = new HashMap<String, Float>();
 	/** A user-supplied name for this spot. */
 	private String name;
 	/** This spot ID */
@@ -86,29 +68,21 @@ public class SpotImp implements Spot {
 		}
 	}
 	
-	/**
-	 * Private blank constructor used to {@link #clone()} a spot, without messing up with the {@link #IDcounter}.
-	 */
-	private SpotImp() {
-	}
-	
 	/*
 	 * PUBLIC METHODS
 	 */
 	
 	@Override
 	public Spot clone() {
-		SpotImp newSpot = new SpotImp();
+		SpotImp newSpot = new SpotImp(ID);
 		// Deal with features
 		Float val;
-		for(SpotFeature key : features.keySet()) {
+		for(String key : features.keySet()) {
 			val = features.get(key);
 			if (null != val)
 				val = new Float(val);
 			newSpot.putFeature(key, val);
 		}
-		// Deal with ID
-		newSpot.ID = ID;
 		// Deal with name
 		newSpot.name = name;
 		return newSpot;
@@ -160,7 +134,7 @@ public class SpotImp implements Spot {
 			s.append("Spot: "+name+"\n");
 		
 		// Frame
-		s.append("Frame: "+getFeature(SpotFeature.POSITION_T)+'\n');
+		s.append("Time: "+getFeature(Spot.POSITION_T)+'\n');
 
 		// Coordinates
 		float[] coordinates = getPosition(null);
@@ -175,7 +149,7 @@ public class SpotImp implements Spot {
 		else {
 			s.append("Feature list:\n");
 			float val;
-			for (SpotFeature key : features.keySet()) {
+			for (String key : features.keySet()) {
 				s.append("\t"+key.toString()+": ");
 				val = features.get(key);
 				if (val >= 1e4)
@@ -202,24 +176,23 @@ public class SpotImp implements Spot {
 	 */
 	
 	
-	@Override
-	public EnumMap<SpotFeature, Float> getFeatures() {
+	public Map<String,Float> getFeatures() {
 		return features;
 	}
 	
 	@Override
-	public final Float getFeature(final SpotFeature feature) {
+	public final Float getFeature(final String feature) {
 		return features.get(feature);
 	}
 	
 	@Override
-	public final void putFeature(final SpotFeature feature, final float value) {
+	public final void putFeature(final String feature, final float value) {
 		features.put(feature, value);
 	}
 
 	@Override
-	public Float diffTo(Spot s, SpotFeature feature) {
-		Float f1 = getFeature(feature);
+	public Float diffTo(Spot s, String feature) {
+		Float f1 = features.get(feature);
 		Float f2 = s.getFeature(feature);
 		if (f1 == null || f2 == null)
 			return null;
@@ -227,8 +200,8 @@ public class SpotImp implements Spot {
 	}
 	
 	@Override
-	public Float normalizeDiffTo(Spot s, SpotFeature feature) {
-		final Float a = getFeature(feature);
+	public Float normalizeDiffTo(Spot s, String feature) {
+		final Float a = features.get(feature);
 		final Float b = s.getFeature(feature);
 		if (a == -b)
 			return 0f;
@@ -241,8 +214,8 @@ public class SpotImp implements Spot {
 		Float sumSquared = 0f;
 		Float thisVal, otherVal;
 		
-		for (SpotFeature f : POSITION_FEATURES) {
-			thisVal = getFeature(f);
+		for (String f : POSITION_FEATURES) {
+			thisVal = features.get(f);
 			otherVal = s.getFeature(f);
 			sumSquared += ( otherVal - thisVal ) * ( otherVal - thisVal ); 
 		}
@@ -259,6 +232,4 @@ public class SpotImp implements Spot {
 		return imageString;
 	}
 	
-	
-
 }

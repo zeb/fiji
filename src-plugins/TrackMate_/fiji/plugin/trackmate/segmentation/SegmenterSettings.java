@@ -1,44 +1,50 @@
 package fiji.plugin.trackmate.segmentation;
 
+import org.jdom.Attribute;
+import org.jdom.Element;
+
+import fiji.plugin.trackmate.gui.SegmenterConfigurationPanel;
+import fiji.plugin.trackmate.io.TmXmlKeys;
+
 /** 
- * Empty interface to pass settings to the concrete implementations of {@link SpotSegmenter}.
- * The concrete derivation of this interface should be matched to the concrete implementation
+ * Mother interface for spot segmenter settings, to pass settings to the concrete 
+ * implementations of {@link SpotSegmenter}s.
+ * <p>
+ * The concrete derivation of this class should be matched to the concrete implementation
  * of {@link SpotSegmenter}, and contain only public fields.
- 
- * @author Jean-Yves Tinevez <jeanyves.tinevez@gmail.com> Sep 27, 2010
+ * <p>
+ * There is a bit of a edgy part: the {@link #createConfurationPanel()} method. It 
+ * links a GUI object (the panel) to this settings object. This is the only
+ * way I could come with - yet - in order to have a generic segmenter framework,
+ * with objects having methods that can generate the whole context needed to
+ * configure them. A more clever approach might be investigated. 
+ *
+ * @author Jean-Yves Tinevez <jeanyves.tinevez@gmail.com> 2010, 2011
  *
  */
-public class SegmenterSettings {
-	
-	private static final float DEFAULT_EXPECTED_DIAMETER	= 10f;
+public interface SegmenterSettings {
 
-	
-	
-	/** The expected blob diameter in physical units. */
-	public float 	expectedRadius = DEFAULT_EXPECTED_DIAMETER/2;
-	/** The pixel value under which any peak will be discarded from further analysis. */
-	public float 	threshold = 		0;
-	/** If true, a median filter will be applied before segmenting. */
-	public boolean useMedianFilter;
-	/** The physical units for {@link #expectedRadius}. */
-	public String spaceUnits= "";
-	/** To what segmenter type this settings apply to. This field is here just for reference. */
-	public SegmenterType segmenterType;
-	
-	
-	/*
-	 * METHODS
+	/**
+	 * @return  an GUI panel that is able to configure this concrete settings object.
 	 */
+	public SegmenterConfigurationPanel createConfigurationPanel();
 	
+	/**
+	 * Marshall this concrete instance to a JDom element, ready for saving to XML.
+	 * <p>
+	 * Marshalling should be done by adding {@link Attribute}s to the given element, 
+	 * and/or child {@link Element}s. In the XML file, the mother element will have the
+	 * name {@link TmXmlKeys#SEGMENTER_SETTINGS_ELEMENT_KEY} and at least one attribute
+	 * with name {@link TmXmlKeys#SEGMENTER_SETTINGS_CLASS_ATTRIBUTE_NAME} and 
+	 * value the name of the concrete settings class, to allow for unmarshsalling.
+	 * 
+	 * @return  the JDom element
+	 */
+	public void marshall(Element element);
 	
-	
-	@Override
-	public String toString() {
-		String 	str = "Segmenter: "+ segmenterType.toString()+'\n';
-		str += String.format("  Expected radius: %f %s\n", expectedRadius, spaceUnits);
-		str += String.format("  Threshold: %f\n", threshold);
-		str += "  Median filter: "+useMedianFilter+'\n';
-		return str;
-	}
-	
+	/**
+	 * Load the field values stored in the JDom element to this instance.
+	 */
+	public void unmarshall(Element element);
+
 }

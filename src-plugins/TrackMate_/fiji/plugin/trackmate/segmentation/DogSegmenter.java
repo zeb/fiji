@@ -14,7 +14,6 @@ import mpicbg.imglib.outofbounds.OutOfBoundsStrategyFactory;
 import mpicbg.imglib.outofbounds.OutOfBoundsStrategyMirrorFactory;
 import mpicbg.imglib.type.numeric.RealType;
 import mpicbg.imglib.type.numeric.real.FloatType;
-import fiji.plugin.trackmate.SpotFeature;
 import fiji.plugin.trackmate.Spot;
 import fiji.plugin.trackmate.SpotImp;
 import fiji.plugin.trackmate.util.TMUtils;
@@ -28,32 +27,48 @@ public class DogSegmenter<T extends RealType<T>> extends AbstractSpotSegmenter<T
 	public final static String BASE_ERROR_MESSAGE = "DogSegmenter: ";
 	
 	private boolean doSubPixelLocalization = false;
-	
+	private DogSegmenterSettings settings;
 	
 	/*
 	 * CONSTRUCTOR
 	 */
 	
-	public DogSegmenter(SegmenterSettings segmenterSettings) {
-		super(segmenterSettings);
+	public DogSegmenter() {
 		this.baseErrorMessage = BASE_ERROR_MESSAGE;
-		this.doSubPixelLocalization = ((DogSegmenterSettings) segmenterSettings).doSubPixelLocalization;
 	}
-	
 	
 
 	/*
 	 * METHODS
 	 */
+	
+	public SpotSegmenter<T> createNewSegmenter() {
+		return new DogSegmenter<T>();
+	};
+
+	@Override
+	public SegmenterSettings createDefaultSettings() {
+		return new DogSegmenterSettings();
+	}
+	
+	@Override
+	public void setTarget(Image<T> image, float[] calibration, SegmenterSettings settings) {
+		super.setTarget(image, calibration, settings);
+		this.settings = (DogSegmenterSettings) settings;
+		this.doSubPixelLocalization = this.settings.doSubPixelLocalization;
+	}
 
 	@Override
 	public boolean process() {
 		
 		// Deal with median filter:
-		intermediateImage = img;
-		if (settings.useMedianFilter)
-			if (!applyMedianFilter())
+		Image<T> intermediateImage = applyMedianFilter(img);;
+		if (settings.useMedianFilter) {
+			intermediateImage = applyMedianFilter(intermediateImage);
+			if (null == intermediateImage) {
 				return false;
+			}
+		}
 		
 		float radius = settings.expectedRadius;
 		// first we need an image factory for FloatType
@@ -118,14 +133,33 @@ public class DogSegmenter<T extends RealType<T>> extends AbstractSpotSegmenter<T
 					coords[i] = dogpeak.getPosition(i) * calibration[i];
 			}
 			Spot spot = new SpotImp(coords);
-			spot.putFeature(SpotFeature.QUALITY, -dogpeak.getValue().get());
-			spot.putFeature(SpotFeature.RADIUS, settings.expectedRadius);
+			spot.putFeature(Spot.QUALITY, -dogpeak.getValue().get());
+			spot.putFeature(Spot.RADIUS, settings.expectedRadius);
 			spots.add(spot);
 		}
 		
-		// Pruned overlapping spots
-		spots = TMUtils.suppressSpots(spots, SpotFeature.QUALITY);
+		// Prune overlapping spots
+		spots = TMUtils.suppressSpots(spots, Spot.QUALITY);
 		
 		return true;
 	}
+	
+	@Override
+	public String toString() {
+		return "DoG segmenter";
+	}
+	
+	@Override
+	public String getInfoText() {
+		return "<html>" +
+				"This segmenter is based on an approximation of the LoG operator <br> " +
+				"by differences of gaussian (DoG). Computations are made in direct space. <br>" +
+				"It is the quickest for small spot sizes (< ~5 pixels). " +
+				"<p> " +
+				"Spots found too close are suppressed. This segmenter can do sub-pixel <br>" +
+				"localization of spots. It is based on the scale-space framework <br>" +
+				"made by Stephan Preibisch for ImgLib. " +
+				"</html>";	
+	}
+
 }

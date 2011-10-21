@@ -5,10 +5,12 @@ import java.io.IOException;
 
 import org.jdom.JDOMException;
 
+import fiji.plugin.trackmate.Logger;
 import fiji.plugin.trackmate.TrackMateModel;
+import fiji.plugin.trackmate.action.GrabSpotImageAction;
 import fiji.plugin.trackmate.io.TmXmlReader;
-import fiji.plugin.trackmate.visualization.AbstractTrackMateModelView;
 import fiji.plugin.trackmate.visualization.TrackMateModelView;
+import fiji.plugin.trackmate.visualization.hyperstack.HyperStackDisplayer;
 import fiji.plugin.trackmate.visualization.trackscheme.TrackSchemeFrame;
 
 
@@ -19,18 +21,22 @@ public class HyperStackDisplayerTestDrive {
 
 	public static void main(String[] args) throws JDOMException, IOException {
 		
-		TmXmlReader reader = new TmXmlReader(file);
+		TmXmlReader reader = new TmXmlReader(file, Logger.DEFAULT_LOGGER);
 		reader.parse();
 		
 		ij.ImageJ.main(args);
 		
 		final TrackMateModel model = reader.getModel();
+		GrabSpotImageAction action = new GrabSpotImageAction();
+		action.execute(model);
 
 		// Grab spot icons
 		if (null != model.getSettings().imp)
-			model.computeSpotFeatures(model.getSpots());
+			model.getFeatureModel().computeSpotFeatures(model.getSpots());
 				
-		final TrackMateModelView displayer = AbstractTrackMateModelView.instantiateView(AbstractTrackMateModelView.ViewType.HYPERSTACK_DISPLAYER, model);
+		final TrackMateModelView displayer = new HyperStackDisplayer();
+		displayer.setModel(model);
+		displayer.render();
 //		displayer.setDisplaySettings(TrackMateModelView.KEY_TRACK_DISPLAY_MODE, TrackMateModelView.TRACK_DISPLAY_MODE_LOCAL_FORWARD);
 		displayer.setDisplaySettings(TrackMateModelView.KEY_DISPLAY_SPOT_NAMES, true);
 		

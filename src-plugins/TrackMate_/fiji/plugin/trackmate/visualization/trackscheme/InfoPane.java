@@ -8,6 +8,9 @@ import java.awt.Component;
 import java.awt.Dimension;
 import java.io.Serializable;
 import java.util.Collection;
+import java.util.ConcurrentModificationException;
+import java.util.List;
+import java.util.Map;
 
 import javax.swing.AbstractListModel;
 import javax.swing.JLabel;
@@ -26,11 +29,11 @@ import javax.swing.table.JTableHeader;
 
 import org.jgrapht.graph.DefaultWeightedEdge;
 
-import fiji.plugin.trackmate.SpotFeature;
 import fiji.plugin.trackmate.Spot;
 import fiji.plugin.trackmate.TrackMateModel;
 import fiji.plugin.trackmate.TrackMateSelectionChangeEvent;
 import fiji.plugin.trackmate.TrackMateSelectionChangeListener;
+import fiji.plugin.trackmate.util.TMUtils;
 import fiji.plugin.trackmate.visualization.TrackMateSelectionView;
 
 class InfoPane extends JPanel implements TrackMateSelectionView, TrackMateSelectionChangeListener {
@@ -59,9 +62,11 @@ class InfoPane extends JPanel implements TrackMateSelectionView, TrackMateSelect
 
 	private JTable table;
 	private JScrollPane scrollTable;
-	private FeaturePlotSelectionPanel<SpotFeature> featureSelectionPanel;
+	private FeaturePlotSelectionPanel featureSelectionPanel;
 	private boolean doHighlightSelection = true;
 	private TrackMateModel model;
+	private List<String> features;
+	private Map<String, String> featureNames;
 
 	/*
 	 * CONSTRUCTOR
@@ -69,6 +74,8 @@ class InfoPane extends JPanel implements TrackMateSelectionView, TrackMateSelect
 
 	public InfoPane(final TrackMateModel model) {
 		this.model = model;
+		this.features = model.getFeatureModel().getSpotFeatures();
+		this.featureNames = model.getFeatureModel().getSpotFeatureShortNames();
 		// Add a listener to ensure we remove this panel from the listener list of the model
 		addAncestorListener(new AncestorListener() {			
 			@Override
@@ -90,9 +97,14 @@ class InfoPane extends JPanel implements TrackMateSelectionView, TrackMateSelect
 
 	@Override
 	public void selectionChanged(TrackMateSelectionChangeEvent event) {
-		highlightSpots(model.getSpotSelection());
+		// Echo changed in a different thread for performance 
+		new Thread("TrackScheme info pane thread") {
+			public void run() {
+				highlightSpots(model.getSpotSelection());
+			}
+		}.start();
 	}
-	
+
 	/**
 	 * Ignored.
 	 */
@@ -119,21 +131,29 @@ class InfoPane extends JPanel implements TrackMateSelectionView, TrackMateSelect
 		}
 
 		// Fill feature table
-		DefaultTableModel dm = new DefaultTableModel() { // Un-editable model
-			@Override
-			public boolean isCellEditable(int row, int column) { return false; }
-		};
-		for (Spot spot : spots) {
-			if (null == spot)
-				continue;
-			Object[] columnData = new Object[SpotFeature.values().length];
-			for (int i = 0; i < columnData.length; i++) 
-				columnData[i] = String.format("%.1f", spot.getFeature(SpotFeature.values()[i]));
-			dm.addColumn(spot.toString(), columnData);
-		}
-		table.setModel(dm);
-		// Tune look
+		try { // Dummy protection for ultra fast selection / de-selection events. Ugly.
 
+			DefaultTableModel dm = new DefaultTableModel() { // Un-editable model
+				@Override
+				public boolean isCellEditable(int row, int column) { return false; }
+			};
+
+			for (Spot spot : spots) {
+				if (null == spot)
+					continue;
+				Object[] columnData = new Object[features.size()];
+				for (int i = 0; i < columnData.length; i++) 
+					columnData[i] = String.format("%.1f", spot.getFeature(features.get(i)));
+				dm.addColumn(spot.toString(), columnData);
+			}
+			table.setModel(dm);
+		} catch (ConcurrentModificationException cme) {
+			// do nothing
+		} catch (ArrayIndexOutOfBoundsException aobe) {
+			// do nothing
+		}
+		
+		// Tune look
 		DefaultTableCellRenderer headerRenderer = new DefaultTableCellRenderer() {
 			public boolean isOpaque() { return false; };
 			@Override
@@ -151,8 +171,9 @@ class InfoPane extends JPanel implements TrackMateSelectionView, TrackMateSelect
 			table.setDefaultRenderer(table.getColumnClass(i), renderer);
 			table.getColumnModel().getColumn(i).setPreferredWidth(TrackSchemeFrame.TABLE_CELL_WIDTH);
 		}
-		for (Component c : scrollTable.getColumnHeader().getComponents())
+		for (Component c : scrollTable.getColumnHeader().getComponents()) {
 			c.setBackground(getBackground());
+		}
 		scrollTable.getColumnHeader().setOpaque(false);
 		scrollTable.setVisible(true);
 		revalidate();
@@ -166,12 +187,7 @@ class InfoPane extends JPanel implements TrackMateSelectionView, TrackMateSelect
 
 		@SuppressWarnings("serial")
 		AbstractListModel lm = new AbstractListModel() {
-			String headers[] = new String[SpotFeature.values().length];
-			{
-				for(int i=0; i<headers.length; i++)
-					headers[i] = SpotFeature.values()[i].shortName();			    	  
-			}
-
+			String headers[] = TMUtils.getArrayFromMaping(features, featureNames).toArray(new String[] {});
 			public int getSize() {
 				return headers.length;
 			}
@@ -203,14 +219,14 @@ class InfoPane extends JPanel implements TrackMateSelectionView, TrackMateSelect
 		scrollTable.getViewport().setOpaque(false);
 		scrollTable.setVisible(false); // for now
 
-		featureSelectionPanel = new FeaturePlotSelectionPanel<SpotFeature>(SpotFeature.POSITION_T);
+		featureSelectionPanel = new FeaturePlotSelectionPanel(Spot.POSITION_T, features, featureNames);
 
 		setLayout(new BorderLayout());
 		add(scrollTable, BorderLayout.CENTER);
 		add(featureSelectionPanel, BorderLayout.SOUTH);
 	}
 
-	public FeaturePlotSelectionPanel<SpotFeature> getFeatureSelectionPanel() {
+	public FeaturePlotSelectionPanel getFeatureSelectionPanel() {
 		return featureSelectionPanel;
 	}
 

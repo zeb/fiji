@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import mpicbg.imglib.image.Image;
 import mpicbg.imglib.io.LOCI;
 import mpicbg.imglib.type.numeric.real.FloatType;
+import mpicbg.models.AbstractAffineModel3D;
 import mpicbg.models.AffineModel3D;
 import mpicbg.spim.fusion.FusionControl;
 import mpicbg.spim.io.IOFunctions;
@@ -300,7 +301,7 @@ public class ViewStructure
 	 * @param debugLevel - the debug level of the program ViewStructure.DEBUG_ALL, ViewStructure.DEBUG_MAIN or ViewStructure.DEBUG_ERRORONLY
 	 * @return an instance of the ViewStructure, completely intialized
 	 */
-	public static ViewStructure initViewStructure( final SPIMConfiguration conf, final int timePointIndex, final AffineModel3D model, final String id, final int debugLevel )
+	public static <M extends AbstractAffineModel3D<M>> ViewStructure initViewStructure( final SPIMConfiguration conf, final int timePointIndex, final M model, final String id, final int debugLevel )
 	{
 		final ArrayList<ViewDataBeads> views = new ArrayList<ViewDataBeads>();
 		
@@ -328,12 +329,12 @@ public class ViewStructure
 
 		int idNr = 0;
 		final int numChannels = conf.file[ timePointIndex ].length;
-		int channelRegister = 0;
 		
 		for (int c = 0; c < conf.file[ timePointIndex ].length; c++)
 			for (int i = 0; i < conf.file[ timePointIndex ][ c ].length; i++)
 			{
 				final ViewDataBeads view = new ViewDataBeads( idNr++, model.copy(), conf.file[ timePointIndex ][ c ][ i ].getPath(), zStretching );
+				int channelRegister = 0;
 					
 				view.setAcqusitionAngle( conf.angles[ i ] );
 				view.setChannel( conf.channels[ c ] );
@@ -400,7 +401,7 @@ public class ViewStructure
 	 * @param debugLevel - the debug level of the program ViewStructure.DEBUG_ALL, ViewStructure.DEBUG_MAIN or ViewStructure.DEBUG_ERRORONLY
 	 * @return an instance of the ViewStructure, completely initialized
 	 */
-	public static ViewStructure initViewStructure( final SPIMConfiguration conf, final int timePoint, final File[][] files, final AffineModel3D model, final String id, final int debugLevel )
+	public static <M extends AbstractAffineModel3D<M>> ViewStructure initViewStructure( final SPIMConfiguration conf, final int timePoint, final File[][] files, final M model, final String id, final int debugLevel )
 	{
 		final ArrayList<ViewDataBeads> views = new ArrayList<ViewDataBeads>();
 
@@ -427,11 +428,11 @@ public class ViewStructure
 		
 		int idNr = 0;
 		final int numChannels = files.length;
-		int channelRegister = 0;
 		
 		for (int c = 0; c < files.length; c++)
 			for (int i = 0; i < files[c].length; i++)
 			{
+				int channelRegister = 0;
 				ViewDataBeads view = new ViewDataBeads( idNr++, model.copy(), files[ c ][ i ].getPath(), conf.zStretching );
 				view.setChannel( conf.channels[ c ] );
 				view.setChannelIndex( c );
@@ -465,17 +466,19 @@ public class ViewStructure
 					view.setUseForFusion( contains );
 				}
 				
-				for ( final int[] mirror : conf.channelsMirror )
+				if ( conf.channelsMirror != null )				
 				{
-					if ( conf.channels[ c ] == mirror[ 0 ] )
+					for ( final int[] mirror : conf.channelsMirror )
 					{
-						if ( mirror[ 1 ] == 0 )
-							view.setMirrorHorizontally( true );
-						if ( mirror[ 1 ] == 1 )
-							view.setMirrorVertically( true );
+						if ( conf.channels[ c ] == mirror[ 0 ] )
+						{
+							if ( mirror[ 1 ] == 0 )
+								view.setMirrorHorizontally( true );
+							if ( mirror[ 1 ] == 1 )
+								view.setMirrorVertically( true );
+						}
 					}
-				}
-				
+				}				
 				views.add( view );
 			}
 		

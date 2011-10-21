@@ -1,4 +1,15 @@
 package fiji.plugin;
+
+import fiji.plugin.timelapsedisplay.GraphFrame;
+import fiji.plugin.timelapsedisplay.TimeLapseDisplay;
+import fiji.util.gui.GenericDialogPlus;
+import ij.IJ;
+import ij.ImagePlus;
+import ij.gui.GenericDialog;
+import ij.gui.MultiLineLabel;
+import ij.plugin.BrowserLauncher;
+import ij.plugin.PlugIn;
+
 import java.awt.Color;
 import java.awt.Cursor;
 import java.awt.event.MouseAdapter;
@@ -7,9 +18,7 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Date;
 
-
 import mpicbg.imglib.container.array.ArrayContainerFactory;
-import mpicbg.imglib.container.cell.CellContainerFactory;
 import mpicbg.imglib.image.Image;
 import mpicbg.imglib.image.display.imagej.ImageJFunctions;
 import mpicbg.imglib.io.LOCI;
@@ -21,22 +30,12 @@ import mpicbg.spim.io.IOFunctions;
 import mpicbg.spim.io.SPIMConfiguration;
 import mpicbg.spim.segmentation.InteractiveDoG;
 
-import fiji.plugin.timelapsedisplay.TimeLapseDisplay;
-import fiji.util.gui.GenericDialogPlus;
-
-import ij.IJ;
-import ij.ImagePlus;
-import ij.gui.GenericDialog;
-import ij.gui.MultiLineLabel;
-import ij.plugin.BrowserLauncher;
-import ij.plugin.PlugIn;
-
 public class Bead_Registration implements PlugIn 
 {
 	final private String myURL = "http://fly.mpi-cbg.de/preibisch";
 	final private String paperURL = "http://www.nature.com/nmeth/journal/v7/n6/full/nmeth0610-418.html";
 
-	final String beadRegistration[] = new String[] { "Single-channel", "Multi-channel" };
+	final String beadRegistration[] = new String[] { "Single-channel", "Multi-channel (same beads visible in different channels)" };
 	static int defaultBeadRegistration = 0;
 	
 	@Override
@@ -45,7 +44,7 @@ public class Bead_Registration implements PlugIn
 		// output to IJ.log
 		IOFunctions.printIJLog = true;
 		
-		final GenericDialog gd = new GenericDialog( "Bead based Registration" );
+		final GenericDialog gd = new GenericDialog( "Bead based registration" );
 		
 		gd.addChoice( "Select type of registration", beadRegistration, beadRegistration[ defaultBeadRegistration ] );		
 		gd.addMessage( "Please note that the SPIM Registration is based on a publication.\n" +
@@ -69,6 +68,10 @@ public class Bead_Registration implements PlugIn
 			conf = singleChannel();
 		else
 			conf = multiChannel();
+		
+		// cancelled
+		if ( conf == null )
+			return;
 
 		// get filenames and so on...
 		if ( !init( conf ) )
@@ -77,47 +80,73 @@ public class Bead_Registration implements PlugIn
 		// this is only registration
 		conf.registerOnly = true;
 
-		// if we do not load the registration we can start
-		//if ( !loadRegistration )
-		//{
+		// if we do not do timelapseregistration we can just go ahead and
+		// display the result if wanted
+		if ( !timeLapseRegistration )
+		{
 			conf.timeLapseRegistration = false;
 			conf.collectRegistrationStatistics = true;
 
 			final Reconstruction reconstruction = new Reconstruction( conf );
-		//}
-		
-		if ( reconstruction.getSPIMConfiguration().file.length > 1 && defaultTimeLapseRegistration == 0 )
-			conf.referenceTimePoint = TimeLapseDisplay.plotData( reconstruction.getRegistrationStatistics(), 0, true );
 
-
-		/*
-		// manage the timelapse registration
-		if ( loadRegistration && timeLapseRegistration )
-			conf.timeLapseRegistration = true;
+			if ( reconstruction.getSPIMConfiguration().file.length > 1 && defaultTimeLapseRegistration == 0 )
+				TimeLapseDisplay.plotData( reconstruction.getRegistrationStatistics(), -1, false );
+		}
 		else
+		{
+			// now compute or load the inter-timepoint registration
 			conf.timeLapseRegistration = false;
-		*/
-		//conf.referenceTimePoint = referenceTimePointStatic;
+			conf.collectRegistrationStatistics = true;
 
-		// if ( defaulTimeLapseRegistration == 0 ) // manually
-
+			// compute per-timepoint registration
+			Reconstruction reconstruction = new Reconstruction( conf );
+			
+			if ( defaultTimeLapseRegistration == 0 )
+			{
+				// manually select timepoint
+				final GraphFrame gf = TimeLapseDisplay.plotData( reconstruction.getRegistrationStatistics(), -1, true );
+				
+				int lastRefTP = -1;
+				do
+				{
+					lastRefTP = gf.getReferenceTimePoint();
+					SimpleMultiThreading.threadWait( 1000 );
+				}
+				while ( gf.getReferenceTimePoint() == lastRefTP );
+				
+				conf.referenceTimePoint =  gf.getReferenceTimePoint();
+			}
+			else
+			{
+				// automatically select, but still show the display
+				conf.referenceTimePoint = TimeLapseDisplay.getOptimalTimePoint( reconstruction.getRegistrationStatistics() );
+				TimeLapseDisplay.plotData( reconstruction.getRegistrationStatistics(), conf.referenceTimePoint, false );
+			}
+			
+			// and now the timelapse-registration
+			conf.timeLapseRegistration = true;
+			conf.readRegistration = false;
+			reconstruction = new Reconstruction( conf );			
+		}
 	}
 
-	public static String spimDataDirectory = "F:/Tobias";
-	public static String timepoints = "0-50";
-	public static String fileNamePattern = "spim_TL{t}_Ch1_Angle{a}";
-	public static String angles = "0-300:60";
+	public static String spimDataDirectory = "";
+	public static String timepoints = "18";
+	public static String fileNamePattern = "spim_TL{t}_Angle{a}.lsm";
+	public static String angles = "0-270:45";
 	
 	public static boolean loadSegmentation = false;
 	public static String[] beadBrightness = { "Very weak", "Weak", "Comparable to Sample", "Strong", "Advanced ...", "Interactive ..." };	
 	public static int defaultBeadBrightness = 1;
 	public static boolean overrideResolution = false;
-	public static double xyRes = 1;
-	public static double zRes = 5.25;
+	public static double xyRes = 0.73;
+	public static double zRes = 2;
 
+	final String model[] = new String[] { "Translation", "Rigid", "Affine" };
+	public static int defaultModel = 2;
 	public static boolean loadRegistration = false;
 	public static boolean timeLapseRegistration = false;
-	final String timeLapseRegistrationTypes[] = new String[] { "manually", "automatically" };
+	final String timeLapseRegistrationTypes[] = new String[] { "Manually", "Automatically" };
 	static int defaultTimeLapseRegistration = 0;
 	
 	public SPIMConfiguration singleChannel()
@@ -138,13 +167,20 @@ public class Bead_Registration implements PlugIn
 		gd.addNumericField( "z_resolution (um/px)", zRes, 3 );
 		
 		gd.addMessage( "" );		
-
+		
+		gd.addChoice( "Transformation_model", model, model[ defaultModel ] );
 		gd.addCheckbox( "Re-use_per_timepoint_registration", loadRegistration );
 
 		gd.addMessage( "" );		
 
 		gd.addCheckbox( "Timelapse_registration", timeLapseRegistration );
 		gd.addChoice( "Select_reference timepoint", timeLapseRegistrationTypes, timeLapseRegistrationTypes[ defaultTimeLapseRegistration ] );
+
+		gd.addMessage("");
+		gd.addMessage("This Plugin is developed by Stephan Preibisch\n" + myURL);
+
+		MultiLineLabel text = (MultiLineLabel) gd.getMessage();
+		addHyperLinkListener(text, myURL);
 
 		gd.showDialog();
 		
@@ -162,6 +198,7 @@ public class Bead_Registration implements PlugIn
 		xyRes = gd.getNextNumber();
 		zRes = gd.getNextNumber();
 		
+		defaultModel = gd.getNextChoiceIndex();
 		loadRegistration = gd.getNextBoolean();
 		
 		timeLapseRegistration = gd.getNextBoolean();
@@ -224,6 +261,23 @@ public class Bead_Registration implements PlugIn
 		conf.readSegmentation = loadSegmentation;
 		conf.readRegistration = loadRegistration;
 
+		if ( defaultModel == 0 )
+		{
+			conf.transformationModel = "Translation";
+			conf.max_epsilon = 10;
+			conf.numIterations = 10000;
+		}
+		else if ( defaultModel == 1 )
+		{
+			conf.transformationModel = "Rigid";
+			conf.max_epsilon = 7;
+			conf.numIterations = 10000;
+		}
+		else
+		{
+			conf.transformationModel = "Affine";
+		}
+		
 		conf.registerOnly = true;
 		conf.timeLapseRegistration = timeLapseRegistration;
 
@@ -254,6 +308,7 @@ public class Bead_Registration implements PlugIn
 
 		gd.addMessage( "" );
 
+		gd.addChoice( "Transformation_model", model, model[ defaultBeadBrightness ] );
 		gd.addCheckbox( "Re-use_per_timepoint_registration", loadRegistration );
 
 		gd.addMessage( "" );
@@ -262,6 +317,12 @@ public class Bead_Registration implements PlugIn
 		gd.addChoice( "Select_reference timepoint", timeLapseRegistrationTypes, timeLapseRegistrationTypes[ defaultTimeLapseRegistration ] );
 
 		gd.showDialog();
+		
+		gd.addMessage("");
+		gd.addMessage("This Plugin is developed by Stephan Preibisch\n" + myURL);
+
+		MultiLineLabel text = (MultiLineLabel) gd.getMessage();
+		addHyperLinkListener(text, myURL);
 
 		if ( gd.wasCanceled() )
 			return null;
@@ -277,6 +338,7 @@ public class Bead_Registration implements PlugIn
 		xyRes = gd.getNextNumber();
 		zRes = gd.getNextNumber();
 
+		defaultModel = gd.getNextChoiceIndex();
 		loadRegistration = gd.getNextBoolean();
 
 		timeLapseRegistration = gd.getNextBoolean();
@@ -424,6 +486,23 @@ public class Bead_Registration implements PlugIn
 
 		conf.readSegmentation = loadSegmentation;
 		conf.readRegistration = loadRegistration;
+		
+		if ( defaultModel == 0 )
+		{
+			conf.transformationModel = "Translation";
+			conf.max_epsilon = 10;
+			conf.numIterations = 10000;
+		}
+		else if ( defaultModel == 1 )
+		{
+			conf.transformationModel = "Rigid";
+			conf.max_epsilon = 7;
+			conf.numIterations = 10000;
+		}
+		else
+		{
+			conf.transformationModel = "Affine";
+		}
 
 		conf.registerOnly = true;
 		conf.timeLapseRegistration = timeLapseRegistration;
@@ -545,7 +624,7 @@ public class Bead_Registration implements PlugIn
 		}
 	}
 
-	protected boolean init( final SPIMConfiguration conf )
+	protected static boolean init( final SPIMConfiguration conf )
 	{
 		// check the directory string
 		conf.inputdirectory = conf.inputdirectory.replace('\\', '/');
@@ -589,7 +668,7 @@ public class Bead_Registration implements PlugIn
 				if (!dir.exists())
 				{
 					IOFunctions.printErr("(" + new Date(System.currentTimeMillis()) + "): Cannot create directory '" + conf.outputdirectory + "', quitting.");
-					System.exit(0);
+					return false;
 				}
 			}
 		}
@@ -604,11 +683,11 @@ public class Bead_Registration implements PlugIn
 				if (!dir.exists())
 				{
 					IOFunctions.printErr("(" + new Date(System.currentTimeMillis()) + "): Cannot create directory '" + conf.registrationFiledirectory + "', quitting.");
-					System.exit(0);
+					return false;
 				}
 			}
 		}
-
+		
 		return true;
 	}
 

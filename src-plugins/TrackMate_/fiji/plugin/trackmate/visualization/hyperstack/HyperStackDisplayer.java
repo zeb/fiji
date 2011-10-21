@@ -13,7 +13,6 @@ import org.jgrapht.graph.DefaultWeightedEdge;
 
 import fiji.plugin.trackmate.Settings;
 import fiji.plugin.trackmate.Spot;
-import fiji.plugin.trackmate.SpotFeature;
 import fiji.plugin.trackmate.SpotImp;
 import fiji.plugin.trackmate.TrackMateModel;
 import fiji.plugin.trackmate.TrackMateModelChangeEvent;
@@ -38,12 +37,7 @@ public class HyperStackDisplayer extends AbstractTrackMateModelView  {
 	 * CONSTRUCTORS
 	 */
 
-	public HyperStackDisplayer(final TrackMateModel model) {
-		setModel(model);
-		this.settings = model.getSettings();
-		this.imp = settings.imp;
-		this.calibration = settings.getCalibration();
-	}
+	public HyperStackDisplayer() {	}
 
 	/*
 	 * DEFAULT METHODS
@@ -59,13 +53,41 @@ public class HyperStackDisplayer extends AbstractTrackMateModelView  {
 	}
 
 	/*
+	 * PROTECTED METHODS
+	 */
+
+	/**
+	 * Hook for subclassers. Instantiate here the overlay you want to use for the spots. 
+	 * @return
+	 */
+	protected SpotOverlay createSpotOverlay() {
+		return new SpotOverlay(model, imp, displaySettings);
+	}
+
+	/**
+	 * Hook for subclassers. Instantiate here the overlay you want to use for the spots. 
+	 * @return
+	 */
+	protected TrackOverlay createTrackOverlay() {
+		return new TrackOverlay(model, imp, displaySettings);
+	}
+
+	@Override
+	public void setModel(TrackMateModel model) {
+		super.setModel(model);
+		this.settings = model.getSettings();
+		this.imp = settings.imp;
+		this.calibration = settings.getCalibration();
+	}
+
+	/*
 	 * PUBLIC METHODS
 	 */
 
 	@Override
 	public void modelChanged(TrackMateModelChangeEvent event) {
 		if (DEBUG)
-			System.out.println("[HyperStackDisplayer] Received model changed event ID: "+event.getEventID());
+			System.out.println("[HyperStackDisplayer] Received model changed event ID: "+event.getEventID()+" from "+event.getSource());
 		boolean redoOverlay = false;
 
 		switch (event.getEventID()) {
@@ -94,7 +116,7 @@ public class HyperStackDisplayer extends AbstractTrackMateModelView  {
 			spotOverlay.computeSpotColors();
 			redoOverlay = true;
 			break;
-			
+
 		case TrackMateModelChangeEvent.TRACKS_VISIBILITY_CHANGED:
 		case TrackMateModelChangeEvent.TRACKS_COMPUTED:
 			trackOverlay.computeTrackColors();
@@ -129,7 +151,7 @@ public class HyperStackDisplayer extends AbstractTrackMateModelView  {
 		}
 		if (frame == -1)
 			return;
-		int z = Math.round(spot.getFeature(SpotFeature.POSITION_Z) / calibration[2] ) + 1;
+		int z = Math.round(spot.getFeature(Spot.POSITION_Z) / calibration[2] ) + 1;
 		imp.setPosition(1, z, frame+1);
 	}
 
@@ -142,11 +164,11 @@ public class HyperStackDisplayer extends AbstractTrackMateModelView  {
 		imp.setOpenAsHyperStack(true);
 		canvas = new OverlayedImageCanvas(imp);
 		window = new StackWindow(imp, canvas);
-		window.show();
+		window.setVisible(true);
 		//
-		spotOverlay = new SpotOverlay(model, imp, displaySettings);
+		spotOverlay = createSpotOverlay();
 		//
-		trackOverlay = new TrackOverlay(model, imp, displaySettings);
+		trackOverlay = createTrackOverlay(); 
 		//
 		canvas.addOverlay(spotOverlay);
 		canvas.addOverlay(trackOverlay);
@@ -162,6 +184,8 @@ public class HyperStackDisplayer extends AbstractTrackMateModelView  {
 			public void imageClosed(ImagePlus source ) {
 				if (imp != source)
 					return;
+				if (DEBUG)
+					System.out.println("[HyperStackDisplayer] imp closing, removing me from model listener");
 				model.removeTrackMateModelChangeListener(HyperStackDisplayer.this);
 				model.removeTrackMateSelectionChangeListener(HyperStackDisplayer.this);
 				editTool.imageClosed(imp);
@@ -180,6 +204,29 @@ public class HyperStackDisplayer extends AbstractTrackMateModelView  {
 		canvas.clearOverlay();
 	}	
 
+	@Override
+	public String getInfoText() {
+		return "<html>" +
+				"This displayer overlays the spots and tracks on the current<br>" +
+				"ImageJ hyperstack window. <br>" +
+				"<p> " +
+				"This displayer allows manual editing of spots, thanks to the spot <br> " +
+				"edit tool that appear in ImageJ toolbar." +
+				"<p>" +
+				"Double-clicking in a spot toggles the editing mode: The spot can <br> " +
+				"be moved around in a XY plane by mouse dragging. To move it in Z <br>" +
+				"or in time, simply change the current plane and time-point by <br>" +
+				"using the hyperstack sliders. To change its radius, hold the " +
+				"<tt>alt</tt> key down and rotate the mouse-wheel. Holding the " +
+				"<tt>shift</tt> key on top changes it faster."+
+				"</html>";
+	}
+	
+	@Override
+	public String toString() {
+		return "HyperStack Displayer";
+	}
+
 
 	/*
 	 * PRIVATE METHODS
@@ -189,6 +236,9 @@ public class HyperStackDisplayer extends AbstractTrackMateModelView  {
 		editTool = SpotEditTool.getInstance();
 		if (!SpotEditTool.isLaunched())
 			editTool.run("");
+		else {
+			editTool.imageOpened(imp);
+		}
 		editTool.register(imp, this);
 	}
 

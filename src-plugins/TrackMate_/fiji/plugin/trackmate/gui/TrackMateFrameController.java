@@ -14,13 +14,10 @@ import fiji.plugin.trackmate.FeatureFilter;
 import fiji.plugin.trackmate.Logger;
 import fiji.plugin.trackmate.Settings;
 import fiji.plugin.trackmate.Spot;
-import fiji.plugin.trackmate.SpotFeature;
-import fiji.plugin.trackmate.TrackFeature;
 import fiji.plugin.trackmate.TrackMateModel;
 import fiji.plugin.trackmate.TrackMate_;
 import fiji.plugin.trackmate.gui.TrackMateFrame.PanelCard;
-import fiji.plugin.trackmate.segmentation.SegmenterType;
-import fiji.plugin.trackmate.visualization.AbstractTrackMateModelView;
+import fiji.plugin.trackmate.segmentation.ManualSegmenter;
 import fiji.plugin.trackmate.visualization.TrackMateModelView;
 import fiji.plugin.trackmate.visualization.trackscheme.TrackSchemeFrame;
 
@@ -54,7 +51,7 @@ public class TrackMateFrameController implements ActionListener {
 	boolean actionFlag = true;
 	private boolean renderingDone;
 	private boolean calculateFeaturesDone;
-
+	
 
 	/*
 	 * CONSTRUCTOR
@@ -62,7 +59,7 @@ public class TrackMateFrameController implements ActionListener {
 
 	public TrackMateFrameController(final TrackMate_ plugin) {
 		this.plugin = plugin;
-		this.view = new TrackMateFrame(plugin.getModel());
+		this.view = new TrackMateFrame(plugin);
 		this.logger = view.getLogger();
 
 		plugin.setLogger(logger);
@@ -73,6 +70,11 @@ public class TrackMateFrameController implements ActionListener {
 	}
 
 	/*
+	 * PROTECTED METHODS
+	 */
+	
+	
+	/*
 	 * ACTION LISTENER
 	 */
 
@@ -80,18 +82,19 @@ public class TrackMateFrameController implements ActionListener {
 	public void actionPerformed(ActionEvent event) {
 		if (DEBUG)
 			System.out.println("[TrackMateFrameController] Caught event "+event);
-		DisplayerPanel displayerPanel = (DisplayerPanel) view.getPanelFor(PanelCard.DISPLAYER_PANEL_KEY);
+		final DisplayerPanel displayerPanel = (DisplayerPanel) view.getPanelFor(PanelCard.DISPLAYER_PANEL_KEY);
 
 		if (event == view.NEXT_BUTTON_PRESSED && actionFlag) {
 
 			performLeaveStateTask();
 			state = state.nextState();
+			performPreGUITask();
 			SwingUtilities.invokeLater(new Runnable() {
 				@Override
 				public void run() { updateGUI(); }
 			});
-			performPostGUITask();
 			setMainButtonsFor(state);
+			performPostGUITask();
 
 		} else if (event == view.PREVIOUS_BUTTON_PRESSED && actionFlag) {
 
@@ -118,8 +121,17 @@ public class TrackMateFrameController implements ActionListener {
 		} else if (event == displayerPanel.TRACK_SCHEME_BUTTON_PRESSED) {
 
 			// Display Track scheme
-			final TrackSchemeFrame trackScheme = new TrackSchemeFrame(plugin.getModel());
-			trackScheme.setVisible(true);
+			displayerPanel.jButtonShowTrackScheme.setEnabled(false);
+			new Thread("TrackScheme launching thread") {
+				public void run() {
+					try {
+						TrackSchemeFrame trackScheme = new TrackSchemeFrame(plugin.getModel());
+						trackScheme.setVisible(true);
+					} finally {
+						displayerPanel.jButtonShowTrackScheme.setEnabled(true);
+					}
+				}
+			}.start();
 
 
 		}
@@ -129,7 +141,6 @@ public class TrackMateFrameController implements ActionListener {
 	/*
 	 * GETTERS / SETTERS
 	 */
-
 
 	public void setPlugin(final TrackMate_ plugin) {
 		this.plugin = plugin;
@@ -259,9 +270,10 @@ public class TrackMateFrameController implements ActionListener {
 
 		case TUNE_SEGMENTER: {
 			Settings settings = plugin.getModel().getSettings();
-			settings.segmenterSettings = view.segmenterSettingsPanel.getSettings();
-			settings.segmenterSettings.segmenterType = settings.segmenterType;
-			settings.segmenterSettings.spaceUnits = settings.spaceUnits;
+			settings.segmenterSettings = view.segmenterSettingsPanel.getSegmenterSettings();
+			if (settings.segmenter instanceof ManualSegmenter) {
+				state = GuiState.CHOOSE_DISPLAYER.previousState();
+			}
 			break;
 		}
 
@@ -271,13 +283,22 @@ public class TrackMateFrameController implements ActionListener {
 
 		case TUNE_TRACKER: {
 			Settings settings = plugin.getModel().getSettings();
-			settings.trackerSettings = view.trackerSettingsPanel.getSettings();
-			settings.trackerSettings.trackerType = settings.trackerType;
-			settings.trackerSettings.spaceUnits = settings.spaceUnits;
-			settings.trackerSettings.timeUnits = settings.timeUnits;
+			settings.trackerSettings = view.trackerSettingsPanel.getTrackerSettings();
 			break;
 		}
 
+		}
+	}
+
+	/**
+	 * Action taken before the GUI has been displayed. 
+	 */
+	private void performPreGUITask() {
+		TrackMateModel model = plugin.getModel();
+		switch(state) {
+		case TUNE_TRACK_FILTERS:
+			model.computeTrackFeatures();
+			return;
 		}
 	}
 
@@ -293,16 +314,6 @@ public class TrackMateFrameController implements ActionListener {
 			execGetStartSettings();
 			return;
 
-		case TUNE_SEGMENTER: {
-			// If we choose to skip segmentation, initialize the model spot content and skip directly to state where we will be asked for a displayer.
-			Settings settings = model.getSettings();
-			if (settings.segmenterType == SegmenterType.MANUAL_SEGMENTER) {
-				settings.segmenterSettings.spaceUnits = settings.spaceUnits;
-				state = GuiState.CHOOSE_DISPLAYER.previousState();
-			}
-			return;
-		}
-
 		case SEGMENTING: {
 			execSegmentationStep(); 
 			return;
@@ -311,20 +322,12 @@ public class TrackMateFrameController implements ActionListener {
 		case CHOOSE_DISPLAYER:
 			// Before we switch to the log display when calculating features, we *execute* the initial thresholding step,
 			// only if we did not skip segmentation.
-			if (model.getSettings().segmenterType != SegmenterType.MANUAL_SEGMENTER)
+			if (model.getSettings().segmenter.getClass() != ManualSegmenter.class)
 				execInitialThresholding();
 			return;
 
 		case CALCULATE_FEATURES: {
-			// Compute the feature first, again, only if we did not skip segmentation.
-			if (model.getSettings().segmenterType != SegmenterType.MANUAL_SEGMENTER)
-				execCalculateFeatures();
-			else {
-				// Otherwise we get the manual spot diameter,  and plan to jump to tracking
-				model.getSettings().segmenterSettings = view.segmenterSettingsPanel.getSettings();
-				state = GuiState.CHOOSE_TRACKER.previousState();
-			}
-			// Then we launch the displayer
+			execCalculateFeatures();
 			execLaunchdisplayer();
 			return;
 		}
@@ -453,6 +456,7 @@ public class TrackMateFrameController implements ActionListener {
 				}
 			}
 
+			plugin.computeTrackFeatures();
 			GuiSaver saver = new GuiSaver(this);
 			File tmpFile = saver.askForFile(file);
 			if (null == tmpFile) {
@@ -475,14 +479,17 @@ public class TrackMateFrameController implements ActionListener {
 		plugin.getModel().setSettings(view.startDialogPanel.getSettings());
 	}
 
+	@SuppressWarnings("unchecked")
 	private void execGetSegmenterChoice() {
 		Settings settings = plugin.getModel().getSettings();
-		settings.segmenterType = view.segmenterChoicePanel.getChoice();
+		settings.segmenter = view.segmenterChoicePanel.getChoice();
+		settings.segmenterSettings = settings.segmenter.createDefaultSettings();
 	}
 
 	private void execGetTrackerChoice() {
 		Settings settings = plugin.getModel().getSettings();
-		settings.trackerType = view.trackerChoicePanel.getChoice();
+		settings.tracker = view.trackerChoicePanel.getChoice();
+		settings.trackerSettings = settings.tracker.createDefaultSettings(); 
 	}
 
 	/**
@@ -519,7 +526,7 @@ public class TrackMateFrameController implements ActionListener {
 	 */
 	private void execInitialThresholding() {
 		final TrackMateModel model = plugin.getModel();
-		FeatureFilter<SpotFeature> initialThreshold = view.initThresholdingPanel.getFeatureThreshold();
+		FeatureFilter initialThreshold = view.initThresholdingPanel.getFeatureThreshold();
 		String str = "Initial thresholding with a quality threshold above "+ String.format("%.1f", initialThreshold.value) + " ...\n";
 		logger.log(str,Logger.BLUE_COLOR);
 		int ntotal = 0;
@@ -575,7 +582,9 @@ public class TrackMateFrameController implements ActionListener {
 					displayer.clear();
 				}
 				try {
-					displayer = AbstractTrackMateModelView.instantiateView(view.displayerChooserPanel.getChoice(), plugin.getModel());
+					displayer = view.displayerChooserPanel.getChoice();
+					displayer.setModel(plugin.getModel());
+					displayer.render();
 				} finally {
 					// Re-enable the GUI
 					renderingDone = true;
@@ -652,31 +661,28 @@ public class TrackMateFrameController implements ActionListener {
 	private void execSpotFiltering() {
 		logger.log("Performing spot filtering on the following features:\n", Logger.BLUE_COLOR);
 		final TrackMateModel model = plugin.getModel();
-		List<FeatureFilter<SpotFeature>> featureFilters = view.spotFilterGuiPanel.getFeatureFilters();
+		List<FeatureFilter> featureFilters = view.spotFilterGuiPanel.getFeatureFilters();
 		model.setSpotFilters(featureFilters);
 		plugin.execSpotFiltering();
 
-		int ntotal = 0;
-		for(Collection<Spot> spots : model.getSpots().values())
-			ntotal += spots.size();
-				if (featureFilters == null || featureFilters.isEmpty()) {
-					logger.log("No feature threshold set, kept the " + ntotal + " spots.\n");
-				} else {
-					for (FeatureFilter<SpotFeature> ft : featureFilters) {
-						String str = "  - on "+ft.feature.name();
-						if (ft.isAbove) 
-							str += " above ";
-						else
-							str += " below ";
-						str += String.format("%.1f", ft.value);
-						str += '\n';
-						logger.log(str);
-					}
-					int nselected = 0;
-					for(Collection<Spot> spots : model.getFilteredSpots().values())
-						nselected += spots.size();
-							logger.log("Kept "+nselected+" spots out of " + ntotal + ".\n");
-				}		
+		int ntotal = model.getSpots().getNSpots();
+		if (featureFilters == null || featureFilters.isEmpty()) {
+			logger.log("No feature threshold set, kept the " + ntotal + " spots.\n");
+		} else {
+			for (FeatureFilter ft : featureFilters) {
+				String str = "  - on "+model.getFeatureModel().getSpotFeatureNames().get(ft.feature);
+				if (ft.isAbove) 
+					str += " above ";
+				else
+					str += " below ";
+				str += String.format("%.1f", ft.value);
+				str += '\n';
+				logger.log(str);
+			}
+			int nselected = model.getFilteredSpots().getNSpots();
+			logger.log("Kept "+nselected+" spots out of " + ntotal + ".\n");
+		}		
+
 	}
 
 	/**
@@ -687,7 +693,7 @@ public class TrackMateFrameController implements ActionListener {
 		new Thread("TrackMate track filtering thread") {
 			public void run() {
 				logger.log("Performing track filtering on the following features:\n", Logger.BLUE_COLOR);
-				List<FeatureFilter<TrackFeature>> featureFilters = view.trackFilterGuiPanel.getFeatureFilters();
+				List<FeatureFilter> featureFilters = view.trackFilterGuiPanel.getFeatureFilters();
 				final TrackMateModel model = plugin.getModel();
 				model.setTrackFilters(featureFilters);
 				plugin.execTrackFiltering();
@@ -695,8 +701,8 @@ public class TrackMateFrameController implements ActionListener {
 				if (featureFilters == null || featureFilters.isEmpty()) {
 					logger.log("No feature threshold set, kept the " + model.getNTracks() + " tracks.\n");
 				} else {
-					for (FeatureFilter<TrackFeature> ft : featureFilters) {
-						String str = "  - on "+ft.feature.name();
+					for (FeatureFilter ft : featureFilters) {
+						String str = "  - on "+model.getFeatureModel().getTrackFeatureNames().get(ft.feature);
 						if (ft.isAbove) 
 							str += " above ";
 						else
