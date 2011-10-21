@@ -48,7 +48,8 @@ public class Test_Integration {
 
 		
 //		File testImage = new File("/Users/tinevez/Projects/BRajasekaran/Data/Meta-nov7mdb18ssplus-embryo2-2.tif");
-		File testImage = new File("E:/Users/JeanYves/Documents/Projects/BRajaseka/Data/Meta-nov7mdb18ssplus-embryo2-1.tif");
+//		File testImage = new File("E:/Users/JeanYves/Documents/Projects/BRajaseka/Data/Meta-nov7mdb18ssplus-embryo2-1.tif");
+		File testImage = new File("/Users/tinevez/Desktop/Data/10-01-21-1hour-bis.tif");
 
 		ImageJ.main(args);
 		ImagePlus imp = IJ.openImage(testImage.getAbsolutePath());

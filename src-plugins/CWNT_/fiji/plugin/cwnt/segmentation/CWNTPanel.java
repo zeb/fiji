@@ -3,6 +3,7 @@ package fiji.plugin.cwnt.segmentation;
 import static fiji.plugin.trackmate.gui.TrackMateFrame.BIG_FONT;
 import static fiji.plugin.trackmate.gui.TrackMateFrame.FONT;
 import static fiji.plugin.trackmate.gui.TrackMateFrame.SMALL_FONT;
+import ij.ImagePlus;
 
 import java.awt.BorderLayout;
 import java.awt.event.ActionEvent;
@@ -11,9 +12,9 @@ import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.text.DecimalFormat;
-import java.util.ArrayList;
 import java.util.Arrays;
 
+import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTabbedPane;
@@ -26,10 +27,10 @@ import fiji.plugin.cwnt.gui.DoubleJSlider;
 import fiji.plugin.trackmate.TrackMateModel;
 import fiji.plugin.trackmate.gui.SegmenterConfigurationPanel;
 import fiji.plugin.trackmate.segmentation.SegmenterSettings;
-import javax.swing.JButton;
 
 public class CWNTPanel extends SegmenterConfigurationPanel {
 
+	private static final long serialVersionUID = 1L;
 	private int scale = 10; // sliders resolution
 	private final DecimalFormat df2d = new DecimalFormat("0.####");
 	private JTabbedPane tabbedPane;
@@ -57,6 +58,9 @@ public class CWNTPanel extends SegmenterConfigurationPanel {
 	private DoubleJSlider deltaSlider;
 	private JTextField thresholdFactorText;
 	private DoubleJSlider thresholdFactorSlider;
+	private boolean liveLaunched;
+	private ImagePlus targetImp;
+	private CWNTLivePreviewer previewer;
 
 
 
@@ -81,6 +85,8 @@ public class CWNTPanel extends SegmenterConfigurationPanel {
 		betaText.setText(""+settings.beta);
 		epsilonText.setText(""+settings.epsilon);
 		deltaText.setText(""+settings.delta);
+		
+		targetImp = model.getSettings().imp;
 	}
 
 	@Override
@@ -92,16 +98,14 @@ public class CWNTPanel extends SegmenterConfigurationPanel {
 	}
 
 	
-	
-	
+	public ImagePlus getTargetImagePlus() {
+		return targetImp;
+	}
 	
 	
 	/*
 	 * PRIVATE METHODS
 	 */
-	
-	
-	
 	
 	private void fireEvent(final ActionEvent event) {
 		if ( event == STEP1_PARAMETER_CHANGED ||
@@ -119,14 +123,15 @@ public class CWNTPanel extends SegmenterConfigurationPanel {
 
 			oldParams = Arrays.copyOf(maskingParams, maskingParams.length);
 		}
-		for (ActionListener listener : listeners) {
+
+		for (ActionListener listener : actionListeners) {
 			listener.actionPerformed(event);
 		}
 	}
 
 	private double[] collectMaskingParameters() throws NumberFormatException {
 		double gaussFilterSigma = Double.parseDouble(gaussFiltSigmaText.getText());
-		double nIterAnDiff = (int)  Double.parseDouble(aniDiffNIterText.getText());
+		double nIterAnDiff = Integer.parseInt(aniDiffNIterText.getText());
 		double kappa = Double.parseDouble(aniDiffKappaText.getText());
 		double gaussGradSigma = Double.parseDouble(gaussGradSigmaText.getText());
 		double gamma = Double.parseDouble(gammaText.getText());
@@ -167,6 +172,14 @@ public class CWNTPanel extends SegmenterConfigurationPanel {
 		});
 	}
 
+	
+	private void launchLive() {
+		previewer = new CWNTLivePreviewer(this);
+	}
+	
+	private void stopLive() {
+		previewer.quit();
+	}
 
 	
 	private void initGUI() {
@@ -191,8 +204,24 @@ public class CWNTPanel extends SegmenterConfigurationPanel {
 			labelIntro.setBounds(10, 52, 268, 173);
 			panelIntroduction.add(labelIntro);
 			
-			JButton btnTestParamtersLive = new JButton("<html><div align=\"center\">Live test parameters</dic></html>");
+			final JButton btnTestParamtersLive = new JButton("<html><div align=\"center\">Live test parameters</dic></html>");
 			btnTestParamtersLive.setBounds(10, 292, 103, 72);
+			btnTestParamtersLive.setFont(FONT);
+			liveLaunched = false;
+			btnTestParamtersLive.addActionListener(new ActionListener() {
+				@Override
+				public void actionPerformed(ActionEvent e) {
+					if (liveLaunched) {
+						stopLive();
+						btnTestParamtersLive.setText("<html><div align=\"center\">Live test parameters</div></html>");
+						liveLaunched = false;
+					} else {
+						launchLive();
+						btnTestParamtersLive.setText("<html><div align=\"center\">Stop live test</div></html>");
+						liveLaunched = true;
+					}
+				}
+			});
 			panelIntroduction.add(btnTestParamtersLive);
 			
 			JButton btnNewButton = new JButton("<html><CENTER>Segment current frame</center></html>");
@@ -200,6 +229,7 @@ public class CWNTPanel extends SegmenterConfigurationPanel {
 				public void actionPerformed(ActionEvent e) {
 				}
 			});
+			btnNewButton.setFont(FONT);
 			btnNewButton.setBounds(175, 292, 103, 72);
 			panelIntroduction.add(btnNewButton);
 		}
@@ -469,15 +499,15 @@ public class CWNTPanel extends SegmenterConfigurationPanel {
 	 */
 	
 	/** This event is fired whenever the value of σ for the gaussian filtering in step 1 is changed by this GUI. */
-	public final ActionEvent STEP1_PARAMETER_CHANGED = new ActionEvent(this, 0, "GaussianFilteringParameterChanged");
+	final ActionEvent STEP1_PARAMETER_CHANGED = new ActionEvent(this, 0, "GaussianFilteringParameterChanged");
 	/** This event is fired whenever parameters defining the anisotropic diffusion step 2 is changed by this GUI. */
-	public final ActionEvent STEP2_PARAMETER_CHANGED = new ActionEvent(this, 1, "AnisotropicDiffusionParameterChanged");
+	final ActionEvent STEP2_PARAMETER_CHANGED = new ActionEvent(this, 1, "AnisotropicDiffusionParameterChanged");
 	/** This event is fired whenever the value of σ for the gaussian derivatives computation in step 3 is changed by this GUI. */
-	public final ActionEvent STEP3_PARAMETER_CHANGED = new ActionEvent(this, 2, "DerivativesParameterChanged");
+	final ActionEvent STEP3_PARAMETER_CHANGED = new ActionEvent(this, 2, "DerivativesParameterChanged");
 	/** This event is fired whenever parameters specifying how to combine the final mask in step 4 is changed by this GUI. */
-	public final ActionEvent STEP4_PARAMETER_CHANGED = new ActionEvent(this, 3, "MaskingParameterChanged");
+	final ActionEvent STEP4_PARAMETER_CHANGED = new ActionEvent(this, 3, "MaskingParameterChanged");
 	/** This event is fired whenever the thresholding parameters are changed by this GUI. */
-	public final ActionEvent STEP5_PARAMETER_CHANGED = new ActionEvent(this, 4, "ThresholdingParameterChanged");
+	final ActionEvent STEP5_PARAMETER_CHANGED = new ActionEvent(this, 4, "ThresholdingParameterChanged");
 //	/** This event is fired when the user presses the 'go' button in the 4th tab. */
 //	public final ActionEvent GO_BUTTON_PRESSED = new ActionEvent(this, 4, "GoButtonPressed");
 //	/** This event is fired when the user changes the current tab. */
@@ -486,8 +516,6 @@ public class CWNTPanel extends SegmenterConfigurationPanel {
 	/*
 	 * LOCAL LISTENERS
 	 */
-
-	private ArrayList<ActionListener> listeners = new ArrayList<ActionListener>();
 
 	private ChangeListener step1ChangeListener = new ChangeListener() {
 		public void stateChanged(ChangeEvent e) { fireEvent(STEP1_PARAMETER_CHANGED);	}
@@ -543,4 +571,7 @@ public class CWNTPanel extends SegmenterConfigurationPanel {
 			"The " +
 			"</html>" +
 			"";
+
+
+
 }

@@ -57,7 +57,10 @@ public class OtsuThresholder2D <T extends IntegerType<T>> extends MultiThreadedB
 		int threshold;
 		
 		for (int z = 0; z < nslices; z++) {
-			pos[2] = z;
+			
+			if (nslices > 1) { // If we get a 2D image
+				pos[2] = z;
+			}
 			
 			// Build histogram in given plane
 			cursor.reset(0, 1, pos);
