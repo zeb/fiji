@@ -576,12 +576,12 @@ public class CWNTPanel extends SegmenterConfigurationPanel {
 			"typically nuclei imaged in 3D over time. " +
 			"<p>" +
 			"Because the crown-like mask needs 10 parameters to be specified, this panel offers " +
-			"to test the value of each parameter. If you press the 'live' button below, the resulting masked" +
+			"to test the value of each parameter. If you press the 'live' button below, the resulting masked " +
 			"image and intermediate images will be computed over a limited area of the source image, " +
 			"specified by the ROI. " +
 			"<p> " +
 			"The 'Segment current frame button' launches the full computation over the " +
-			"current 3D frame, and displays the resulting segmentation with colored" +
+			"current 3D frame, and displays the resulting segmentation with colored " +
 			"nuclei labels." +
 			"</html>" +
 			"";
