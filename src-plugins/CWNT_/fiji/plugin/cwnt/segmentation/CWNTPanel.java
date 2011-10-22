@@ -11,7 +11,6 @@ import java.awt.event.ActionListener;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
-import java.text.DecimalFormat;
 import java.util.Arrays;
 
 import javax.swing.JButton;
@@ -32,11 +31,10 @@ public class CWNTPanel extends SegmenterConfigurationPanel {
 
 	private static final long serialVersionUID = 1L;
 	private int scale = 10; // sliders resolution
-	private final DecimalFormat df2d = new DecimalFormat("0.####");
 	private JTabbedPane tabbedPane;
 	private double[] maskingParams;
 	private double thresholdFactor;
-	private double[] oldParams;
+	private double[] oldMaskingParams;
 	
 	private DoubleJSlider gaussFiltSigmaSlider;
 	private JTextField gaussFiltSigmaText;
@@ -61,6 +59,8 @@ public class CWNTPanel extends SegmenterConfigurationPanel {
 	private boolean liveLaunched;
 	private ImagePlus targetImp;
 	private CWNTLivePreviewer previewer;
+	private double oldThresholdFactor;
+	private CWSettings settings = new CWSettings();;
 
 
 
@@ -85,15 +85,13 @@ public class CWNTPanel extends SegmenterConfigurationPanel {
 		betaText.setText(""+settings.beta);
 		epsilonText.setText(""+settings.epsilon);
 		deltaText.setText(""+settings.delta);
+		thresholdFactorText.setText(""+settings.thresholdFactor);
 		
 		targetImp = model.getSettings().imp;
 	}
 
 	@Override
 	public SegmenterSettings getSegmenterSettings() {
-		maskingParams = collectMaskingParameters();
-		CWSettings settings = new CWSettings();
-		settings.putMaskingParameters(maskingParams);
 		return settings;
 	}
 
@@ -111,17 +109,21 @@ public class CWNTPanel extends SegmenterConfigurationPanel {
 		if ( event == STEP1_PARAMETER_CHANGED ||
 				event == STEP2_PARAMETER_CHANGED ||
 				event == STEP3_PARAMETER_CHANGED ||
-				event == STEP4_PARAMETER_CHANGED) {
+				event == STEP4_PARAMETER_CHANGED || 
+				event == STEP5_PARAMETER_CHANGED) {
+			collectMaskingParameters();
 			try {
-				maskingParams = collectMaskingParameters();
-			} catch (NumberFormatException nfe) {
-				return;
-			}
-			if (Arrays.equals(maskingParams, oldParams)) {
+				thresholdFactor = Double.parseDouble(thresholdFactorText.getText());
+			} catch (NumberFormatException nfe) {}
+
+			if (Arrays.equals(maskingParams, oldMaskingParams) && thresholdFactor == oldThresholdFactor) {
 				return; // We do not fire event if params did not change
 			}
-
-			oldParams = Arrays.copyOf(maskingParams, maskingParams.length);
+			
+			oldThresholdFactor = thresholdFactor;
+			oldMaskingParams = Arrays.copyOf(maskingParams, maskingParams.length);
+			settings.putMaskingParameters(maskingParams);
+			settings.thresholdFactor = thresholdFactor;
 		}
 
 		for (ActionListener listener : actionListeners) {
@@ -129,58 +131,67 @@ public class CWNTPanel extends SegmenterConfigurationPanel {
 		}
 	}
 
-	private double[] collectMaskingParameters() throws NumberFormatException {
-		double gaussFilterSigma = Double.parseDouble(gaussFiltSigmaText.getText());
-		double nIterAnDiff = Integer.parseInt(aniDiffNIterText.getText());
-		double kappa = Double.parseDouble(aniDiffKappaText.getText());
-		double gaussGradSigma = Double.parseDouble(gaussGradSigmaText.getText());
-		double gamma = Double.parseDouble(gammaText.getText());
-		double alpha = Double.parseDouble(alphaText.getText());
-		double beta = Double.parseDouble(betaText.getText());
-		double epsilon = Double.parseDouble(epsilonText.getText());
-		double delta = Double.parseDouble(deltaText.getText());
-		return new double[] {
-				gaussFilterSigma,
-				nIterAnDiff,
-				kappa,
-				gaussGradSigma,
-				gamma,
-				alpha,
-				beta,
-				epsilon,
-				delta
-		};
+	private void  collectMaskingParameters() throws NumberFormatException {
+		try {
+			 maskingParams[0] = Double.parseDouble(gaussFiltSigmaText.getText());
+		} catch (NumberFormatException nfe) {}
+		try {
+			maskingParams[1] = Integer.parseInt(aniDiffNIterText.getText());
+		} catch (NumberFormatException nfe) {}
+		try {
+			maskingParams[2] = Double.parseDouble(aniDiffKappaText.getText());
+		} catch (NumberFormatException nfe) {}
+		try {
+			maskingParams[3] = Double.parseDouble(gaussGradSigmaText.getText());
+		} catch (NumberFormatException nfe) {}
+		try {
+			maskingParams[4] = Double.parseDouble(gammaText.getText());
+		} catch (NumberFormatException nfe) {}
+		try {
+			maskingParams[5] = Double.parseDouble(alphaText.getText());
+		} catch (NumberFormatException nfe) {}
+		try {
+			maskingParams[6] = Double.parseDouble(betaText.getText());
+		} catch (NumberFormatException nfe) {}
+		try {
+			maskingParams[7] = Double.parseDouble(epsilonText.getText());
+		} catch (NumberFormatException nfe) {}
+		try {
+			maskingParams[8] = Double.parseDouble(deltaText.getText());
+		} catch (NumberFormatException nfe) {}
 	}
 		
 	private void link(final DoubleJSlider slider, final JTextField text) {
 		slider.addChangeListener(new ChangeListener(){
 			@Override
 			public void stateChanged(ChangeEvent e) {
-				text.setText(df2d.format(slider.getScaledValue()));
+				text.setText(""+slider.getScaledValue());
 			}
 		});
 		text.addKeyListener(new KeyAdapter(){
 			@Override
 			public void keyReleased(KeyEvent ke) {
 				String typed = text.getText();
-				if(!typed.matches("\\d+(\\.\\d+)?")) {
-					return;
-				}
-				double value = Double.parseDouble(typed)*slider.scale;
-				slider.setValue((int)value);
+				try {
+					double value = Double.parseDouble(typed)*slider.scale;
+					slider.setValue((int)value);
+				} catch (NumberFormatException nfe) {}
 			}
 		});
 	}
 
 	
 	private void launchLive() {
-		previewer = new CWNTLivePreviewer(this);
+		new Thread() {
+			public void run() {
+				previewer = new CWNTLivePreviewer(CWNTPanel.this);
+			}
+		}.start();
 	}
 	
 	private void stopLive() {
 		previewer.quit();
 	}
-
 	
 	private void initGUI() {
 		setLayout(new BorderLayout());
@@ -327,6 +338,7 @@ public class CWNTPanel extends SegmenterConfigurationPanel {
 				panelParams1.add(lblGaussianGradient);
 
 				gaussGradSigmaText = new JTextField();
+				gaussGradSigmaText.setFont(FONT);
 				gaussGradSigmaText.setHorizontalAlignment(SwingConstants.CENTER);
 				gaussGradSigmaText.setText(""+maskingParams[3]);
 				gaussGradSigmaText.setBounds(243, 363, 35, 23);
@@ -564,11 +576,13 @@ public class CWNTPanel extends SegmenterConfigurationPanel {
 			"typically nuclei imaged in 3D over time. " +
 			"<p>" +
 			"Because the crown-like mask needs 10 parameters to be specified, this panel offers " +
-			"to test the value of each parameter. If you press the button below, the resulting masked" +
+			"to test the value of each parameter. If you press the 'live' button below, the resulting masked" +
 			"image and intermediate images will be computed over a limited area of the source image, " +
 			"specified by the ROI. " +
 			"<p> " +
-			"The " +
+			"The 'Segment current frame button' launches the full computation over the " +
+			"current 3D frame, and displays the resulting segmentation with colored" +
+			"nuclei labels." +
 			"</html>" +
 			"";
 

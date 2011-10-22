@@ -92,6 +92,10 @@ public class CWNTLivePreviewer extends MouseAdapter implements ActionListener {
 		updater.quit();
 		source.removeActionListener(this);
 		imp.getCanvas().removeMouseListener(this);
+		comp1.changes = false;
+		comp1.close();
+		comp2.changes = false;
+		comp2.close();
 	}
 
 	/*
@@ -155,7 +159,7 @@ public class CWNTLivePreviewer extends MouseAdapter implements ActionListener {
 		floatStack.addSlice("Laplacian mangitude", toFloatProcessor(L));
 		floatStack.addSlice("Hessian determintant", toFloatProcessor(H));
 		floatStack.addSlice("Mask", toFloatProcessor(M));
-		floatStack.addSlice("Segmented", toFloatProcessor(B));
+		floatStack.addSlice("Thresholded", toFloatProcessor(B));
 		if (comp2 == null) {
 			comp2 = new ImagePlus("Scaled derivatives", floatStack);
 		} else {
