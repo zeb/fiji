@@ -2,6 +2,7 @@ package fiji.plugin.cwnt.segmentation;
 
 import fiji.plugin.trackmate.Settings;
 import fiji.plugin.trackmate.util.TMUtils;
+import ij.IJ;
 import ij.ImagePlus;
 import mpicbg.imglib.algorithm.MultiThreadedBenchmarkAlgorithm;
 import mpicbg.imglib.image.Image;
@@ -54,6 +55,11 @@ public class CWNTFrameSegmenter extends MultiThreadedBenchmarkAlgorithm {
 		
 		Labeling labels = cws.getLabeling();
 		ImagePlus result = ImageJFunctions.copyToImagePlus(labels);
+		result.setCalibration(imp.getCalibration());
+		IJ.run(result, "glasbey", null);
+		result.setSlice(result.getNSlices());
+		result.setDisplayRange(result.getDisplayRangeMin(), result.getDisplayRangeMax());
+		IJ.run(result, "RGB Color", null);
 		result.show();
 		
 		int tmin = (int) Math.ceil(processingTime / 1e3 / 60); //min 
