@@ -60,7 +60,8 @@ public class CWNTPanel extends SegmenterConfigurationPanel {
 	private ImagePlus targetImp;
 	private CWNTLivePreviewer previewer;
 	private double oldThresholdFactor;
-	private CWSettings settings = new CWSettings();;
+	private CWSettings settings = new CWSettings();
+	JLabel labelDurationEstimate;;
 
 
 
@@ -243,6 +244,11 @@ public class CWNTPanel extends SegmenterConfigurationPanel {
 			btnNewButton.setFont(FONT);
 			btnNewButton.setBounds(175, 292, 103, 72);
 			panelIntroduction.add(btnNewButton);
+			
+			labelDurationEstimate = new JLabel();
+			labelDurationEstimate.setBounds(10, 375, 268, 14);
+			panelIntroduction.setFont(FONT);
+			panelIntroduction.add(labelDurationEstimate);
 		}
 
 		JPanel panelParams1 = new JPanel();
@@ -585,7 +591,4 @@ public class CWNTPanel extends SegmenterConfigurationPanel {
 			"nuclei labels." +
 			"</html>" +
 			"";
-
-
-
 }

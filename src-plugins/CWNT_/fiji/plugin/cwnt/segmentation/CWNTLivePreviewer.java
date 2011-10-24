@@ -135,7 +135,7 @@ public class CWNTLivePreviewer extends MouseAdapter implements ActionListener {
 		double allPixels = imp.getWidth() * imp.getHeight() * imp.getNSlices() * imp.getNFrames();
 		double dt = nucleiMasker.getProcessingTime();
 		double tmin = Math.ceil(dt * allPixels / snipPixels / 1e3 / 60); //min 
-		//		source.setDurationEstimate(tmin); // TODO
+		source.labelDurationEstimate.setText("Total duration rough estimate: "+tmin+" min.");
 
 		// Prepare results holder;
 		Image 				F 	= nucleiMasker.getGaussianFilteredImage();
