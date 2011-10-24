@@ -182,6 +182,11 @@ public class CWNTPanel extends SegmenterConfigurationPanel {
 	}
 
 	
+	private void launchSingleFrameSegmentation() {
+		CWNTFrameSegmenter segmenter = new CWNTFrameSegmenter(this);
+		segmenter.process();
+	}
+	
 	private void launchLive() {
 		new Thread() {
 			public void run() {
@@ -236,14 +241,27 @@ public class CWNTPanel extends SegmenterConfigurationPanel {
 			});
 			panelIntroduction.add(btnTestParamtersLive);
 			
-			JButton btnNewButton = new JButton("<html><CENTER>Segment current frame</center></html>");
-			btnNewButton.addActionListener(new ActionListener() {
+			final String segFrameButtonText = "<html><CENTER>Segment current frame</center></html>";
+			final JButton segFrameButton = new JButton(segFrameButtonText);
+			segFrameButton.addActionListener(new ActionListener() {
 				public void actionPerformed(ActionEvent e) {
+					new Thread("CWNT thread") {
+						public void run() {
+							segFrameButton.setText("Segmenting...");
+							segFrameButton.setEnabled(false);
+							try {
+								launchSingleFrameSegmentation();
+							} finally {
+								segFrameButton.setEnabled(true);
+								segFrameButton.setText(segFrameButtonText);
+							}
+						}
+					}.start();
 				}
 			});
-			btnNewButton.setFont(FONT);
-			btnNewButton.setBounds(175, 292, 103, 72);
-			panelIntroduction.add(btnNewButton);
+			segFrameButton.setFont(FONT);
+			segFrameButton.setBounds(175, 292, 103, 72);
+			panelIntroduction.add(segFrameButton);
 			
 			labelDurationEstimate = new JLabel();
 			labelDurationEstimate.setBounds(10, 375, 268, 14);
