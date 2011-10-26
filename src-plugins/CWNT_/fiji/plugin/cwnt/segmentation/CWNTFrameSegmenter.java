@@ -2,12 +2,12 @@ package fiji.plugin.cwnt.segmentation;
 
 import fiji.plugin.trackmate.Settings;
 import fiji.plugin.trackmate.util.TMUtils;
-import ij.IJ;
 import ij.ImagePlus;
 import mpicbg.imglib.algorithm.MultiThreadedBenchmarkAlgorithm;
 import mpicbg.imglib.image.Image;
 import mpicbg.imglib.image.display.imagej.ImageJFunctions;
 import mpicbg.imglib.labeling.Labeling;
+import mpicbg.imglib.type.numeric.RGBALegacyType;
 
 public class CWNTFrameSegmenter extends MultiThreadedBenchmarkAlgorithm {
 
@@ -54,12 +54,12 @@ public class CWNTFrameSegmenter extends MultiThreadedBenchmarkAlgorithm {
 		processingTime = end - start;
 		
 		Labeling labels = cws.getLabeling();
-		ImagePlus result = ImageJFunctions.copyToImagePlus(labels);
+		LabelToRGB converter = new LabelToRGB(labels);
+		converter.process();
+		Image<RGBALegacyType> rgb = converter.getResult();
+		
+		ImagePlus result = ImageJFunctions.copyToImagePlus(rgb);
 		result.setCalibration(imp.getCalibration());
-		IJ.run(result, "glasbey", null);
-		result.setSlice(result.getNSlices());
-		result.setDisplayRange(result.getDisplayRangeMin(), result.getDisplayRangeMax());
-		IJ.run(result, "RGB Color", null);
 		result.show();
 		
 		int tmin = (int) Math.ceil(processingTime / 1e3 / 60); //min 
