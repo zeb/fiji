@@ -27,14 +27,13 @@ public class TrackMate_CWNT implements PlugIn {
 			@Override
 			protected List<SpotSegmenter> createSegmenterList() {
 				List<SpotSegmenter> list = super.createSegmenterList();
-				list.add(new CrownWearingSegmenter());
+				list.add(0, new CrownWearingSegmenter());
 				return list;
 			}
 
 			@Override
 			protected List<SpotFeatureAnalyzer> createSpotFeatureAnalyzerList() {
-				List<SpotFeatureAnalyzer> analyzers = new ArrayList<SpotFeatureAnalyzer>(1);
-				analyzers.add(new BlobDescriptiveStatistics());
+				List<SpotFeatureAnalyzer> analyzers = new ArrayList<SpotFeatureAnalyzer>(0);
 				return analyzers;
 			}
 
