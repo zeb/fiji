@@ -225,7 +225,9 @@ PLUGIN_TARGETS=plugins/Jython_Interpreter.jar \
 	plugins/Threshold_Colour.jar \
 	plugins/Helmholtz_Analysis.jar \
 	plugins/Descriptor_based_registration.jar \
-	plugins/Reconstruct_Reader.jar
+	plugins/Reconstruct_Reader.jar \
+	plugins/Image_Stabilizer.jar \
+	plugins/Image_Stabilizer.jar
 
 all <- fiji $SUBMODULE_TARGETS $PLUGIN_TARGETS
 
@@ -469,6 +471,7 @@ CLASSPATH(plugins/Colour_Deconvolution.jar)=jars/ij.jar
 CLASSPATH(plugins/Dichromacy_.jar)=jars/ij.jar
 CLASSPATH(plugins/Threshold_Colour.jar)=jars/ij.jar
 CLASSPATH(plugins/Helmholtz_Analysis.jar)=jars/ij.jar
+CLASSPATH(plugins/Image_Stabilizer.jar)=jars/ij.jar
 
 # pre-Java5 generics ;-)
 
@@ -491,6 +494,7 @@ plugins/FFMPEG_IO.jar[src-plugins/FFMPEG_IO/generate.bsh] <- src-plugins/FFMPEG_
 
 # This compiles and cross-compiles lib/<platform>/<ffmpeg-library>
 CLASSPATH(plugins/FFMPEG_IO.jar-cross)=jars/ij.jar
+CLASSPATH(plugins/Image_Stabilizer.jar)=jars/ij.jar
 plugins/FFMPEG_IO.jar-cross[src-plugins/FFMPEG_IO/generate.bsh all] <- src-plugins/FFMPEG_IO/**/*
 
 # the default rules
