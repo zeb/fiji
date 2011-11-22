@@ -43,6 +43,7 @@ Name					File					Author(s)						Contact								License
 * Graph Cut				Graph_Cut.jar				Jan Funke						jan.funke@inf.tu-dresden.de					GPL 2
 * Helmholtz Analysis			Helmholtz_Analysis.jar			Bob Dougherty						rpd@optinav.com							BSD
 * ij-ImageIO 				ij-ImageIO_.jar				Jarek Sacha 						jarek@ieee.org 							LGPL
+* Image Stabilizer			Image_Stabilizer.jar			Kang Li, Steven Kang					kangli@cs.cmu.edu						BSD
 * ImageJA				ij.jar					Johannes Schindelin, Wayne Rasband			Johannes.Schindelin@gmx.de					PD
 * imagescience.jar 			imagescience.jar 			Erik Meijering 						meijering@imagescience.org 					imagescience (see below)
 * imageware.jar				imageware.jar				Daniel Sage et al					http://bigwww.epfl.ch/						BIG (see below)
