@@ -679,7 +679,7 @@ public class LAPTracker extends MultiThreadedBenchmarkAlgorithm implements SpotT
 
 	@Override
 	public String toString() {
-		return "Fast LAP Tracker";
+		return "LAP Tracker";
 	}
 	
 	@Override
