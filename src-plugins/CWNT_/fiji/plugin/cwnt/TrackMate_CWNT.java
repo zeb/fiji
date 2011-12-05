@@ -1,15 +1,15 @@
 package fiji.plugin.cwnt;
 
-import fiji.plugin.cwnt.segmentation.CrownWearingSegmenter;
-import fiji.plugin.trackmate.TrackMate_;
-import fiji.plugin.trackmate.features.spot.BlobDescriptiveStatistics;
-import fiji.plugin.trackmate.features.spot.SpotFeatureAnalyzer;
-import fiji.plugin.trackmate.segmentation.SpotSegmenter;
-import fiji.plugin.trackmate.visualization.TrackMateModelView;
 import ij.plugin.PlugIn;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import fiji.plugin.cwnt.segmentation.CrownWearingSegmenter;
+import fiji.plugin.trackmate.TrackMate_;
+import fiji.plugin.trackmate.features.spot.SpotFeatureAnalyzer;
+import fiji.plugin.trackmate.segmentation.SpotSegmenter;
+import fiji.plugin.trackmate.visualization.TrackMateModelView;
 
 /**
  * An entry for CWNT that uses {@link TrackMate_} as a GUI.
@@ -26,8 +26,8 @@ public class TrackMate_CWNT implements PlugIn {
 			@SuppressWarnings("rawtypes")
 			@Override
 			protected List<SpotSegmenter> createSegmenterList() {
-				List<SpotSegmenter> list = super.createSegmenterList();
-				list.add(0, new CrownWearingSegmenter());
+				List<SpotSegmenter> list = new ArrayList<SpotSegmenter>(1);
+				list.add(new CrownWearingSegmenter());
 				return list;
 			}
 

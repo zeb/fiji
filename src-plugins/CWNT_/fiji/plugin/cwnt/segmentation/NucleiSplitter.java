@@ -42,9 +42,7 @@ public class NucleiSplitter extends MultiThreadedBenchmarkAlgorithm  {
 
 	private ArrayList<Integer> thrashedLabels;
 
-
 	private final List<Spot> spots;
-
 
 	private final float[] calibration;
 
@@ -124,15 +122,13 @@ public class NucleiSplitter extends MultiThreadedBenchmarkAlgorithm  {
 	 * euclidean distance.
 	 */
 	private void split(Integer label, int n) {
-
 		// Harvest pixel coordinates in a collection of calibrated clusterable points
-		final float[] calibration = source.getCalibration();
 		int volume = (int) source.getArea(label);
 		Collection<CalibratedEuclideanIntegerPoint> pixels = new ArrayList<CalibratedEuclideanIntegerPoint>(volume);
 		LocalizableCursor<FakeType> cursor = source.createLocalizableLabelCursor(label);
 		while(cursor.hasNext()) {
 			cursor.fwd();
-			int[] position = cursor.getPosition();
+			int[] position = cursor.getPosition().clone();
 			pixels.add(new CalibratedEuclideanIntegerPoint(position, calibration));
 		}
 		cursor.close();
@@ -142,17 +138,15 @@ public class NucleiSplitter extends MultiThreadedBenchmarkAlgorithm  {
 		List<Cluster<CalibratedEuclideanIntegerPoint>> clusters = clusterer.cluster(pixels, n, -1);
 
 		// Create spots from clusters 
-		final double voxelVolume = calibration[0] * calibration[1] * calibration[2] ; 
 		for (Cluster<CalibratedEuclideanIntegerPoint> cluster : clusters) {
-			float[] centroid = new float[3];
+			float[] centroid = new float[calibration.length];
+			int npoints =  cluster.getPoints().size();
 			for (CalibratedEuclideanIntegerPoint p : cluster.getPoints()) {
 				for (int i = 0; i < centroid.length; i++) {
-					centroid[i] += p.getPoint()[i] * calibration[i];
+					centroid[i] += (p.getPoint()[i] * calibration[i]) / npoints;
 				}
 			}
-			for (int i = 0; i < centroid.length; i++) {
-				centroid[i] /= cluster.getPoints().size();
-			}
+			final double voxelVolume = calibration[0] * calibration[1] * calibration[2] ; 
 			double nucleusVol = cluster.getPoints().size() * voxelVolume;
 			float radius = (float) Math.pow( 3 * nucleusVol / (4 * Math.PI), 0.33333);
 			Spot spot = new SpotImp(centroid);
