@@ -131,6 +131,11 @@ public class MiniMaven {
 		pom.groupId = groupId;
 		pom.artifactId = artifactId;
 		pom.version = version;
+		if (artifactId.equals("ij")) {
+			String javac = pom.expand("${java.home}/../lib/tools.jar");
+			if (new File(javac).exists())
+				pom.dependencies.add(new Dependency("com.sun", "tools", "1.4.2", false, javac));
+		}
 		return pom;
 	}
 
@@ -149,7 +154,7 @@ public class MiniMaven {
 		}
 	}
 
-	protected class POM extends DefaultHandler implements Comparable<POM> {
+	public class POM extends DefaultHandler implements Comparable<POM> {
 		protected boolean buildFromSource;
 		protected File directory, target;
 		protected POM parent;
@@ -239,12 +244,16 @@ public class MiniMaven {
 				if (child != null && !child.upToDate())
 					return false;
 
-			File source = new File(directory, "src/main/java");
+			File source = new File(directory, getSourcePath());
 
 			List<String> notUpToDates = new ArrayList<String>();
 			addRecursively(notUpToDates, source, ".java", target, ".class");
 			int count = notUpToDates.size();
 			return count == 0;
+		}
+
+		public String getSourcePath() {
+			return "src/main/java";
 		}
 
 		public void buildJar() throws FakeException, IOException, ParserConfigurationException, SAXException {
@@ -272,7 +281,7 @@ public class MiniMaven {
 					child.build();
 
 			target.mkdirs();
-			File source = new File(directory, "src/main/java");
+			File source = new File(directory, getSourcePath());
 
 			List<String> arguments = new ArrayList<String>();
 			// classpath
@@ -414,6 +423,7 @@ public class MiniMaven {
 			if (properties.containsKey(key))
 				return properties.get(key);
 			if (parent == null) {
+				// hard-code a few variables
 				if (key.equals("bio-formats.groupId"))
 					return "loci";
 				if (key.equals("imagej.groupId"))
@@ -475,6 +485,8 @@ public class MiniMaven {
 		protected POM findLocallyCachedPOM(String groupId, String artifactId, String version, boolean quiet) throws IOException, ParserConfigurationException, SAXException {
 			if (groupId == null)
 				return null;
+			if (version != null && version.equals(""))
+				version = null;
 			String key = groupId + ">" + artifactId;
 			if (localPOMCache.containsKey(key)) {
 				POM result = localPOMCache.get(key); // may be null
@@ -485,29 +497,35 @@ public class MiniMaven {
 			String path = System.getProperty("user.home") + "/.m2/repository/" + groupId.replace('.', '/') + "/" + artifactId + "/";
 			if (version == null)
 				version = findLocallyCachedVersion(path);
-			if (version == null) {
+			if (version == null && artifactId.equals("scifio"))
+				version = "4.4-SNAPSHOT";
+			if (version == null || version.startsWith("[") || artifactId.equals("tools")) {
+				// try to find the .jar in Fiji's jars/ dir
+				String jarName = artifactId.equals("tools") ? "javac.jar" : artifactId + ".jar";
+				File file = new File(System.getProperty("fiji.dir"), "jars/" + jarName);
+				if (file.exists()) {
+					POM pom = fakePOM(file, groupId, artifactId, version);
+					localPOMCache.put(key, pom);
+					return pom;
+				}
 				if (!quiet)
 					err.println("Cannot find version for artifact " + artifactId + " (dependency of " + this.artifactId + ")");
 				localPOMCache.put(key, null);
 				return null;
 			}
-			path += version + "/" + artifactId + "-" + version + ".pom";
+			path += version + "/";
+			if (version.endsWith("-SNAPSHOT")) try {
+				if (!maybeDownloadAutomatically(groupId, artifactId, version, quiet))
+					return null;
+				version = parseSnapshotVersion(new File(path));
+			} catch (FileNotFoundException e) { /* ignore */ }
+			path += artifactId + "-" + version + ".pom";
 
 			File file = new File(path);
 			if (!file.exists()) {
 				if (downloadAutomatically) {
-					if (!quiet)
-						err.println("Downloading " + artifactId);
-					try {
-						download(groupId, artifactId, version);
-					} catch (Exception e) {
-						if (!quiet) {
-							e.printStackTrace(err);
-							err.println("Could not download " + artifactId + ": " + e.getMessage());
-						}
-						localPOMCache.put(key, null);
+					if (!maybeDownloadAutomatically(groupId, artifactId, version, quiet))
 						return null;
-					}
 				}
 				else {
 					if (!quiet)
@@ -522,6 +540,25 @@ public class MiniMaven {
 				err.println("Artifact " + artifactId + " not found" + (downloadAutomatically ? "" : "; consider 'get-dependencies'"));
 			localPOMCache.put(key, result);
 			return result;
+		}
+
+		protected boolean maybeDownloadAutomatically(String groupId, String artifactId, String version, boolean quiet) {
+			if (!downloadAutomatically || buildFromSource)
+				return true;
+			if (!quiet)
+				err.println("Downloading " + artifactId);
+			try {
+				download(groupId, artifactId, version);
+			} catch (Exception e) {
+				if (!quiet) {
+					e.printStackTrace(err);
+					err.println("Could not download " + artifactId + ": " + e.getMessage());
+				}
+				String key = groupId + ">" + artifactId;
+				localPOMCache.put(key, null);
+				return false;
+			}
+			return true;
 		}
 
 		protected String findLocallyCachedVersion(String path) throws IOException {
@@ -596,6 +633,8 @@ public class MiniMaven {
 				if (version == null)
 					version = string;
 			}
+			else if (prefix.equals(">project>modules"))
+				buildFromSource = true; // might not be building a target
 			else if (prefix.equals(">project>modules>module"))
 				modules.add(string);
 			else if (prefix.startsWith(">project>properties>"))
@@ -656,17 +695,28 @@ public class MiniMaven {
 		}
 	}
 
-	protected static void downloadAndVerify(String repositoryURL, String groupId, String artifactId, String version) throws MalformedURLException, IOException, NoSuchAlgorithmException {
+	protected static void downloadAndVerify(String repositoryURL, String groupId, String artifactId, String version) throws MalformedURLException, IOException, NoSuchAlgorithmException, ParserConfigurationException, SAXException {
 		String path = "/" + groupId.replace('.', '/') + "/" + artifactId + "/" + version + "/";
-		String baseURL = repositoryURL + path + artifactId + "-" + version;
 		File directory = new File(System.getProperty("user.home") + "/.m2/repository" + path);
+		if (version.endsWith("-SNAPSHOT")) {
+			String metadataURL = repositoryURL + path + "maven-metadata.xml";
+			downloadAndVerify(metadataURL, directory, "maven-metadata-snapshot.xml");
+			version = parseSnapshotVersion(directory);
+			if (version == null)
+				throw new IOException("No version found in " + metadataURL);
+		}
+		String baseURL = repositoryURL + path + artifactId + "-" + version;
 		downloadAndVerify(baseURL + ".pom", directory);
 		downloadAndVerify(baseURL + ".jar", directory);
 	}
 
 	protected static void downloadAndVerify(String url, File directory) throws IOException, NoSuchAlgorithmException {
-		File sha1 = download(new URL(url + ".sha1"), directory);
-		File file = download(new URL(url), directory);
+		downloadAndVerify(url, directory, null);
+	}
+
+	protected static void downloadAndVerify(String url, File directory, String fileName) throws IOException, NoSuchAlgorithmException {
+		File sha1 = download(new URL(url + ".sha1"), directory, fileName == null ? null : fileName + ".sha1");
+		File file = download(new URL(url), directory, fileName);
 		MessageDigest digest = MessageDigest.getInstance("SHA-1");
 		FileInputStream fileStream = new FileInputStream(file);
 		DigestInputStream digestStream = new DigestInputStream(fileStream, digest);
@@ -687,6 +737,47 @@ public class MiniMaven {
 		fileStream.close();
 	}
 
+	protected static String parseSnapshotVersion(File directory) throws IOException, ParserConfigurationException, SAXException {
+		return parseSnapshotVersion(new FileInputStream(new File(directory, "maven-metadata-snapshot.xml")));
+	}
+
+	protected static String parseSnapshotVersion(InputStream in) throws IOException, ParserConfigurationException, SAXException {
+		SnapshotPOMHandler handler = new SnapshotPOMHandler();
+		XMLReader reader = SAXParserFactory.newInstance().newSAXParser().getXMLReader();
+		reader.setContentHandler(handler);
+		reader.parse(new InputSource(in));
+		if (handler.snapshotVersion != null && handler.timestamp != null && handler.buildNumber != null)
+			return handler.snapshotVersion + "-" + handler.timestamp + "-" + handler.buildNumber;
+		throw new IOException("Missing timestamp/build number: " + handler.timestamp + ", " + handler.buildNumber);
+	}
+
+	protected static class SnapshotPOMHandler extends DefaultHandler {
+		protected String qName;
+		protected String snapshotVersion, timestamp, buildNumber;
+
+		public void startElement(String uri, String localName, String qName, Attributes attributes) {
+			this.qName = qName;
+		}
+
+		public void endElement(String uri, String localName, String qName) {
+			this.qName = null;
+		}
+
+		public void characters(char[] ch, int start, int length) {
+			if (qName == null)
+				; // ignore
+			else if (qName.equals("version")) {
+				String version = new String(ch, start, length).trim();
+				if (version.endsWith("-SNAPSHOT"))
+					snapshotVersion = version.substring(0, version.length() - "-SNAPSHOT".length());
+			}
+			else if (qName.equals("timestamp"))
+				timestamp = new String(ch, start, length).trim();
+			else if (qName.equals("buildNumber"))
+				buildNumber = new String(ch, start, length).trim();
+		}
+	}
+
 	protected static int hexNybble(int b) {
 		return (b < 'A' ? (b < 'a' ? b - '0' : b - 'a' + 10) : b - 'A' + 10) & 0xf;
 	}
@@ -701,10 +792,17 @@ public class MiniMaven {
 	}
 
 	protected static File download(URL url, File directory) throws IOException {
-		directory.mkdirs();
+		return download(url, directory, null);
+	}
+
+	protected static File download(URL url, File directory, String fileName) throws IOException {
+		if (fileName == null) {
+			fileName = url.getPath();
+			fileName = fileName.substring(fileName.lastIndexOf('/') + 1);
+		}
+
 		InputStream in = url.openStream();
-		String fileName = url.getPath();
-		fileName = fileName.substring(fileName.lastIndexOf('/') + 1);
+		directory.mkdirs();
 		File result = new File(directory, fileName);
 		copy(in, result);
 		return result;
@@ -772,7 +870,7 @@ public class MiniMaven {
 		MiniMaven miniMaven = new MiniMaven(null, System.err, false);
 		POM root = miniMaven.parse(new File("pom.xml"), null);
 		String command = args.length == 0 ? "compile-and-run" : args[0];
-		String artifactId = getSystemProperty("artifactId", "imagej");
+		String artifactId = getSystemProperty("artifactId", "ij-app");
 		String mainClass = getSystemProperty("mainClass", "imagej.Main");
 
 		POM pom = root.findPOM(null, artifactId, null);

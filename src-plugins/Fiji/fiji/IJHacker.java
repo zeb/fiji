@@ -78,24 +78,6 @@ public class IJHacker extends JavassistHelper {
 		// tell runUserPlugIn() to mention which class was not found if a dependency is missing
 		method = clazz.getMethod("runUserPlugIn",
 			"(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Z)Ljava/lang/Object;");
-		method.instrument(new ExprEditor() {
-			@Override
-			public void edit(Handler handler) throws CannotCompileException {
-				try {
-					if (handler.getType().getName().equals("java.lang.NoClassDefFoundError"))
-						handler.insertBefore("String cause = $1.getMessage();"
-						+ "int index = cause.indexOf('(') + 1;"
-						+ "int endIndex = cause.indexOf(')', index);"
-						+ "if (!suppressPluginNotFoundError && index > 0 && endIndex > index) {"
-						+ "  String name = cause.substring(index, endIndex);"
-						+ "  error(\"Did not find required class: \" + $1.getMessage());"
-						+ "  return null;"
-						+ "}");
-				} catch (Exception e) {
-					e.printStackTrace();
-				}
-			}
-		});
 		// tell the error() method to use "Fiji" as window title
 		method = clazz.getMethod("error",
 			"(Ljava/lang/String;Ljava/lang/String;)V");
@@ -293,7 +275,7 @@ public class IJHacker extends JavassistHelper {
 		});
 		// open text in the Fiji Editor
 		method = clazz.getMethod("open", "(Ljava/lang/String;)V");
-		method.insertBefore("if ($1.indexOf(\"://\") < 0 && isText($1) &&"
+		method.insertBefore("if ($1.indexOf(\"://\") < 0 && isText($1) && !fiji.FijiTools.getFileExtension($1).equals(\"\") &&"
 			+ "    ij.IJ.runPlugIn(\"fiji.scripting.Script_Editor\", $1) != null)"
 			+ "  return;");
 
