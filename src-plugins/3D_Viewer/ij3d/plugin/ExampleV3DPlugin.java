@@ -1,8 +1,8 @@
 package ij3d.plugin;
 
 import ij3d.Image3DUniverse;
-import imagej.plugin.Parameter;
-import imagej.plugin.Plugin;
+import imagej.ext.plugin.Parameter;
+import imagej.ext.plugin.Plugin;
 
 import javax.swing.JOptionPane;
 

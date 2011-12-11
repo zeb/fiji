@@ -5,9 +5,9 @@ import javax.media.j3d.Transform3D;
 import ij3d.Content;
 import ij3d.Image3DUniverse;
 import ij3d.plugin.Viewer3DPlugin;
-import imagej.plugin.Menu;
-import imagej.plugin.Parameter;
-import imagej.plugin.Plugin;
+import imagej.ext.plugin.Menu;
+import imagej.ext.plugin.Parameter;
+import imagej.ext.plugin.Plugin;
 
 @Plugin(
 		type=Viewer3DPlugin.class,

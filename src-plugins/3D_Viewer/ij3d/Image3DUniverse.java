@@ -4,9 +4,11 @@ import ij.IJ;
 import ij.ImagePlus;
 import ij3d.plugin.Viewer3DPluginFinder;
 import ij3d.pointlist.PointListDialog;
-import imagej.plugin.api.PluginEntry;
-import imagej.plugin.gui.ShadowMenu;
-import imagej.plugin.gui.swing.JMenuBarCreator;
+import imagej.ImageJ;
+import imagej.MenuService;
+import imagej.PluginService;
+import imagej.ext.plugin.PluginInfo;
+import imagej.ext.ui.swing.SwingJMenuBarCreator;
 
 import java.awt.BorderLayout;
 import java.awt.CheckboxMenuItem;
@@ -190,13 +192,21 @@ public class Image3DUniverse extends DefaultAnimatableUniverse {
 		menubar = new Image3DMenubar(this);
 		registrationMenubar = new RegistrationMenubar(this);
 
-		final Viewer3DPluginFinder pluginFinder = new Viewer3DPluginFinder(this);
-		final List<PluginEntry<?>> plugins = new ArrayList<PluginEntry<?>>();
-		pluginFinder.findPlugins(plugins);
+		final ImageJ context = ImageJ.createContext(PluginService.class,
+			MenuService.class);
+
+		final PluginService pluginService = context.getService(PluginService.class);
+		final List<PluginModuleInfo<Viewer3DPlugin>> plugins =
+			pluginService.getRunnablePluginsOfType(Viewer3DPlugin.class);
+		for (PluginModuleInfo<Viewer3DPlugin> info : plugins) {
+			info.getPresets().put("universe", this);
+		}
 		System.out.println("Found " + plugins.size() + " plugins");
 
-		final ShadowMenu rootMenu = new ShadowMenu(plugins);
+		final MenuService menuService = context.getService(MenuService.class);
+		final ShadowMenu rootMenu = new ShadowMenu(menuService, plugins);
 		new JMenuBarCreator().createMenus(rootMenu, menubar);
+
 	}
 
 	/**

@@ -1,6 +1,6 @@
 package ij3d.plugin;
 
-import imagej.plugin.RunnablePlugin;
+import imagej.ext.plugin.RunnablePlugin;
 
 public interface Viewer3DPlugin extends RunnablePlugin {
 	// Viewer3DPlugin is a 3D Viewer plugin,
