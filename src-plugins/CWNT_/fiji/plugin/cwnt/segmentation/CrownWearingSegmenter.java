@@ -88,7 +88,18 @@ public class CrownWearingSegmenter<T extends IntegerType<T>>  extends MultiThrea
 		// Crown wearing mask
 		NucleiMasker<T> masker = new NucleiMasker<T>(source);
 		masker.setNumThreads(numThreads);
-		masker.setParameters(settings.getMaskingParameters());
+		boolean doMedianFiltering 	= settings.doMedianFiltering;
+		double gaussFilterSigma 	= settings.sigmaf;
+		int nIterAnDiff 			= settings.nAD;
+		double kappa				= settings.kappa;
+		double gaussGradSigma		= settings.sigmag;
+		double gamma 				= settings.gamma;
+		double alpha				= settings.alpha;
+		double beta 				= settings.beta;
+		double epsilon				= settings.epsilon;
+		double delta 				= settings.delta;
+		masker.setParameters(doMedianFiltering, gaussFilterSigma, nIterAnDiff, kappa, 
+				gaussGradSigma, gamma, alpha, beta, epsilon, delta);
 		check = masker.process();
 		if (check) {
 			masked = masker.getResult();

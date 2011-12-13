@@ -35,7 +35,6 @@ public class CWNTLivePreviewer extends MouseAdapter implements ActionListener {
 	 * CONSTRUCTOR
 	 */
 
-
 	public CWNTLivePreviewer(CWNTPanel panel) {
 		this.source = panel;
 		this.imp = panel.getTargetImagePlus();
@@ -122,9 +121,8 @@ public class CWNTLivePreviewer extends MouseAdapter implements ActionListener {
 		}
 
 		// Prepare algo
-		double [] params = ((CWSettings)source.getSegmenterSettings()).getMaskingParameters();
 		nucleiMasker = new NucleiMasker(img);
-		nucleiMasker.setParameters(params);
+		readMaskingParameters();
 		boolean check = nucleiMasker.checkInput() && nucleiMasker.process();
 		if (!check) {
 			System.err.println("Problem with the segmenter: "+nucleiMasker.getErrorMessage());
@@ -205,9 +203,9 @@ public class CWNTLivePreviewer extends MouseAdapter implements ActionListener {
 	}
 
 	private void paramStep1Changed() {
+		readMaskingParameters();
+		
 		// We have to redo all.
-		double [] params = ((CWSettings)source.getSegmenterSettings()).getMaskingParameters();
-		nucleiMasker.setParameters(params);
 		nucleiMasker.execStep1(); 
 		nucleiMasker.execStep2(); 
 		nucleiMasker.execStep3(); 
@@ -237,8 +235,8 @@ public class CWNTLivePreviewer extends MouseAdapter implements ActionListener {
 	}
 
 	private void paramStep2Changed() {
-		double [] params = ((CWSettings)source.getSegmenterSettings()).getMaskingParameters();
-		nucleiMasker.setParameters(params);
+		readMaskingParameters();
+
 		nucleiMasker.execStep2(); 
 		nucleiMasker.execStep3(); 
 		nucleiMasker.execStep4(); 
@@ -265,8 +263,8 @@ public class CWNTLivePreviewer extends MouseAdapter implements ActionListener {
 	}
 
 	private void paramStep3Changed() {
-		double [] params = ((CWSettings)source.getSegmenterSettings()).getMaskingParameters();
-		nucleiMasker.setParameters(params);
+		readMaskingParameters();
+		
 		nucleiMasker.execStep3(); 
 		nucleiMasker.execStep4(); 
 		paramStep5Changed();
@@ -290,8 +288,8 @@ public class CWNTLivePreviewer extends MouseAdapter implements ActionListener {
 	}
 
 	private void paramStep4Changed() {
-		double [] params = ((CWSettings)source.getSegmenterSettings()).getMaskingParameters();
-		nucleiMasker.setParameters(params);
+		readMaskingParameters();
+		
 		nucleiMasker.execStep4();
 		paramStep5Changed();
 
@@ -329,6 +327,22 @@ public class CWNTLivePreviewer extends MouseAdapter implements ActionListener {
 				ImageJVirtualStack.extractSliceFloat( img, img.getDisplay(), 0, 1, new int[3] ), null); 
 		fip.setMinAndMax( img.getDisplay().getMin(),  img.getDisplay().getMax() );
 		return fip;
+	}
+	
+	private void readMaskingParameters() {
+		CWSettings settings = (CWSettings) source.getSegmenterSettings();
+		boolean doMedianFiltering 	= settings.doMedianFiltering;
+		double gaussFilterSigma 	= settings.sigmaf;
+		int nIterAnDiff 			= settings.nAD;
+		double kappa				= settings.kappa;
+		double gaussGradSigma		= settings.sigmag;
+		double gamma 				= settings.gamma;
+		double alpha				= settings.alpha;
+		double beta 				= settings.beta;
+		double epsilon				= settings.epsilon;
+		double delta 				= settings.delta;
+		nucleiMasker.setParameters(doMedianFiltering, gaussFilterSigma, nIterAnDiff, kappa, 
+				gaussGradSigma, gamma, alpha, beta, epsilon, delta);
 	}
 
 	/*

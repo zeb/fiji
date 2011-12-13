@@ -18,7 +18,8 @@ import fiji.plugin.trackmate.util.TMUtils;
 public class CWSettings extends BasicSegmenterSettings {
 
 	
-	
+	/** If true, do 2x2 median-filtering before anything. */
+	public boolean 	doMedianFiltering = false;
 	/** the σ for the gaussian filtering in step 1 */
 	public double 	sigmaf 	= 0.5;		// 0. σf
 	/** the number of iteration for anisotropic filtering in step 2 */
@@ -30,76 +31,17 @@ public class CWSettings extends BasicSegmenterSettings {
 	/** γ, the <i>tanh</i> shift in step 4 */
 	public double 	gamma 	= 1;		// 4. γ
 	/** α, the gradient prefactor in step 4 */
-	public double 	alpha 	= 2.7; 		// 5. α
+	public double 	alpha 	= 1; 		// 5. α
 	/** β, the laplacian positive magnitude prefactor in step 4 */
-	public double 	beta 	= 14.9;		// 6. β
+	public double 	beta 	= 1;		// 6. β
 	/** ε, the hessian negative magnitude prefactor in step 4 */
-	public double 	epsilon = 16.9;		// 7. ε
+	public double 	epsilon = 1;		// 7. ε
 	/** δ, the derivative sum scale in step 4 */
-	public double 	delta 	= 0.5;		// 8. δ
+	public double 	delta 	= 1;		// 8. δ
 	/** A pre-factor, introduced by Bhavna, to increase the threshold in each slice,
 	 * and have a more stringent thresholding.  */
-	public double  thresholdFactor = 1.6;
+	public double  thresholdFactor = 1;
 	
-	/**
-	 * Convenience method.
-	 * Return the masking parameters (all of them, but the thresholding factor) in
-	 * a 9-elements double array.
-	 * <ol start="0">
-	 * 	<li> the σ for the gaussian filtering in step 1
-	 *  <li> the number of iteration for anisotropic filtering in step 2
-	 *  <li> κ, the gradient threshold for anisotropic filtering in step 2
-	 * 	<li> the σ for the gaussian derivatives in step 3
-	 *  <li> γ, the <i>tanh</i> shift in step 4
-	 *  <li> α, the gradient prefactor in step 4
-	 *  <li> β, the laplacian positive magnitude prefactor in step 4
-	 *  <li> ε, the hessian negative magnitude prefactor in step 4
-	 *  <li> δ, the derivative sum scale in step 4
-	 * </ol>
-	 */
-	public double[] getMaskingParameters() {
-		return new double[] {
-				sigmaf,
-				nAD,
-				kappa,
-				sigmag,
-				gamma,
-				alpha,
-				beta,
-				epsilon,
-				delta
-		};
-	}
-	
-	/**
-	 * Convenience method.
-	 * Set the masking parameters (all of them, but the thresholding factor) 
-	 * with the values given in the 9-elements double array.
-	 *  <ol start="0">
-	 * 	<li> the σ for the gaussian filtering in step 1
-	 *  <li> the number of iteration for anisotropic filtering in step 2
-	 *  <li> κ, the gradient threshold for anisotropic filtering in step 2
-	 * 	<li> the σ for the gaussian derivatives in step 3
-	 *  <li> γ, the <i>tanh</i> shift in step 4
-	 *  <li> α, the gradient prefactor in step 4
-	 *  <li> β, the laplacian positive magnitude prefactor in step 4
-	 *  <li> ε, the hessian negative magnitude prefactor in step 4
-	 *  <li> δ, the derivative sum scale in step 4
-	 * </ol>
-	 */
-	public void putMaskingParameters(double[] params) {
-		sigmaf 	= params[0];
-		nAD		= (int) params[1];
-		kappa	= params[2];
-		sigmag	= params[3];
-		gamma	= params[4];
-		alpha	= params[5];
-		beta	= params[6];
-		epsilon	= params[7];
-		delta	= params[8];
-		
-	}
-
 	@Override
 	public SegmenterConfigurationPanel createConfigurationPanel() {
 		return new CWNTPanel();
@@ -113,6 +55,7 @@ public class CWSettings extends BasicSegmenterSettings {
 	@Override
 	public void unmarshall(Element element) {
 		super.unmarshall(element); // Deal with expected radius
+		doMedianFiltering = TMUtils.readBooleanAttribute(element, MEDIAN_ATTRIBUTE_NAME, Logger.VOID_LOGGER);
 		sigmaf 	= TMUtils.readDoubleAttribute(element, SIGMA_F_ATTRIBUTE_NAME, Logger.VOID_LOGGER);
 		nAD 	= TMUtils.readIntAttribute(element, N_AD_ATTRIBUTE_NAME, Logger.VOID_LOGGER);
 		kappa 	= TMUtils.readDoubleAttribute(element, KAPPA_ATTRIBUTE_NAME, Logger.VOID_LOGGER);
@@ -126,6 +69,7 @@ public class CWSettings extends BasicSegmenterSettings {
 	}
 	
 	protected List<Attribute> getAttributes() {
+		Attribute attMedian = new Attribute(MEDIAN_ATTRIBUTE_NAME, 	"" + doMedianFiltering);
 		Attribute attSigmaF = new Attribute(SIGMA_F_ATTRIBUTE_NAME, "" + sigmaf);
 		Attribute attNAD 	= new Attribute(N_AD_ATTRIBUTE_NAME, 	"" + nAD);
 		Attribute attKappa 	= new Attribute(KAPPA_ATTRIBUTE_NAME, 	"" + kappa);
@@ -139,6 +83,7 @@ public class CWSettings extends BasicSegmenterSettings {
 	
 		List<Attribute> atts = new ArrayList<Attribute>(11);
 		atts.add(super.getAttribute());
+		atts.add(attMedian);
 		atts.add(attSigmaF);
 		atts.add(attNAD);
 		atts.add(attKappa);
@@ -152,8 +97,7 @@ public class CWSettings extends BasicSegmenterSettings {
 		return atts;
 	}
 
-	
-
+	private static final String MEDIAN_ATTRIBUTE_NAME 	= "medianFiltering";
 	private static final String SIGMA_F_ATTRIBUTE_NAME 	= "sigmaf";
 	private static final String N_AD_ATTRIBUTE_NAME 	= "nAD";
 	private static final String KAPPA_ATTRIBUTE_NAME 	= "kapa";

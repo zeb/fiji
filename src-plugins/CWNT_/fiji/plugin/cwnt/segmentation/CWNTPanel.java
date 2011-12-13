@@ -11,7 +11,6 @@ import java.awt.event.ActionListener;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
-import java.util.Arrays;
 
 import javax.swing.JButton;
 import javax.swing.JLabel;
@@ -32,11 +31,20 @@ public class CWNTPanel extends SegmenterConfigurationPanel {
 
 	private static final long serialVersionUID = 1L;
 	private int scale = 10; // sliders resolution
-	private JTabbedPane tabbedPane;
-	private double[] maskingParams;
-	private double thresholdFactor;
-	private double[] oldMaskingParams;
+	private double oldThresholdFactor;
+	private boolean oldDoMedianFiltering;
+	private double oldGaussFilterSigma;
+	private int oldNIterAnDiff;
+	private double oldKappa;
+	private double oldGaussGradSigma;
+	private double oldGamma;
+	private double oldAlpha;
+	private double oldBeta;
+	private double oldEpsilon;
+	private double oldDelta;
 	
+	private JTabbedPane tabbedPane;
+	private JCheckBox chckbxDoMedianFiltering;;
 	private DoubleJSlider gaussFiltSigmaSlider;
 	private JTextField gaussFiltSigmaText;
 	private JTextField aniDiffNIterText;
@@ -60,15 +68,23 @@ public class CWNTPanel extends SegmenterConfigurationPanel {
 	private boolean liveLaunched;
 	private ImagePlus targetImp;
 	private CWNTLivePreviewer previewer;
-	private double oldThresholdFactor;
 	private CWSettings settings = new CWSettings();
-	JLabel labelDurationEstimate;;
-
-
+	JLabel labelDurationEstimate;
 
 	public CWNTPanel() {
-		maskingParams = new CWSettings().getMaskingParameters();
-		thresholdFactor = new CWSettings().thresholdFactor;
+		// Grab defaults.
+		oldDoMedianFiltering 	= settings.doMedianFiltering;
+		oldThresholdFactor 		= settings.thresholdFactor;
+		oldGaussFilterSigma 	= settings.sigmaf;
+		oldNIterAnDiff 			= settings.nAD;
+		oldKappa				= settings.kappa;
+		oldGaussGradSigma		= settings.sigmag;
+		oldGamma 				= settings.gamma;
+		oldAlpha				= settings.alpha;
+		oldBeta					= settings.beta;
+		oldEpsilon				= settings.epsilon;
+		oldDelta				= settings.delta;
+		// Layout
 		initGUI();
 		setSize(320, 518);
 	}
@@ -78,6 +94,7 @@ public class CWNTPanel extends SegmenterConfigurationPanel {
 	public void setSegmenterSettings(TrackMateModel model) {
 		CWSettings settings = (CWSettings) model.getSettings().segmenterSettings;
 		
+		chckbxDoMedianFiltering.setSelected(settings.doMedianFiltering);
 		gaussFiltSigmaText.setText(""+settings.sigmaf);
 		aniDiffNIterText.setText(""+settings.nAD);
 		aniDiffKappaText.setText(""+settings.kappa);
@@ -113,54 +130,73 @@ public class CWNTPanel extends SegmenterConfigurationPanel {
 				event == STEP3_PARAMETER_CHANGED ||
 				event == STEP4_PARAMETER_CHANGED || 
 				event == STEP5_PARAMETER_CHANGED) {
-			collectMaskingParameters();
+			
+			// Grab settings values from GUI
+			
+			settings.doMedianFiltering = chckbxDoMedianFiltering.isSelected();
 			try {
-				thresholdFactor = Double.parseDouble(thresholdFactorText.getText());
+				settings.sigmaf = Double.parseDouble(gaussFiltSigmaText.getText());
+			} catch (NumberFormatException nfe) {}
+			try {
+				settings.nAD = Integer.parseInt(aniDiffNIterText.getText());
+			} catch (NumberFormatException nfe) {}
+			try {
+				settings.kappa = Double.parseDouble(aniDiffKappaText.getText());
+			} catch (NumberFormatException nfe) {}
+			try {
+				settings.sigmag = Double.parseDouble(gaussGradSigmaText.getText());
+			} catch (NumberFormatException nfe) {}
+			try {
+				settings.gamma = Double.parseDouble(gammaText.getText());
+			} catch (NumberFormatException nfe) {}
+			try {
+				settings.alpha = Double.parseDouble(alphaText.getText());
+			} catch (NumberFormatException nfe) {}
+			try {
+				settings.beta = Double.parseDouble(betaText.getText());
+			} catch (NumberFormatException nfe) {}
+			try {
+				settings.epsilon = Double.parseDouble(epsilonText.getText());
+			} catch (NumberFormatException nfe) {}
+			try {
+				settings.delta = Double.parseDouble(deltaText.getText());
+			} catch (NumberFormatException nfe) {}
+			try {
+				settings.thresholdFactor = Double.parseDouble(thresholdFactorText.getText());
 			} catch (NumberFormatException nfe) {}
 
-			if (Arrays.equals(maskingParams, oldMaskingParams) && thresholdFactor == oldThresholdFactor) {
-				return; // We do not fire event if params did not change
-			}
+			// Check if they have changed
+			if (	settings.thresholdFactor == oldThresholdFactor
+					&& settings.doMedianFiltering 	== oldDoMedianFiltering					
+					&& settings.sigmaf 				== oldGaussFilterSigma
+					&& settings.nAD 				== oldNIterAnDiff
+					&& settings.kappa				== oldKappa
+					&& settings.sigmag 				== oldGaussGradSigma
+					&& settings.gamma 				== oldGamma
+					&& settings.alpha				== oldAlpha
+					&& settings.beta				== oldBeta
+					&& settings.epsilon				== oldEpsilon
+					&& settings.delta				== oldDelta
+			) {	return; } // We do not fire event if params did not change 
 			
-			oldThresholdFactor = thresholdFactor;
-			oldMaskingParams = Arrays.copyOf(maskingParams, maskingParams.length);
-			settings.putMaskingParameters(maskingParams);
-			settings.thresholdFactor = thresholdFactor;
+			// Update old values
+			oldDoMedianFiltering 	= settings.doMedianFiltering;
+			oldThresholdFactor 		= settings.thresholdFactor;
+			oldGaussFilterSigma 	= settings.sigmaf;
+			oldNIterAnDiff 			= settings.nAD;
+			oldKappa				= settings.kappa;
+			oldGaussGradSigma		= settings.sigmag;
+			oldGamma 				= settings.gamma;
+			oldAlpha				= settings.alpha;
+			oldBeta					= settings.beta;
+			oldEpsilon				= settings.epsilon;
+			oldDelta				= settings.delta;
 		}
 
+		// Forward event, whatever it is.
 		for (ActionListener listener : actionListeners) {
 			listener.actionPerformed(event);
 		}
-	}
-
-	private void  collectMaskingParameters() throws NumberFormatException {
-		try {
-			 maskingParams[0] = Double.parseDouble(gaussFiltSigmaText.getText());
-		} catch (NumberFormatException nfe) {}
-		try {
-			maskingParams[1] = Integer.parseInt(aniDiffNIterText.getText());
-		} catch (NumberFormatException nfe) {}
-		try {
-			maskingParams[2] = Double.parseDouble(aniDiffKappaText.getText());
-		} catch (NumberFormatException nfe) {}
-		try {
-			maskingParams[3] = Double.parseDouble(gaussGradSigmaText.getText());
-		} catch (NumberFormatException nfe) {}
-		try {
-			maskingParams[4] = Double.parseDouble(gammaText.getText());
-		} catch (NumberFormatException nfe) {}
-		try {
-			maskingParams[5] = Double.parseDouble(alphaText.getText());
-		} catch (NumberFormatException nfe) {}
-		try {
-			maskingParams[6] = Double.parseDouble(betaText.getText());
-		} catch (NumberFormatException nfe) {}
-		try {
-			maskingParams[7] = Double.parseDouble(epsilonText.getText());
-		} catch (NumberFormatException nfe) {}
-		try {
-			maskingParams[8] = Double.parseDouble(deltaText.getText());
-		} catch (NumberFormatException nfe) {}
 	}
 		
 	private void link(final DoubleJSlider slider, final JTextField text) {
@@ -182,7 +218,6 @@ public class CWNTPanel extends SegmenterConfigurationPanel {
 		});
 	}
 
-	
 	private void launchSingleFrameSegmentation() {
 		CWNTFrameSegmenter segmenter = new CWNTFrameSegmenter(this);
 		segmenter.process();
@@ -281,29 +316,34 @@ public class CWNTPanel extends SegmenterConfigurationPanel {
 			panelDenoising.add(lblFiltering);
 
 			{
+				chckbxDoMedianFiltering = new JCheckBox("Do median filtering");
+				chckbxDoMedianFiltering.setBounds(10, 55, 268, 23);
+				chckbxDoMedianFiltering.setFont(SMALL_FONT);
+				chckbxDoMedianFiltering.setSelected(settings.doMedianFiltering);
+				panelDenoising.add(chckbxDoMedianFiltering);
+				chckbxDoMedianFiltering.addActionListener(new ActionListener() {
+					@Override
+					public void actionPerformed(ActionEvent e) { fireEvent(STEP1_PARAMETER_CHANGED); }
+				});
+				
 				JLabel lblGaussianFilter = new JLabel("Gaussian filter \u03C3:");
 				lblGaussianFilter.setFont(SMALL_FONT);
-				lblGaussianFilter.setBounds(10, 51, 268, 14);
+				lblGaussianFilter.setBounds(10, 90, 268, 14);
 				panelDenoising.add(lblGaussianFilter);
 
-				gaussFiltSigmaSlider = new DoubleJSlider(0, 5*scale, (int) (maskingParams[0]*scale), scale);
-				gaussFiltSigmaSlider.setBounds(10, 76, 223, 23);
+				gaussFiltSigmaSlider = new DoubleJSlider(0, 5*scale, (int) (settings.sigmaf*scale), scale);
+				gaussFiltSigmaSlider.setBounds(10, 115, 223, 23);
 				panelDenoising.add(gaussFiltSigmaSlider);
 
-				gaussFiltSigmaText = new JTextField(""+maskingParams[0]);
+				gaussFiltSigmaText = new JTextField(""+settings.sigmaf);
 				gaussFiltSigmaText.setHorizontalAlignment(SwingConstants.CENTER);
-				gaussFiltSigmaText.setBounds(243, 76, 35, 23);
+				gaussFiltSigmaText.setBounds(243, 115, 35, 23);
 				gaussFiltSigmaText.setFont(FONT);
 				panelDenoising.add(gaussFiltSigmaText);
 
 				link(gaussFiltSigmaSlider, gaussFiltSigmaText);
 				gaussFiltSigmaSlider.addChangeListener(step1ChangeListener);
 				gaussFiltSigmaText.addKeyListener(step1KeyListener);
-				
-				JCheckBox chckbxDoMedianFiltering = new JCheckBox("Do median filtering");
-				chckbxDoMedianFiltering.setBounds(10, 111, 268, 23);
-				chckbxDoMedianFiltering.setFont(SMALL_FONT);
-				panelDenoising.add(chckbxDoMedianFiltering);
 				
 			}
 
@@ -320,12 +360,12 @@ public class CWNTPanel extends SegmenterConfigurationPanel {
 
 				aniDiffNIterText = new JTextField();
 				aniDiffNIterText.setHorizontalAlignment(SwingConstants.CENTER);
-				aniDiffNIterText.setText(""+maskingParams[1]);
+				aniDiffNIterText.setText(""+settings.nAD);
 				aniDiffNIterText.setFont(FONT);
 				aniDiffNIterText.setBounds(243, 251, 35, 23);
 				panelDenoising.add(aniDiffNIterText);
 
-				aniDiffNIterSlider = new DoubleJSlider(1, 10, (int) maskingParams[1], 1);
+				aniDiffNIterSlider = new DoubleJSlider(1, 10, settings.nAD, 1);
 				aniDiffNIterSlider.setBounds(10, 251, 223, 23);
 				panelDenoising.add(aniDiffNIterSlider);
 
@@ -343,12 +383,12 @@ public class CWNTPanel extends SegmenterConfigurationPanel {
 
 				aniDiffKappaText = new JTextField();
 				aniDiffKappaText.setHorizontalAlignment(SwingConstants.CENTER);
-				aniDiffKappaText.setText(""+maskingParams[2]);
+				aniDiffKappaText.setText(""+settings.kappa);
 				aniDiffKappaText.setFont(FONT);
 				aniDiffKappaText.setBounds(243, 310, 35, 23);
 				panelDenoising.add(aniDiffKappaText);
 
-				aniDiffKappaSlider = new DoubleJSlider(1, 100, (int) maskingParams[2], 1);
+				aniDiffKappaSlider = new DoubleJSlider(1, 100, (int) settings.kappa, 1);
 				aniDiffKappaSlider.setBounds(10, 310, 223, 23);
 				panelDenoising.add(aniDiffKappaSlider);
 
@@ -356,8 +396,6 @@ public class CWNTPanel extends SegmenterConfigurationPanel {
 				aniDiffKappaSlider.addChangeListener(step2ChangeListener);
 				aniDiffKappaText.addKeyListener(step2KeyListener);
 			}
-			
-
 		}
 
 		JPanel panelMasking = new JPanel();
@@ -376,12 +414,12 @@ public class CWNTPanel extends SegmenterConfigurationPanel {
 				gammeLabel.setBounds(10, 107, 262, 14);
 				panelMasking.add(gammeLabel);
 
-				gammaSlider = new DoubleJSlider(-5*scale, 5*scale, (int) (maskingParams[4]*scale), scale);
+				gammaSlider = new DoubleJSlider(-5*scale, 5*scale, (int) (settings.gamma*scale), scale);
 				gammaSlider.setBounds(10, 123, 223, 23);
 				panelMasking.add(gammaSlider);
 
 				gammaText = new JTextField();
-				gammaText.setText(""+maskingParams[4]);
+				gammaText.setText(""+settings.gamma);
 				gammaText.setFont(FONT);
 				gammaText.setBounds(243, 123, 35, 23);
 				panelMasking.add(gammaText);
@@ -396,11 +434,11 @@ public class CWNTPanel extends SegmenterConfigurationPanel {
 				lblNewLabel_3.setBounds(10, 158, 268, 14);
 				panelMasking.add(lblNewLabel_3);
 
-				alphaSlider = new DoubleJSlider(0, 20*scale, (int) (maskingParams[5]*scale), scale);
+				alphaSlider = new DoubleJSlider(0, 20*scale, (int) (settings.alpha*scale), scale);
 				alphaSlider.setBounds(10, 173, 223, 23);
 				panelMasking.add(alphaSlider);
 
-				alphaText = new JTextField(""+maskingParams[5]);
+				alphaText = new JTextField(""+settings.alpha);
 				alphaText.setFont(FONT);
 				alphaText.setBounds(243, 173, 35, 23);
 				panelMasking.add(alphaText);
@@ -415,13 +453,13 @@ public class CWNTPanel extends SegmenterConfigurationPanel {
 				betaLabel.setBounds(10, 219, 268, 14);
 				panelMasking.add(betaLabel);
 
-				betaSlider = new DoubleJSlider(0, 20*scale, (int) (maskingParams[6]*scale), scale);
+				betaSlider = new DoubleJSlider(0, 20*scale, (int) (settings.beta*scale), scale);
 				betaSlider.setBounds(10, 234, 223, 23);
 				panelMasking.add(betaSlider);
 
 				betaText = new JTextField();
 				betaText.setFont(FONT);
-				betaText.setText(""+maskingParams[6]);
+				betaText.setText(""+settings.beta);
 				betaText.setBounds(243, 234, 35, 23);
 				panelMasking.add(betaText);
 
@@ -435,13 +473,13 @@ public class CWNTPanel extends SegmenterConfigurationPanel {
 				epsilonLabel.setBounds(10, 269, 268, 14);
 				panelMasking.add(epsilonLabel);
 
-				epsilonSlider = new DoubleJSlider(0, 20*scale, (int) (scale*maskingParams[7]), scale);
+				epsilonSlider = new DoubleJSlider(0, 20*scale, (int) (scale*settings.epsilon), scale);
 				epsilonSlider.setBounds(10, 284, 223, 23);
 				panelMasking.add(epsilonSlider);
 
 				epsilonText = new JTextField();
 				epsilonText.setFont(FONT);
-				epsilonText.setText(""+maskingParams[7]);
+				epsilonText.setText(""+settings.epsilon);
 				epsilonText.setBounds(243, 284, 35, 23);
 				panelMasking.add(epsilonText);
 
@@ -457,11 +495,11 @@ public class CWNTPanel extends SegmenterConfigurationPanel {
 
 				deltaText = new JTextField();
 				deltaText.setFont(FONT);
-				deltaText.setText(""+maskingParams[8]);
+				deltaText.setText(""+settings.delta);
 				deltaText.setBounds(243, 333, 35, 23);
 				panelMasking.add(deltaText);
 
-				deltaSlider = new DoubleJSlider(0, 5*scale, (int) (maskingParams[8]*scale), scale);
+				deltaSlider = new DoubleJSlider(0, 5*scale, (int) (settings.delta*scale), scale);
 				deltaSlider.setBounds(10, 333, 223, 23);
 				panelMasking.add(deltaSlider);
 
@@ -477,33 +515,33 @@ public class CWNTPanel extends SegmenterConfigurationPanel {
 			panelMasking.add(lblEquation);
 		}
 		
-					JLabel lblDerivativesCalculation = new JLabel("3. Derivatives calculation");
-					lblDerivativesCalculation.setBounds(10, 6, 268, 29);
-					panelMasking.add(lblDerivativesCalculation);
-					lblDerivativesCalculation.setFont(BIG_FONT);
-					JLabel lblGaussianGradient = new JLabel("Gaussian gradient \u03C3:");
-					lblGaussianGradient.setBounds(10, 36, 268, 14);
-					panelMasking.add(lblGaussianGradient);
-					lblGaussianGradient.setFont(FONT);
-					
-									gaussGradSigmaText = new JTextField();
-									gaussGradSigmaText.setBounds(243, 47, 35, 23);
-									panelMasking.add(gaussGradSigmaText);
-									gaussGradSigmaText.setFont(FONT);
-									gaussGradSigmaText.setHorizontalAlignment(SwingConstants.CENTER);
-									gaussGradSigmaText.setText(""+maskingParams[3]);
-													
-																{
-													
-																	gaussGradSigmaSlider = new DoubleJSlider(0, 5*scale, (int) (maskingParams[3]*scale), scale);
-																	gaussGradSigmaSlider.setBounds(10, 52, 223, 23);
-																	panelMasking.add(gaussGradSigmaSlider);
-																	gaussGradSigmaSlider.addChangeListener(step3ChangeListener);
-																}
-																
-																				link(gaussGradSigmaSlider, gaussGradSigmaText);
-													gaussGradSigmaText.addKeyListener(step3KeyListener);
-		
+		JLabel lblDerivativesCalculation = new JLabel("3. Derivatives calculation");
+		lblDerivativesCalculation.setBounds(10, 6, 268, 29);
+		panelMasking.add(lblDerivativesCalculation);
+		lblDerivativesCalculation.setFont(BIG_FONT);
+		JLabel lblGaussianGradient = new JLabel("Gaussian gradient \u03C3:");
+		lblGaussianGradient.setBounds(10, 36, 268, 14);
+		panelMasking.add(lblGaussianGradient);
+		lblGaussianGradient.setFont(FONT);
+
+		gaussGradSigmaText = new JTextField();
+		gaussGradSigmaText.setBounds(243, 47, 35, 23);
+		panelMasking.add(gaussGradSigmaText);
+		gaussGradSigmaText.setFont(FONT);
+		gaussGradSigmaText.setHorizontalAlignment(SwingConstants.CENTER);
+		gaussGradSigmaText.setText(""+settings.sigmag);
+
+		{
+
+			gaussGradSigmaSlider = new DoubleJSlider(0, 5*scale, (int) (settings.sigmag*scale), scale);
+			gaussGradSigmaSlider.setBounds(10, 52, 223, 23);
+			panelMasking.add(gaussGradSigmaSlider);
+			gaussGradSigmaSlider.addChangeListener(step3ChangeListener);
+		}
+
+		link(gaussGradSigmaSlider, gaussGradSigmaText);
+		gaussGradSigmaText.addKeyListener(step3KeyListener);
+
 		{
 			JPanel panelThresholding = new JPanel();
 			tabbedPane.addTab("Thresholding", null, panelThresholding, null);
@@ -519,12 +557,12 @@ public class CWNTPanel extends SegmenterConfigurationPanel {
 			labelThresholdFactor.setBounds(10, 50, 268, 14);
 			panelThresholding.add(labelThresholdFactor);
 
-			thresholdFactorSlider = new DoubleJSlider(0, 5*scale, (int) (thresholdFactor*scale), scale);
+			thresholdFactorSlider = new DoubleJSlider(0, 5*scale, (int) (settings.thresholdFactor*scale), scale);
 			thresholdFactorSlider.setBounds(10, 75, 223, 23);
 			panelThresholding.add(thresholdFactorSlider);
 
 			thresholdFactorText = new JTextField();
-			thresholdFactorText.setText(""+thresholdFactor);
+			thresholdFactorText.setText(""+settings.thresholdFactor);
 			thresholdFactorText.setFont(FONT);
 			thresholdFactorText.setBounds(243, 75, 35, 23);
 			panelThresholding.add(thresholdFactorText);
@@ -542,8 +580,8 @@ public class CWNTPanel extends SegmenterConfigurationPanel {
 	 * EVENTS
 	 */
 	
-	/** This event is fired whenever the value of σ for the gaussian filtering in step 1 is changed by this GUI. */
-	final ActionEvent STEP1_PARAMETER_CHANGED = new ActionEvent(this, 0, "GaussianFilteringParameterChanged");
+	/** This event is fired whenever the parameters for pre-filtering in step 1 are changed by this GUI. */
+	final ActionEvent STEP1_PARAMETER_CHANGED = new ActionEvent(this, 0, "FilteringParameterChanged");
 	/** This event is fired whenever parameters defining the anisotropic diffusion step 2 is changed by this GUI. */
 	final ActionEvent STEP2_PARAMETER_CHANGED = new ActionEvent(this, 1, "AnisotropicDiffusionParameterChanged");
 	/** This event is fired whenever the value of σ for the gaussian derivatives computation in step 3 is changed by this GUI. */
@@ -552,10 +590,6 @@ public class CWNTPanel extends SegmenterConfigurationPanel {
 	final ActionEvent STEP4_PARAMETER_CHANGED = new ActionEvent(this, 3, "MaskingParameterChanged");
 	/** This event is fired whenever the thresholding parameters are changed by this GUI. */
 	final ActionEvent STEP5_PARAMETER_CHANGED = new ActionEvent(this, 4, "ThresholdingParameterChanged");
-//	/** This event is fired when the user presses the 'go' button in the 4th tab. */
-//	public final ActionEvent GO_BUTTON_PRESSED = new ActionEvent(this, 4, "GoButtonPressed");
-//	/** This event is fired when the user changes the current tab. */
-//	public final ActionEvent TAB_CHANGED = new ActionEvent(this, 5, "TabChanged");
 
 	/*
 	 * LOCAL LISTENERS

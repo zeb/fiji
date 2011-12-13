@@ -9,6 +9,8 @@ import mpicbg.imglib.algorithm.OutputAlgorithm;
 import mpicbg.imglib.algorithm.gauss.GaussianConvolutionReal2D;
 import mpicbg.imglib.algorithm.gauss.GaussianGradient2D;
 import mpicbg.imglib.algorithm.pde.AnisotropicDiffusion;
+import mpicbg.imglib.algorithm.roi.MedianFilter;
+import mpicbg.imglib.algorithm.roi.StructuringElement;
 import mpicbg.imglib.cursor.Cursor;
 import mpicbg.imglib.cursor.LocalizableByDimCursor;
 import mpicbg.imglib.image.Image;
@@ -16,6 +18,7 @@ import mpicbg.imglib.image.ImageFactory;
 import mpicbg.imglib.multithreading.Chunk;
 import mpicbg.imglib.multithreading.SimpleMultiThreading;
 import mpicbg.imglib.outofbounds.OutOfBoundsStrategyMirrorFactory;
+import mpicbg.imglib.type.logic.BitType;
 import mpicbg.imglib.type.numeric.RealType;
 import mpicbg.imglib.type.numeric.real.FloatType;
 
@@ -23,51 +26,23 @@ public class NucleiMasker <T extends RealType<T>> extends MultiThreadedBenchmark
 
 	private static final boolean DEBUG = false;
 	
-	/** A set of default parameters suitable for masking, as determined
-	 * by Bhavna Rajaseka.
-	 * In the array,
-	 * the parameters are ordered as follow:
-	 * <ol start="0">
-	 * 	<li> the σ for the gaussian filtering in step 1
-	 *  <li> the number of iteration for anisotropic filtering in step 2
-	 *  <li> κ, the gradient threshold for anisotropic filtering in step 2
-	 * 	<li> the σ for the gaussian derivatives in step 3
-	 *  <li> γ, the <i>tanh</i> shift in step 4
-	 *  <li> α, the gradient prefactor in step 4
-	 *  <li> β, the laplacian positive magnitude prefactor in step 4
-	 *  <li> ε, the hessian negative magnitude prefactor in step 4
-	 *  <li> δ, the derivative sum scale in step 4
-	 * </ol>
-	 */
-	public static final double[] DEFAULT_MASKING_PARAMETERS = new double[] {
-		0.5,		// 0. σf
-		5,			// 1. nAD
-		50,			// 2. κAD
-		1,			// 3. σg
-		1,			// 4. γ
-		2.7, 		// 5. α
-		14.9,		// 6. β
-		16.9,		// 7. ε
-		0.5			// 8. δ
-	};
-	
-	/** The source image (left unchanged). */
-	private Image<T> image;
 	/** The target image for the pre-processing steps. */
 	private Image<T> target;
+	private Image<T> image;
 	
 	// Step 1
 	private Image<T> filtered;
-	private double gaussFilterSigma = DEFAULT_MASKING_PARAMETERS[0];
+	private boolean doMedianFiltering = false;
+	private double gaussFilterSigma;
 
 	// Step 2
 	private Image<T> anDiffImage;
 	private Image<FloatType> scaled;
-	private int nIterAnDiff = (int) DEFAULT_MASKING_PARAMETERS[1];
-	private double kappa 	= DEFAULT_MASKING_PARAMETERS[2];
+	private int nIterAnDiff;
+	private double kappa;
 
 	// Step 3
-	private double gaussGradSigma = DEFAULT_MASKING_PARAMETERS[3];
+	private double gaussGradSigma;
 	private Image<FloatType> Gx;
 	private Image<FloatType> Gy;
 	private Image<FloatType> Gnorm;
@@ -80,11 +55,11 @@ public class NucleiMasker <T extends RealType<T>> extends MultiThreadedBenchmark
 
 	// Step 4
 	private Image<FloatType> M;
-	private double gamma 	= DEFAULT_MASKING_PARAMETERS[4];
-	private double alpha 	= DEFAULT_MASKING_PARAMETERS[5];
-	private double beta 	= DEFAULT_MASKING_PARAMETERS[6];
-	private double epsilon 	= DEFAULT_MASKING_PARAMETERS[7];
-	private double delta 	= DEFAULT_MASKING_PARAMETERS[8];
+	private double gamma;
+	private double alpha;
+	private double beta;
+	private double epsilon;
+	private double delta;
 	
 
 
@@ -95,45 +70,27 @@ public class NucleiMasker <T extends RealType<T>> extends MultiThreadedBenchmark
 	public NucleiMasker(Image<T> image) {
 		super();
 		this.image = image;
+		this.target = image;
 	}
 
 	/*
 	 * METHODS
 	 */
 	
-	public Image<T> getGaussianFilteredImage() {
-		return filtered;
-	}
-	
-	public Image<T> getAnisotropicDiffusionImage() {
-		return anDiffImage;
-	}
-	
-	public Image<FloatType> getGradientNorm() {
-		return Gnorm;
-	}
-	
-	public Image<FloatType> getLaplacianMagnitude() {
-		return L;
-	}
-	
-	public Image<FloatType> getHessianDeterminant() {
-		return H;
-	}
-	
-	public Image<FloatType> getMask() {
-		return M;
-	}
-	
+	public Image<T> 		getGaussianFilteredImage() 		{ return filtered; }
+	public Image<T> 		getAnisotropicDiffusionImage() 	{ return anDiffImage; }
+	public Image<FloatType> getGradientNorm() 				{ return Gnorm; }
+	public Image<FloatType> getLaplacianMagnitude() 		{ return L; }
+	public Image<FloatType> getHessianDeterminant() 		{ return H; }
+	public Image<FloatType> getMask()						{ return M; }
 	@Override
-	public Image<T> getResult() {
-		return target;
-	}
+	public Image<T			> getResult() 					{ return target; }
 	
 	/** 
 	 * Set the parameters used by this instance to compute the cell mask.
-	 * In the array, the parameters must be ordered as follow:
-	 * <ol start="0">
+	 * In the argument list, the parameters must be ordered as follow:
+	 * <ol start="1">
+	 * 	<li> a boolean stating whether we do median filtering in step 1
 	 * 	<li> the σ for the gaussian filtering in step 1
 	 *  <li> the number of iteration for anisotropic filtering in step 2
 	 *  <li> κ, the gradient threshold for anisotropic filtering in step 2
@@ -145,37 +102,63 @@ public class NucleiMasker <T extends RealType<T>> extends MultiThreadedBenchmark
 	 *  <li> δ, the derivative sum scale in step 4
 	 * </ol>
 	 */
-	public void setParameters(double[] params) {
-		gaussFilterSigma 	= params[0];
-		nIterAnDiff 		= (int) params[1];
-		kappa				= params[2];
-		gaussGradSigma		= params[3];
-		gamma 				= params[4];
-		alpha				= params[5];
-		beta				= params[6];
-		epsilon				= params[7];
-		delta				= params[8];
+	public void setParameters(boolean doMedianFiltering, double gaussFilterSigma, int nIterAnDiff, double kappa, 
+			double gaussGradSigma, double gamma, double alpha, double beta, double epsilon, double delta) {
+		this.doMedianFiltering  = doMedianFiltering;
+		this.gaussFilterSigma 	= gaussFilterSigma;
+		this.nIterAnDiff 		= nIterAnDiff;
+		this.kappa				= kappa;
+		this.gaussGradSigma		= gaussGradSigma;
+		this.gamma 				= gamma;
+		this.alpha				= alpha;
+		this.beta				= beta;
+		this.epsilon			= epsilon;
+		this.delta				= delta;
 	}
 
 
 	public boolean execStep1() {
+		boolean check = true;
+		target = image.clone();
 		/*
-		 * Step 1: Low pass filter.
+		 * Step 1a: Median filter.
+		 * So as remove speckle noise.
+		 */
+		if (doMedianFiltering) {
+			long top = System.currentTimeMillis();
+			if (DEBUG) {
+				System.out.println("[NucleiMasker] Median filtering... ");
+			}
+			check = execMedianFiltering();
+			if (!check) {
+				return false;
+			}
+			long dt =  (System.currentTimeMillis()-top);
+			processingTime += dt;
+			if (DEBUG) {
+				System.out.println("dt = "+dt/1e3+" s.");
+			}
+
+		}
+
+		/*
+		 * Step 1b: Low pass filter.
 		 * So as to damper the noise. We simply do a gaussian filtering.
 		 */
-		long top = System.currentTimeMillis();
-		boolean check;
-		if (DEBUG) {
-			System.out.print(String.format("[NucleiMasker] Low pass filter, with σf = %.1f ... ", gaussFilterSigma));
-		}
-		check = execGaussianFiltering();
-		if (!check) {
-			return false;
-		}
-		long dt =  (System.currentTimeMillis()-top);
-		processingTime += dt;
-		if (DEBUG) {
-			System.out.println("dt = "+dt/1e3+" s.");
+		if (gaussFilterSigma > 0) {
+			long top = System.currentTimeMillis();
+			if (DEBUG) {
+				System.out.print(String.format("[NucleiMasker] Low pass filter, with σf = %.1f ... ", gaussFilterSigma));
+			}
+			check = execGaussianFiltering();
+			if (!check) {
+				return false;
+			}
+			long dt =  (System.currentTimeMillis()-top);
+			processingTime += dt;
+			if (DEBUG) {
+				System.out.println("dt = "+dt/1e3+" s.");
+			}
 		}
 
 		return check;
@@ -689,7 +672,7 @@ public class NucleiMasker <T extends RealType<T>> extends MultiThreadedBenchmark
 	private boolean execGaussianFiltering() {
 		double[] sigmas = new double[] { gaussFilterSigma, gaussFilterSigma  };
 		GaussianConvolutionReal2D<T> gaussFilter = new GaussianConvolutionReal2D<T>(
-				image, 
+				target, 
 				new OutOfBoundsStrategyMirrorFactory<T>(), 
 				sigmas );
 
@@ -700,6 +683,39 @@ public class NucleiMasker <T extends RealType<T>> extends MultiThreadedBenchmark
 		return check;
 	}
 
-
+	private boolean execMedianFiltering() {
+		StructuringElement strel = createSquareStrel();
+		@SuppressWarnings({ "rawtypes", "unchecked" })
+		final MedianFilter<T> medFilt = new MedianFilter(target, strel, new OutOfBoundsStrategyMirrorFactory()); 
+		if (!medFilt.process()) {
+			errorMessage = "Failed in applying median filter";
+			return false;
+		}
+		target = medFilt.getResult();
+		filtered = target;
+		return true; 
+	}
+	
+	/**
+	 * Creates the structuring element that will be used if the user request to have
+	 * a median filter applied.
+	 */
+	private StructuringElement createSquareStrel() {
+		int numDim = target.getNumDimensions();
+		// Need to figure out the dimensionality of the image in order to create a StructuringElement of the correct dimensionality (StructuringElement needs to have same dimensionality as the image):
+		StructuringElement strel = null;
+		if (numDim == 3) {  // 3D case
+			strel = new StructuringElement(new int[]{3, 3, 1}, "3D Square");  // unoptimized shape for 3D case. Note here that we manually are making this shape (not using a class method). This code is courtesy of Larry Lindsey
+			Cursor<BitType> c = strel.createCursor();  // in this case, the shape is manually made, so we have to manually set it, too.
+			while (c.hasNext()) { 
+			    c.fwd(); 
+			    c.getType().setOne(); 
+			} 
+			c.close(); 
+		} else if (numDim == 2) { 			// 2D case
+			strel = StructuringElement.createCube(2, 3);  // unoptimized shape
+		}
+		return strel;
+	}
 	
 }
