@@ -26,6 +26,7 @@ import fiji.plugin.cwnt.gui.DoubleJSlider;
 import fiji.plugin.trackmate.TrackMateModel;
 import fiji.plugin.trackmate.gui.SegmenterConfigurationPanel;
 import fiji.plugin.trackmate.segmentation.SegmenterSettings;
+import javax.swing.JCheckBox;
 
 public class CWNTPanel extends SegmenterConfigurationPanel {
 
@@ -69,7 +70,7 @@ public class CWNTPanel extends SegmenterConfigurationPanel {
 		maskingParams = new CWSettings().getMaskingParameters();
 		thresholdFactor = new CWSettings().thresholdFactor;
 		initGUI();
-		setSize(293, 438);
+		setSize(320, 518);
 	}
 	
 	
@@ -269,58 +270,64 @@ public class CWNTPanel extends SegmenterConfigurationPanel {
 			panelIntroduction.add(labelDurationEstimate);
 		}
 
-		JPanel panelParams1 = new JPanel();
+		JPanel panelDenoising = new JPanel();
 		{
-			tabbedPane.addTab("Param set 1", null, panelParams1, null);
-			panelParams1.setLayout(null);
+			tabbedPane.addTab("Denoising", null, panelDenoising, null);
+			panelDenoising.setLayout(null);
 
 			JLabel lblFiltering = new JLabel("1. Filtering");
 			lblFiltering.setFont(BIG_FONT);
 			lblFiltering.setBounds(10, 11, 268, 29);
-			panelParams1.add(lblFiltering);
+			panelDenoising.add(lblFiltering);
 
 			{
 				JLabel lblGaussianFilter = new JLabel("Gaussian filter \u03C3:");
 				lblGaussianFilter.setFont(SMALL_FONT);
 				lblGaussianFilter.setBounds(10, 51, 268, 14);
-				panelParams1.add(lblGaussianFilter);
+				panelDenoising.add(lblGaussianFilter);
 
 				gaussFiltSigmaSlider = new DoubleJSlider(0, 5*scale, (int) (maskingParams[0]*scale), scale);
 				gaussFiltSigmaSlider.setBounds(10, 76, 223, 23);
-				panelParams1.add(gaussFiltSigmaSlider);
+				panelDenoising.add(gaussFiltSigmaSlider);
 
 				gaussFiltSigmaText = new JTextField(""+maskingParams[0]);
 				gaussFiltSigmaText.setHorizontalAlignment(SwingConstants.CENTER);
 				gaussFiltSigmaText.setBounds(243, 76, 35, 23);
 				gaussFiltSigmaText.setFont(FONT);
-				panelParams1.add(gaussFiltSigmaText);
+				panelDenoising.add(gaussFiltSigmaText);
 
 				link(gaussFiltSigmaSlider, gaussFiltSigmaText);
 				gaussFiltSigmaSlider.addChangeListener(step1ChangeListener);
 				gaussFiltSigmaText.addKeyListener(step1KeyListener);
+				
+				JCheckBox chckbxDoMedianFiltering = new JCheckBox("Do median filtering");
+				chckbxDoMedianFiltering.setBounds(10, 111, 268, 23);
+				chckbxDoMedianFiltering.setFont(SMALL_FONT);
+				panelDenoising.add(chckbxDoMedianFiltering);
+				
 			}
 
 			JLabel lblAnisotropicDiffusion = new JLabel("2. Anisotropic diffusion");
 			lblAnisotropicDiffusion.setFont(BIG_FONT);
-			lblAnisotropicDiffusion.setBounds(10, 128, 268, 29);
-			panelParams1.add(lblAnisotropicDiffusion);
+			lblAnisotropicDiffusion.setBounds(10, 186, 268, 29);
+			panelDenoising.add(lblAnisotropicDiffusion);
 
 			{
 				JLabel lblNumberOfIterations = new JLabel("Number of iterations:");
 				lblNumberOfIterations.setFont(SMALL_FONT);
-				lblNumberOfIterations.setBounds(10, 168, 268, 14);
-				panelParams1.add(lblNumberOfIterations);
+				lblNumberOfIterations.setBounds(10, 226, 268, 14);
+				panelDenoising.add(lblNumberOfIterations);
 
 				aniDiffNIterText = new JTextField();
 				aniDiffNIterText.setHorizontalAlignment(SwingConstants.CENTER);
 				aniDiffNIterText.setText(""+maskingParams[1]);
 				aniDiffNIterText.setFont(FONT);
-				aniDiffNIterText.setBounds(243, 193, 35, 23);
-				panelParams1.add(aniDiffNIterText);
+				aniDiffNIterText.setBounds(243, 251, 35, 23);
+				panelDenoising.add(aniDiffNIterText);
 
 				aniDiffNIterSlider = new DoubleJSlider(1, 10, (int) maskingParams[1], 1);
-				aniDiffNIterSlider.setBounds(10, 193, 223, 23);
-				panelParams1.add(aniDiffNIterSlider);
+				aniDiffNIterSlider.setBounds(10, 251, 223, 23);
+				panelDenoising.add(aniDiffNIterSlider);
 
 				link(aniDiffNIterSlider, aniDiffNIterText);
 				aniDiffNIterSlider.addChangeListener(step2ChangeListener);
@@ -331,79 +338,53 @@ public class CWNTPanel extends SegmenterConfigurationPanel {
 			{
 				JLabel lblGradientDiffusionThreshold = new JLabel("Gradient diffusion threshold \u03BA:");
 				lblGradientDiffusionThreshold.setFont(SMALL_FONT);
-				lblGradientDiffusionThreshold.setBounds(10, 227, 268, 14);
-				panelParams1.add(lblGradientDiffusionThreshold);
+				lblGradientDiffusionThreshold.setBounds(10, 285, 268, 14);
+				panelDenoising.add(lblGradientDiffusionThreshold);
 
 				aniDiffKappaText = new JTextField();
 				aniDiffKappaText.setHorizontalAlignment(SwingConstants.CENTER);
 				aniDiffKappaText.setText(""+maskingParams[2]);
 				aniDiffKappaText.setFont(FONT);
-				aniDiffKappaText.setBounds(243, 252, 35, 23);
-				panelParams1.add(aniDiffKappaText);
+				aniDiffKappaText.setBounds(243, 310, 35, 23);
+				panelDenoising.add(aniDiffKappaText);
 
 				aniDiffKappaSlider = new DoubleJSlider(1, 100, (int) maskingParams[2], 1);
-				aniDiffKappaSlider.setBounds(10, 252, 223, 23);
-				panelParams1.add(aniDiffKappaSlider);
+				aniDiffKappaSlider.setBounds(10, 310, 223, 23);
+				panelDenoising.add(aniDiffKappaSlider);
 
 				link(aniDiffKappaSlider, aniDiffKappaText);
 				aniDiffKappaSlider.addChangeListener(step2ChangeListener);
 				aniDiffKappaText.addKeyListener(step2KeyListener);
 			}
-
-			JLabel lblDerivativesCalculation = new JLabel("3. Derivatives calculation");
-			lblDerivativesCalculation.setFont(BIG_FONT);
-			lblDerivativesCalculation.setBounds(10, 298, 268, 29);
-			panelParams1.add(lblDerivativesCalculation);
-
-			{
-				JLabel lblGaussianGradient = new JLabel("Gaussian gradient \u03C3:");
-				lblGaussianGradient.setFont(FONT);
-				lblGaussianGradient.setBounds(10, 338, 268, 14);
-				panelParams1.add(lblGaussianGradient);
-
-				gaussGradSigmaText = new JTextField();
-				gaussGradSigmaText.setFont(FONT);
-				gaussGradSigmaText.setHorizontalAlignment(SwingConstants.CENTER);
-				gaussGradSigmaText.setText(""+maskingParams[3]);
-				gaussGradSigmaText.setBounds(243, 363, 35, 23);
-				panelParams1.add(gaussGradSigmaText);
-
-				gaussGradSigmaSlider = new DoubleJSlider(0, 5*scale, (int) (maskingParams[3]*scale), scale);
-				gaussGradSigmaSlider.setBounds(10, 363, 223, 23);
-				panelParams1.add(gaussGradSigmaSlider);
-
-				link(gaussGradSigmaSlider, gaussGradSigmaText);
-				gaussGradSigmaSlider.addChangeListener(step3ChangeListener);
-				gaussGradSigmaText.addKeyListener(step3KeyListener);
-			}
+			
 
 		}
 
-		JPanel panelParams2 = new JPanel();
+		JPanel panelMasking = new JPanel();
 		{
-			tabbedPane.addTab("Param set 2", panelParams2);
-			panelParams2.setLayout(null);
+			tabbedPane.addTab("Masking", panelMasking);
+			panelMasking.setLayout(null);
 			
-			JLabel lblMasking = new JLabel("4. Masking");
+			JLabel lblMasking = new JLabel("4. Mask parameters");
 			lblMasking.setFont(BIG_FONT);
-			lblMasking.setBounds(10, 11, 268, 29);
-			panelParams2.add(lblMasking);
+			lblMasking.setBounds(10, 82, 268, 29);
+			panelMasking.add(lblMasking);
 
 			{
 				JLabel gammeLabel = new JLabel("\u03B3: tanh shift");
 				gammeLabel.setFont(SMALL_FONT);
-				gammeLabel.setBounds(10, 51, 268, 14);
-				panelParams2.add(gammeLabel);
+				gammeLabel.setBounds(10, 107, 262, 14);
+				panelMasking.add(gammeLabel);
 
 				gammaSlider = new DoubleJSlider(-5*scale, 5*scale, (int) (maskingParams[4]*scale), scale);
-				gammaSlider.setBounds(10, 76, 223, 23);
-				panelParams2.add(gammaSlider);
+				gammaSlider.setBounds(10, 123, 223, 23);
+				panelMasking.add(gammaSlider);
 
 				gammaText = new JTextField();
 				gammaText.setText(""+maskingParams[4]);
 				gammaText.setFont(FONT);
-				gammaText.setBounds(243, 76, 35, 23);
-				panelParams2.add(gammaText);
+				gammaText.setBounds(243, 123, 35, 23);
+				panelMasking.add(gammaText);
 
 				link(gammaSlider, gammaText);
 				gammaSlider.addChangeListener(step4ChangeListener);
@@ -412,17 +393,17 @@ public class CWNTPanel extends SegmenterConfigurationPanel {
 			{
 				JLabel lblNewLabel_3 = new JLabel("\u03B1: gradient prefactor");
 				lblNewLabel_3.setFont(SMALL_FONT);
-				lblNewLabel_3.setBounds(10, 110, 268, 14);
-				panelParams2.add(lblNewLabel_3);
+				lblNewLabel_3.setBounds(10, 158, 268, 14);
+				panelMasking.add(lblNewLabel_3);
 
 				alphaSlider = new DoubleJSlider(0, 20*scale, (int) (maskingParams[5]*scale), scale);
-				alphaSlider.setBounds(10, 135, 223, 23);
-				panelParams2.add(alphaSlider);
+				alphaSlider.setBounds(10, 173, 223, 23);
+				panelMasking.add(alphaSlider);
 
 				alphaText = new JTextField(""+maskingParams[5]);
 				alphaText.setFont(FONT);
-				alphaText.setBounds(243, 135, 35, 23);
-				panelParams2.add(alphaText);
+				alphaText.setBounds(243, 173, 35, 23);
+				panelMasking.add(alphaText);
 
 				link(alphaSlider, alphaText);
 				alphaSlider.addChangeListener(step4ChangeListener);
@@ -431,18 +412,18 @@ public class CWNTPanel extends SegmenterConfigurationPanel {
 			{
 				JLabel betaLabel = new JLabel("\u03B2: positive laplacian magnitude prefactor");
 				betaLabel.setFont(SMALL_FONT);
-				betaLabel.setBounds(10, 169, 268, 14);
-				panelParams2.add(betaLabel);
+				betaLabel.setBounds(10, 219, 268, 14);
+				panelMasking.add(betaLabel);
 
 				betaSlider = new DoubleJSlider(0, 20*scale, (int) (maskingParams[6]*scale), scale);
-				betaSlider.setBounds(10, 194, 223, 23);
-				panelParams2.add(betaSlider);
+				betaSlider.setBounds(10, 234, 223, 23);
+				panelMasking.add(betaSlider);
 
 				betaText = new JTextField();
 				betaText.setFont(FONT);
 				betaText.setText(""+maskingParams[6]);
-				betaText.setBounds(243, 194, 35, 23);
-				panelParams2.add(betaText);
+				betaText.setBounds(243, 234, 35, 23);
+				panelMasking.add(betaText);
 
 				link(betaSlider, betaText);
 				betaSlider.addChangeListener(step4ChangeListener);
@@ -451,18 +432,18 @@ public class CWNTPanel extends SegmenterConfigurationPanel {
 			{
 				JLabel epsilonLabel = new JLabel("\u03B5: negative hessian magnitude");
 				epsilonLabel.setFont(SMALL_FONT);
-				epsilonLabel.setBounds(10, 228, 268, 14);
-				panelParams2.add(epsilonLabel);
+				epsilonLabel.setBounds(10, 269, 268, 14);
+				panelMasking.add(epsilonLabel);
 
 				epsilonSlider = new DoubleJSlider(0, 20*scale, (int) (scale*maskingParams[7]), scale);
-				epsilonSlider.setBounds(10, 253, 223, 23);
-				panelParams2.add(epsilonSlider);
+				epsilonSlider.setBounds(10, 284, 223, 23);
+				panelMasking.add(epsilonSlider);
 
 				epsilonText = new JTextField();
 				epsilonText.setFont(FONT);
 				epsilonText.setText(""+maskingParams[7]);
-				epsilonText.setBounds(243, 253, 35, 23);
-				panelParams2.add(epsilonText);
+				epsilonText.setBounds(243, 284, 35, 23);
+				panelMasking.add(epsilonText);
 
 				link(epsilonSlider, epsilonText);
 				epsilonSlider.addChangeListener(step4ChangeListener);
@@ -471,18 +452,18 @@ public class CWNTPanel extends SegmenterConfigurationPanel {
 			{
 				JLabel deltaLabel = new JLabel("\u03B4: derivatives sum scale");
 				deltaLabel.setFont(SMALL_FONT);
-				deltaLabel.setBounds(10, 287, 268, 14);
-				panelParams2.add(deltaLabel);
+				deltaLabel.setBounds(10, 319, 268, 14);
+				panelMasking.add(deltaLabel);
 
 				deltaText = new JTextField();
 				deltaText.setFont(FONT);
 				deltaText.setText(""+maskingParams[8]);
-				deltaText.setBounds(243, 312, 35, 23);
-				panelParams2.add(deltaText);
+				deltaText.setBounds(243, 333, 35, 23);
+				panelMasking.add(deltaText);
 
 				deltaSlider = new DoubleJSlider(0, 5*scale, (int) (maskingParams[8]*scale), scale);
-				deltaSlider.setBounds(10, 312, 223, 23);
-				panelParams2.add(deltaSlider);
+				deltaSlider.setBounds(10, 333, 223, 23);
+				panelMasking.add(deltaSlider);
 
 				link(deltaSlider, deltaText);
 				deltaSlider.addChangeListener(step4ChangeListener);
@@ -492,34 +473,61 @@ public class CWNTPanel extends SegmenterConfigurationPanel {
 			JLabel lblEquation = new JLabel("<html>M = \u00BD ( 1 + <i>tanh</i> ( \u03B3 - ( \u03B1 G + \u03B2 L + \u03B5 H ) / \u03B4 ) )</html>");
 			lblEquation.setHorizontalAlignment(SwingConstants.CENTER);
 			lblEquation.setFont(FONT.deriveFont(12f));
-			lblEquation.setBounds(10, 364, 268, 35);
-			panelParams2.add(lblEquation);
+			lblEquation.setBounds(10, 368, 268, 35);
+			panelMasking.add(lblEquation);
 		}
 		
+					JLabel lblDerivativesCalculation = new JLabel("3. Derivatives calculation");
+					lblDerivativesCalculation.setBounds(10, 6, 268, 29);
+					panelMasking.add(lblDerivativesCalculation);
+					lblDerivativesCalculation.setFont(BIG_FONT);
+					JLabel lblGaussianGradient = new JLabel("Gaussian gradient \u03C3:");
+					lblGaussianGradient.setBounds(10, 36, 268, 14);
+					panelMasking.add(lblGaussianGradient);
+					lblGaussianGradient.setFont(FONT);
+					
+									gaussGradSigmaText = new JTextField();
+									gaussGradSigmaText.setBounds(243, 47, 35, 23);
+									panelMasking.add(gaussGradSigmaText);
+									gaussGradSigmaText.setFont(FONT);
+									gaussGradSigmaText.setHorizontalAlignment(SwingConstants.CENTER);
+									gaussGradSigmaText.setText(""+maskingParams[3]);
+													
+																{
+													
+																	gaussGradSigmaSlider = new DoubleJSlider(0, 5*scale, (int) (maskingParams[3]*scale), scale);
+																	gaussGradSigmaSlider.setBounds(10, 52, 223, 23);
+																	panelMasking.add(gaussGradSigmaSlider);
+																	gaussGradSigmaSlider.addChangeListener(step3ChangeListener);
+																}
+																
+																				link(gaussGradSigmaSlider, gaussGradSigmaText);
+													gaussGradSigmaText.addKeyListener(step3KeyListener);
+		
 		{
-			JPanel panel = new JPanel();
-			tabbedPane.addTab("Param set 3", null, panel, null);
-			panel.setLayout(null);
+			JPanel panelThresholding = new JPanel();
+			tabbedPane.addTab("Thresholding", null, panelThresholding, null);
+			panelThresholding.setLayout(null);
 
 			JLabel labelThresholding = new JLabel("5. Thresholding");
 			labelThresholding.setBounds(10, 11, 268, 28);
 			labelThresholding.setFont(BIG_FONT);
-			panel.add(labelThresholding);
+			panelThresholding.add(labelThresholding);
 
 			JLabel labelThresholdFactor = new JLabel("Threshold factor:");
 			labelThresholdFactor.setFont(SMALL_FONT);
 			labelThresholdFactor.setBounds(10, 50, 268, 14);
-			panel.add(labelThresholdFactor);
+			panelThresholding.add(labelThresholdFactor);
 
 			thresholdFactorSlider = new DoubleJSlider(0, 5*scale, (int) (thresholdFactor*scale), scale);
 			thresholdFactorSlider.setBounds(10, 75, 223, 23);
-			panel.add(thresholdFactorSlider);
+			panelThresholding.add(thresholdFactorSlider);
 
 			thresholdFactorText = new JTextField();
 			thresholdFactorText.setText(""+thresholdFactor);
 			thresholdFactorText.setFont(FONT);
 			thresholdFactorText.setBounds(243, 75, 35, 23);
-			panel.add(thresholdFactorText);
+			panelThresholding.add(thresholdFactorText);
 			
 			link(thresholdFactorSlider, thresholdFactorText);
 			thresholdFactorSlider.addChangeListener(step5ChangeListener);
