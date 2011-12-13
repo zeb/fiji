@@ -48,6 +48,28 @@ public class CWSettings extends BasicSegmenterSettings {
 	}
 
 	@Override
+	public String toString() {
+		String str = "";
+		str += "  1. Pre-Filtering:\n";
+		str += String.format("    - do median filtering: " + doMedianFiltering+"\n");
+		str += String.format("    - gaussian filter sigma: %.1f\n", sigmaf);
+		str += "  2. Anisotropic diffusion:\n";
+		str += String.format("    - number of iterations: %d\n", nAD);
+		str += String.format("    - gradient threshold kappa: %.1f\n", kappa);
+		str += "  3. Derivatives calculation:\n";
+		str += String.format("    - gaussian gradient sigma: %.1f\n", sigmag);
+		str += "  4. Mask parameters:\n";
+		str += String.format("    - ϒ tanh shift: %.1f\n", gamma);
+		str += String.format("    - α gradient contribution: %.1f\n", alpha);
+		str += String.format("    - β positive laplacian contribution: %.1f\n", beta);
+		str += String.format("    - ε negative hessian contribution: %.1f\n", epsilon);
+		str += String.format("    - δ derivatives sum scale: %.1f\n", delta);
+		str += "  5. Thresholding:\n";
+		str += String.format("    - threshold pre-factor: %.1f\n", thresholdFactor);
+		return str;
+	}
+	
+	@Override
 	public void marshall(Element element) {
 		element.setAttributes(getAttributes());
 	}

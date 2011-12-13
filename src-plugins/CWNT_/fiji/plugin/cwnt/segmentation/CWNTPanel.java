@@ -310,7 +310,7 @@ public class CWNTPanel extends SegmenterConfigurationPanel {
 			tabbedPane.addTab("Denoising", null, panelDenoising, null);
 			panelDenoising.setLayout(null);
 
-			JLabel lblFiltering = new JLabel("1. Filtering");
+			JLabel lblFiltering = new JLabel("1. Pre-Filtering");
 			lblFiltering.setFont(BIG_FONT);
 			lblFiltering.setBounds(10, 11, 268, 29);
 			panelDenoising.add(lblFiltering);
@@ -405,23 +405,23 @@ public class CWNTPanel extends SegmenterConfigurationPanel {
 			
 			JLabel lblMasking = new JLabel("4. Mask parameters");
 			lblMasking.setFont(BIG_FONT);
-			lblMasking.setBounds(10, 82, 268, 29);
+			lblMasking.setBounds(8, 101, 268, 29);
 			panelMasking.add(lblMasking);
 
 			{
 				JLabel gammeLabel = new JLabel("\u03B3: tanh shift");
 				gammeLabel.setFont(SMALL_FONT);
-				gammeLabel.setBounds(10, 107, 262, 14);
+				gammeLabel.setBounds(8, 142, 262, 14);
 				panelMasking.add(gammeLabel);
 
 				gammaSlider = new DoubleJSlider(-5*scale, 5*scale, (int) (settings.gamma*scale), scale);
-				gammaSlider.setBounds(10, 123, 223, 23);
+				gammaSlider.setBounds(10, 159, 223, 23);
 				panelMasking.add(gammaSlider);
 
 				gammaText = new JTextField();
 				gammaText.setText(""+settings.gamma);
 				gammaText.setFont(FONT);
-				gammaText.setBounds(243, 123, 35, 23);
+				gammaText.setBounds(243, 159, 35, 23);
 				panelMasking.add(gammaText);
 
 				link(gammaSlider, gammaText);
@@ -431,16 +431,16 @@ public class CWNTPanel extends SegmenterConfigurationPanel {
 			{
 				JLabel lblNewLabel_3 = new JLabel("\u03B1: gradient prefactor");
 				lblNewLabel_3.setFont(SMALL_FONT);
-				lblNewLabel_3.setBounds(10, 158, 268, 14);
+				lblNewLabel_3.setBounds(8, 183, 268, 14);
 				panelMasking.add(lblNewLabel_3);
 
 				alphaSlider = new DoubleJSlider(0, 20*scale, (int) (settings.alpha*scale), scale);
-				alphaSlider.setBounds(10, 173, 223, 23);
+				alphaSlider.setBounds(10, 201, 223, 23);
 				panelMasking.add(alphaSlider);
 
 				alphaText = new JTextField(""+settings.alpha);
 				alphaText.setFont(FONT);
-				alphaText.setBounds(243, 173, 35, 23);
+				alphaText.setBounds(243, 201, 35, 23);
 				panelMasking.add(alphaText);
 
 				link(alphaSlider, alphaText);
@@ -450,17 +450,17 @@ public class CWNTPanel extends SegmenterConfigurationPanel {
 			{
 				JLabel betaLabel = new JLabel("\u03B2: positive laplacian magnitude prefactor");
 				betaLabel.setFont(SMALL_FONT);
-				betaLabel.setBounds(10, 219, 268, 14);
+				betaLabel.setBounds(10, 229, 268, 14);
 				panelMasking.add(betaLabel);
 
 				betaSlider = new DoubleJSlider(0, 20*scale, (int) (settings.beta*scale), scale);
-				betaSlider.setBounds(10, 234, 223, 23);
+				betaSlider.setBounds(10, 246, 223, 23);
 				panelMasking.add(betaSlider);
 
 				betaText = new JTextField();
 				betaText.setFont(FONT);
 				betaText.setText(""+settings.beta);
-				betaText.setBounds(243, 234, 35, 23);
+				betaText.setBounds(243, 246, 35, 23);
 				panelMasking.add(betaText);
 
 				link(betaSlider, betaText);
@@ -470,17 +470,17 @@ public class CWNTPanel extends SegmenterConfigurationPanel {
 			{
 				JLabel epsilonLabel = new JLabel("\u03B5: negative hessian magnitude");
 				epsilonLabel.setFont(SMALL_FONT);
-				epsilonLabel.setBounds(10, 269, 268, 14);
+				epsilonLabel.setBounds(9, 273, 268, 14);
 				panelMasking.add(epsilonLabel);
 
 				epsilonSlider = new DoubleJSlider(0, 20*scale, (int) (scale*settings.epsilon), scale);
-				epsilonSlider.setBounds(10, 284, 223, 23);
+				epsilonSlider.setBounds(10, 291, 223, 23);
 				panelMasking.add(epsilonSlider);
 
 				epsilonText = new JTextField();
 				epsilonText.setFont(FONT);
 				epsilonText.setText(""+settings.epsilon);
-				epsilonText.setBounds(243, 284, 35, 23);
+				epsilonText.setBounds(243, 291, 35, 23);
 				panelMasking.add(epsilonText);
 
 				link(epsilonSlider, epsilonText);
@@ -511,7 +511,7 @@ public class CWNTPanel extends SegmenterConfigurationPanel {
 			JLabel lblEquation = new JLabel("<html>M = \u00BD ( 1 + <i>tanh</i> ( \u03B3 - ( \u03B1 G + \u03B2 L + \u03B5 H ) / \u03B4 ) )</html>");
 			lblEquation.setHorizontalAlignment(SwingConstants.CENTER);
 			lblEquation.setFont(FONT.deriveFont(12f));
-			lblEquation.setBounds(10, 368, 268, 35);
+			lblEquation.setBounds(10, 375, 268, 35);
 			panelMasking.add(lblEquation);
 		}
 		
