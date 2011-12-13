@@ -57,7 +57,7 @@ public class TrackMate_CWNT implements PlugIn {
 			@Override
 			protected void launchGUI() {
 				TrackMateFrameController controller = new TrackMateFrameController(this);
-				controller.getView().setTitle("CWNT - β1");
+				controller.getView().setTitle("CWNT - β2");
 			}
 
 
