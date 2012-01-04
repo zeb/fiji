@@ -20,6 +20,7 @@ import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.jdom.Attribute;
 import org.jdom.DataConversionException;
 import org.jdom.Element;
 
@@ -105,8 +106,13 @@ public class TMUtils {
 	
 	public static  final int readIntAttribute(Element element, String name, Logger logger) {
 		int val = 0;
+		Attribute att = element.getAttribute(name);
+		if (null == att) {
+			logger.error("Could not find attribute "+name+" for element "+element.getName()+", substituting default value.\n");
+			return val;
+		}
 		try {
-			val = element.getAttribute(name).getIntValue();
+			val = att.getIntValue();
 		} catch (DataConversionException e) {	
 			logger.error("Cannot read the attribute "+name+" of the element "+element.getName()+", substituting default value.\n"); 
 		}
@@ -115,8 +121,13 @@ public class TMUtils {
 	
 	public static  final float readFloatAttribute(Element element, String name, Logger logger) {
 		float val = 0;
+		Attribute att = element.getAttribute(name);
+		if (null == att) {
+			logger.error("Could not find attribute "+name+" for element "+element.getName()+", substituting default value.\n");
+			return val;
+		}
 		try {
-			val = element.getAttribute(name).getFloatValue();
+			val = att.getFloatValue();
 		} catch (DataConversionException e) {	
 			logger.error("Cannot read the attribute "+name+" of the element "+element.getName()+", substituting default value.\n"); 
 		}
@@ -125,8 +136,13 @@ public class TMUtils {
 	
 	public static  final double readDoubleAttribute(Element element, String name, Logger logger) {
 		double val = 0;
+		Attribute att = element.getAttribute(name);
+		if (null == att) {
+			logger.error("Could not find attribute "+name+" for element "+element.getName()+", substituting default value.\n");
+			return val;
+		}
 		try {
-			val = element.getAttribute(name).getDoubleValue();
+			val = att.getDoubleValue();
 		} catch (DataConversionException e) {	
 			logger.error("Cannot read the attribute "+name+" of the element "+element.getName()+", substituting default value.\n"); 
 		}
@@ -135,8 +151,13 @@ public class TMUtils {
 	
 	public static  final boolean readBooleanAttribute(Element element, String name, Logger logger) {
 		boolean val = false;
+		Attribute att = element.getAttribute(name);
+		if (null == att) {
+			logger.error("Could not find attribute "+name+" for element "+element.getName()+", substituting default value.\n");
+			return val;
+		}
 		try {
-			val = element.getAttribute(name).getBooleanValue();
+			val = att.getBooleanValue();
 		} catch (DataConversionException e) {	
 			logger.error("Cannot read the attribute "+name+" of the element "+element.getName()+", substituting default value.\n"); 
 		}
@@ -268,10 +289,11 @@ public class TMUtils {
 	 * in the given 4D or 3D {@link ImagePlus}.
 	 * @param imp  the 4D or 3D source ImagePlus
 	 * @param iFrame  the frame number to extract, 0-based
+	 * @param iChannel  the channel number to extract, careful: <b>1-based</b>
 	 * @return  a 3D or 2D {@link Image} with the single time-point required 
 	 */
 	@SuppressWarnings({ "rawtypes", "unchecked" })
-	public static Image<? extends RealType<?>> getSingleFrameAsImage(ImagePlus imp, int iFrame, Settings settings) {
+	public static Image<? extends RealType<?>> getSingleFrameAsImage(ImagePlus imp, int iFrame, int iChannel, Settings settings) {
 		ImageStack stack = imp.getImageStack();
 		ImageStack frame = new ImageStack(settings.xend-settings.xstart, settings.yend-settings.ystart, stack.getColorModel());
 		int numSlices = imp.getNSlices();
@@ -280,7 +302,8 @@ public class TMUtils {
 		ImageProcessor ip, croppedIp;
 		Roi cropRoi = new Roi(settings.xstart-1, settings.ystart-1, settings.xend-settings.xstart, settings.yend-settings.ystart);
 		for (int j = settings.zstart; j <= settings.zend; j++) {
-			ip = stack.getProcessor(j + (iFrame * numSlices));
+			int stackIndex = imp.getStackIndex(iChannel, j, iFrame+1);
+			ip = stack.getProcessor(stackIndex);
 			ip .setRoi(cropRoi);
 			croppedIp = ip.crop();
 			frame.addSlice(Integer.toString(j + (iFrame * numSlices)), croppedIp);
