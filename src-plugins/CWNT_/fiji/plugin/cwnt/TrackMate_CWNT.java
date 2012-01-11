@@ -8,7 +8,7 @@ import java.util.List;
 import fiji.plugin.cwnt.segmentation.CrownWearingSegmenter;
 import fiji.plugin.trackmate.TrackMate_;
 import fiji.plugin.trackmate.features.spot.SpotFeatureAnalyzer;
-import fiji.plugin.trackmate.gui.TrackMateFrameController;
+import fiji.plugin.trackmate.gui.WizardController;
 import fiji.plugin.trackmate.segmentation.SpotSegmenter;
 import fiji.plugin.trackmate.tracking.SpotTracker;
 import fiji.plugin.trackmate.tracking.kdtree.NearestNeighborTracker;
@@ -56,8 +56,8 @@ public class TrackMate_CWNT implements PlugIn {
 
 			@Override
 			protected void launchGUI() {
-				TrackMateFrameController controller = new TrackMateFrameController(this);
-				controller.getView().setTitle("CWNT - β2");
+				WizardController controller = new WizardController(this);
+				controller.getWizard().setTitle("CWNT - β2");
 			}
 
 

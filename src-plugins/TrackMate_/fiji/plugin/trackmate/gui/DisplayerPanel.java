@@ -1,8 +1,8 @@
 package fiji.plugin.trackmate.gui;
 
-import static fiji.plugin.trackmate.gui.TrackMateFrame.BIG_FONT;
-import static fiji.plugin.trackmate.gui.TrackMateFrame.FONT;
-import static fiji.plugin.trackmate.gui.TrackMateFrame.SMALL_FONT;
+import static fiji.plugin.trackmate.gui.TrackMateWizard.BIG_FONT;
+import static fiji.plugin.trackmate.gui.TrackMateWizard.FONT;
+import static fiji.plugin.trackmate.gui.TrackMateWizard.SMALL_FONT;
 import static fiji.plugin.trackmate.visualization.TrackMateModelView.KEY_DISPLAY_SPOT_NAMES;
 import static fiji.plugin.trackmate.visualization.TrackMateModelView.KEY_SPOTS_VISIBLE;
 import static fiji.plugin.trackmate.visualization.TrackMateModelView.KEY_SPOT_COLOR_FEATURE;
@@ -37,6 +37,7 @@ import javax.swing.WindowConstants;
 import javax.swing.border.LineBorder;
 
 import fiji.plugin.trackmate.TrackMateModel;
+import fiji.plugin.trackmate.TrackMate_;
 import fiji.plugin.trackmate.visualization.AbstractTrackMateModelView;
 import fiji.plugin.trackmate.visualization.TrackMateModelView;
 
@@ -45,10 +46,11 @@ import fiji.plugin.trackmate.visualization.TrackMateModelView;
  * This GUI takes the role of a controller.
  * @author Jean-Yves Tinevez <tinevez@pasteur.fr>   -  2010 - 2011
  */
-public class DisplayerPanel extends ActionListenablePanel {
+public class DisplayerPanel extends ActionListenablePanel implements WizardPanelDescriptor {
 
 	private static final long serialVersionUID = 1L;
 
+	public static final String DESCRIPTOR = "DisplayerPanel";
 	public ActionEvent TRACK_SCHEME_BUTTON_PRESSED 	= new ActionEvent(this, 0, "TrackSchemeButtonPushed");
 
 	public JButton jButtonShowTrackScheme;
@@ -70,28 +72,82 @@ public class DisplayerPanel extends ActionListenablePanel {
 	 * The set of {@link TrackMateModelView} views controlled by this controller.
 	 */
 	private Set<TrackMateModelView> views = new HashSet<TrackMateModelView>();
-	private Map<String, double[]> featureValues;
-	private List<String> features;
-	private Map<String, String> featureNames;
+//	private Map<String, double[]> featureValues;
+//	private List<String> features;
+//	private Map<String, String> featureNames;
+	private TrackMate_ plugin;
+	private TrackMateWizard wizard;
 
-	public DisplayerPanel(TrackMateModel model) {
-		super();
-		setModel(model);
+	/*
+	 * CONSTRUCTOR 
+	 */
+
+	public DisplayerPanel() {
 		initGUI();
 	}
-
 
 	/*
 	 * PUBLIC METHODS
 	 */
 
+	@Override
+	public void setWizard(TrackMateWizard wizard) {
+		this.wizard = wizard;
+	}
+
+	@Override
+	public void setPlugin(TrackMate_ plugin) {
+		this.plugin = plugin;
+	}
+
+	@Override
+	public Component getComponent() {
+		return this;
+	}
+
+	@Override
+	public String getComponentID() {
+		return DESCRIPTOR;
+	}
+
+	@Override
+	public String getDescriptorID() {
+		return DESCRIPTOR;
+	}
+
+	@Override
+	public String getNextDescriptorID() {
+		return ActionChooserPanel.DESCRIPTOR;
+	}
+
+	@Override
+	public String getPreviousDescriptorID() {
+		return TrackFilterDescriptor.DESCRIPTOR;
+	}
+
+
+	@Override
+	public void aboutToDisplayPanel() {
+		setModel(plugin.getModel());
+		register(wizard.getDisplayer());
+	}
+
+	@Override
+	public void displayingPanel() { }
+
+
+	@Override
+	public void aboutToHidePanel() { }
+
 	/**
 	 * Add the given {@link TrackMateModelView} to the list managed by this controller.
 	 */
 	public void register(final TrackMateModelView view) {
-		this.views.add(view);
+		if (!views.contains(view)) {
+			views.add(view);
+		}
 	}
-	
+
 	@Override
 	protected void fireAction(ActionEvent event) {
 		// Intercept event coming from the JPanelSpotColorGUI, and translate it for views
@@ -122,15 +178,38 @@ public class DisplayerPanel extends ActionListenablePanel {
 			depth = Integer.MAX_VALUE;
 		displaySettings.put(KEY_TRACK_DISPLAY_DEPTH, depth);
 	}
-	
+
 	/*
 	 * PRIVATE METHODS
 	 */
 
 	private void setModel(TrackMateModel model) {
-		this.featureValues = model.getFeatureModel().getSpotFeatureValues();
-		this.features = model.getFeatureModel().getSpotFeatures();
-		this.featureNames = model.getFeatureModel().getSpotFeatureNames();
+		
+		// TODO TODO FIXME
+		
+//		this.featureValues = model.getFeatureModel().getSpotFeatureValues();
+//		this.features = model.getFeatureModel().getSpotFeatures();
+//		this.featureNames = model.getFeatureModel().getSpotFeatureNames();
+		Map<String, double[]> featureValues = model.getFeatureModel().getSpotFeatureValues();
+		List<String> features = model.getFeatureModel().getSpotFeatures();
+		Map<String, String> featureNames = model.getFeatureModel().getSpotFeatureNames();
+
+		if (null != jPanelSpotColor) {
+			jPanelSpotOptions.remove(jPanelSpotOptions);
+		}
+		jPanelSpotColor = new JPanelColorByFeatureGUI(features, featureNames, this);
+		jPanelSpotColor.featureValues = featureValues;
+		jPanelSpotOptions.add(jPanelSpotColor);
+		jPanelSpotColor.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				for(TrackMateModelView view : views) {
+					view.setDisplaySettings(KEY_SPOT_COLOR_FEATURE, jPanelSpotColor.setColorByFeature);
+					view.refresh();
+				}							
+			}
+		});
+
 	}
 
 	private void initGUI() {
@@ -280,20 +359,6 @@ public class DisplayerPanel extends ActionListenablePanel {
 				jPanelSpotOptions.setBounds(10, 63, 280, 110);
 				jPanelSpotOptions.setBorder(new LineBorder(new java.awt.Color(192,192,192), 1, true));
 				{
-					jPanelSpotColor = new JPanelColorByFeatureGUI(features, featureNames, this);
-					jPanelSpotColor.featureValues = featureValues;
-					jPanelSpotOptions.add(jPanelSpotColor);
-					jPanelSpotColor.addActionListener(new ActionListener() {
-						@Override
-						public void actionPerformed(ActionEvent e) {
-							for(TrackMateModelView view : views) {
-								view.setDisplaySettings(KEY_SPOT_COLOR_FEATURE, jPanelSpotColor.setColorByFeature);
-								view.refresh();
-							}							
-						}
-					});
-				}
-				{
 					JLabel jLabelSpotRadius = new JLabel();
 					jLabelSpotRadius.setText("  Spot display radius ratio:");
 					jLabelSpotRadius.setFont(SMALL_FONT);
@@ -377,7 +442,7 @@ public class DisplayerPanel extends ActionListenablePanel {
 		frame.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
 		frame.pack();
 		frame.setVisible(true);
-		DisplayerPanel displayerPanel_IL = new DisplayerPanel(null);
+		DisplayerPanel displayerPanel_IL = new DisplayerPanel();
 		frame.getContentPane().add(displayerPanel_IL);
 		displayerPanel_IL.setPreferredSize(new java.awt.Dimension(300, 469));
 	}

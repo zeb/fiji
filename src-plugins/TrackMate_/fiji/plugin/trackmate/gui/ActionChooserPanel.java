@@ -1,6 +1,6 @@
 package fiji.plugin.trackmate.gui;
 
-import static fiji.plugin.trackmate.gui.TrackMateFrame.FONT;
+import static fiji.plugin.trackmate.gui.TrackMateWizard.FONT;
 
 import java.awt.Component;
 import java.awt.event.ActionEvent;
@@ -16,29 +16,81 @@ import javax.swing.JLabel;
 import javax.swing.JList;
 
 import fiji.plugin.trackmate.Logger;
-import fiji.plugin.trackmate.TrackMateModel;
+import fiji.plugin.trackmate.TrackMate_;
 import fiji.plugin.trackmate.action.TrackMateAction;
 
-public class ActionChooserPanel extends ListChooserPanel<TrackMateAction> {
+public class ActionChooserPanel extends ListChooserPanel<TrackMateAction> implements WizardPanelDescriptor {
 
 	private static final long serialVersionUID = 1L;
-	private static final Icon EXECUTE_ICON = new ImageIcon(TrackMateFrame.class.getResource("images/control_play_blue.png"));
+	private static final Icon EXECUTE_ICON = new ImageIcon(TrackMateWizard.class.getResource("images/control_play_blue.png"));
 	
+	public static final String DESCRIPTOR = "ActionChooserPanel";
 	public final ActionEvent ACTION_STARTED = new ActionEvent(this, 0, "ActionStarted");
 	public final ActionEvent ACTION_FINISHED = new ActionEvent(this, 1, "ActionFinished");
-	private TrackMateModel model;
+//	private TrackMateModel model;
 	private LogPanel logPanel;
 	private Logger logger;
-	private TrackMateFrameController controller;
+	private TrackMateWizard wizard;
+	private TrackMate_ plugin;
 
-	public ActionChooserPanel(TrackMateModel model, TrackMateFrameController controller) {
-		super(controller.getPlugin().getAvailableActions(), "action");
-		this.model = model;
-		this.controller = controller;
+	public ActionChooserPanel(TrackMate_ plugin) {
+		super(plugin.getAvailableActions(), "action");
 		this.logPanel = new LogPanel();
 		this.logger = logPanel.getLogger();
 		init();
 	}
+	
+	/*
+	 * PUBLIC METHODS
+	 */
+	
+	@Override
+	public void setWizard(TrackMateWizard wizard) {
+		this.wizard = wizard;
+	}
+
+	@Override
+	public void setPlugin(TrackMate_ plugin) {
+		this.plugin = plugin; // duplicate but we need the plugin at construction
+	}
+
+	@Override
+	public Component getComponent() {
+		return this;
+	}
+
+	@Override
+	public String getDescriptorID() {
+		return DESCRIPTOR;
+	}
+	
+	@Override
+	public String getComponentID() {
+		return DESCRIPTOR;
+	}
+
+	@Override
+	public String getNextDescriptorID() {
+		return null;
+	}
+
+	@Override
+	public String getPreviousDescriptorID() {
+		return DisplayerPanel.DESCRIPTOR;
+	}
+
+	@Override
+	public void aboutToDisplayPanel() { }
+
+	@Override
+	public void displayingPanel() { }
+
+	@Override
+	public void aboutToHidePanel() { }
+	
+	/*
+	 * PRIVATE METHODS
+	 */
 	
 	private void init() {
 		
@@ -61,8 +113,8 @@ public class ActionChooserPanel extends ListChooserPanel<TrackMateAction> {
 							fireAction(ACTION_STARTED);
 							TrackMateAction action = getChoice();
 							action.setLogger(logger);
-							action.setController(controller);
-							action.execute(model);
+							action.setWizard(wizard);
+							action.execute(plugin);
 							fireAction(ACTION_FINISHED);
 						} finally {
 							executeButton.setEnabled(true);
@@ -90,7 +142,7 @@ public class ActionChooserPanel extends ListChooserPanel<TrackMateAction> {
 	
 	public static void main(String[] args) {
 		JFrame frame = new JFrame();
-		frame.getContentPane().add(new ActionChooserPanel(new TrackMateModel(), null));
+		frame.getContentPane().add(new ActionChooserPanel(new TrackMate_()));
 		frame.setSize(300, 520);
 		frame.setVisible(true);
 	}
@@ -115,4 +167,5 @@ public class ActionChooserPanel extends ListChooserPanel<TrackMateAction> {
 			return label;
 		}
 	}
+
 }

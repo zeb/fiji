@@ -1,12 +1,14 @@
 package fiji.plugin.trackmate.gui;
 
-import static fiji.plugin.trackmate.gui.TrackMateFrame.BIG_FONT;
-import static fiji.plugin.trackmate.gui.TrackMateFrame.FONT;
+import static fiji.plugin.trackmate.gui.TrackMateWizard.BIG_FONT;
+import static fiji.plugin.trackmate.gui.TrackMateWizard.FONT;
 
 import java.awt.BorderLayout;
+import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
@@ -19,14 +21,16 @@ import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 
 import fiji.plugin.trackmate.FeatureFilter;
+import fiji.plugin.trackmate.Logger;
 import fiji.plugin.trackmate.Spot;
+import fiji.plugin.trackmate.SpotCollection;
+import fiji.plugin.trackmate.SpotImp;
+import fiji.plugin.trackmate.TrackMateModel;
+import fiji.plugin.trackmate.TrackMate_;
 
-/**
- * 
- */
-public class InitFilterPanel extends ActionListenablePanel {
+public class InitFilterPanel extends ActionListenablePanel implements WizardPanelDescriptor {
 
-	private static final long serialVersionUID = -5067695740285574761L;
+	private static final long serialVersionUID = 1L;
 	private static final String EXPLANATION_TEXT = "<html><p align=\"justify\">" +
 			"Set here a threshold on the quality feature to restrict the number of spots " +
 			"before calculating other features and rendering. This step can help save " +
@@ -37,6 +41,7 @@ public class InitFilterPanel extends ActionListenablePanel {
 			"step." +
 			"</html>";
 	private static final String SELECTED_SPOT_STRING = "Selected spots: %d out of %d";
+	public  static final String DESCRIPTOR = "InitialThresholding";
 
 	private Map<String, double[]> features;
 	private FilterPanel jPanelThreshold;
@@ -45,19 +50,18 @@ public class InitFilterPanel extends ActionListenablePanel {
 	private JLabel jLabelExplanation;
 	private JLabel jLabelSelectedSpots;
 	private JPanel jPanelText;
+	private TrackMate_ plugin;
+	private Logger logger;
 
-	public InitFilterPanel(Map<String, double[]> featureValues) {
-		this(featureValues, null);
+	
+	/**
+	 * Default constructor, initialize component. 
+	 */
+	public InitFilterPanel() {
+		initGUI();
 	}
-
-
-	public InitFilterPanel(Map<String, double[]> featureValues, Float initialFilterValue) {
-		super();
-		this.features = featureValues;
-		initGUI(initialFilterValue);
-		thresholdChanged();
-	}
-
+	
+	
 	/*
 	 * PUBLIC METHOD
 	 */
@@ -68,11 +72,111 @@ public class InitFilterPanel extends ActionListenablePanel {
 	public FeatureFilter getFeatureThreshold() {
 		return new FeatureFilter(jPanelThreshold.getKey(), new Float(jPanelThreshold.getThreshold()), jPanelThreshold.isAboveThreshold());
 	}
+	
+	@Override
+	public void setWizard(TrackMateWizard wizard) { 
+		this.logger = wizard.getLogger();
+	}
+
+	@Override
+	public void setPlugin(TrackMate_ plugin) {
+		this.plugin = plugin;
+	}
+
+	@Override
+	public Component getComponent() {
+		return this;
+	}
+
+	@Override
+	public String getComponentID() {
+		return DESCRIPTOR;
+	}
+
+	@Override
+	public String getDescriptorID() {
+		return DESCRIPTOR;
+	}
+
+
+	@Override
+	public String getNextDescriptorID() {
+		return DisplayerChoiceDescriptor.DESCRIPTOR;
+	}
+
+
+	@Override
+	public String getPreviousDescriptorID() {
+		return SegmentationDescriptor.DESCRIPTOR;
+	}
+
+	@Override
+	public void aboutToDisplayPanel() {
+		TrackMateModel model = plugin.getModel();
+		
+		// Remove and redisplay threshold panel
+		features = model.getFeatureModel().getSpotFeatureValues();
+		regenerateThresholdPanel(features);
+
+		Float initialFilterValue = model.getInitialSpotFilterValue();
+		if (null != initialFilterValue)
+			jPanelThreshold.setThreshold(initialFilterValue);
+		else
+			jPanelThreshold.setThreshold(0);
+		thresholdChanged();
+	}
+
+	@Override
+	public void displayingPanel() {
+		thresholdChanged();
+	}
+
+	@Override
+	public void aboutToHidePanel() {
+		final TrackMateModel model = plugin.getModel();
+		FeatureFilter initialThreshold = getFeatureThreshold();
+		String str = "Initial thresholding with a quality threshold above "+ String.format("%.1f", initialThreshold.value) + " ...\n";
+		logger.log(str,Logger.BLUE_COLOR);
+		int ntotal = 0;
+		for (Collection<Spot> spots : model.getSpots().values())
+			ntotal += spots.size();
+		model.setInitialSpotFilterValue(initialThreshold.value);
+		plugin.execInitialSpotFiltering();
+		int nselected = 0;
+		for (Collection<Spot> spots : model.getSpots().values())
+			nselected += spots.size();
+		logger.log(String.format("Retained %d spots out of %d.\n", nselected, ntotal));
+	}
 
 	/*
 	 * PRIVATE METHODS
 	 */
 
+	private void regenerateThresholdPanel(Map<String, double[]> features) {
+
+		// Remove old one if there is one already
+		if (jPanelThreshold != null) {
+			this.remove(jPanelThreshold);
+		}
+		
+		ArrayList<String> keys = new ArrayList<String>(1);
+		keys.add(Spot.QUALITY);
+		HashMap<String, String> keyNames = new HashMap<String, String>(1);
+		keyNames.put(Spot.QUALITY, Spot.FEATURE_NAMES.get(Spot.QUALITY));
+		jPanelThreshold = new FilterPanel(features, keys, keyNames);
+		
+		jPanelThreshold.jComboBoxFeature.setEnabled(false);
+		jPanelThreshold.jRadioButtonAbove.setEnabled(false);
+		jPanelThreshold.jRadioButtonBelow.setEnabled(false);
+		this.add(jPanelThreshold, BorderLayout.CENTER);
+		jPanelThreshold.setPreferredSize(new java.awt.Dimension(300, 200));
+		jPanelThreshold.addChangeListener(new ChangeListener() {
+			public void stateChanged(ChangeEvent e) {
+				thresholdChanged();
+			}
+		});
+	}
+	
 	private void thresholdChanged() {
 		double threshold  = jPanelThreshold.getThreshold();
 		boolean isAbove = jPanelThreshold.isAboveThreshold();
@@ -94,33 +198,12 @@ public class InitFilterPanel extends ActionListenablePanel {
 	}
 
 
-	private void initGUI(Float initialThreshold) { 
+	private void initGUI() { 
 		try {
 			BorderLayout thisLayout = new BorderLayout();
 			this.setLayout(thisLayout);
 			this.setPreferredSize(new java.awt.Dimension(300, 500));
-			{
-
-				ArrayList<String> keys = new ArrayList<String>(1);
-				keys.add(Spot.QUALITY);
-				HashMap<String, String> keyNames = new HashMap<String, String>(1);
-				keyNames.put(Spot.QUALITY, Spot.FEATURE_NAMES.get(Spot.QUALITY));
-				jPanelThreshold = new FilterPanel(features, keys, keyNames);
-				if (null != initialThreshold)
-					jPanelThreshold.setThreshold(initialThreshold);
-				else
-					jPanelThreshold.setThreshold(0);
-				jPanelThreshold.jComboBoxFeature.setEnabled(false);
-				jPanelThreshold.jRadioButtonAbove.setEnabled(false);
-				jPanelThreshold.jRadioButtonBelow.setEnabled(false);
-				this.add(jPanelThreshold, BorderLayout.CENTER);
-				jPanelThreshold.setPreferredSize(new java.awt.Dimension(300, 200));
-				jPanelThreshold.addChangeListener(new ChangeListener() {
-					public void stateChanged(ChangeEvent e) {
-						thresholdChanged();
-					}
-				});
-			}
+			
 			{
 				jPanelFields = new JPanel();
 				this.add(jPanelFields, BorderLayout.SOUTH);
@@ -175,15 +258,24 @@ public class InitFilterPanel extends ActionListenablePanel {
 		final Random ran = new Random();
 		double mean;
 
-		Map<String, double[]> fv = new HashMap<String, double[]>();
-		double[] val = new double[N_ITEMS];
+		SpotCollection spots = new SpotCollection();
 		mean = ran.nextDouble() * 10;
-		for (int j = 0; j < val.length; j++) 
-			val[j] = ran.nextGaussian() + 5 + mean;
-		fv.put(Spot.QUALITY, val);
+		for (int j = 0; j < N_ITEMS; j++)  {
+			Spot spot = new SpotImp(1);
+			float val = (float) (ran.nextGaussian() + 5 + mean);
+			spot.putFeature(Spot.QUALITY, val);
+			spots.add(spot, 0);
+		}
+		TrackMateModel model = new TrackMateModel();
+		model.setSpots(spots, false);
 
+		InitFilterPanel panel = new InitFilterPanel();
+		panel.setPlugin(new TrackMate_(model));
+		panel.aboutToDisplayPanel();
+		
 		JFrame frame = new JFrame();
-		frame.getContentPane().add(new InitFilterPanel(fv));
+		frame.getContentPane().add(panel);
+		panel.displayingPanel();
 		frame.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
 		frame.pack();
 		frame.setVisible(true);
