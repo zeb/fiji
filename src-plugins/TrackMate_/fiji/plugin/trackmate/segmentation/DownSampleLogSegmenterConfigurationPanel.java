@@ -34,7 +34,7 @@ public class DownSampleLogSegmenterConfigurationPanel extends LogSegmenterConfig
 		{
 			jLabelDownSample = new JLabel();
 			this.add(jLabelDownSample, new GridBagConstraints(0, 6, 1, 1, 0.0, 0.0, GridBagConstraints.CENTER, GridBagConstraints.HORIZONTAL, new Insets(0, 10, 5, 0), 0, 0));
-			jLabelDownSample.setText("Down-sampling factor:");
+			jLabelDownSample.setText("Down-sampling factor (integer):");
 			jLabelDownSample.setFont(FONT);
 		}
 		{
@@ -48,7 +48,7 @@ public class DownSampleLogSegmenterConfigurationPanel extends LogSegmenterConfig
 	public SegmenterSettings getSegmenterSettings() {
 		LogSegmenterSettings lss = (LogSegmenterSettings) super.getSegmenterSettings();
 		DownSampleLogSegmenterSettings dss = copyToDSLSS(lss);
-		dss.downSamplingFactor = Float.parseFloat(jTextFieldDownSample.getText());
+		dss.downSamplingFactor = Integer.parseInt(jTextFieldDownSample.getText());
 		return dss;
 	}
 	
