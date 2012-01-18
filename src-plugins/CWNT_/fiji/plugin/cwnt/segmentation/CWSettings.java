@@ -76,7 +76,6 @@ public class CWSettings extends BasicSegmenterSettings {
 	
 	@Override
 	public void unmarshall(Element element) {
-		super.unmarshall(element); // Deal with expected radius
 		doMedianFiltering = TMUtils.readBooleanAttribute(element, MEDIAN_ATTRIBUTE_NAME, Logger.VOID_LOGGER);
 		sigmaf 	= TMUtils.readDoubleAttribute(element, SIGMA_F_ATTRIBUTE_NAME, Logger.VOID_LOGGER);
 		nAD 	= TMUtils.readIntAttribute(element, N_AD_ATTRIBUTE_NAME, Logger.VOID_LOGGER);
@@ -103,8 +102,7 @@ public class CWSettings extends BasicSegmenterSettings {
 		Attribute attDelta	= new Attribute(DELTA_ATTRIBUTE_NAME, 	"" + delta);
 		Attribute attThreshFact	= new Attribute(THRESHOLD_FACTOR_ATTRIBUTE_NAME, "" + thresholdFactor);
 	
-		List<Attribute> atts = new ArrayList<Attribute>(11);
-		atts.add(super.getAttribute());
+		List<Attribute> atts = new ArrayList<Attribute>(10);
 		atts.add(attMedian);
 		atts.add(attSigmaF);
 		atts.add(attNAD);
