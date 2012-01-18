@@ -138,7 +138,7 @@ public class CWNTPanel extends SegmenterConfigurationPanel {
 				settings.sigmaf = Double.parseDouble(gaussFiltSigmaText.getText());
 			} catch (NumberFormatException nfe) {}
 			try {
-				settings.nAD = Integer.parseInt(aniDiffNIterText.getText());
+				settings.nAD = (int) Double.parseDouble(aniDiffNIterText.getText());
 			} catch (NumberFormatException nfe) {}
 			try {
 				settings.kappa = Double.parseDouble(aniDiffKappaText.getText());
