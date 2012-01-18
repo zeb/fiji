@@ -292,33 +292,29 @@ public class CrownWearingSegmenter<T extends IntegerType<T>>  extends MultiThrea
 			"This plugin allows the segmentation and tracking of bright blobs objects, " +
 			"typically nuclei imaged in 3D over time. " +
 			"<p> " +
-			"It is specially designed to deal with the case the developing zebra-fish " +
-			"embryogenesis, where nuclei are densily packed, which complicates their detection. " +
+			"It is specially designed to deal with cases where nuclei are very-densily packed, " +
+			"and observed at intermediate resolution,  such as developing zebra-fish embryogenesis. " +
 			"To do so, this plugin operates in 2 steps:" +
 			"<p>" +
-			" - The image is first pre-processed, by computing a special mask that stresses" +
+			" - The image is first pre-processed, by computing a special mask that stresses " +
 			"the nuclei boundaries. A crown-like mak is computed from the 2D spatial derivatives " +
 			"of the image, and a masked image where the nuclei are better separated is generated. " +
-			"<br>" +
+			"<br/>" +
 			" - Then the nuclei are thresholded from the background of the masked image, " +
 			"labeled in 3D and tracked over time. " +
 			"<p>" +
-			"Because the crown-like mask needs 9 parameters to be specified, this plugin offers " +
-			"to test the value of paramters in the 2nd and 3rd tab of this GUI. The resulting masked" +
-			"image and intermediate images will be computed over a limited area of the source image, " +
-			"specified by the ROI. " +
+			"Because the crown-like mask needs about 10 parameters to be specified, this plugin offers " +
+			"to live-test their effect while tuning their values in the 2nd and 3rd tab of this GUI. " +
+			"The resulting masked image and intermediate images will be computed over a limited area " +
+			"of the source image, specified by the ROI. " +
 			"<p> " +
-			"Once you are happy with the parameters, mode to the 4th tab to launch the computation " +
-			"in batch." +
 			"</div>" +
 			"<div align=\"right\"> " +
 			"<tt>" +
-			"Bhavna Rajasekaran <br>" +
-			"Jean-Yves Tinevez <br>" +
+			"Bhavna Rajasekaran <br/>" +
+			"Jean-Yves Tinevez <br/>" +
 			"Andrew Oates lab - MPI-CBG, Dresden, 2011 " +
 			"</tt>" +
 			"</div>" +
-			"</html>" +
-			"";
-	
+			"</html>";
 }
