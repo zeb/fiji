@@ -5,6 +5,8 @@ import ij.plugin.PlugIn;
 import java.util.ArrayList;
 import java.util.List;
 
+import mpicbg.imglib.type.numeric.RealType;
+
 import fiji.plugin.cwnt.segmentation.CrownWearingSegmenter;
 import fiji.plugin.trackmate.TrackMate_;
 import fiji.plugin.trackmate.features.spot.SpotFeatureAnalyzer;
@@ -41,10 +43,10 @@ public class TrackMate_CWNT implements PlugIn {
 
 		TrackMate_ plugin = new TrackMate_() {
 
-			@SuppressWarnings("rawtypes")
+			@SuppressWarnings({ "rawtypes", "unchecked" })
 			@Override
-			protected List<SpotSegmenter> createSegmenterList() {
-				List<SpotSegmenter> list = new ArrayList<SpotSegmenter>(1);
+			protected List<SpotSegmenter<? extends RealType<?>>> createSegmenterList() {
+				List<SpotSegmenter<? extends RealType<?>>> list = new ArrayList<SpotSegmenter<? extends RealType<?>>>(1);
 				list.add(new CrownWearingSegmenter());
 				return list;
 			}
