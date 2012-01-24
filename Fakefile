@@ -230,6 +230,7 @@ PLUGIN_TARGETS=plugins/Jython_Interpreter.jar \
 	plugins/SPIM_Opener.jar \
 	plugins/Reconstruct_Reader.jar \
 	jars/fiji-compat.jar \
+	plugins/Octane_.jar \
 	plugins/Fiji_Package_Maker.jar
 
 LEGACYLAUNCHER=fiji
@@ -464,6 +465,7 @@ CLASSPATH(plugins/Dichromacy_.jar)=jars/ij.jar
 CLASSPATH(plugins/Threshold_Colour.jar)=jars/ij.jar
 CLASSPATH(plugins/Helmholtz_Analysis.jar)=jars/ij.jar
 CLASSPATH(plugins/Fiji_Package_Maker.jar)=jars/ij.jar:plugins/Fiji_Updater.jar:jars/fiji-lib.jar
+CLASSPATH(plugins/Octane_.jar)=jars/ij.jar:jars/commons-math.jar:jars/bsh.jar
 
 # pom.xml sub-projects
 
