@@ -18,12 +18,13 @@
 
 package edu.uchc.octane;
 
-import org.apache.commons.math.FunctionEvaluationException;
 import org.apache.commons.math.analysis.MultivariateRealFunction;
 import org.apache.commons.math.ConvergenceException;
+import org.apache.commons.math.exception.MathUserException;
 import org.apache.commons.math.optimization.GoalType;
 import org.apache.commons.math.optimization.RealPointValuePair;
-import org.apache.commons.math.optimization.direct.NelderMead;
+import org.apache.commons.math.optimization.direct.NelderMeadSimplex;
+import org.apache.commons.math.optimization.direct.SimplexOptimizer;
 
 import ij.process.ImageProcessor;
 
@@ -130,11 +131,12 @@ public class NelderMeadResolver implements SubPixelResolver, MultivariateRealFun
 		return 0;
 	}
 	
-	void fit() throws ConvergenceException, FunctionEvaluationException, IllegalArgumentException {
-		NelderMead nm = new NelderMead();
+	void fit() throws ConvergenceException, MathUserException, IllegalArgumentException {
+		SimplexOptimizer nm = new SimplexOptimizer();
+		nm.setSimplex(new NelderMeadSimplex(parameters_.length));
 		parameters_[2] = ip_.get(x0_, y0_) - bg_;
 
-		RealPointValuePair vp = nm.optimize(this, GoalType.MINIMIZE, parameters_);
+		RealPointValuePair vp = nm.optimize(10000, this, GoalType.MINIMIZE, parameters_);
 		parameters_ = vp.getPoint();
 		residue_ = vp.getValue() / parameters_[2] / parameters_[2]; // normalized to H^2
 	}
@@ -175,7 +177,7 @@ public class NelderMeadResolver implements SubPixelResolver, MultivariateRealFun
 	 * @see org.apache.commons.math.analysis.MultivariateRealFunction#value(double[])
 	 */
 	@Override
-	public double value(double[] p) throws FunctionEvaluationException,IllegalArgumentException {
+	public double value(double[] p) throws IllegalArgumentException {
 		double xp = p[0];
 		double yp = p[1];
 		double h = p[2];

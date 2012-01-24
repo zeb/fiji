@@ -20,13 +20,12 @@ package edu.uchc.octane;
 
 import java.util.Arrays;
 
-import org.apache.commons.math.FunctionEvaluationException;
 import org.apache.commons.math.analysis.DifferentiableMultivariateRealFunction;
 import org.apache.commons.math.analysis.MultivariateRealFunction;
 import org.apache.commons.math.analysis.MultivariateVectorialFunction;
 import org.apache.commons.math.ConvergenceException;
-import org.apache.commons.math.optimization.DifferentiableMultivariateRealOptimizer;
 import org.apache.commons.math.optimization.GoalType;
+import org.apache.commons.math.optimization.MultivariateRealOptimizer;
 import org.apache.commons.math.optimization.RealPointValuePair;
 import org.apache.commons.math.optimization.direct.PowellOptimizer;
 
@@ -161,14 +160,14 @@ public class GaussianResolver implements SubPixelResolver, DifferentiableMultiva
 		return 0;
 	}
 	
-	void fit() throws ConvergenceException, FunctionEvaluationException, IllegalArgumentException {
-		DifferentiableMultivariateRealOptimizer gno = new PowellOptimizer();
+	void fit() throws ConvergenceException, IllegalArgumentException {
+		MultivariateRealOptimizer gno = new PowellOptimizer(1e-7, 1e-11);
 		//gno.setMaxIterations(500);
 		parameters_[2] = ip_.get(x0_, y0_) - bg_;
 		if (!zeroBg_) {
 			parameters_[3] = bg_;
 		}
-		RealPointValuePair vp = gno.optimize(this, GoalType.MINIMIZE, parameters_);
+		RealPointValuePair vp = gno.optimize(10000, this, GoalType.MINIMIZE, parameters_);
 		parameters_ = vp.getPoint(); 
 		residue_ = vp.getValue() / parameters_[2] / parameters_[2] ; // normalized to H^2
 	}
@@ -209,7 +208,7 @@ public class GaussianResolver implements SubPixelResolver, DifferentiableMultiva
 	 * @see org.apache.commons.math.analysis.MultivariateRealFunction#value(double[])
 	 */
 	@Override
-	public double value(double[] p) throws FunctionEvaluationException,IllegalArgumentException {
+	public double value(double[] p) throws IllegalArgumentException {
 		//double hw = 0.5 + Prefs.kernelSize_;
 		double xp = p[0];
 		double yp = p[1];
@@ -243,8 +242,7 @@ public class GaussianResolver implements SubPixelResolver, DifferentiableMultiva
 //		return new MultivariateRealFunction() {
 //			@Override
 //			public double value(double[] point)
-//					throws FunctionEvaluationException,
-//					IllegalArgumentException {
+//					throws IllegalArgumentException {
 //				return gradients_[k_];
 //			}
 //		};
@@ -259,8 +257,7 @@ public class GaussianResolver implements SubPixelResolver, DifferentiableMultiva
 		return new MultivariateVectorialFunction() {
 			@Override
 			public double[] value(double[] point)
-					throws FunctionEvaluationException,
-					IllegalArgumentException {
+					throws IllegalArgumentException {
 				return gradients_;
 			}
 			

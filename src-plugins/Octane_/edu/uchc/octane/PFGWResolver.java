@@ -99,10 +99,10 @@ public class PFGWResolver implements SubPixelResolver {
 		 for (int order = 1; order <= poly_order; order++) {
 			 for (int sub_order = 1; sub_order <= order; sub_order++) {
 				 column++;
-				 V.setColumnVector(column, xps.ebeMultiply(V.getColumn(column - order)));
+				 V.setColumnVector(column, xps.ebeMultiply(new ArrayRealVector(V.getColumn(column - order))));
 			 }
 			 column++;
-			 V.setColumnVector(column, yps.ebeMultiply(V.getColumn(column - order - 1)));
+			 V.setColumnVector(column, yps.ebeMultiply(new ArrayRealVector(V.getColumn(column - order - 1))));
 		 }
 
 		 QRDecompositionImpl qr = new QRDecompositionImpl(V);
