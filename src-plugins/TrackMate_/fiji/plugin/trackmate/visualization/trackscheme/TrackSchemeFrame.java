@@ -4,6 +4,8 @@ import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Point;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.WindowEvent;
@@ -72,6 +74,14 @@ public class TrackSchemeFrame extends JFrame implements TrackMateModelChangeList
 	 * FIELDS
 	 */
 
+	/** Is linking allowed by default? Can be changed in the toolbar. */
+	boolean defaultLinkingEnabled = false;
+	/** Are linking costs displayed by default? Can be changed in the toolbar. */
+	static final boolean DEFAULT_DO_DISPLAY_COSTS_ON_EDGES = false;
+	/** Do we display the background decorations by default? */
+	static final boolean DEFAULT_DO_PAINT_DECORATIONS = true;
+	
+	
 	private Settings settings;
 	private JGraphXAdapter graph;
 
@@ -81,8 +91,6 @@ public class TrackSchemeFrame extends JFrame implements TrackMateModelChangeList
 	private mxTrackGraphComponent graphComponent;
 	/** The layout manager that can be called to re-arrange cells in the graph. */
 	private mxTrackGraphLayout graphLayout;
-	/** Is linking allowed by default? Can be changed in the toolbar. */
-	boolean defaultLinkingEnabled = false;
 	/** A flag used to prevent double event firing when setting the selection programmatically. */
 	private boolean doFireSelectionChangeEvent = true;
 	/** A flag used to prevent double event firing when setting the selection programmatically. */
@@ -247,6 +255,9 @@ public class TrackSchemeFrame extends JFrame implements TrackMateModelChangeList
 
 							if (event.getSpotFlag(spot) == TrackMateModelChangeEvent.FLAG_SPOT_ADDED) {
 
+								// Update spot image
+								spotImageUpdater.update(spot);
+								// Put in the graph
 								insertSpotInGraph(spot, targetColumn);
 								targetColumn++;
 
@@ -305,13 +316,7 @@ public class TrackSchemeFrame extends JFrame implements TrackMateModelChangeList
 		graphComponent.setColumnColor(graphLayout.getTrackColors());
 	}
 
-	public void plotSelectionData() {
-		String xFeature = infoPane.getFeatureSelectionPanel().getXKey();
-		Set<String> yFeatures = infoPane.getFeatureSelectionPanel().getYKeys();
-
-		if (DEBUG) {
-			System.out.println("[TrackSchemeFrame] plotSelectionData(): X is "+xFeature+" and Ys are "+yFeatures);
-		}
+	public void plotSelectionData(String xFeature, Set<String> yFeatures) {
 
 		if (yFeatures.isEmpty())
 			return;
@@ -440,7 +445,7 @@ public class TrackSchemeFrame extends JFrame implements TrackMateModelChangeList
 	 * Instantiate the toolbar of the track scheme. Hook for sub-classers.
 	 */
 	protected JToolBar createToolBar() {
-		return new TrackSchemeToolbar(this);		
+		return new TrackSchemeToolbar(this);
 	}
 
 	/**
@@ -693,6 +698,16 @@ public class TrackSchemeFrame extends JFrame implements TrackMateModelChangeList
 		JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, infoPane, graphComponent);
 		splitPane.setDividerLocation(170);
 		getContentPane().add(splitPane, BorderLayout.CENTER);
+		
+		// Add listener for plot events
+		infoPane.featureSelectionPanel.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				String xFeature = infoPane.getFeatureSelectionPanel().getXKey();
+				Set<String> yFeatures = infoPane.getFeatureSelectionPanel().getYKeys();
+				plotSelectionData(xFeature, yFeatures);
+			}
+		});
 
 		// Add a listener to ensure we remove this frame from the listener list of the model when it closes
 		addWindowListener(new  WindowListener() {

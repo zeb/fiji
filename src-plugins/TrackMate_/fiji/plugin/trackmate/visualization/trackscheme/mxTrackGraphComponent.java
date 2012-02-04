@@ -32,7 +32,7 @@ import fiji.plugin.trackmate.TrackMateModel;
 
 public class mxTrackGraphComponent extends mxGraphComponent implements mxIEventListener {
 
-	private static final long serialVersionUID = -281620557095353617L;
+	private static final long serialVersionUID = -1L;
 	private static final Color BACKGROUND_COLOR_1 	= Color.GRAY;
 	private static final Color BACKGROUND_COLOR_2 	= Color.LIGHT_GRAY;
 	private static final Color LINE_COLOR 			= Color.BLACK;
@@ -44,8 +44,12 @@ public class mxTrackGraphComponent extends mxGraphComponent implements mxIEventL
 	private TrackSchemeFrame frame;
 	
 	/** If true, will paint background decorations. */
-	private boolean doPaintDecorations = true;
+	private boolean doPaintDecorations = TrackSchemeFrame.DEFAULT_DO_PAINT_DECORATIONS;
 
+	/*
+	 * CONSTRUCTOR
+	 */
+	
 	public mxTrackGraphComponent(TrackSchemeFrame frame) {
 		super(frame.getGraph());
 		this.frame = frame;
@@ -62,7 +66,7 @@ public class mxTrackGraphComponent extends mxGraphComponent implements mxIEventL
 		// Our own cell painter, that displays an image (if any) and a label next to it.
 		mxGraphics2DCanvas.putShape(mxScaledLabelShape.SHAPE_NAME, new mxScaledLabelShape());
 		// Replace default painter for edge label so that we can draw labels parallel to edges.
-		mxGraphics2DCanvas.putTextShape(mxGraphics2DCanvas.TEXT_SHAPE_DEFAULT, new mxSideTextShape(true));
+		mxGraphics2DCanvas.putTextShape(mxGraphics2DCanvas.TEXT_SHAPE_DEFAULT, new mxSideTextShape());
 
 		setSwimlaneSelectionEnabled(true);
 
@@ -71,6 +75,14 @@ public class mxTrackGraphComponent extends mxGraphComponent implements mxIEventL
 	/*
 	 * METHODS
 	 */
+	
+	public void setDoPaintDecorations(boolean doPaintDecorations) {
+		this.doPaintDecorations = doPaintDecorations;
+	}
+	
+	public boolean isDoPaintDecorations() {
+		return doPaintDecorations;
+	}
 
 	@Override
 	public boolean isToggleEvent(MouseEvent event) {

@@ -28,7 +28,6 @@ public class TrackSchemeToolbar extends JToolBar {
 	private static final ImageIcon ZOOM_IN_ICON 	= new ImageIcon(TrackSchemeFrame.class.getResource("resources/zoom_in.png")); 
 	private static final ImageIcon ZOOM_OUT_ICON 	= new ImageIcon(TrackSchemeFrame.class.getResource("resources/zoom_out.png")); 
 	private static final ImageIcon REFRESH_ICON		= new ImageIcon(TrackSchemeFrame.class.getResource("resources/refresh.png"));
-	private static final ImageIcon PLOT_ICON		= new ImageIcon(TrackSchemeFrame.class.getResource("resources/plots.png"));
 	private static final ImageIcon CAPTURE_UNDECORATED_ICON = new ImageIcon(TrackSchemeFrame.class.getResource("resources/camera_go.png"));
 	private static final ImageIcon CAPTURE_DECORATED_ICON = new ImageIcon(TrackSchemeFrame.class.getResource("resources/camera_edit.png"));
 
@@ -36,6 +35,12 @@ public class TrackSchemeToolbar extends JToolBar {
 	private static final ImageIcon BRANCH_FOLDING_OFF_ICON 	= new ImageIcon(TrackSchemeFrame.class.getResource("resources/shape_square-forbid.png"));
 	private static final ImageIcon FOLD_ALL_BRANCHES_ICON	= new ImageIcon(TrackSchemeFrame.class.getResource("resources/shape_group.png"));
 	private static final ImageIcon UNFOLD_ALL_BRANCHES_ICON	= new ImageIcon(TrackSchemeFrame.class.getResource("resources/shape_ungroup.png"));
+
+	private static final ImageIcon DISPLAY_COST_ON_ICON		= new ImageIcon(TrackSchemeFrame.class.getResource("resources/Label-icons.png"));
+	private static final ImageIcon DISPLAY_COST_OFF_ICON	= new ImageIcon(TrackSchemeFrame.class.getResource("resources/Label-icons-disabled.png"));
+	
+	private static final ImageIcon DISPLAY_DECORATIONS_ON_ICON	= new ImageIcon(TrackSchemeFrame.class.getResource("resources/application_view_columns.png"));
+	private static final ImageIcon DISPLAY_DECORATIONS_OFF_ICON	= new ImageIcon(TrackSchemeFrame.class.getResource("resources/application.png"));
 	
 	private TrackSchemeFrame frame;
 
@@ -112,16 +117,6 @@ public class TrackSchemeToolbar extends JToolBar {
 		final JButton redoLayoutButton = new JButton(redoLayoutAction);
 		redoLayoutButton.setToolTipText("Redo layout");
 		
-		// Plot selection data
-		final Action plotSelection = new AbstractAction(null, PLOT_ICON) {
-			@Override
-			public void actionPerformed(ActionEvent e) {
-				frame.plotSelectionData();
-			}
-		};
-		final JButton plotSelectionButton = new JButton(plotSelection);
-		plotSelectionButton.setToolTipText("Plot selection data");
-	
 		/* 
 		 * Folding
 		 */
@@ -161,7 +156,7 @@ public class TrackSchemeToolbar extends JToolBar {
 				}
 			}
 		});
-		toggleEnableFoldingButton.setToolTipText("Toggle folding (requires redoing layout)");
+		toggleEnableFoldingButton.setToolTipText("Toggle folding (redo layout)");
 		foldAllButton.setToolTipText("Fold all branches");
 		unFoldAllButton.setToolTipText("Unfold all branches");
 		if (!defaultEnabled) {
@@ -205,6 +200,54 @@ public class TrackSchemeToolbar extends JToolBar {
 		
 		
 		/*
+		 * display labels on edges
+		 */
+
+		JButton toggleDisplayCostsButton;
+		{
+			boolean defaultDisplayCosts= TrackSchemeFrame.DEFAULT_DO_DISPLAY_COSTS_ON_EDGES;
+			final Action toggleDisplayCostsAction = new AbstractAction(null, defaultDisplayCosts ? DISPLAY_COST_ON_ICON : DISPLAY_COST_OFF_ICON) {
+				public void actionPerformed(ActionEvent e) {
+					boolean enabled = frame.getGraphLayout().isDoDisplayCosts();
+					ImageIcon displayIcon;
+					if (enabled)
+						displayIcon = DISPLAY_COST_OFF_ICON;
+					else
+						displayIcon = DISPLAY_COST_ON_ICON;
+					putValue(SMALL_ICON, displayIcon);
+					frame.getGraphLayout().setDoDisplayCosts(!enabled);
+				}
+
+			};
+			toggleDisplayCostsButton = new JButton(toggleDisplayCostsAction);
+			toggleDisplayCostsButton.setToolTipText("Toggle costs display (redo layout)");
+		}
+		
+		/*
+		 * display background decorations
+		 */
+		JButton toggleDisplayDecorationsButton; 
+		{
+			boolean defaultDisplayDecorations= TrackSchemeFrame.DEFAULT_DO_PAINT_DECORATIONS;
+			final Action toggleDisplayDecorations = new AbstractAction(null, defaultDisplayDecorations ? DISPLAY_DECORATIONS_ON_ICON : DISPLAY_DECORATIONS_OFF_ICON) {
+				public void actionPerformed(ActionEvent e) {
+					boolean enabled = frame.getGraphComponent().isDoPaintDecorations();
+					ImageIcon displayIcon;
+					if (enabled)
+						displayIcon = DISPLAY_DECORATIONS_OFF_ICON;
+					else
+						displayIcon = DISPLAY_DECORATIONS_ON_ICON;
+					putValue(SMALL_ICON, displayIcon);
+					frame.getGraphComponent().setDoPaintDecorations(!enabled);
+					frame.getGraphComponent().repaint();
+				}
+
+			};
+			toggleDisplayDecorationsButton = new JButton(toggleDisplayDecorations);
+			toggleDisplayDecorationsButton.setToolTipText("Toggle display decorations");
+		}
+		
+		/*
 		 * ADD TO TOOLBAR
 		 */
 		
@@ -222,10 +265,6 @@ public class TrackSchemeToolbar extends JToolBar {
 		add(unFoldAllButton);
 		// Separator
 		addSeparator();
-		// Plotting
-		add(plotSelectionButton);
-		// Separator
-		addSeparator();
 		// Zoom
 		add(zoomInButton);
 		add(zoomOutButton);
@@ -236,6 +275,12 @@ public class TrackSchemeToolbar extends JToolBar {
 		add(captureUndecoratedButton);
 		add(captureDecoratedButton);
 		add(saveButton);
+		// Separator
+		addSeparator();
+		// Display costs along edges
+		add(toggleDisplayCostsButton);
+		// Display background decorations
+		add(toggleDisplayDecorationsButton);
 
 	}
 }
