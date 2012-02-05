@@ -167,7 +167,7 @@ public class CrownWearingSegmenter<T extends IntegerType<T>>  extends MultiThrea
 	 * @author Lee Klaminsky - I took it from its imglib package to fix a bug in
 	 * imglib1.
 	 */
-	private static final <T extends Comparable<T>> void labelAllConnectedComponents(
+	public static final <T extends Comparable<T>> void labelAllConnectedComponents(
 			Labeling<T> labeling, 
 			Image<BitType> img,	
 			Iterator<T> names, 
