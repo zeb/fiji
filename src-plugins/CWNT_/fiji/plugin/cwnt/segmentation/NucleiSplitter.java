@@ -146,6 +146,11 @@ public class NucleiSplitter extends MultiThreadedBenchmarkAlgorithm {
 		return spot;
 	}
 	
+	/**
+	 * Build the histograms of pixel positions for the blob with the given label.
+	 * @param label  the target label
+	 * @return an array of array of int, one array per dimension
+	 */
 	private int[][] getPixelPositionHistogramsForLabel(Integer label) {
 		// Prepare histogram holders
 		int[] minExtents = new int[source.getNumDimensions()];
@@ -214,7 +219,9 @@ public class NucleiSplitter extends MultiThreadedBenchmarkAlgorithm {
 		}
 		int totalPeaks = 1;
 		for (int i = 0; i < nPeaks.length; i++) {
-			totalPeaks *= nPeaks[i];
+			if (nPeaks[i] > 1) {
+				totalPeaks *= nPeaks[i];
+			}
 		}
 		
 		return totalPeaks;
