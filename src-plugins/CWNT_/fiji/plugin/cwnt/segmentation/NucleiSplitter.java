@@ -1,6 +1,7 @@
 package fiji.plugin.cwnt.segmentation;
 
 import ij.ImageJ;
+import ij.ImagePlus;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -14,6 +15,7 @@ import mpicbg.imglib.algorithm.MultiThreadedBenchmarkAlgorithm;
 import mpicbg.imglib.algorithm.labeling.AllConnectedComponents;
 import mpicbg.imglib.container.array.ArrayContainerFactory;
 import mpicbg.imglib.container.planar.PlanarContainerFactory;
+import mpicbg.imglib.cursor.LocalizableByDimCursor;
 import mpicbg.imglib.cursor.LocalizableCursor;
 import mpicbg.imglib.cursor.special.SphereCursor;
 import mpicbg.imglib.image.Image;
@@ -38,6 +40,8 @@ public class NucleiSplitter extends MultiThreadedBenchmarkAlgorithm {
 
 	/** The labelled image contained the nuclei to split. */
 	private final Labeling<Integer> source;
+	/** The label generator used to create new labels */
+	private final Iterator<Integer> labelGenerator;
 
 	/**
 	 * Nuclei volume top threshold. Nuclei with a volume larger than this
@@ -66,14 +70,16 @@ public class NucleiSplitter extends MultiThreadedBenchmarkAlgorithm {
 	/** The physical volume of a voxel. */
 	private final float voxelVolume;
 
+
 	/*
 	 * CONSTRUCTOR
 	 */
 
-	public NucleiSplitter(Labeling<Integer> source, float[] calibration) {
+	public NucleiSplitter(Labeling<Integer> source, float[] calibration, Iterator<Integer> labelGenerator) {
 		super();
 		this.source = source;
 		this.calibration = calibration;
+		this.labelGenerator = labelGenerator;
 		this.spots = Collections.synchronizedList(new ArrayList<Spot>((int) 1.5 * source.getLabels().size()));
 		this.voxelVolume = calibration[0] * calibration[1] * calibration[2];
 	}
@@ -268,6 +274,21 @@ public class NucleiSplitter extends MultiThreadedBenchmarkAlgorithm {
 				spots.add(spot);
 			}
 		}
+		
+		// Re-label newly split nuclei
+		LocalizableByDimCursor<LabelingType<Integer>> sourceCursor = source.createLocalizableByDimCursor();
+		for (Cluster<CalibratedEuclideanIntegerPoint> cluster : clusters) {
+			Integer newLabel = labelGenerator.next();
+			
+			for (CalibratedEuclideanIntegerPoint p : cluster.getPoints()) {
+				
+				sourceCursor.setPosition(p.getPoint());
+				List<Integer> currentLabel = sourceCursor.getType().intern(newLabel);
+				sourceCursor.getType().setLabeling(currentLabel);
+				
+			}
+		}
+		sourceCursor.close();
 	}
 
 	/**
@@ -413,13 +434,9 @@ public class NucleiSplitter extends MultiThreadedBenchmarkAlgorithm {
 		// 6-connected structuring element
 		int[][] structuringElement = new int[][] { {-1, 0, 0}, {1, 0, 0}, {0, -1, 0}, {0, 1, 0}, {0, 0, -1}, {0, 0, 1} };
 		CrownWearingSegmenter.labelAllConnectedComponents(labeling , img, labelGenerator, structuringElement);
-		
-		ImageJ.main(args);
-		ImageJFunctions.copyToImagePlus(labeling).show();
-		
 		// Splitter
 		Integer label = 0;
-		NucleiSplitter splitter = new NucleiSplitter(labeling, img.getCalibration());
+		NucleiSplitter splitter = new NucleiSplitter(labeling, img.getCalibration(), labelGenerator);
 		
 		// Prepare histogram holders
 		int[] minExtents = new int[labeling.getNumDimensions()];
@@ -436,6 +453,20 @@ public class NucleiSplitter extends MultiThreadedBenchmarkAlgorithm {
 		
 		int n = splitter.estimateNucleiNumber(label);
 		System.out.println("This one shall be split in "+n);
+		
+		splitter.split(label, n);
+		
+		LabelToGlasbey colorer = new LabelToGlasbey(labeling);
+		colorer.checkInput();
+		colorer.process();
+		
+		ImageJ.main(args);
+		colorer.getImp().show();
+		
+		// BUG BUG TODO FIXME
+		ImageJFunctions.copyToImagePlus(labeling, ImagePlus.GRAY8).show();
+		
+		
 		
 	}
 	

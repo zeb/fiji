@@ -1,6 +1,5 @@
 package fiji.plugin.cwnt.segmentation;
 
-
 import static mpicbg.imglib.type.numeric.RGBALegacyType.rgba;
 
 import java.util.HashMap;
@@ -93,8 +92,6 @@ public class LabelToRGB extends MultiThreadedBenchmarkAlgorithm implements	Outpu
 	public Image<RGBALegacyType> getResult() {
 		return rgb;
 	}
-	
-	
 
 	/**
 	 * The 32 first (non-white) colors of the Glabey LUT, made to maximise the differences

@@ -30,6 +30,7 @@ public class CrownWearingSegmenter<T extends IntegerType<T>>  extends MultiThrea
 	private List<Spot> spots;
 	private float[] calibration;
 	private CWSettings settings;
+	private Iterator<Integer> labelGenerator;
 
 	/*
 	 * CONSTRUCTOR	
@@ -120,7 +121,7 @@ public class CrownWearingSegmenter<T extends IntegerType<T>>  extends MultiThrea
 		}
 		
 		// Labeling
-		Iterator<Integer> labelGenerator = AllConnectedComponents.getIntegerNames(0);
+		labelGenerator = AllConnectedComponents.getIntegerNames(0);
 		
 		PlanarContainerFactory containerFactory = new PlanarContainerFactory();
 		ImageFactory<LabelingType<Integer>> imageFactory = new ImageFactory<LabelingType<Integer>>(new LabelingType<Integer>(), containerFactory);
@@ -132,7 +133,7 @@ public class CrownWearingSegmenter<T extends IntegerType<T>>  extends MultiThrea
 		labelAllConnectedComponents(labeling , thresholded, labelGenerator, structuringElement);
 		
 		// Splitting and spot creation
-		NucleiSplitter splitter = new NucleiSplitter(labeling, calibration);
+		NucleiSplitter splitter = new NucleiSplitter(labeling, calibration, labelGenerator);
 		if (!(splitter.checkInput() && splitter.process())) {
 			IJ.error("Problem with splitter: "+splitter.getErrorMessage());
 			return false;
@@ -146,12 +147,18 @@ public class CrownWearingSegmenter<T extends IntegerType<T>>  extends MultiThrea
 		return labeling;
 	}
 	
+	/**
+	 * @return the label generator that was used to assign labels to
+	 * segmented blobs.
+	 */
+	public Iterator<Integer> getLabelGenerator() {
+		return labelGenerator;
+	}
+	
 	
 	/*
 	 * STATIC METHODS
 	 */
-	
-
 	
 	/**
 	 * Label all connected components in the given image using an arbitrary
