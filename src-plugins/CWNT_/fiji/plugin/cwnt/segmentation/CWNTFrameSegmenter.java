@@ -5,12 +5,11 @@ import fiji.plugin.trackmate.util.TMUtils;
 import ij.ImagePlus;
 import mpicbg.imglib.algorithm.MultiThreadedBenchmarkAlgorithm;
 import mpicbg.imglib.image.Image;
-import mpicbg.imglib.image.display.imagej.ImageJFunctions;
 import mpicbg.imglib.labeling.Labeling;
-import mpicbg.imglib.type.numeric.RGBALegacyType;
 
 public class CWNTFrameSegmenter extends MultiThreadedBenchmarkAlgorithm {
 
+	private static final boolean DEBUG = true;
 	private CWNTPanel source;
 	private ImagePlus imp;
 
@@ -53,14 +52,19 @@ public class CWNTFrameSegmenter extends MultiThreadedBenchmarkAlgorithm {
 		final long end = System.currentTimeMillis();
 		processingTime = end - start;
 		
-		Labeling labels = cws.getLabeling();
-		LabelToRGB converter = new LabelToRGB(labels);
-		converter.process();
-		Image<RGBALegacyType> rgb = converter.getResult();
+		if (DEBUG) {
+			System.out.println("["+this.getClass().getSimpleName()+"] #process: coloring label started");
+		}
 		
-		ImagePlus result = ImageJFunctions.copyToImagePlus(rgb);
-		result.setCalibration(imp.getCalibration());
+		Labeling labels = cws.getLabeling();
+		LabelToGlasbey converter = new LabelToGlasbey(labels);
+		converter.process();
+		ImagePlus result = converter.getImp();
 		result.show();
+
+		if (DEBUG) {
+			System.out.println("["+this.getClass().getSimpleName()+"] #process: coloring label done");
+		}
 		
 		int tmin = (int) Math.ceil(processingTime / 1e3 / 60); //min 
 		source.labelDurationEstimate.setText("Total duration rough estimate: "+tmin+" min.");

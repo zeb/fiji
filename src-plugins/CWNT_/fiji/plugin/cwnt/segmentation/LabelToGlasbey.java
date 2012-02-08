@@ -16,6 +16,7 @@ import mpicbg.imglib.cursor.LocalizableByDimCursor;
 import mpicbg.imglib.cursor.LocalizableCursor;
 import mpicbg.imglib.image.Image;
 import mpicbg.imglib.image.display.Display;
+import mpicbg.imglib.image.display.imagej.ImageJFunctions;
 import mpicbg.imglib.image.display.imagej.ImageJVirtualStack;
 import mpicbg.imglib.labeling.Labeling;
 import mpicbg.imglib.labeling.LabelingType;
@@ -25,6 +26,7 @@ import mpicbg.imglib.type.numeric.integer.UnsignedByteType;
 
 public class LabelToGlasbey extends MultiThreadedBenchmarkAlgorithm {
 
+	private static final boolean DEBUG = true;
 	private final Labeling<Integer> labels;
 	private ImagePlus imp;
 
@@ -76,7 +78,7 @@ public class LabelToGlasbey extends MultiThreadedBenchmarkAlgorithm {
 						if (labeling.size() > 0) {
 							int label = labeling .get(0);
 							int colorIndex = label % nColors;
-							target.getType().set(colorIndex);
+							target.getType().set(1+colorIndex); // leave label 0 to bg
 						}
 					}
 					cursor.close();
@@ -89,39 +91,40 @@ public class LabelToGlasbey extends MultiThreadedBenchmarkAlgorithm {
 		
 		SimpleMultiThreading.startAndJoin(threads);
 		
-		
-		
-		final Display<LabelingType<Integer>> display = labels.getDisplay();
+		final Display<UnsignedByteType> display = output.getDisplay();
 
 		int[] size = new int[ 3 ];
-		size[ 0 ] = labels.getDimension( 0 );
-		size[ 1 ] = labels.getDimension( 1 );
-		size[ 2 ] = labels.getDimension( 2 );
+		size[ 0 ] = output.getDimension( 0 );
+		size[ 1 ] = output.getDimension( 1 );
+		size[ 2 ] = output.getDimension( 2 );
 
         final ImageStack stack = new ImageStack( size[ 0 ], size[ 1 ] );
 
         final int dimX = 0;
         final int dimY = 1;
         final int dimZ = 2;
-        final int[] dimPos = labels.createPositionArray();
+        final int[] dimPos = output.createPositionArray();
 
         for (int z = 0; z < size[ 2 ]; z++) {
-        	if ( dimZ < labels.getNumDimensions() ) {
+        	if ( dimZ < output.getNumDimensions() ) {
         		dimPos[ dimZ ] = z;
         	}
-        	byte[] pixels = ImageJVirtualStack.extractSliceByte( labels, display, dimX, dimY, dimPos ) ;
+        	byte[] pixels = ImageJVirtualStack.extractSliceByte( output, display, dimX, dimY, dimPos ) ;
         	ByteProcessor bp = new ByteProcessor( size[ 0 ], size[ 1 ], pixels , getGlasbeyLUT() );
 
         	stack.addSlice(""+z, bp);
         }
 		
-        imp =  new ImagePlus( labels.getName()+"_color", stack );
+        imp =  new ImagePlus( output.getName(), stack );
 		Calibration cal = new Calibration();
 		cal.pixelWidth = labels.getCalibration(0);
 		cal.pixelHeight = labels.getCalibration(1);
 		cal.pixelDepth = labels.getCalibration(2);
 		imp.setCalibration(cal);
 		
+		if (DEBUG) {
+			ImageJFunctions.copyToImagePlus(output).show();
+		}
 		
 		long end = System.currentTimeMillis();
 		processingTime = end - start;
@@ -132,20 +135,23 @@ public class LabelToGlasbey extends MultiThreadedBenchmarkAlgorithm {
 	
 	public static final LUT getGlasbeyLUT() {
 		
-		int nColors = GLASBEY_LUT.size();
+		int nColors = GLASBEY_LUT.size() + 1;
 		
 		byte[] r = new byte[nColors];
 		byte[] g = new byte[nColors];
 		byte[] b = new byte[nColors];
 		
+		r[0] = 0;
+		g[0] = 0;
+		b[0] = 0; // label = 0 -> black
 		int[] col;
-		for (int i = 0; i < nColors; i++) {
+		for (int i = 1; i < nColors-1; i++) {
 			col = GLASBEY_LUT.get(i);
 			r[i] = (byte) col[0];
 			g[i] = (byte) col[1];
 			b[i] = (byte) col[2];
 		}
-		LUT lut = new LUT(8, 32, r, g, b);
+		LUT lut = new LUT(8, nColors, r, g, b);
 		return lut;
 		
 	}
