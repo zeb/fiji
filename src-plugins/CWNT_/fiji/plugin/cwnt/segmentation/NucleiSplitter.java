@@ -73,7 +73,6 @@ public class NucleiSplitter extends MultiThreadedBenchmarkAlgorithm {
 
 	public NucleiSplitter(Labeling<Integer> source, float[] calibration, Iterator<Integer> labelGenerator) {
 		super();
-		this.numThreads = 1; // DEBUG
 		this.source = source;
 		this.calibration = calibration;
 		this.labelGenerator = labelGenerator;
@@ -133,12 +132,7 @@ public class NucleiSplitter extends MultiThreadedBenchmarkAlgorithm {
 		if (DEBUG) {
 			System.out.println("[NucleiSplitter] Splitting done");
 		}
-		
-		LabelToGlasbey ltg = new LabelToGlasbey(source);
-		ltg.process();
-		ltg.getImp().show();
-		
-		
+				
 		long end = System.currentTimeMillis();
 		processingTime = end - start;
 		return true;
@@ -310,8 +304,7 @@ public class NucleiSplitter extends MultiThreadedBenchmarkAlgorithm {
 			for (CalibratedEuclideanIntegerPoint p : cluster.getPoints()) {
 				
 				sourceCursor.setPosition(p.getPoint());
-				List<Integer> currentLabel = sourceCursor.getType().intern(newLabel);
-				sourceCursor.getType().setLabeling(currentLabel);
+				sourceCursor.getType().setLabel(newLabel);
 				
 			}
 			
@@ -428,8 +421,7 @@ public class NucleiSplitter extends MultiThreadedBenchmarkAlgorithm {
 						while (cursor.hasNext()) {
 							cursor.fwd();
 							destCursor.setPosition(cursor);
-							List<Integer> newLabel = destCursor.getType().intern(0);
-							destCursor.getType().setLabeling(newLabel);
+							destCursor.getType().setLabel(-1); // Weird, but it seems we have to do that to get a label of 0
 							}
 						cursor.close();
 						if (DEBUG) {

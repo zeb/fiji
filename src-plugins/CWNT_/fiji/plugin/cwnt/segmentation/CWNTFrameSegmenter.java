@@ -9,7 +9,7 @@ import mpicbg.imglib.labeling.Labeling;
 
 public class CWNTFrameSegmenter extends MultiThreadedBenchmarkAlgorithm {
 
-	private static final boolean DEBUG = true;
+	private static final boolean DEBUG = false;
 	private CWNTPanel source;
 	private ImagePlus imp;
 
