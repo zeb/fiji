@@ -26,7 +26,6 @@ import mpicbg.imglib.type.numeric.integer.UnsignedByteType;
 
 public class LabelToGlasbey extends MultiThreadedBenchmarkAlgorithm {
 
-	private static final boolean DEBUG = true;
 	private final Labeling<Integer> labels;
 	private ImagePlus imp;
 
@@ -121,10 +120,6 @@ public class LabelToGlasbey extends MultiThreadedBenchmarkAlgorithm {
 		cal.pixelHeight = labels.getCalibration(1);
 		cal.pixelDepth = labels.getCalibration(2);
 		imp.setCalibration(cal);
-		
-		if (DEBUG) {
-			ImageJFunctions.copyToImagePlus(output).show();
-		}
 		
 		long end = System.currentTimeMillis();
 		processingTime = end - start;
