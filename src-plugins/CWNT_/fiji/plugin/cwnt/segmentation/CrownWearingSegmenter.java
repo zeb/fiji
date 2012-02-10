@@ -38,6 +38,7 @@ public class CrownWearingSegmenter<T extends IntegerType<T>>  extends MultiThrea
 
 	public CrownWearingSegmenter() {
 		super();
+		this.numThreads = 1; // do not use MT by default
 	}
 	
 	/*
@@ -88,7 +89,7 @@ public class CrownWearingSegmenter<T extends IntegerType<T>>  extends MultiThrea
 		
 		// Crown wearing mask
 		NucleiMasker<T> masker = new NucleiMasker<T>(source);
-		masker.setNumThreads(numThreads);
+		masker.setNumThreads(numThreads); // propagate MT choice 
 		boolean doMedianFiltering 	= settings.doMedianFiltering;
 		double gaussFilterSigma 	= settings.sigmaf;
 		int nIterAnDiff 			= settings.nAD;

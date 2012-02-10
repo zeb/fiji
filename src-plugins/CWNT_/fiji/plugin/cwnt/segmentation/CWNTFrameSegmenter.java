@@ -42,6 +42,7 @@ public class CWNTFrameSegmenter extends MultiThreadedBenchmarkAlgorithm {
 		final Settings settings = new Settings(imp);
 		final Image img = TMUtils.getSingleFrameAsImage(imp, frame-1, settings.segmentationChannel, settings);
 		final CrownWearingSegmenter cws = new CrownWearingSegmenter();
+		cws.setNumThreads(numThreads); // since it is only for one frame, we can propagate and use MT version
 		cws.setTarget(img, settings.getCalibration(), source.getSegmenterSettings());
 		
 		if (!cws.process()) {
