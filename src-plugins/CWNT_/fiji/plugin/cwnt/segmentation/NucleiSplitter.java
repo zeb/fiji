@@ -2,13 +2,11 @@ package fiji.plugin.cwnt.segmentation;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
-import java.util.concurrent.atomic.AtomicInteger;
 
-import mpicbg.imglib.algorithm.MultiThreadedBenchmarkAlgorithm;
+import mpicbg.imglib.algorithm.BenchmarkAlgorithm;
 import mpicbg.imglib.algorithm.labeling.AllConnectedComponents;
 import mpicbg.imglib.container.array.ArrayContainerFactory;
 import mpicbg.imglib.container.planar.PlanarContainerFactory;
@@ -19,7 +17,6 @@ import mpicbg.imglib.image.Image;
 import mpicbg.imglib.image.ImageFactory;
 import mpicbg.imglib.labeling.Labeling;
 import mpicbg.imglib.labeling.LabelingType;
-import mpicbg.imglib.multithreading.SimpleMultiThreading;
 import mpicbg.imglib.type.label.FakeType;
 import mpicbg.imglib.type.logic.BitType;
 import mpicbg.imglib.util.Util;
@@ -30,7 +27,7 @@ import org.apache.commons.math.stat.clustering.KMeansPlusPlusClusterer;
 import fiji.plugin.trackmate.Spot;
 import fiji.plugin.trackmate.SpotImp;
 
-public class NucleiSplitter extends MultiThreadedBenchmarkAlgorithm {
+public class NucleiSplitter extends BenchmarkAlgorithm {
 
 	private static final boolean DEBUG = false;
 
@@ -54,18 +51,12 @@ public class NucleiSplitter extends MultiThreadedBenchmarkAlgorithm {
 	 * times the standard deviation will be considered for splitting.
 	 */
 	private double stdFactor = 0.5;
-
 	private ArrayList<Integer> nucleiToSplit;
-
 	private ArrayList<Integer> thrashedLabels;
-
 	private final List<Spot> spots;
-
 	private final float[] calibration;
-
 	/** The physical volume of a voxel. */
 	private final float voxelVolume;
-
 
 	/*
 	 * CONSTRUCTOR
@@ -76,7 +67,7 @@ public class NucleiSplitter extends MultiThreadedBenchmarkAlgorithm {
 		this.source = source;
 		this.calibration = calibration;
 		this.labelGenerator = labelGenerator;
-		this.spots = Collections.synchronizedList(new ArrayList<Spot>((int) 1.5 * source.getLabels().size()));
+		this.spots = new ArrayList<Spot>((int) 1.5 * source.getLabels().size());
 		this.voxelVolume = calibration[0] * calibration[1] * calibration[2];
 	}
 
@@ -99,35 +90,21 @@ public class NucleiSplitter extends MultiThreadedBenchmarkAlgorithm {
 		long start = System.currentTimeMillis();
 
 		getVolumeEstimate(); // Harvest non-suspicious spots
-
-		Thread[] threads = new Thread[numThreads];
-		final AtomicInteger ai = new AtomicInteger();
-
 		if (DEBUG) {
 			System.out.println("[NucleiSplitter] Starting splitting");
 		}
 		
-		for (int i = 0; i < threads.length; i++) {
-			threads[i] = new Thread("Nuclei splitter thread " + i) {
-				public void run() {
-					int targetNucleiNumber;
-					Integer label;
-					for (int j = ai.getAndIncrement(); j < nucleiToSplit.size(); j = ai.getAndIncrement()) {
-						label = nucleiToSplit.get(j);
+		int targetNucleiNumber;
+		for (int label : nucleiToSplit) {
 
-						targetNucleiNumber = estimateNucleiNumber(label);
+			targetNucleiNumber = estimateNucleiNumber(label);
 
-						if (targetNucleiNumber > 1) {
-							split(label, targetNucleiNumber);
-						} else {
-							spots.add(createSpotFomLabel(label));
-						}
-					}
-				}
-
-			};
+			if (targetNucleiNumber > 1) {
+				split(label, targetNucleiNumber);
+			} else {
+				spots.add(createSpotFomLabel(label));
+			}
 		}
-		SimpleMultiThreading.startAndJoin(threads);
 
 		if (DEBUG) {
 			System.out.println("[NucleiSplitter] Splitting done");
@@ -165,11 +142,7 @@ public class NucleiSplitter extends MultiThreadedBenchmarkAlgorithm {
 		// Prepare histogram holders
 		int[] minExtents = new int[source.getNumDimensions()];
 		int[] maxExtents = new int[source.getNumDimensions()];
-		LocalizableCursor<FakeType> cursor;
-		synchronized (source) {
-			source.getExtents(label, minExtents, maxExtents); // otherwise it hangs
-			cursor = source.createLocalizableLabelCursor(label);
-		}
+		source.getExtents(label, minExtents, maxExtents); 
 		
 		int[][] histograms = new int[source.getNumDimensions()][];
 		for (int i = 0; i < source.getNumDimensions(); i++) {
@@ -178,6 +151,7 @@ public class NucleiSplitter extends MultiThreadedBenchmarkAlgorithm {
 		
 		// Build histograms
 		int[] position = source.createPositionArray();
+		LocalizableCursor<FakeType> cursor = source.createLocalizableLabelCursor(label);
 		while(cursor.hasNext()) {
 			cursor.fwd();
 			cursor.getPosition(position);
@@ -248,7 +222,7 @@ public class NucleiSplitter extends MultiThreadedBenchmarkAlgorithm {
 	 * calibrated euclidean distance.
 	 */
 	private void split(Integer label, int n) {
-		if (label == 0)
+		if (label <= 0)
 			return; // leave background alone
 		
 		if (DEBUG) {
@@ -269,9 +243,8 @@ public class NucleiSplitter extends MultiThreadedBenchmarkAlgorithm {
 		// Check bad labels
 		if (pixels.size() <= n) {
 			Spot spot = createSpotFomLabel(label);
-			synchronized (spots) {
-				spots.add(spot);
-			}
+			spot.putFeature(Spot.QUALITY, 0);
+			spots.add(spot);
 			return;
 		}
 
@@ -299,28 +272,21 @@ public class NucleiSplitter extends MultiThreadedBenchmarkAlgorithm {
 			}
 
 			spot.putFeature(Spot.QUALITY, (float) 1 / n); // split spot get a quality of 1 over the number of spots in the initial cluster
-			synchronized (spots) {
-				spots.add(spot);
-			}
+			spots.add(spot);
 		}
 		
 		// Re-label newly split nuclei
 		LocalizableByDimCursor<LabelingType<Integer>> sourceCursor = source.createLocalizableByDimCursor();
-		List<Integer> newLabel;
 		for (Cluster<CalibratedEuclideanIntegerPoint> cluster : clusters) {
-			
-			synchronized (labelGenerator) {
-				int nl = labelGenerator.next();
-				newLabel = sourceCursor.getType().intern(nl); 
-			}
+
+			int nl = labelGenerator.next();
+			List<Integer> newLabel = sourceCursor.getType().intern(nl); 
 			if (DEBUG) {
 				System.out.println("[NucleiSplitter] #split: relabeling label "+label+", child #"+clusters.indexOf(cluster)+" with new label: " + newLabel);
 			}
 			for (CalibratedEuclideanIntegerPoint p : cluster.getPoints()) {
-				
 				sourceCursor.setPosition(p.getPoint());
 				sourceCursor.getType().setLabeling(newLabel);
-				
 			}
 			
 			if (DEBUG) {
@@ -417,48 +383,32 @@ public class NucleiSplitter extends MultiThreadedBenchmarkAlgorithm {
 	 */
 	private void eraseLabelsFromImage(final Iterable<Integer> labels) {
 		
-		Thread[] threads = new Thread[numThreads];
 		LocalizableByDimCursor<LabelingType<Integer>> tempCursor = source.createLocalizableByDimCursor();
 		LabelingType<Integer> t = tempCursor.getType();
         final List<Integer> zero = t.intern(-1); // Make your zero label here.
-		
-        final Iterator<Integer> it = labels.iterator();
-		for (int i = 0; i < threads.length; i++) {
-			threads[i] = new Thread("Nuclei eraser thread " + i) {
-				public void run() {
-					LocalizableByDimCursor<LabelingType<Integer>> destCursor = source.createLocalizableByDimCursor();
-					while(true) {
-						Integer label;
-						LocalizableCursor<FakeType> cursor;
-                        synchronized(it) {
-                             if (! it.hasNext()) break;
-                             label = it.next();
-                             cursor = source.createLocalizableLabelCursor(label);
-                        }
-						if (DEBUG) {
-							System.out.println("[NucleiSplitter] #eraseLabelsFromImage: erasing label "+label+" started - th: "+this.getId());
-						}
-						while (cursor.hasNext()) {
-							cursor.fwd();
-							destCursor.setPosition(cursor);
-							destCursor.getType().setLabeling(zero); // Weird, but it seems we have to do that to get a label of 0
-							}
-						cursor.close();
-						if (DEBUG) {
-							System.out.println("[NucleiSplitter] #eraseLabelsFromImage: erasing label "+label+" done");
-						}
-					}
-					destCursor.close();
-				}
 
-			};
-		}
-		SimpleMultiThreading.startAndJoin(threads);
-		if (DEBUG) {
+        final Iterator<Integer> it = labels.iterator();
+        LocalizableByDimCursor<LabelingType<Integer>> destCursor = source.createLocalizableByDimCursor();
+        while(it.hasNext()) {
+        	int label = it.next();
+        	LocalizableCursor<FakeType> cursor = source.createLocalizableLabelCursor(label);
+        	if (DEBUG) {
+        		System.out.println("[NucleiSplitter] #eraseLabelsFromImage: erasing label "+label+" started");
+        	}
+        	while (cursor.hasNext()) {
+        		cursor.fwd();
+        		destCursor.setPosition(cursor);
+        		destCursor.getType().setLabeling(zero); // Weird, but it seems we have to do that to get a label of 0
+        	}
+        	cursor.close();
+        	if (DEBUG) {
+        		System.out.println("[NucleiSplitter] #eraseLabelsFromImage: erasing label "+label+" done");
+        	}
+        }
+        destCursor.close();
+        if (DEBUG) {
 			System.out.println("[NucleiSplitter] #eraseLabelsFromImage: all done");
 		}
-		
-		
 	}
 
 	private float[] getCentroid(final Integer label) {
