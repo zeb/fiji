@@ -70,6 +70,7 @@ public class CWNTPanel extends SegmenterConfigurationPanel {
 	private CWNTLivePreviewer previewer;
 	private CWSettings settings = new CWSettings();
 	JLabel labelDurationEstimate;
+	private JCheckBox chckbxDisplayLabel;
 
 	public CWNTPanel() {
 		// Grab defaults.
@@ -105,6 +106,7 @@ public class CWNTPanel extends SegmenterConfigurationPanel {
 		epsilonText.setText(""+settings.epsilon);
 		deltaText.setText(""+settings.delta);
 		thresholdFactorText.setText(""+settings.thresholdFactor);
+		chckbxDisplayLabel.setSelected(settings.doDisplayLabels);
 		
 		targetImp = model.getSettings().imp;
 	}
@@ -303,6 +305,21 @@ public class CWNTPanel extends SegmenterConfigurationPanel {
 			labelDurationEstimate.setBounds(10, 375, 268, 14);
 			panelIntroduction.setFont(FONT);
 			panelIntroduction.add(labelDurationEstimate);
+			
+			chckbxDisplayLabel = new JCheckBox("<html>\r\nCompute and display nuclei <br>\r\nlabels after segmentation.\r\n</html>");
+			chckbxDisplayLabel.setFont(FONT);
+			chckbxDisplayLabel.setBounds(16, 380, 262, 45);
+			// listen to click
+			chckbxDisplayLabel.addActionListener(new ActionListener() {
+				@Override
+				public void actionPerformed(ActionEvent e) {
+					settings.doDisplayLabels = chckbxDisplayLabel.isSelected();
+					
+					System.out.println(settings);
+					
+				}
+			});
+			panelIntroduction.add(chckbxDisplayLabel);
 		}
 
 		JPanel panelDenoising = new JPanel();
@@ -764,5 +781,4 @@ public class CWNTPanel extends SegmenterConfigurationPanel {
 			"a plain Otsu-based thresholding. This value is a multiplicative <br>" +
 			"factor allowing to specify the stringency of segmentation." +
 			"</html>";
-
 }

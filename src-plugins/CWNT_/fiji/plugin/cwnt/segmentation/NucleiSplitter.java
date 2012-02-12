@@ -57,16 +57,47 @@ public class NucleiSplitter extends BenchmarkAlgorithm {
 	private final float[] calibration;
 	/** The physical volume of a voxel. */
 	private final float voxelVolume;
+	/** If true, will modify the label image to reflect nuclei splitting process. */
+	private final boolean doSplitLabelImage;
 
 	/*
 	 * CONSTRUCTOR
 	 */
 
-	public NucleiSplitter(Labeling<Integer> source, float[] calibration, Iterator<Integer> labelGenerator) {
+	/**
+	 * Instantiate a nuclei splitter with the parameters described below. The splitting scheme
+	 * is following Bhavna Rajasekaran idea:
+	 * <ul>
+	 *   <li> All the nuclei volumes are calculated.
+	 *   <li> Nuclei with a volume far too lare or small are discarded (larger than {@link #volumeThresholdUp}
+	 *   or smaller than {@link #volumeThresholdBottom}).
+	 *   <li> The mean and std of remaining volumes are calculated.
+	 *   <li> Nuclei with a volume larger than <code>mean + {@link #stdFactor} × std</code> are flagged for
+	 *   splitting. The other ones are kept as is.
+	 *   <li> Each flagged nuclei is inspected: 3 histograms of pixels position in X, Y and Z are generated. 
+	 *   <li> Each of these histograms is searched for local maxima. 
+	 *   <li> A best guess splitting number is derived as being the <u>product</u> of the 3 numbers of maxima in the
+	 *   3 histograms.  
+	 *   <li> The target nucleus is split in that much sub-nuclei, using {@link KMeansPlusPlusClusterer}.
+	 * </ul>
+	 * 
+	 * 
+	 * @param source  a reference to the labeling to operatate on. 
+	 * @param calibration  the physical calibration array: this is important to get the clustering right, since 
+	 * it is based on physical distance.
+	 * @param labelGenerator  the label generator, that will be used to generate new labels after splitting. 
+	 * It should be the one that was used to generate the {@link #source} labeling.
+	 * @param splitLabelImage  if true, the spliting process will modify the given labeling with new labels
+	 * reflecting split objects.
+	 * 
+	 * @author Bhavna Rajasekarann, Jean-Yves Tinevez 
+	 */
+	public NucleiSplitter(Labeling<Integer> source, float[] calibration, Iterator<Integer> labelGenerator, boolean splitLabelImage) {
 		super();
 		this.source = source;
 		this.calibration = calibration;
 		this.labelGenerator = labelGenerator;
+		this.doSplitLabelImage = splitLabelImage;
 		this.spots = new ArrayList<Spot>((int) 1.5 * source.getLabels().size());
 		this.voxelVolume = calibration[0] * calibration[1] * calibration[2];
 	}
@@ -275,27 +306,28 @@ public class NucleiSplitter extends BenchmarkAlgorithm {
 			spots.add(spot);
 		}
 		
-		// Re-label newly split nuclei
-		LocalizableByDimCursor<LabelingType<Integer>> sourceCursor = source.createLocalizableByDimCursor();
-		for (Cluster<CalibratedEuclideanIntegerPoint> cluster : clusters) {
+		if (doSplitLabelImage) {
+		
+			// Re-label newly split nuclei
+			LocalizableByDimCursor<LabelingType<Integer>> sourceCursor = source.createLocalizableByDimCursor();
+			for (Cluster<CalibratedEuclideanIntegerPoint> cluster : clusters) {
 
-			int nl = labelGenerator.next();
-			List<Integer> newLabel = sourceCursor.getType().intern(nl); 
-			if (DEBUG) {
-				System.out.println("[NucleiSplitter] #split: relabeling label "+label+", child #"+clusters.indexOf(cluster)+" with new label: " + newLabel);
-			}
-			for (CalibratedEuclideanIntegerPoint p : cluster.getPoints()) {
-				sourceCursor.setPosition(p.getPoint());
-				sourceCursor.getType().setLabeling(newLabel);
-			}
-			
-			if (DEBUG) {
-				System.out.println("[NucleiSplitter] #split: relabeling label "+label+", child #"+clusters.indexOf(cluster) + " done");
-			}
+				int nl = labelGenerator.next();
+				List<Integer> newLabel = sourceCursor.getType().intern(nl); 
+				if (DEBUG) {
+					System.out.println("[NucleiSplitter] #split: relabeling label "+label+", child #"+clusters.indexOf(cluster)+" with new label: " + newLabel);
+				}
+				for (CalibratedEuclideanIntegerPoint p : cluster.getPoints()) {
+					sourceCursor.setPosition(p.getPoint());
+					sourceCursor.getType().setLabeling(newLabel);
+				}
 
-			
+				if (DEBUG) {
+					System.out.println("[NucleiSplitter] #split: relabeling label "+label+", child #"+clusters.indexOf(cluster) + " done");
+				}
+			}
+			sourceCursor.close();
 		}
-		sourceCursor.close();
 	}
 
 	/**
@@ -331,7 +363,9 @@ public class NucleiSplitter extends BenchmarkAlgorithm {
 		if (DEBUG) {
 			System.out.println("[NucleiSplitter] Removing "	+ thrashedLabels.size() + " bad nuclei out of "	+ labels.size());
 		}
-		eraseLabelsFromImage(thrashedLabels);
+		if (doSplitLabelImage) {
+			eraseLabelsFromImage(thrashedLabels);
+		}
 		labels.removeAll(thrashedLabels);
 		int nNuclei = labels.size();
 
@@ -472,7 +506,7 @@ public class NucleiSplitter extends BenchmarkAlgorithm {
 		CrownWearingSegmenter.labelAllConnectedComponents(labeling , img, labelGenerator, structuringElement);
 		// Splitter
 		Integer label = 0;
-		NucleiSplitter splitter = new NucleiSplitter(labeling, img.getCalibration(), labelGenerator);
+		NucleiSplitter splitter = new NucleiSplitter(labeling, img.getCalibration(), labelGenerator, true);
 		
 		// Prepare histogram holders
 		int[] minExtents = new int[labeling.getNumDimensions()];

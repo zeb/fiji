@@ -134,7 +134,7 @@ public class CrownWearingSegmenter<T extends IntegerType<T>>  extends MultiThrea
 		labelAllConnectedComponents(labeling , thresholded, labelGenerator, structuringElement);
 		
 		// Splitting and spot creation
-		NucleiSplitter splitter = new NucleiSplitter(labeling, calibration, labelGenerator);
+		NucleiSplitter splitter = new NucleiSplitter(labeling, calibration, labelGenerator, settings.doDisplayLabels);
 		if (!(splitter.checkInput() && splitter.process())) {
 			IJ.error("Problem with splitter: "+splitter.getErrorMessage());
 			return false;

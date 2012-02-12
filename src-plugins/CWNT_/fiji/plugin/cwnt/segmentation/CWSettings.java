@@ -41,6 +41,11 @@ public class CWSettings extends BasicSegmenterSettings {
 	/** A pre-factor, introduced by Bhavna, to increase the threshold in each slice,
 	 * and have a more stringent thresholding.  */
 	public double  thresholdFactor = 1;
+	/** If true, the label image will be computed and displayed after segmentation.
+	 * Note that this is a display only parameter, and therefore is not saved not
+	 * restored. */
+	public boolean doDisplayLabels = false;
+	
 	
 	@Override
 	public SegmenterConfigurationPanel createConfigurationPanel() {
@@ -66,6 +71,8 @@ public class CWSettings extends BasicSegmenterSettings {
 		str += String.format("    - δ derivatives sum scale: %.1f\n", delta);
 		str += "  5. Thresholding:\n";
 		str += String.format("    - threshold pre-factor: %.1f\n", thresholdFactor);
+		str += "  Display:\n";
+		str += "    - do display label image: "+doDisplayLabels+"\n";
 		return str;
 	}
 	
