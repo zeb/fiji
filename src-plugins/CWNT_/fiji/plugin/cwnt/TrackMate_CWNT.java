@@ -12,23 +12,23 @@ import java.util.List;
 import java.util.NavigableSet;
 import java.util.TreeMap;
 
-import org.jfree.chart.renderer.InterpolatePaintScale;
-
 import mpicbg.imglib.image.Image;
 import mpicbg.imglib.labeling.Labeling;
 import mpicbg.imglib.type.numeric.RealType;
+
+import org.jfree.chart.renderer.InterpolatePaintScale;
+
 import fiji.plugin.cwnt.segmentation.CWSettings;
 import fiji.plugin.cwnt.segmentation.CrownWearingSegmenter;
 import fiji.plugin.cwnt.segmentation.LabelToGlasbey;
+import fiji.plugin.trackmate.Logger;
 import fiji.plugin.trackmate.Settings;
 import fiji.plugin.trackmate.Spot;
 import fiji.plugin.trackmate.TrackMate_;
 import fiji.plugin.trackmate.features.spot.SpotFeatureAnalyzer;
 import fiji.plugin.trackmate.gui.ActionChooserPanel;
-import fiji.plugin.trackmate.gui.DisplayerChoiceDescriptor;
 import fiji.plugin.trackmate.gui.DisplayerPanel;
 import fiji.plugin.trackmate.gui.InitFilterPanel;
-import fiji.plugin.trackmate.gui.LaunchDisplayerDescriptor;
 import fiji.plugin.trackmate.gui.LoadDescriptor;
 import fiji.plugin.trackmate.gui.SaveDescriptor;
 import fiji.plugin.trackmate.gui.SegmentationDescriptor;
@@ -102,9 +102,7 @@ public class TrackMate_CWNT extends TrackMate_ {
 				descriptors.add(new StartDialogPanel());
 				descriptors.add(new SegmenterChoiceDescriptor());
 				descriptors.add(new CWNTSegmentationDescriptor());
-				descriptors.add(new CWMNTDisplayerChoiceDescriptor());
-				descriptors.add(new LaunchDisplayerDescriptor());
-				descriptors.add(new SpotFilterDescriptor());
+				descriptors.add(new CWMNTSpotFilterDescriptor());
 				descriptors.add(new TrackerChoiceDescriptor());
 				descriptors.add(new TrackingDescriptor());
 				descriptors.add(new TrackFilterDescriptor());
@@ -162,7 +160,9 @@ public class TrackMate_CWNT extends TrackMate_ {
 	 */
 
 
-	private class  CWMNTDisplayerChoiceDescriptor extends DisplayerChoiceDescriptor {
+
+
+	private class  CWMNTSpotFilterDescriptor extends SpotFilterDescriptor {
 		@Override
 		public String getPreviousDescriptorID() {
 			// So as to skip the initfilter step in the GUI
@@ -176,7 +176,7 @@ public class TrackMate_CWNT extends TrackMate_ {
 		@Override
 		public String getNextDescriptorID() {
 			// So as to skip the initfilter step in the GUI
-			return CWMNTDisplayerChoiceDescriptor.DESCRIPTOR;
+			return CWMNTSpotFilterDescriptor.DESCRIPTOR;
 		}
 
 		/**
@@ -186,59 +186,59 @@ public class TrackMate_CWNT extends TrackMate_ {
 		public void aboutToHidePanel() {
 
 			SegmenterSettings s = model.getSettings().segmenterSettings;
-			if ( !(s instanceof CWSettings)) {
-				return;
-			}
-			CWSettings cws = (CWSettings) s;
-			if (!cws.doDisplayLabels) {
-				return;
-			}
+			if ( (s instanceof CWSettings)) {
+				CWSettings cws = (CWSettings) s;
+				if (cws.doDisplayLabels) {
 
-			// Do that in another thread
-			new Thread("Crown-Wearing segmenter label renderer thread") {
+					// Do that in another thread
+					new Thread("Crown-Wearing segmenter label renderer thread") {
 
-				public void run() {
+						public void run() {
 
-					model.getLogger().log("Rendering labels started...\n");
+							model.getLogger().log("Rendering labels started...\n");
 
-					// Get all segmented frames
-					NavigableSet<Integer> frames = (NavigableSet<Integer>) labels.keySet();
-					int nFrames = frames.last() + 1;
-					ImagePlus[] coloredFrames = new ImagePlus[nFrames];
+							// Get all segmented frames
+							NavigableSet<Integer> frames = (NavigableSet<Integer>) labels.keySet();
+							int nFrames = frames.last() + 1;
+							ImagePlus[] coloredFrames = new ImagePlus[nFrames];
 
-					// Check if we have a label for each frame
-					for (int i = 0; i < nFrames; i++) {
+							// Check if we have a label for each frame
+							for (int i = 0; i < nFrames; i++) {
 
-						Labeling<Integer> labelThisFrame = labels.get(i);
-						ImagePlus imp = null;
+								Labeling<Integer> labelThisFrame = labels.get(i);
+								ImagePlus imp = null;
 
-						if (null == labelThisFrame) {
-							// No labels there. This frame was skipped. We prepare a blank imp to feed the final imp.
-							imp = createBlankImagePlus();
+								if (null == labelThisFrame) {
+									// No labels there. This frame was skipped. We prepare a blank imp to feed the final imp.
+									imp = createBlankImagePlus();
 
-						} else {
-							// Get the label, make it an 8-bit colored imp
-							LabelToGlasbey colorer = new LabelToGlasbey(labelThisFrame);
-							if (colorer.checkInput() && colorer.process()) {
-								imp = colorer.getImp();
-							} else {
-								// Blank image
-								imp = createBlankImagePlus();
+								} else {
+									// Get the label, make it an 8-bit colored imp
+									LabelToGlasbey colorer = new LabelToGlasbey(labelThisFrame);
+									if (colorer.checkInput() && colorer.process()) {
+										imp = colorer.getImp();
+									} else {
+										// Blank image
+										imp = createBlankImagePlus();
+									}
+								}
+								coloredFrames[i] = imp;
 							}
-						}
-						coloredFrames[i] = imp;
-					}
 
-					Concatenator cat = new Concatenator();
-					labelImp = cat.concatenate(coloredFrames, false);
-					labelImp.setCalibration(model.getSettings().imp.getCalibration());
-					labelImp.setTitle(model.getSettings().imp.getShortTitle()+"_segmented");
-					labelImp.show();
+							Concatenator cat = new Concatenator();
+							labelImp = cat.concatenate(coloredFrames, false);
+							labelImp.setCalibration(model.getSettings().imp.getCalibration());
+							labelImp.setTitle(model.getSettings().imp.getShortTitle()+"_segmented");
+							labelImp.show();
 
-					model.getLogger().log("Rendering labels done.\n");
-				};
+							model.getLogger().log("Rendering labels done.\n");
+						};
 
-			}.start();
+					}.start();
+				}
+			}
+
+			launchDisplayerAndComputeFeatures();
 		}
 
 		private ImagePlus createBlankImagePlus() {
@@ -248,9 +248,33 @@ public class TrackMate_CWNT extends TrackMate_ {
 			int width = settings.xend - settings.xstart;
 			return NewImage.createByteImage("", width, height, slices, NewImage.FILL_BLACK);
 		}
+
+		private void launchDisplayerAndComputeFeatures() {
+			// Launch renderer
+			logger .log("Rendering results...\n",Logger.BLUE_COLOR);
+			wizard.setNextButtonEnabled(false);
+			final TrackMateModelView displayer = createLocalSliceDisplayer();
+			wizard.setDisplayer(displayer);
+
+			if (plugin.getModel().getSpots().getNSpots() > 0) {
+				logger.log("Calculating features...\n",Logger.BLUE_COLOR);
+				// Calculate features
+				long start = System.currentTimeMillis();
+				plugin.computeSpotFeatures();		
+				long end  = System.currentTimeMillis();
+				logger.log(String.format("Calculating features done in %.1f s.\n", (end-start)/1e3f), Logger.BLUE_COLOR);
+			}
+
+			try {
+				displayer.setModel(plugin.getModel());
+				displayer.render();
+			} finally {
+				// Re-enable the GUI
+				logger.log("Rendering done.\n", Logger.BLUE_COLOR);
+				wizard.setNextButtonEnabled(true);
+			}
+		}
 	}
-
-
 
 
 	/**
@@ -327,7 +351,7 @@ public class TrackMate_CWNT extends TrackMate_ {
 						final float y0p = y0i / calibration[1];
 						final float x1p = x1i / calibration[0];
 						final float y1p = y1i / calibration[1];
-						
+
 						// Check if we are nearing their plane, if not, do not draw
 						final float zslice = (imp.getSlice()-1) * calibration[2];
 						float radiusRatio = (Float) displaySettings.get(TrackMateModelView.KEY_SPOT_RADIUS_RATIO);
@@ -335,7 +359,7 @@ public class TrackMate_CWNT extends TrackMate_ {
 						final float dz1 = (z1i - zslice) * (z1i - zslice);
 						final float sRadius = source.getFeature(Spot.RADIUS) * radiusRatio;
 						final float dz0 = (z0i - zslice) * (z0i - zslice);
-						
+
 						if (dz1 >= tRadius * tRadius && dz0 >= sRadius * sRadius)
 							return;
 
@@ -352,7 +376,7 @@ public class TrackMate_CWNT extends TrackMate_ {
 
 						g2d.drawLine(x0, y0, x1, y1);
 					}
-					
+
 					/**
 					 * Default color is all magenta
 					 */
@@ -366,7 +390,7 @@ public class TrackMate_CWNT extends TrackMate_ {
 
 						final String feature = (String) displaySettings.get(TrackMateModelView.KEY_TRACK_COLOR_FEATURE);
 						if (feature != null) {
-							
+
 							// Get min & max
 							double min = Float.POSITIVE_INFINITY;
 							double max = Float.NEGATIVE_INFINITY;
@@ -390,7 +414,7 @@ public class TrackMate_CWNT extends TrackMate_ {
 							}
 						}
 					}
-					
+
 				};
 
 			}
