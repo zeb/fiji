@@ -45,7 +45,7 @@ import org.xml.sax.helpers.DefaultHandler;
 
 public class MiniMaven {
 	protected String endLine = System.console() == null ? "\n" : "\033[K\r";
-	protected boolean verbose, debug = false, downloadAutomatically, offlineMode;
+	protected boolean verbose, debug = false, downloadAutomatically, offlineMode, ignoreMavenRepositories;
 	protected PrintStream err;
 	protected Map<String, POM> localPOMCache = new HashMap<String, POM>();
 	protected Fake fake;
@@ -60,6 +60,10 @@ public class MiniMaven {
 		this.err = err;
 		this.verbose = verbose;
 		this.debug = debug;
+		if ("true".equalsIgnoreCase(System.getProperty("minimaven.offline")))
+			offlineMode = true;
+		if ("ignore".equalsIgnoreCase(System.getProperty("minimaven.repositories")))
+			ignoreMavenRepositories = true;
 	}
 
 	protected void print80(String string) {
@@ -622,7 +626,7 @@ public class MiniMaven {
 				if (result != null)
 					return result;
 			}
-			// for the root POM, fall back to $HOME/.m2/repository/
+			// for the root POM, fall back to $HOME/.m2/repository/ and Fiji's jars/ and plugins/ directories
 			if (parent == null)
 				return findLocallyCachedPOM(dependency, quiet);
 			return null;
@@ -638,6 +642,15 @@ public class MiniMaven {
 					return result;
 			}
 
+			if (ignoreMavenRepositories) {
+				File file = findInFijiDirectories(dependency);
+				if (file != null)
+					return cacheAndReturn(key, fakePOM(file, dependency));
+				if (!quiet && !dependency.optional)
+					err.println("Skipping artifact " + dependency.artifactId + " (for " + coordinate.artifactId + "): not in jars/ nor plugins/");
+				return cacheAndReturn(key, null);
+			}
+
 			String path = System.getProperty("user.home") + "/.m2/repository/" + dependency.groupId.replace('.', '/') + "/" + dependency.artifactId + "/";
 			if (dependency.version == null)
 				dependency.version = findLocallyCachedVersion(path);
@@ -647,15 +660,11 @@ public class MiniMaven {
 				// try to find the .jar in Fiji's jars/ dir
 				String jarName = dependency.artifactId + ".jar";
 				File file = new File(System.getProperty("ij.dir"), "jars/" + jarName);
-				if (file.exists()) {
-					POM pom = fakePOM(file, dependency);
-					localPOMCache.put(key, pom);
-					return pom;
-				}
+				if (file.exists())
+					return cacheAndReturn(key, fakePOM(file, dependency));
 				if (!quiet)
 					err.println("Cannot find version for artifact " + dependency.artifactId + " (dependency of " + coordinate.artifactId + ")");
-				localPOMCache.put(key, null);
-				return null;
+				return cacheAndReturn(key, null);
 			}
 			else if (dependency.version.startsWith("[")) try {
 				if (!maybeDownloadAutomatically(dependency, quiet))
@@ -671,20 +680,11 @@ public class MiniMaven {
 					dependency.version = parseSnapshotVersion(new File(path, "maven-metadata-snapshot.xml"));
 			} catch (FileNotFoundException e) { /* ignore */ }
 			else {
-				for (String jarName : new String[] {
-					"jars/" + dependency.artifactId + "-" + dependency.version + ".jar",
-					"plugins/" + dependency.artifactId + "-" + dependency.version + ".jar",
-					"jars/" + dependency.artifactId + ".jar",
-					"plugins/" + dependency.artifactId + ".jar"
-				}) {
-					File file = new File(System.getProperty("ij.dir"), jarName);
-					if (file.exists()) {
-						POM pom = fakePOM(file, dependency);
-						localPOMCache.put(key, pom);
-						return pom;
-					}
-				}
+				File file = findInFijiDirectories(dependency);
+				if (file != null)
+					return cacheAndReturn(key, fakePOM(file, dependency));
 			}
+
 			path += dependency.getPOMName();
 
 			File file = new File(path);
@@ -696,8 +696,7 @@ public class MiniMaven {
 				else {
 					if (!quiet && !dependency.optional)
 						err.println("Skipping artifact " + dependency.artifactId + " (for " + coordinate.artifactId + "): not found");
-					localPOMCache.put(key, null);
-					return null;
+					return cacheAndReturn(key, null);
 				}
 			}
 
@@ -710,8 +709,26 @@ public class MiniMaven {
 			}
 			else if (!quiet && !dependency.optional)
 				err.println("Artifact " + dependency.artifactId + " not found" + (downloadAutomatically ? "" : "; consider 'get-dependencies'"));
-			localPOMCache.put(key, result);
-			return result;
+			return cacheAndReturn(key, result);
+		}
+
+		protected File findInFijiDirectories(Coordinate dependency) {
+			for (String jarName : new String[] {
+				"jars/" + dependency.artifactId + "-" + dependency.version + ".jar",
+				"plugins/" + dependency.artifactId + "-" + dependency.version + ".jar",
+				"jars/" + dependency.artifactId + ".jar",
+				"plugins/" + dependency.artifactId + ".jar"
+			}) {
+				File file = new File(System.getProperty("ij.dir"), jarName);
+				if (file.exists())
+					return file;
+			}
+			return null;
+		}
+
+		protected POM cacheAndReturn(String key, POM pom) {
+			localPOMCache.put(key, pom);
+			return pom;
 		}
 
 		// TODO: if there is no internet connection, do not try to download -SNAPSHOT versions
