@@ -314,9 +314,6 @@ public class CWNTPanel extends SegmenterConfigurationPanel {
 				@Override
 				public void actionPerformed(ActionEvent e) {
 					settings.doDisplayLabels = chckbxDisplayLabel.isSelected();
-					
-					System.out.println(settings);
-					
 				}
 			});
 			panelIntroduction.add(chckbxDisplayLabel);

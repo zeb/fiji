@@ -198,14 +198,13 @@ public class TrackMate_CWNT extends TrackMate_ {
 							model.getLogger().log("Rendering labels started...\n");
 
 							// Get all segmented frames
-							NavigableSet<Integer> frames = (NavigableSet<Integer>) labels.keySet();
-							int nFrames = frames.last() + 1;
+							int nFrames = labels.size();
 							ImagePlus[] coloredFrames = new ImagePlus[nFrames];
 
 							// Check if we have a label for each frame
-							for (int i = 0; i < nFrames; i++) {
+							int index = 0;
+							for (Labeling<Integer> labelThisFrame : labels.values()) {
 
-								Labeling<Integer> labelThisFrame = labels.get(i);
 								ImagePlus imp = null;
 
 								if (null == labelThisFrame) {
@@ -222,13 +221,17 @@ public class TrackMate_CWNT extends TrackMate_ {
 										imp = createBlankImagePlus();
 									}
 								}
-								coloredFrames[i] = imp;
+								coloredFrames[index] = imp;
+								index++;
 							}
 
 							Concatenator cat = new Concatenator();
 							labelImp = cat.concatenate(coloredFrames, false);
+							int nSlices = model.getSettings().zend - model.getSettings().zstart + 1;
 							labelImp.setCalibration(model.getSettings().imp.getCalibration());
 							labelImp.setTitle(model.getSettings().imp.getShortTitle()+"_segmented");
+							labelImp.setDimensions(1, nSlices, nFrames);
+							labelImp.setOpenAsHyperStack(true);
 							labelImp.show();
 
 							model.getLogger().log("Rendering labels done.\n");
