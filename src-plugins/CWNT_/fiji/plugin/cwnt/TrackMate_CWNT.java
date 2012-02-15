@@ -6,10 +6,10 @@ import ij.plugin.Concatenator;
 
 import java.awt.Color;
 import java.awt.Graphics2D;
+import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.NavigableSet;
 import java.util.TreeMap;
 
 import mpicbg.imglib.image.Image;
@@ -24,10 +24,12 @@ import fiji.plugin.cwnt.segmentation.LabelToGlasbey;
 import fiji.plugin.trackmate.Logger;
 import fiji.plugin.trackmate.Settings;
 import fiji.plugin.trackmate.Spot;
+import fiji.plugin.trackmate.TrackMateModel;
 import fiji.plugin.trackmate.TrackMate_;
 import fiji.plugin.trackmate.features.spot.SpotFeatureAnalyzer;
 import fiji.plugin.trackmate.gui.ActionChooserPanel;
 import fiji.plugin.trackmate.gui.DisplayerPanel;
+import fiji.plugin.trackmate.gui.GuiReader;
 import fiji.plugin.trackmate.gui.InitFilterPanel;
 import fiji.plugin.trackmate.gui.LoadDescriptor;
 import fiji.plugin.trackmate.gui.SaveDescriptor;
@@ -109,8 +111,40 @@ public class TrackMate_CWNT extends TrackMate_ {
 				descriptors.add(new DisplayerPanel());
 				descriptors.add(new ActionChooserPanel(this.plugin));
 				descriptors.add(new InitFilterPanel()); // We put it, even if we skip it, so that we avoid NPE when loading
+				// Override to pass the specific display made for CWNT when loading data
+				descriptors.add(new LoadDescriptor() {
+					@Override
+					public void displayingPanel() {
+						try {
+							// New model to feed
+							TrackMateModel newModel = new TrackMateModel();
+							newModel.setLogger(logger);
 
-				descriptors.add(new LoadDescriptor());
+							if (null == file) {
+								File folder = new File(System.getProperty("user.dir")).getParentFile().getParentFile();
+								try {
+									file = new File(folder.getPath() + File.separator + plugin.getModel().getSettings().imp.getShortTitle() +".xml");
+								} catch (NullPointerException npe) {
+									file = new File(folder.getPath() + File.separator + "TrackMateData.xml");
+								}
+							}
+
+							GuiReader reader = new GuiReader(wizard);
+							reader.setDisplayer(createLocalSliceDisplayer());
+							File tmpFile = reader.askForFile(file);
+							if (null == tmpFile) {
+								wizard.setNextButtonEnabled(true);
+								return;
+							}
+							file = tmpFile;
+							reader.loadFile(file);
+							setTargetNextID(reader.getTargetDescriptor());
+
+						} finally {
+							wizard.setNextButtonEnabled(true);
+						}					
+					}
+				});
 				descriptors.add(new SaveDescriptor());
 				return descriptors;
 			}
@@ -258,15 +292,6 @@ public class TrackMate_CWNT extends TrackMate_ {
 			wizard.setNextButtonEnabled(false);
 			final TrackMateModelView displayer = createLocalSliceDisplayer();
 			wizard.setDisplayer(displayer);
-
-			if (plugin.getModel().getSpots().getNSpots() > 0) {
-				logger.log("Calculating features...\n",Logger.BLUE_COLOR);
-				// Calculate features
-				long start = System.currentTimeMillis();
-				plugin.computeSpotFeatures();		
-				long end  = System.currentTimeMillis();
-				logger.log(String.format("Calculating features done in %.1f s.\n", (end-start)/1e3f), Logger.BLUE_COLOR);
-			}
 
 			try {
 				displayer.setModel(plugin.getModel());
