@@ -78,7 +78,9 @@ public class CWSettings extends BasicSegmenterSettings {
 	
 	@Override
 	public void marshall(Element element) {
-		element.setAttributes(getAttributes());
+		for(Attribute att : getAttributes()) {
+			element.setAttribute(att);
+		}
 	}
 	
 	@Override
