@@ -57,7 +57,7 @@ import fiji.plugin.trackmate.visualization.hyperstack.TrackOverlay;
  *
  */
 public class TrackMate_CWNT extends TrackMate_ {
-
+	
 	/**
 	 * The ImagePlus that will display labels resulting from segmentation.
 	 */
@@ -65,7 +65,21 @@ public class TrackMate_CWNT extends TrackMate_ {
 
 	protected TreeMap<Integer, Labeling<Integer>> labels = new TreeMap<Integer, Labeling<Integer>>();
 
-
+	/*
+	 * CONSTRUCTOR
+	 */
+	
+	public TrackMate_CWNT() {
+		super();
+		model.setInitialSpotFilterValue(0f); // Set it to 0 and forget about it.
+	}
+	
+	/*
+	 * SPECIALIZED METHODS
+	 */
+	
+	
+	
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	@Override
 	protected List<SpotSegmenter<? extends RealType<?>>> createSegmenterList() {
