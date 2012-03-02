@@ -48,7 +48,10 @@ public class SpotCollection implements Iterable<Spot>,  SortedMap<Integer, List<
 	@Override
 	public String toString() {
 		String str = super.toString();
-		str += ": contains "+getNSpots()+" spots in "+keySet().size()+" different frames.";
+		str += ": contains "+getNSpots()+" spots in "+keySet().size()+" different frames:\n";
+		for (int key : content.keySet()) {
+			str += "\tframe "+key+": "+getNSpots(key)+" spots.\n";
+		}
 		return str;
 	}
 
@@ -84,8 +87,6 @@ public class SpotCollection implements Iterable<Spot>,  SortedMap<Integer, List<
 			return false;
 		return spots.remove(spot);		
 	}
-
-
 
 	/**
 	 * Add the given spot to this collection, at the given frame. If the frame collection does not exist yet,
