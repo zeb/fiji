@@ -108,7 +108,7 @@ public class TextEditor extends JFrame implements ActionListener,
 	protected int tabsMenuTabsStart;
 	protected Set<JMenuItem> tabsMenuItems;
 	protected FindAndReplaceDialog findDialog;
-	protected JCheckBoxMenuItem autoSave, showDeprecation, wrapLines;
+	protected JCheckBoxMenuItem autoSave, showDeprecation, wrapLines, enableAutocompletion;
 	protected JTextArea errorScreen = new JTextArea();
 
 	protected final String templateFolder = "templates/";
@@ -279,6 +279,19 @@ public class TextEditor extends JFrame implements ActionListener,
 		whiteSpaceMenu.add(toggleWhiteSpaceLabeling);
 
 		edit.add(whiteSpaceMenu);
+
+		edit.addSeparator();
+		enableAutocompletion = new JCheckBoxMenuItem("Enable autocompletion", true);
+		enableAutocompletion.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				final EditorPane ep = getEditorPane();
+				ep.setToolTipSupplier(
+					enableAutocompletion.isSelected() ?
+						ep.provider
+						: null);
+			}
+		});
+		edit.add(enableAutocompletion);
 
 
 		JMenu languages = new JMenu("Language");
