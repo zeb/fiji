@@ -506,7 +506,7 @@ misc/headless.jar[bin/make-headless-jar.bsh] <- jars/fiji-compat.jar jars/javass
 
 # The variables CFLAGS, LDFLAGS and LIBS will be used for compiling
 # C and C++ programs.
-COMMONCFLAGS=-Wall -Iincludes
+COMMONCFLAGS=-Wall -Iincludes -Wconversion -Wsign-conversion
 WINOPTS=-mwindows -mno-cygwin -DMINGW32
 CFLAGS(win32)=$COMMONCFLAGS $WINOPTS
 CFLAGS(win64)=$COMMONCFLAGS $WINOPTS

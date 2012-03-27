@@ -153,7 +153,7 @@ static char *xstrdup(const char *buffer)
 static char *xstrndup(const char *buffer, size_t max_length)
 {
 	char *eos = memchr(buffer, '\0', max_length - 1);
-	int len = eos ? eos - buffer : max_length;
+	size_t len = eos ? (size_t)(eos - buffer) : max_length;
 	char *result = xmalloc(len + 1);
 
 	if (!result)
@@ -166,11 +166,11 @@ static char *xstrndup(const char *buffer, size_t max_length)
 }
 
 struct string {
-	int alloc, length;
+	size_t alloc, length;
 	char *buffer;
 };
 
-static void string_ensure_alloc(struct string *string, int length)
+static void string_ensure_alloc(struct string *string, size_t length)
 {
 	if (string->alloc <= length) {
 		char *new_buffer = xrealloc(string->buffer, length + 1);
@@ -180,7 +180,7 @@ static void string_ensure_alloc(struct string *string, int length)
 	}
 }
 
-static void string_set_length(struct string *string, int length)
+static void string_set_length(struct string *string, size_t length)
 {
 	if (length == string->length)
 		return;
@@ -197,7 +197,7 @@ static void string_set(struct string *string, const char *buffer)
 	string->alloc = string->length = strlen(buffer);
 }
 
-static struct string *string_init(int length)
+static struct string *string_init(size_t length)
 {
 	struct string *string = xcalloc(sizeof(struct string), 1);
 
@@ -208,7 +208,7 @@ static struct string *string_init(int length)
 
 static struct string *string_copy(const char *string)
 {
-	int len = strlen(string);
+	size_t len = strlen(string);
 	struct string *result = string_init(len);
 
 	memcpy(result->buffer, string, len + 1);
@@ -235,7 +235,7 @@ static void string_add_char(struct string *string, char c)
 
 static void string_append(struct string *string, const char *append)
 {
-	int len = strlen(append);
+	size_t len = strlen(append);
 
 	string_ensure_alloc(string, string->length + len);
 	memcpy(string->buffer + string->length, append, len + 1);
@@ -268,9 +268,9 @@ static void string_append_path_list(struct string *string, const char *append)
 	string_append(string, append);
 }
 
-static void string_append_at_most(struct string *string, const char *append, int length)
+static void string_append_at_most(struct string *string, const char *append, size_t length)
 {
-	int len = strlen(append);
+	size_t len = strlen(append);
 
 	if (len > length)
 		len = length;
@@ -281,9 +281,9 @@ static void string_append_at_most(struct string *string, const char *append, int
 	string->buffer[string->length] = '\0';
 }
 
-static int number_length(unsigned long number, long base)
+static unsigned int number_length(unsigned long number, unsigned long base)
 {
-        int length = 1;
+        unsigned int length = 1;
         while (number >= base) {
                 number /= base;
                 length++;
@@ -300,7 +300,7 @@ static void string_vaddf(struct string *string, const char *fmt, va_list ap)
 {
 	while (*fmt) {
 		char fill = '\0';
-		int size = -1, max_size = -1;
+		ssize_t size = -1, max_size = -1;
 		char *p = (char *)fmt;
 
 		if (*p != '%' || *(++p) == '%') {
@@ -320,7 +320,7 @@ static void string_vaddf(struct string *string, const char *fmt, va_list ap)
 		case 's': {
 			const char *s = va_arg(ap, const char *);
 			if (fill) {
-				int len = size - strlen(s);
+				size_t len = (size_t)(size - strlen(s));
 				while (len-- > 0)
 					string_add_char(string, fill);
 			}
@@ -330,7 +330,7 @@ static void string_vaddf(struct string *string, const char *fmt, va_list ap)
 		}
 		case 'c':
 			{
-				char c = va_arg(ap, int);
+				char c = (char)va_arg(ap, int);
 				string_add_char(string, c);
 			}
 			break;
@@ -341,9 +341,10 @@ static void string_vaddf(struct string *string, const char *fmt, va_list ap)
 		case 'o':
 		case 'x':
 		case 'X': {
-			int base = *p == 'x' || *p == 'X' ? 16 :
+			unsigned int base = *p == 'x' || *p == 'X' ? 16 :
 				*p == 'o' ? 8 : 10;
-			int negative = 0, len;
+			int negative = 0;
+			ssize_t len;
 			unsigned long number, power;
 
 			if (*p == 'u') {
@@ -359,9 +360,9 @@ static void string_vaddf(struct string *string, const char *fmt, va_list ap)
 				}
 				if (signed_number < 0) {
 					negative = 1;
-					number = -signed_number;
+					number = (unsigned long)-signed_number;
 				} else
-					number = signed_number;
+					number = (unsigned long)signed_number;
 			}
 
 			/* pad */
@@ -858,7 +859,7 @@ static const char *get_java_home(void)
 static const char *get_jre_home(void)
 {
 	const char *result = get_java_home();
-	int len;
+	size_t len;
 	static struct string *jre;
 
 	if (jre)
@@ -944,7 +945,7 @@ static const char *make_absolute_path(const char *path)
 			die("Could not get current working directory");
 
 		if (last_elem) {
-			int len = strlen(buf);
+			size_t len = strlen(buf);
 			if (len + strlen(last_elem) + 2 > PATH_MAX)
 				die("Too long path name: %s/%s", buf, last_elem);
 			buf[len] = '/';
@@ -995,7 +996,7 @@ static inline int prefixcmp(const char *string, const char *prefix)
 
 static inline int suffixcmp(const char *string, int len, const char *suffix)
 {
-	int suffix_len = strlen(suffix);
+	size_t suffix_len = strlen(suffix);
 	if (len < suffix_len)
 		return -1;
 	return strncmp(string + len - suffix_len, suffix, suffix_len);
@@ -1007,7 +1008,7 @@ static const char *find_in_path(const char *path)
 	struct string *buffer;
 
 #ifdef WIN32
-	int len = strlen(path);
+	size_t len = strlen(path);
 	struct string *path_with_suffix = NULL;
 	const char *in_cwd;
 
@@ -1028,7 +1029,7 @@ static const char *find_in_path(const char *path)
 	buffer = string_init(32);
 	for (;;) {
 		const char *colon = strchr(p, PATH_SEP[0]), *orig_p = p;
-		int len = colon ? colon - p : strlen(p);
+		size_t len = colon ? (size_t)(colon - p) : strlen(p);
 		struct stat st;
 
 		if (!len)
@@ -1774,7 +1775,7 @@ static int find_closing_quote(const char *s, char quote, int index, int len)
 
 static void add_options(struct options *options, const char *cmd_line, int for_ij)
 {
-	int len = strlen(cmd_line), i;
+	size_t len = strlen(cmd_line), i;
 	struct string *current = string_init(32);
 
 	for (i = 0; i < len; i++) {
