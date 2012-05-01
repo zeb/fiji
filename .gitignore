@@ -257,6 +257,7 @@ hs_err*.log
 /plugins/CorrectBleach_.jar
 /plugins/SynapseMeasures_.jar
 /plugins/FluorescenceRatio_.jar
+/plugins/DistanceMeter_.jar
 
 # ImgLib #
 /jars/imglib-algorithms.jar

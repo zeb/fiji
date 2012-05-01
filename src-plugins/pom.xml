@@ -23,7 +23,8 @@
 	<modules>
 		<module>VIB-lib</module>
 		<module>SynapseMeasures_</module>
-		<module>FluorescenceRatio_</module>
+		<module>FluorescenceRatio__</module>
+		<module>DistanceMeter_</module>
 	</modules>
 
 	<properties>

@@ -239,6 +239,7 @@ PLUGIN_TARGETS=plugins/Jython_Interpreter.jar \
 	plugins/CorrectBleach_.jar \
 	plugins/SynapseMeasures_.jar \
 	plugins/FluorescenceRatio_.jar \
+	plugins/DistanceMeter_.jar \
 
 LEGACYLAUNCHER=fiji
 
@@ -486,6 +487,7 @@ CLASSPATH(plugins/CorrectBleach_.jar)=jars/ij.jar
 jars/VIB-lib.jar <- src-plugins/VIB-lib/pom.xml
 plugins/SynapseMeasures_.jar <- src-plugins/SynapseMeasures_/pom.xml
 plugins/FluorescenceRatio_.jar <- src-plugins/FluorescenceRatio_/pom.xml
+plugins/DistanceMeter_.jar <- src-plugins/DistanceMeter_/pom.xml
 
 # pre-Java5 generics ;-)
 
