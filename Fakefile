@@ -236,7 +236,8 @@ PLUGIN_TARGETS=plugins/Jython_Interpreter.jar \
 	jars/fiji-compat.jar \
 	plugins/Fiji_Package_Maker.jar \
 	plugins/BalloonSegmentation_.jar \
-	plugins/CorrectBleach_.jar
+	plugins/CorrectBleach_.jar \
+	plugins/SynapseMeasures_.jar
 
 LEGACYLAUNCHER=fiji
 
@@ -482,6 +483,7 @@ CLASSPATH(plugins/CorrectBleach_.jar)=jars/ij.jar
 # pom.xml sub-projects
 
 jars/VIB-lib.jar <- src-plugins/VIB-lib/pom.xml
+plugins/SynapseMeasures_.jar <- src-plugins/SynapseMeasures_/pom.xml
 
 # pre-Java5 generics ;-)
 

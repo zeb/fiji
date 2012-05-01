@@ -254,6 +254,8 @@ hs_err*.log
 /plugins/BalloonSegmentation_.jar
 /plugins/FS_Align_TrakEM2.jar
 /plugins/blockmatching_.jar
+/plugins/CorrectBleach_.jar
+/plugins/SynapseMeasures_.jar
 
 # ImgLib #
 /jars/imglib-algorithms.jar
@@ -349,7 +351,6 @@ hs_err*.log
 /jars/object-inspector.jar
 /jars/sezpoz.jar
 /jars/velocity.jar
-/plugins/CorrectBleach_.jar
 
 # Retrotranslator #
 /jars/backport-util-concurrent.jar
