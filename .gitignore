@@ -256,6 +256,7 @@ hs_err*.log
 /plugins/blockmatching_.jar
 /plugins/CorrectBleach_.jar
 /plugins/SynapseMeasures_.jar
+/plugins/FluorescenceRatio_.jar
 
 # ImgLib #
 /jars/imglib-algorithms.jar
