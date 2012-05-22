@@ -1,5 +1,29 @@
 #!/bin/sh
 
+CLASSPATH=
+add_to_classpath () {
+	if test -d "$1"
+	then
+		for file in "$1"/*
+		do
+			add_to_classpath "$file"
+		done
+	else
+		case "$1" in
+		*.jar)
+			CLASSPATH="$CLASSPATH${CLASSPATH+:}$1"
+			;;
+		esac
+	fi
+}
+
+add_to_classpath modules/bio-formats/jar
+add_to_classpath modules/jython/jython/extlibs
+add_to_classpath $HOME/.m2/repository/net/java/sezpoz/
+add_to_classpath /usr/share/java/
+add_to_classpath modules/ij-plugins/
+add_to_classpath $HOME/.m2/repository/com/apple/AppleJavaExtensions/1.5/
+
 find src-plugins modules -name \*.java |
 grep -ve src-plugins/FFMPEG_IO/fiji/ffmpeg/ \
 	-e ij-plugins/Sun_JAI_Sample_IO_Source_Code \
@@ -18,20 +42,13 @@ grep -ve src-plugins/FFMPEG_IO/fiji/ffmpeg/ \
 	-e modules/bio-formats/components/bio-formats/utils/mipav/PlugInBioFormatsImporter.java \
 	-e modules/imglib/imglib./ij/src/test/java/tests/PerformanceBenchmark.java \
 	-e modules/imglib/imglib2/broken/ \
-	-e mpicbg/MOPS_ExtractPointRoi.java \
 	-e modules/imagej2/ui/pivot/ \
 	-e modules/imagej2/ui/swt/ \
 	-e modules/imagej2/extra/ \
 	-e modules/imagej2/opencl/ \
 	-e envisaje/ \
 	-e modules/weka/wekaexamples/ |
-./ImageJ "$@" \
-	--classpath $HOME/.m2/repository/com/apple/AppleJavaExtensions/1.5/AppleJavaExtensions-1.5.jar \
-	--javadoc --jarpath modules/bio-formats/jar \
-	--jarpath modules/jython/jython/extlibs \
-	--jarpath $HOME/.m2/repository/net/java/sezpoz/ \
-	--jarpath /usr/share/java/ \
-	--jarpath modules/ij-plugins/ \
+javadoc -classpath "$CLASSPATH" "$@" \
 	-link http://download.java.net/media/java3d/javadoc/1.5.2/ \
 	-link http://java.sun.com/j2se/1.5.0/docs/api/ \
 	@/dev/stdin 2>&1

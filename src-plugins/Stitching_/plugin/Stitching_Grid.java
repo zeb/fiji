@@ -12,6 +12,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
+import java.util.HashMap;
 
 import loci.common.services.ServiceFactory;
 import loci.formats.ChannelSeparator;
@@ -33,6 +34,7 @@ import mpicbg.stitching.ImagePlusTimePoint;
 import mpicbg.stitching.StitchingParameters;
 import mpicbg.stitching.TextFileAccess;
 import mpicbg.stitching.fusion.Fusion;
+import ome.xml.model.primitives.PositiveFloat;
 import stitching.CommonFunctions;
 
 /**
@@ -44,11 +46,14 @@ public class Stitching_Grid implements PlugIn
 {
 	final private String myURL = "http://fly.mpi-cbg.de/preibisch";
 	
+	public static boolean seperateOverlapY = false;
+	
 	public static int defaultGridChoice1 = 0;
 	public static int defaultGridChoice2 = 0;
 
 	public static int defaultGridSizeX = 2, defaultGridSizeY = 3;
-	public static double defaultOverlap = 20;
+	public static double defaultOverlapX = 20;
+	public static double defaultOverlapY = 20;
 	
 	public static String defaultDirectory = "";
 	public static String defaultSeriesFile = "";
@@ -86,7 +91,7 @@ public class Stitching_Grid implements PlugIn
 		
 		final int gridType = grid.getType();
 		final int gridOrder = grid.getOrder();
-		
+				
 		if ( gridType == -1 || gridOrder == -1 )
 			return;
 
@@ -97,7 +102,15 @@ public class Stitching_Grid implements PlugIn
 			gd.addNumericField( "Grid_size_x", defaultGridSizeX, 0 );
 			gd.addNumericField( "Grid_size_y", defaultGridSizeY, 0 );
 			
-			gd.addSlider( "Tile_overlap [%]", 0, 100, defaultOverlap );
+			if ( seperateOverlapY )
+			{
+				gd.addSlider( "Tile_overlap_x [%]", 0, 100, defaultOverlapX );
+				gd.addSlider( "Tile_overlap_y [%]", 0, 100, defaultOverlapY );				
+			}
+			else
+			{
+				gd.addSlider( "Tile_overlap [%]", 0, 100, defaultOverlapX );
+			}
 			
 			// row-by-row, column-by-column or snake
 			// needs the same questions
@@ -167,15 +180,28 @@ public class Stitching_Grid implements PlugIn
 		final StitchingParameters params = new StitchingParameters();
 		
 		final int gridSizeX, gridSizeY;
-		double overlap;
+		double overlapX, overlapY;
 		int startI = 0, startX = 0, startY = 0;
 		
 		if ( gridType < 5 )
 		{
 			gridSizeX = defaultGridSizeX = (int)Math.round(gd.getNextNumber());
 			gridSizeY = defaultGridSizeY = (int)Math.round(gd.getNextNumber());
-			overlap = defaultOverlap = gd.getNextNumber();
-			overlap /= 100.0;
+			
+			if ( seperateOverlapY )
+			{
+				overlapX = defaultOverlapX = gd.getNextNumber();
+				overlapX /= 100.0;				
+				overlapY = defaultOverlapY = gd.getNextNumber();
+				overlapY /= 100.0;				
+				
+			}
+			else
+			{
+				overlapX = overlapY = defaultOverlapY = defaultOverlapX = gd.getNextNumber();
+				overlapX /= 100.0;
+				overlapY = overlapX;
+			}
 	
 			// row-by-row, column-by-column or snake
 			// needs the same questions
@@ -192,7 +218,7 @@ public class Stitching_Grid implements PlugIn
 		else
 		{
 			gridSizeX = gridSizeY = 0;
-			overlap = 0;
+			overlapX = overlapY = 0;
 		}
 		
 		String directory, outputFile, seriesFile;
@@ -303,7 +329,7 @@ public class Stitching_Grid implements PlugIn
 		final ArrayList< ImageCollectionElement > elements;
 		
 		if ( gridType < 5 )
-			elements = getGridLayout( grid, gridSizeX, gridSizeY, overlap, directory, filenames, startI, startX, startY, params.virtual );
+			elements = getGridLayout( grid, gridSizeX, gridSizeY, overlapX, overlapY, directory, filenames, startI, startX, startY, params.virtual );
 		else if ( gridType == 5 )
 			elements = getAllFilesInDirectory( directory, confirmFiles );
 		else if ( gridType == 6 && gridOrder == 1 )
@@ -506,6 +532,7 @@ public class Stitching_Grid implements PlugIn
 		
 		final IFormatReader r = new ChannelSeparator();
 		
+		final boolean timeHack;
 		try 
 		{
 			final ServiceFactory factory = new ServiceFactory();
@@ -517,13 +544,8 @@ public class Stitching_Grid implements PlugIn
 
 			final int numSeries = r.getSeriesCount();
 			
-			// IJ.log( "numSeries:  " + numSeries );
-			
-			if ( numSeries == 1 )
-			{
-				IJ.log( "File contains only one tile: " + multiSeriesFile );
-				return null;
-			}
+			if ( IJ.debugMode )
+				IJ.log( "numSeries:  " + numSeries );
 			
 			// get maxZ
 			int dim = 2;
@@ -531,99 +553,141 @@ public class Stitching_Grid implements PlugIn
 				if ( r.getSizeZ() > 1 )
 					dim = 3;
 
-			// IJ.log( "dim:  " + dim );
+			if ( IJ.debugMode )
+				IJ.log( "dim:  " + dim );
+
+			final MetadataRetrieve retrieve = service.asRetrieve(r.getMetadataStore());
+			if ( IJ.debugMode )
+				IJ.log( "retrieve:  " + retrieve );
+
+			// CTR HACK: In the case of a single series, we treat each time point
+			// as a separate series for the purpose of stitching tiles.
+			timeHack = numSeries == 1;
 
 			for ( int series = 0; series < numSeries; ++series )
 			{
-				// IJ.log( "fetching data for series:  " + series );
+				if ( IJ.debugMode )
+					IJ.log( "fetching data for series:  " + series );
 				r.setSeries( series );
 
-				final MetadataRetrieve retrieve = (MetadataRetrieve)r.getMetadataStore();
+				final int sizeT = r.getSizeT();
+				if ( IJ.debugMode )
+					IJ.log( "sizeT:  " + sizeT );
 
-				// stage coordinates (per plane and series)
-				Double tmp;
-				double locationX, locationY, locationZ;
-				
-				tmp = retrieve.getPlanePositionX( series, 0 );
-				if ( tmp != null )
-					locationX = tmp;
-				else
-					locationX = 0;				
-				// IJ.log( "locationX:  " + locationX );
-				
-				tmp = retrieve.getPlanePositionY( series, 0 );
-				if ( tmp != null )
-					locationY = tmp;
-				else
-					locationY = 0;				
-				// IJ.log( "locationY:  " + locationY );
-				
-				tmp = retrieve.getPlanePositionZ( series, 0 );
-				if ( tmp != null )
-					locationZ = tmp;
-				else
-					locationZ = 0;				
-				// IJ.log( "locationZ:  " + locationZ );
+				final int maxT = timeHack ? sizeT : 1;
 
-				if ( !ignoreCalibration )
+				// generate a mapping from native indices to Plane element indices
+				final HashMap< Integer, Integer > planeMap = new HashMap< Integer, Integer >();
+				final int planeCount = retrieve.getPlaneCount( series );
+				for ( int p = 0; p < planeCount; ++p )
 				{
-					// calibration
-					double calX = 1, calY = 1, calZ = 1;
-					Double cal;
-					final String dimOrder = r.getDimensionOrder().toUpperCase();
-					
-					final int posX = dimOrder.indexOf( 'X' );
-					cal = retrieve.getPixelsPhysicalSizeX( 0 ).getValue();
-					if ( posX >= 0 && cal != null && cal.floatValue() != 0 )
-						calX = cal.floatValue(); 
-	
-					// IJ.log( "calibrationX:  " + calX );
-	
-					final int posY = dimOrder.indexOf( 'Y' );
-					cal = retrieve.getPixelsPhysicalSizeY( 0 ).getValue();
-					if ( posY >= 0 && cal != null && cal.floatValue() != 0 )
-						calY = cal.floatValue();
-	
-					// IJ.log( "calibrationY:  " + calY );
-	
-					final int posZ = dimOrder.indexOf( 'Z' );
-					cal = retrieve.getPixelsPhysicalSizeZ( 0 ).getValue();
-					if ( posZ >= 0 && cal != null && cal.floatValue() != 0 )
-						calZ = cal.floatValue();
-				
-					// IJ.log( "calibrationZ:  " + calZ );
-	
-					// location in pixel values;
-					locationX /= calX;
-					locationY /= calY;
-					locationZ /= calZ;
+					final int theZ = retrieve.getPlaneTheZ( series, p ).getValue();
+					final int theC = retrieve.getPlaneTheC( series, p ).getValue();
+					final int theT = retrieve.getPlaneTheT( series, p ).getValue();
+					final int index = r.getIndex( theZ, theC, theT );
+					planeMap.put( index, p );
 				}
-				
-				// increase overlap if desired
-				locationX *= (100.0-increaseOverlap)/100.0;
-				locationY *= (100.0-increaseOverlap)/100.0;
-				locationZ *= (100.0-increaseOverlap)/100.0;
-				
-				// create ImageInformationList
-				
-				final ImageCollectionElement element;
-				
-				if ( dim == 2 )
+
+				for ( int t = 0; t < maxT; ++t )
 				{
-					element = new ImageCollectionElement( new File( multiSeriesFile ), series );
-					element.setModel( new TranslationModel2D() );
-					element.setOffset( new float[]{ (float)locationX, (float)locationY } );
-					element.setDimensionality( 2 );
+					final int index = r.getIndex(0, 0, t);
+
+					double locationX = 0, locationY = 0, locationZ = 0;
+
+					if ( planeMap.containsKey( index ) )
+					{
+						final int planeIndex = planeMap.get( index );
+
+						// stage coordinates (per plane and series)
+						Double tmp;
+
+						tmp = retrieve.getPlanePositionX( series, planeIndex );
+						if ( tmp != null )
+							locationX = tmp;
+						if ( IJ.debugMode )
+							IJ.log( "locationX:  " + locationX );
+
+						tmp = retrieve.getPlanePositionY( series, planeIndex );
+						if ( tmp != null )
+							locationY = tmp;
+						if ( IJ.debugMode )
+							IJ.log( "locationY:  " + locationY );
+
+						tmp = retrieve.getPlanePositionZ( series, planeIndex );
+						if ( tmp != null )
+							locationZ = tmp;
+						if ( IJ.debugMode )
+							IJ.log( "locationZ:  " + locationZ );
+					}
+					else
+					{
+						if ( IJ.debugMode )
+							IJ.log( "Missing Plane element: series=" + series + ", t=" + t );
+					}
+
+					if ( !ignoreCalibration )
+					{
+						// calibration
+						double calX = 1, calY = 1, calZ = 1;
+						PositiveFloat cal;
+						final String dimOrder = r.getDimensionOrder().toUpperCase();
+
+						final int posX = dimOrder.indexOf( 'X' );
+						cal = retrieve.getPixelsPhysicalSizeX( series );
+						if ( posX >= 0 && cal != null && cal.getValue().floatValue() != 0 )
+							calX = cal.getValue().floatValue();
+
+						if ( IJ.debugMode )
+							IJ.log( "calibrationX:  " + calX );
+
+						final int posY = dimOrder.indexOf( 'Y' );
+						cal = retrieve.getPixelsPhysicalSizeY( series );
+						if ( posY >= 0 && cal != null && cal.getValue().floatValue() != 0 )
+							calY = cal.getValue().floatValue();
+
+						if ( IJ.debugMode )
+							IJ.log( "calibrationY:  " + calY );
+
+						final int posZ = dimOrder.indexOf( 'Z' );
+						cal = retrieve.getPixelsPhysicalSizeZ( series );
+						if ( posZ >= 0 && cal != null && cal.getValue().floatValue() != 0 )
+							calZ = cal.getValue().floatValue();
+
+						if ( IJ.debugMode )
+							IJ.log( "calibrationZ:  " + calZ );
+
+						// location in pixel values;
+						locationX /= calX;
+						locationY /= calY;
+						locationZ /= calZ;
+					}
+
+					// increase overlap if desired
+					locationX *= (100.0-increaseOverlap)/100.0;
+					locationY *= (100.0-increaseOverlap)/100.0;
+					locationZ *= (100.0-increaseOverlap)/100.0;
+
+					// create ImageInformationList
+
+					final ImageCollectionElement element;
+
+					if ( dim == 2 )
+					{
+						element = new ImageCollectionElement( new File( multiSeriesFile ), elements.size() );
+						element.setModel( new TranslationModel2D() );
+						element.setOffset( new float[]{ (float)locationX, (float)locationY } );
+						element.setDimensionality( 2 );
+					}
+					else
+					{
+						element = new ImageCollectionElement( new File( multiSeriesFile ), elements.size() );
+						element.setModel( new TranslationModel3D() );
+						element.setOffset( new float[]{ (float)locationX, (float)locationY, (float)locationZ } );
+						element.setDimensionality( 3 );
+					}
+
+					elements.add( element );
 				}
-				else
-				{
-					element = new ImageCollectionElement( new File( multiSeriesFile ), series );
-					element.setModel( new TranslationModel3D() );
-					element.setOffset( new float[]{ (float)locationX, (float)locationY, (float)locationZ } );
-					element.setDimensionality( 3 );
-				}
-				
-				elements.add( element );
 			}
 		}
 		catch ( Exception ex ) 
@@ -640,7 +704,7 @@ public class Stitching_Grid implements PlugIn
 			options = new ImporterOptions();
 			options.setId( new File( multiSeriesFile ).getAbsolutePath() );
 			options.setSplitChannels( false );
-			options.setSplitTimepoints( false );
+			options.setSplitTimepoints( timeHack );
 			options.setSplitFocalPlanes( false );
 			options.setAutoscale( false );
 			
@@ -692,6 +756,13 @@ public class Stitching_Grid implements PlugIn
 		try
 		{
 			final BufferedReader in = TextFileAccess.openFileRead( new File( directory, layoutFile ) );
+			
+			if ( in == null )
+			{
+				IJ.log( "Cannot find tileconfiguration file '" + new File( directory, layoutFile ).getAbsolutePath() + "'" );
+				return null;
+			}
+			
 			int lineNo = 0;
 			
 			while ( in.ready() )
@@ -877,7 +948,7 @@ public class Stitching_Grid implements PlugIn
 		return elements;
 	}
 	
-	protected ArrayList< ImageCollectionElement > getGridLayout( final GridType grid, final int gridSizeX, final int gridSizeY, final double overlap, final String directory, final String filenames, 
+	protected ArrayList< ImageCollectionElement > getGridLayout( final GridType grid, final int gridSizeX, final int gridSizeY, final double overlapX, final double overlapY, final String directory, final String filenames, 
 			final int startI, final int startX, final int startY, final boolean virtual )
 	{
 		final int gridType = grid.getType();
@@ -1039,7 +1110,7 @@ public class Stitching_Grid implements PlugIn
         	if ( y == 0 )
         		yoffset = 0;
         	else 
-        		yoffset += (int)( minHeight * ( 1 - overlap ) );
+        		yoffset += (int)( minHeight * ( 1 - overlapY ) );
 
         	for ( int x = 0; x < gridSizeX; x++ )
             {
@@ -1051,7 +1122,7 @@ public class Stitching_Grid implements PlugIn
             	if ( x == 0 )
             		xoffset = 0;
             	else 
-            		xoffset += (int)( minWidth * ( 1 - overlap ) );
+            		xoffset += (int)( minWidth * ( 1 - overlapX ) );
             	            	
             	element.setDimensionality( dimensionality );
             	

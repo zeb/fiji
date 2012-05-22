@@ -17,8 +17,10 @@ import java.util.Set;
 import javax.media.j3d.Appearance;
 import javax.media.j3d.LineArray;
 import javax.media.j3d.LineAttributes;
+import javax.media.j3d.RenderingAttributes;
 import javax.media.j3d.Shape3D;
 import javax.media.j3d.Switch;
+import javax.media.j3d.TransparencyAttributes;
 import javax.media.j3d.View;
 import javax.vecmath.Color3f;
 import javax.vecmath.Color4f;
@@ -446,6 +448,12 @@ public class TrackDisplayNode extends ContentNode implements TimelapseListener {
 		Appearance appearance = new Appearance();
 		LineAttributes lineAtts = new LineAttributes(4f, LineAttributes.PATTERN_SOLID, true);
 		appearance.setLineAttributes(lineAtts);
+		TransparencyAttributes transAtts = new TransparencyAttributes(TransparencyAttributes.BLENDED, 0.2f);
+		appearance.setTransparencyAttributes(transAtts);
+		RenderingAttributes renderingAtts = new RenderingAttributes();
+		renderingAtts.setAlphaTestFunction(RenderingAttributes.GREATER_OR_EQUAL);
+		renderingAtts.setAlphaTestValue(0.3f);
+		appearance.setRenderingAttributes(renderingAtts);
 
 		// Iterate over each track
 		trackSwitch.removeAllChildren();

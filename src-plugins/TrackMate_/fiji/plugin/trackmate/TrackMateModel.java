@@ -446,6 +446,34 @@ public class TrackMateModel {
 	public List<Set<Spot>> getTrackSpots() {
 		return trackSpots;
 	}
+	
+	/**
+	 * Overwrite the list of tracks as a set of spots. 
+	 * <p>
+	 * <b>Warning:</b> This list is normally maintained internally, and must not be mingled with,
+	 * unless you know what you are doing. This is particularly true if you try to pass a list of 
+	 * spots which are not the same objects that the ones stored in the track graph.
+	 * <p>
+	 * This method exists so that a model can be fully restored from a file, with the exact same
+	 * track indices.
+	 */
+	public void setTrackSpots(List<Set<Spot>> trackSpots) {
+		this.trackSpots = trackSpots;
+	}
+
+	/**
+	 * Overwrite the list of tracks as a set of edges. 
+	 * <p>
+	 * <b>Warning:</b> This list is normally maintained internally, and must not be mingled with,
+	 * unless you know what you are doing. This is particularly true if you try to pass a list of 
+	 * edges which are not the same objects that the ones stored in the track graph.
+	 * <p>
+	 * This method exists so that a model can be fully restored from a file, with the exact same
+	 * track indices.
+	 */
+	public void setTrackEdges(List<Set<DefaultWeightedEdge>> trackEdges) {
+		this.trackEdges = trackEdges;
+	}
 
 	/**
 	 * Return the <b>un-filtered</b> list of tracks as a list of edges.
@@ -1158,8 +1186,7 @@ public class TrackMateModel {
 		 * then oldTrackSpots is null. To avoid that, we set it to the new value. Also,
 		 * since the the visibility set is empty, we will not get any new track visible.
 		 * So we seed it with all track indices, letting it propagate to new tracks. 
-		 * So that manually added track will have a visibility to on.
-		 */
+		 * So that manually added track will have a visibility to on. */
 		if (oldTrackSpots.isEmpty()) {
 			oldTrackSpots = trackSpots;
 			for (int i = 0; i < trackSpots.size(); i++) {
@@ -1174,8 +1201,7 @@ public class TrackMateModel {
 		visibleTrackIndices = new HashSet<Integer>(noldtracks); // Approx
 		// How to know if a new track should be visible or not?
 		// We can say this: the new track should be visible if it has at least
-		// one spot
-		// that can be found in a visible old track.
+		// one spot that can be found in a visible old track.
 		for (int trackIndex = 0; trackIndex < ntracks; trackIndex++) {
 
 			boolean shouldBeVisible = false;
@@ -1195,7 +1221,6 @@ public class TrackMateModel {
 			if (shouldBeVisible) {
 				visibleTrackIndices.add(trackIndex);
 			}
-
 		}
 	}
 

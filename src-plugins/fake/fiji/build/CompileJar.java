@@ -54,7 +54,8 @@ public class CompileJar extends Rule {
 			parser.fake.expandToSet(getVar("EXCLUDE"), parser.cwd);
 		if (getVar("PREBUILTDIR") == null) {
 			compileJavas(prerequisites, buildDir, exclude, noCompile);
-			new ObsoleteClassFiles(parser.fake.err, new File(Util.makePath(parser.cwd, getStripPath())), buildDir).removeFiles();
+			if (!target.equals("jacl.jar")) // known to mix *two* directories of sources
+				new ObsoleteClassFiles(parser.fake.err, new File(Util.makePath(parser.cwd, getStripPath())), buildDir).removeFiles();
 		}
 		List<String> files = parser.fake.java2classFiles(prerequisites,
 			parser.cwd, buildDir, exclude, noCompile);
@@ -174,5 +175,12 @@ public class CompileJar extends Rule {
 				+ this);
 			return;
 		}
+	}
+
+	@Override
+	public CompileJar copy() {
+		CompileJar copy = new CompileJar(parser, target, prerequisites);
+		copy.prerequisiteString = prerequisiteString;
+		return copy;
 	}
 }

@@ -558,6 +558,7 @@ public class Fake {
 				/* was compile error */
 				throw e;
 			} catch (Exception e) {
+				e.printStackTrace(err);
 				err.println("Could not find javac " + e
 					+ " (tools path = " + toolsPath + "), "
 					+ "falling back to system javac");
@@ -926,6 +927,13 @@ public class Fake {
 
 		/* stupid, stupid Windows... */
 		if (Util.getPlatform().startsWith("win")) {
+			// handle .sh scripts
+			if (args[0].endsWith(".sh")) {
+				String[] newArgs = new String[args.length + 1];
+				newArgs[0] = "sh.exe";
+				System.arraycopy(args, 0, newArgs, 1, args.length);
+				args = newArgs;
+			}
 			for (int i = 0; i < args.length; i++)
 				args[i] = quoteArg(args[i]);
 			// stupid, stupid, stupid Windows taking all my time!!!

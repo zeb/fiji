@@ -24,7 +24,7 @@ import com.mxgraph.model.mxGeometry;
 import com.mxgraph.model.mxICell;
 import com.mxgraph.util.mxConstants;
 import com.mxgraph.util.mxRectangle;
-import com.mxgraph.util.mxUtils;
+import com.mxgraph.util.mxStyleUtils;
 
 import fiji.plugin.trackmate.Spot;
 import fiji.plugin.trackmate.SpotImp;
@@ -42,11 +42,14 @@ import fiji.plugin.trackmate.util.TrackSplitter;
 public class mxTrackGraphLayout extends mxGraphLayout {
 
 	private static final int SWIMLANE_HEADER_SIZE = 30;
-	private static final boolean DEBUG = true;
+	private static final boolean DEBUG = false;
 
 	private JGraphXAdapter graph;
 	private int[] columnWidths;
 	protected InterpolatePaintScale colorMap = InterpolatePaintScale.Jet;
+	/** The style to use to apply to cells, can be changed by the user. */
+	protected String selectedStyle = TrackSchemeFrame.DEFAULT_STYLE_NAME;
+	
 	private Color[] trackColorArray;
 	private TreeMap<Float, Integer> rows;
 	/**
@@ -106,6 +109,10 @@ public class mxTrackGraphLayout extends mxGraphLayout {
 				trackColors.put(i, colorMap.getPaint((float) colorIndex / (ntracks-1)));
 				colorIndex++;
 			}
+			
+			if (DEBUG) {
+				System.out.println("[mxTrackGraphLayout] execute: Found "+ntracks+" visible tracks.");
+			}
 
 			// Collect unique instants
 			SortedSet<Float> instants = new TreeSet<Float>();
@@ -156,6 +163,18 @@ public class mxTrackGraphLayout extends mxGraphLayout {
 				// Get Tracks
 				final Set<Spot> track = model.getTrackSpots(i);
 
+				if (track.isEmpty()) {
+					if (DEBUG) {
+						System.out.println("[mxTrackGraphLayout] execute: Track nbr "+i+" is empty, skipping.");
+					}
+					
+					continue;
+				}
+				
+				if (DEBUG) {
+					System.out.println("[mxTrackGraphLayout] execute: Track nbr "+i+": "+model.trackToString(i));
+				}
+
 				// Sort by ascending order
 				SortedSet<Spot> sortedTrack = new TreeSet<Spot>(SpotImp.frameComparator);
 				sortedTrack.addAll(track);
@@ -176,8 +195,10 @@ public class mxTrackGraphLayout extends mxGraphLayout {
 						cell = graph.addJGraphTVertex(spot);
 					}
 
-					// Get default style					
-					String style = cell.getStyle();
+					// Add selected style to style string
+					String style = cell.getStyle(); 
+					style = mxStyleUtils.removeAllStylenames(style);
+					style = selectedStyle + ";" + style;
 
 					// Determine in what column to put the spot
 					Float instant = spot.getFeature(Spot.POSITION_T);
@@ -196,25 +217,36 @@ public class mxTrackGraphLayout extends mxGraphLayout {
 					columns.put(instant, targetColumn);
 
 					// Compute cell position in absolute coords 
-					double x = (targetColumn) * X_COLUMN_SIZE - DEFAULT_CELL_WIDTH/2;
-					double y = (0.5 + rows.get(instant)) * Y_COLUMN_SIZE - DEFAULT_CELL_HEIGHT/2;
 
 					// Cell size
-					int height = Math.min(DEFAULT_CELL_WIDTH, Math.round(2 * spot.getFeature(Spot.RADIUS) / dx));
-					height = Math.max(height, DEFAULT_CELL_HEIGHT/3);
+					
+					// Ugly, but we have to do it here, where we set the geometry of cells.
+					double width 	= DEFAULT_CELL_WIDTH;
+					double height 	= DEFAULT_CELL_HEIGHT; 
+					if (selectedStyle.equals("Simple")) {
+						width 	= DEFAULT_CELL_HEIGHT / 2;
+						height 	= DEFAULT_CELL_HEIGHT / 2;
+						style = mxStyleUtils.setStyle(style, mxConstants.STYLE_FILLCOLOR, trackColorStr);
+					} else {
+						height = Math.min(DEFAULT_CELL_WIDTH, Math.round(2 * spot.getFeature(Spot.RADIUS) / dx));
+						height = Math.max(height, DEFAULT_CELL_HEIGHT/3);
+						style = mxStyleUtils.setStyle(style, mxConstants.STYLE_FILLCOLOR, "white");
+					}
 					geometry = cell.getGeometry();
 					geometry.setHeight(height);
-					geometry.setWidth(DEFAULT_CELL_WIDTH);
+					geometry.setWidth(width);
+					double x = (targetColumn) * X_COLUMN_SIZE - DEFAULT_CELL_WIDTH/2;
+					double y = (0.5 + rows.get(instant)) * Y_COLUMN_SIZE - DEFAULT_CELL_HEIGHT/2;
 					geometry.setX(x);
 					geometry.setY(y);
-					
+
 					// Add it to its root cell holder.
 					// Not needed, but if we do not do it, some cells with modified geometry 
 					// are not put back to the imposed geometry.
 					graph.getModel().add(currentParent, cell, spotIndex++); 
 
 					// Set cell style and image
-					style = mxUtils.setStyle(style, mxConstants.STYLE_STROKECOLOR, trackColorStr);
+					style = mxStyleUtils.setStyle(style, mxConstants.STYLE_STROKECOLOR, trackColorStr);
 					style = graph.getModel().setStyle(cell, style);
 
 				}
@@ -233,8 +265,8 @@ public class mxTrackGraphLayout extends mxGraphLayout {
 
 						graph.getModel().add(currentParent, edgeCell, 0);
 						String edgeStyle = edgeCell.getStyle();
-						edgeStyle = mxUtils.setStyle(edgeStyle, mxConstants.STYLE_STROKECOLOR, trackColorStr);
-						edgeStyle = mxUtils.setStyle(edgeStyle, mxSideTextShape.STYLE_DISPLAY_COST, ""+doDisplayCosts);
+						edgeStyle = mxStyleUtils.setStyle(edgeStyle, mxConstants.STYLE_STROKECOLOR, trackColorStr);
+						edgeStyle = mxStyleUtils.setStyle(edgeStyle, mxSideTextShape.STYLE_DISPLAY_COST, ""+doDisplayCosts);
 						graph.getModel().setStyle(edgeCell, edgeStyle);
 					}
 				}
@@ -340,15 +372,15 @@ private mxCell makeParentCell(String trackColorStr, int trackIndex, int partInde
 
 	// Set the root style
 	String rootStyle = rootCell.getStyle();
-	rootStyle = mxUtils.setStyle(rootStyle, mxConstants.STYLE_STROKECOLOR, "black");
-	rootStyle = mxUtils.setStyle(rootStyle, mxConstants.STYLE_ROUNDED, "false");
-	rootStyle = mxUtils.setStyle(rootStyle, mxConstants.STYLE_FILLCOLOR, Integer.toHexString(Color.DARK_GRAY.brighter().getRGB()).substring(2));
-	rootStyle = mxUtils.setStyle(rootStyle, mxConstants.STYLE_DASHED, "true");
-	rootStyle = mxUtils.setStyle(rootStyle, mxConstants.STYLE_VERTICAL_ALIGN, mxConstants.ALIGN_TOP);
-	rootStyle = mxUtils.setStyle(rootStyle, mxConstants.STYLE_FONTCOLOR, trackColorStr);
-	rootStyle = mxUtils.setStyle(rootStyle, mxConstants.STYLE_FONTSTYLE, ""+mxConstants.FONT_BOLD);
-	rootStyle = mxUtils.setStyle(rootStyle, mxConstants.STYLE_SHAPE, ""+mxConstants.SHAPE_SWIMLANE);
-	rootStyle = mxUtils.setStyle(rootStyle, mxConstants.STYLE_STARTSIZE, ""+SWIMLANE_HEADER_SIZE);
+	rootStyle = mxStyleUtils.setStyle(rootStyle, mxConstants.STYLE_STROKECOLOR, "black");
+	rootStyle = mxStyleUtils.setStyle(rootStyle, mxConstants.STYLE_ROUNDED, "false");
+	rootStyle = mxStyleUtils.setStyle(rootStyle, mxConstants.STYLE_FILLCOLOR, Integer.toHexString(Color.DARK_GRAY.brighter().getRGB()).substring(2));
+	rootStyle = mxStyleUtils.setStyle(rootStyle, mxConstants.STYLE_DASHED, "true");
+	rootStyle = mxStyleUtils.setStyle(rootStyle, mxConstants.STYLE_VERTICAL_ALIGN, mxConstants.ALIGN_TOP);
+	rootStyle = mxStyleUtils.setStyle(rootStyle, mxConstants.STYLE_FONTCOLOR, trackColorStr);
+	rootStyle = mxStyleUtils.setStyle(rootStyle, mxConstants.STYLE_FONTSTYLE, ""+mxConstants.FONT_BOLD);
+	rootStyle = mxStyleUtils.setStyle(rootStyle, mxConstants.STYLE_SHAPE, ""+mxConstants.SHAPE_SWIMLANE);
+	rootStyle = mxStyleUtils.setStyle(rootStyle, mxConstants.STYLE_STARTSIZE, ""+SWIMLANE_HEADER_SIZE);
 	graph.getModel().setStyle(rootCell, rootStyle);
 
 	return rootCell;

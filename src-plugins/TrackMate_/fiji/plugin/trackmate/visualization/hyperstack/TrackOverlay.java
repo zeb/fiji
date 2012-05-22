@@ -155,7 +155,6 @@ public class TrackOverlay implements Overlay {
 			break;
 		}
 
-
 		float sourceFrame, transparency;
 		switch (trackDisplayMode) {
 
