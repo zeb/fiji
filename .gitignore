@@ -418,3 +418,4 @@ hs_err*.log
 # Retrotranslator #
 /jars/backport-util-concurrent.jar
 /jars/retrotranslator-runtime.jar
+/plugins/OMERO_Importer.jar

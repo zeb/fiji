@@ -236,7 +236,8 @@ PLUGIN_TARGETS=plugins/Jython_Interpreter.jar \
 	jars/fiji-compat.jar \
 	plugins/Fiji_Package_Maker.jar \
 	plugins/BalloonSegmentation_.jar \
-	plugins/CorrectBleach_.jar
+	plugins/CorrectBleach_.jar \
+	plugins/OMERO_Importer.jar
 
 LEGACYLAUNCHER=fiji
 
@@ -477,6 +478,7 @@ CLASSPATH(plugins/Helmholtz_Analysis.jar)=jars/ij.jar
 CLASSPATH(plugins/Fiji_Package_Maker.jar)=jars/ij.jar:plugins/Fiji_Updater.jar:jars/fiji-lib.jar
 CLASSPATH(plugins/BalloonSegmentation_.jar)=jars/ij.jar:jars/Jama.jar
 CLASSPATH(plugins/CorrectBleach_.jar)=jars/ij.jar
+CLASSPATH(plugins/OMERO_Importer.jar)=jars/ij.jar
 
 # pom.xml sub-projects
 
