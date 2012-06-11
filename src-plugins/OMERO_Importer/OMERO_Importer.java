@@ -2,6 +2,7 @@ import fiji.scripting.TextEditor;
 
 import ij.IJ;
 import ij.ImagePlus;
+import ij.Macro;
 
 import ij.plugin.PlugIn;
 
@@ -21,9 +22,8 @@ import javax.swing.JPopupMenu;
 public class OMERO_Importer implements PlugIn {
 
 	public void run(final String arg) {
-		// TODO: Extract session key from arg (passed via IJ.run()) or Macro.getOptions() (passed via macro's run(.., options))
-		final String sessionKey = "blub";
-		// Use Loci_Importer instead
+		// The argument could be passed in via Java's IJ.run() method (arg) or via a macro call (Macro.getOptions())
+		final String sessionKey = arg != null && !arg.equals("") ? arg : Macro.getOptions();
 		final ImagePlus image = IJ.openImage("/home/gene099/fiji/samples/clown.jpg");
 		// Store true session key
 		image.setProperty("omero_session_key", sessionKey);
