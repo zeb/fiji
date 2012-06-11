@@ -24,8 +24,8 @@ public class OMERO_Importer implements PlugIn {
 	public void run(final String arg) {
 		// The argument could be passed in via Java's IJ.run() method (arg) or via a macro call (Macro.getOptions())
 		final String sessionKey = arg != null && !arg.equals("") ? arg : Macro.getOptions();
-		final ImagePlus image = IJ.openImage("/home/gene099/fiji/samples/clown.jpg");
-		// Store true session key
+		final ImagePlus image = importImage(sessionKey);
+		// Store session key so we can access the image and its metadata later, too
 		image.setProperty("omero_session_key", sessionKey);
 		image.show();
 
@@ -59,6 +59,11 @@ public class OMERO_Importer implements PlugIn {
 			((Container)recorder.getComponents()[0]).add(button);
 			recorder.pack();
 		}
+	}
+
+	// Use Loci_Importer instead
+	protected ImagePlus importImage(final String sessionKey) {
+		return IJ.openImage("/home/gene099/fiji/samples/clown.jpg");
 	}
 
 	protected void saveWorkflowToOMERO(final String sessionKey, final String attachmentText) {
