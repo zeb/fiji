@@ -12,7 +12,6 @@ import ij.plugin.frame.Recorder;
 
 import java.awt.Button;
 import java.awt.Component;
-import java.awt.Container;
 import java.awt.Menu;
 import java.awt.MenuItem;
 import java.awt.Panel;
