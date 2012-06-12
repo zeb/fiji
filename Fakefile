@@ -478,7 +478,7 @@ CLASSPATH(plugins/Helmholtz_Analysis.jar)=jars/ij.jar
 CLASSPATH(plugins/Fiji_Package_Maker.jar)=jars/ij.jar:plugins/Fiji_Updater.jar:jars/fiji-lib.jar
 CLASSPATH(plugins/BalloonSegmentation_.jar)=jars/ij.jar:jars/Jama.jar
 CLASSPATH(plugins/CorrectBleach_.jar)=jars/ij.jar
-CLASSPATH(plugins/OMERO_Importer.jar)=jars/ij.jar:plugins/Script_Editor.jar:jars/rsyntaxtextarea.jar
+CLASSPATH(plugins/OMERO_Importer.jar)=jars/ij.jar:plugins/Script_Editor.jar:jars/rsyntaxtextarea.jar:jars/fiji-compat.jar
 
 # pom.xml sub-projects
 

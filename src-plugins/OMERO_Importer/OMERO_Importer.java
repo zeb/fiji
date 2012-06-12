@@ -1,3 +1,5 @@
+import fiji.User_Plugins;
+
 import fiji.scripting.TextEditor;
 
 import ij.IJ;
@@ -11,6 +13,8 @@ import ij.plugin.frame.Recorder;
 import java.awt.Button;
 import java.awt.Component;
 import java.awt.Container;
+import java.awt.Menu;
+import java.awt.MenuItem;
 import java.awt.Panel;
 
 import java.awt.event.ActionEvent;
@@ -35,6 +39,8 @@ public class OMERO_Importer implements PlugIn {
 		final Recorder recorder = getRecorder();
 		recorder.recordString("// OMERO import " + image.getTitle().replace('\n', ' ') + "\n");
 		addOmeroButton(recorder, sessionKey);
+
+		addOmeroMenu(sessionKey);
 	}
 
 	protected Recorder getRecorder() {
@@ -79,6 +85,35 @@ public class OMERO_Importer implements PlugIn {
 			panel.add(button);
 			recorder.pack();
 		}
+	}
+
+	// TODO: add the name of the image to which we'll attach
+	protected void addOmeroMenu(final String sessionKey) {
+		final Menu omero = User_Plugins.getMenu("OMERO");
+		final MenuItem saveToOmero = new MenuItem("Attach Workflow");
+		saveToOmero.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(final ActionEvent e) {
+				final Recorder recorder = Recorder.getInstance();
+				if (recorder == null)
+					IJ.error("No Recorder window found");
+				else
+					saveWorkflowToOMERO(sessionKey, recorder.getText());
+			}
+		});
+		omero.add(saveToOmero);
+		final MenuItem editAndSaveToOmero = new MenuItem("Edit & Attach Workflow");
+		editAndSaveToOmero.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(final ActionEvent e) {
+				final Recorder recorder = Recorder.getInstance();
+				if (recorder == null)
+					IJ.error("No Recorder window found");
+				else
+					editAndSaveWorkflowToOMERO(sessionKey, recorder.getText());
+			}
+		});
+		omero.add(editAndSaveToOmero);
 	}
 
 	// Use Loci_Importer instead
