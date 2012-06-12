@@ -20,6 +20,10 @@ import java.awt.Panel;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 
+import java.text.DateFormat;
+
+import java.util.Date;
+
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
@@ -63,7 +67,7 @@ public class OMERO_Importer implements PlugIn {
 			saveToOmero.addActionListener(new ActionListener() {
 				@Override
 				public void actionPerformed(final ActionEvent e) {
-					saveWorkflowToOMERO(sessionKey, recorder.getText());
+					saveWorkflowToOMERO(sessionKey, getMacroTitle(), recorder.getText());
 				}
 			});
 			omero.add(saveToOmero);
@@ -98,7 +102,7 @@ public class OMERO_Importer implements PlugIn {
 				if (recorder == null)
 					IJ.error("No Recorder window found");
 				else
-					saveWorkflowToOMERO(sessionKey, recorder.getText());
+					saveWorkflowToOMERO(sessionKey, getMacroTitle(), recorder.getText());
 			}
 		});
 		omero.add(saveToOmero);
@@ -121,13 +125,12 @@ public class OMERO_Importer implements PlugIn {
 		return IJ.openImage("/home/gene099/fiji/samples/clown.jpg");
 	}
 
-	protected void saveWorkflowToOMERO(final String sessionKey, final String attachmentText) {
-		IJ.log("TODO: save (sessionKey " + sessionKey + "):\n" + attachmentText);
+	protected void saveWorkflowToOMERO(final String sessionKey, final String attachmentTitle, final String attachmentText) {
+		IJ.log("TODO: save (sessionKey " + sessionKey + ") " + attachmentTitle + ":\n" + attachmentText);
 	}
 
-
 	protected void editAndSaveWorkflowToOMERO(final String sessionKey, final String attachmentText) {
-		final TextEditor editor = new TextEditor("Workflow", attachmentText);
+		final TextEditor editor = new TextEditor(getMacroTitle(), attachmentText);
 
 		// remove some menus, add a menu item in File
 		final JMenuBar menuBar = editor.getJMenuBar();
@@ -142,10 +145,14 @@ public class OMERO_Importer implements PlugIn {
 		save.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(final ActionEvent e) {
-				saveWorkflowToOMERO(sessionKey, editor.getTextArea().getText());
+				saveWorkflowToOMERO(sessionKey, editor.getTitle(), editor.getTextArea().getText());
 			}
 		});
 		menuBar.getMenu(0).insert(save, 3);
 		editor.setVisible(true);
+	}
+
+	protected String getMacroTitle() {
+		return "Workflow " + DateFormat.getDateTimeInstance().format(new Date()) + ".ijm";
 	}
 }
