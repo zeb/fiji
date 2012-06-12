@@ -34,12 +34,23 @@ public class OMERO_Importer implements PlugIn {
 		// start the Recorder
 		final Recorder recorder = getRecorder();
 		recorder.recordString("// OMERO import " + image.getTitle().replace('\n', ' ') + "\n");
+		addOmeroButton(recorder, sessionKey);
+	}
 
-		// Add the OMERO button?
+	protected Recorder getRecorder() {
+		final Recorder recorder = Recorder.getInstance();
+		if (Recorder.getInstance() == null) {
+			return new Recorder();
+		}
+		return recorder;
+	}
+
+	protected void addOmeroButton(final Recorder recorder, final String sessionKey) {
 		final Component[] components = recorder.getComponents();
 		final Panel panel = (Panel)components[0];
 		final Component[] panelComponents = panel.getComponents();
 		Component lastComponent = panelComponents[panelComponents.length - 1];
+		// Only add the OMERO button if it is not there yet
 		if (!(lastComponent instanceof Button) || !((Button)lastComponent).getLabel().equals("OMERO")) {
 			final JPopupMenu omero = new JPopupMenu("OMERO");
 			final JMenuItem saveToOmero = new JMenuItem("Attach Workflow");
@@ -68,14 +79,6 @@ public class OMERO_Importer implements PlugIn {
 			panel.add(button);
 			recorder.pack();
 		}
-	}
-
-	protected Recorder getRecorder() {
-		final Recorder recorder = Recorder.getInstance();
-		if (Recorder.getInstance() == null) {
-			return new Recorder();
-		}
-		return recorder;
 	}
 
 	// Use Loci_Importer instead
