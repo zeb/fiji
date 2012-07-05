@@ -1,7 +1,10 @@
 package mpicbg.spim.registration;
 
+import ij.IJ;
+
 import java.util.ArrayList;
 
+import mpicbg.imglib.container.cell.CellContainerFactory;
 import mpicbg.imglib.image.Image;
 import mpicbg.imglib.io.LOCI;
 import mpicbg.imglib.type.numeric.real.FloatType;
@@ -318,7 +321,18 @@ public class ViewStructure
 		else
 		{
 			IOFunctions.println( "Opening first image to determine z-stretching." );
-			final Image<FloatType> image = LOCI.openLOCIFloatType( conf.file[ timePointIndex ][ 0 ][ 0 ][ 0 ].getPath(), conf.imageFactory );
+			
+			Image<FloatType> image;
+			
+			try
+			{
+				image = LOCI.openLOCIFloatType( conf.file[ timePointIndex ][ 0 ][ 0 ][ 0 ].getPath(), conf.imageFactory );
+			}
+			catch ( Exception e )
+			{
+				IJ.log( "Failed to open with factory provided, trying CellFactory." );
+				image = LOCI.openLOCIFloatType( conf.file[ timePointIndex ][ 0 ][ 0 ][ 0 ].getPath(), new CellContainerFactory( 256 ) );
+			}
 
 			if ( image == null )
 			{

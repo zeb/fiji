@@ -390,9 +390,13 @@ public class ViewDataBeads implements Comparable< ViewDataBeads >
 				//	s = s.replace( "red-h2amcherry-nuclei", "green-rasgfp-membranes" ) + ".tif";
 
 				//System.out.println( s );
-
-				image = LOCI.openLOCIFloatType( s, imageFactory );
-
+				
+				try
+				{
+					image = LOCI.openLOCIFloatType( s, imageFactory );
+				}
+				catch ( Exception e ) { image = null; }
+				
 				if ( image == null )
 				{
 					IJ.log( "Cannot open file: " + s );
