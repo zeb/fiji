@@ -346,8 +346,6 @@ public class Reconstruction
         	
 			config = ConfigurationParserSPIM.parseFile( temp );
 			
-			if ( config.debugLevelInt <= ViewStructure.DEBUG_ALL )
-				config.printProperties();
 		} 
         catch ( ConfigurationParserException e ) 
         {

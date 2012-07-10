@@ -11,12 +11,13 @@ import java.io.FilenameFilter;
 import java.util.ArrayList;
 import java.util.Date;
 
-import mpicbg.imglib.container.array.ArrayContainerFactory;
-import mpicbg.imglib.container.cell.CellContainerFactory;
-import mpicbg.imglib.container.planar.PlanarContainerFactory;
-import mpicbg.imglib.image.Image;
-import mpicbg.imglib.image.display.imagej.ImageJFunctions;
-import mpicbg.imglib.type.numeric.real.FloatType;
+import net.imglib2.img.Img;
+import net.imglib2.img.array.ArrayImgFactory;
+import net.imglib2.img.cell.CellImgFactory;
+import net.imglib2.img.display.imagej.ImageJFunctions;
+import net.imglib2.img.planar.PlanarImgFactory;
+import net.imglib2.type.numeric.real.FloatType;
+
 import mpicbg.spim.Reconstruction;
 import mpicbg.spim.fusion.FusionControl;
 import mpicbg.spim.fusion.PreDeconvolutionFusion;
@@ -66,8 +67,8 @@ public class Multi_View_Deconvolution implements PlugIn
 		
 		final int numViews = viewStructure.getNumViews();
 		
-		final ArrayList< Image < FloatType > > images = new ArrayList< Image < FloatType > >();
-		final ArrayList< Image < FloatType > > weights = new ArrayList< Image < FloatType > >();
+		final ArrayList< Img < FloatType > > images = new ArrayList< Img < FloatType > >();
+		final ArrayList< Img < FloatType > > weights = new ArrayList< Img < FloatType > >();
 		
 		for ( int view = 0; view < numViews; ++view )
 		{
@@ -81,7 +82,7 @@ public class Multi_View_Deconvolution implements PlugIn
 		extractPSF.setPSFSize( 21, false );
 		extractPSF.extract();
 		
-		final ArrayList< Image< FloatType > > pointSpreadFunctions = extractPSF.getPSFs();
+		final ArrayList< Img< FloatType > > pointSpreadFunctions = extractPSF.getPSFs();
 		
 		if ( showAveragePSF )
 			ImageJFunctions.show( extractPSF.getMaxProjectionAveragePSF() );
@@ -122,7 +123,7 @@ public class Multi_View_Deconvolution implements PlugIn
 			deconvolutionData.add( new LucyRichardsonFFT( fusion.getFusedImage( view ), fusion.getWeightImage( view ), pointSpreadFunctions.get( view ), cpusPerView ) );
 		}
 		
-		final Image<FloatType> deconvolved;
+		final Img<FloatType> deconvolved;
 		
 		if ( useTikhonovRegularization )
 			deconvolved = LucyRichardsonMultiViewDeconvolution.lucyRichardsonMultiView( deconvolutionData, minNumIterations, maxNumIterations, multiplicative, lambda, paralellViews );
@@ -512,18 +513,18 @@ public class Multi_View_Deconvolution implements PlugIn
 		
 		if ( container == 1 )
 		{
-			conf.outputImageFactory = new PlanarContainerFactory();
-			conf.imageFactory = new PlanarContainerFactory();
+			conf.outputImageFactory = new PlanarImgFactory< FloatType >();
+			conf.imageFactory = new PlanarImgFactory< FloatType >();
 		}
 		else if ( container == 2 )
 		{
-			conf.outputImageFactory = new CellContainerFactory( 256 );
-			conf.imageFactory = new CellContainerFactory( 256 );
+			conf.outputImageFactory = new CellImgFactory< FloatType >( 256 );
+			conf.imageFactory = new CellImgFactory< FloatType >( 256 );
 		}
 		else
 		{
-			conf.outputImageFactory = new ArrayContainerFactory();
-			conf.imageFactory = new ArrayContainerFactory();
+			conf.outputImageFactory = new ArrayImgFactory< FloatType >();
+			conf.imageFactory = new ArrayImgFactory< FloatType >();
 		}
 		
 		conf.overrideImageZStretching = true;

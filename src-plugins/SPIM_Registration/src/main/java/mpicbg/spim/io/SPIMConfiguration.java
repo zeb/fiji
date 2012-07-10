@@ -4,20 +4,22 @@ import java.io.File;
 import java.io.FilenameFilter;
 import java.util.ArrayList;
 
-import mpicbg.imglib.container.ContainerFactory;
-import mpicbg.imglib.container.array.ArrayContainerFactory;
-import mpicbg.imglib.interpolation.InterpolatorFactory;
-import mpicbg.imglib.interpolation.linear.LinearInterpolatorFactory;
-import mpicbg.imglib.outofbounds.OutOfBoundsStrategyFactory;
-import mpicbg.imglib.outofbounds.OutOfBoundsStrategyMirrorFactory;
-import mpicbg.imglib.outofbounds.OutOfBoundsStrategyValueFactory;
-import mpicbg.imglib.type.numeric.real.FloatType;
-import mpicbg.imglib.util.Util;
 import mpicbg.models.AbstractAffineModel3D;
 import mpicbg.models.AffineModel3D;
 import mpicbg.models.RigidModel3D;
 import mpicbg.models.TranslationModel3D;
 import mpicbg.spim.registration.ViewStructure;
+import net.imglib2.RandomAccessible;
+import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.img.ImgFactory;
+import net.imglib2.img.array.ArrayImgFactory;
+import net.imglib2.interpolation.InterpolatorFactory;
+import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
+import net.imglib2.outofbounds.OutOfBoundsConstantValueFactory;
+import net.imglib2.outofbounds.OutOfBoundsFactory;
+import net.imglib2.outofbounds.OutOfBoundsMirrorFactory;
+import net.imglib2.type.numeric.real.FloatType;
+import net.imglib2.util.Util;
 import spimopener.SPIMExperiment;
 
 public class SPIMConfiguration
@@ -56,22 +58,25 @@ public class SPIMConfiguration
 	public SPIMExperiment spimExperiment = null;
 
 	// image factories
-	public ContainerFactory imageFactory = new ArrayContainerFactory();
-	public ContainerFactory recursiveGaussFactory = new ArrayContainerFactory();
-	public ContainerFactory imageFactoryFusion = new ArrayContainerFactory();
-	public ContainerFactory outputImageFactory = new ArrayContainerFactory();
-	public ContainerFactory entropyFactory = new ArrayContainerFactory();
-	public ContainerFactory scaleSpaceFactory = new ArrayContainerFactory();
+	public ImgFactory< FloatType > imageFactory = new ArrayImgFactory<FloatType>();
+	public ImgFactory< FloatType > recursiveGaussFactory = new ArrayImgFactory<FloatType>();
+	public ImgFactory< FloatType > imageFactoryFusion = new ArrayImgFactory<FloatType>();
+	public ImgFactory< FloatType > outputImageFactory = new ArrayImgFactory<FloatType>();
+	public ImgFactory< FloatType > entropyFactory = new ArrayImgFactory<FloatType>();
+	public ImgFactory< FloatType > scaleSpaceFactory = new ArrayImgFactory<FloatType>();
 
 	// for cached image arrays
 	public String tempDir = null;
 
 	// for the interpolation
-	public OutOfBoundsStrategyFactory<FloatType> strategyFactoryOutput = new OutOfBoundsStrategyValueFactory<FloatType>();
-	public InterpolatorFactory<FloatType> interpolatorFactorOutput = new LinearInterpolatorFactory<FloatType>( strategyFactoryOutput );
+	public OutOfBoundsFactory<FloatType, RandomAccessibleInterval< FloatType > > strategyFactoryOutput = 
+			new OutOfBoundsConstantValueFactory<FloatType, RandomAccessibleInterval<FloatType>>( new FloatType() );
+	public InterpolatorFactory<FloatType, RandomAccessible< FloatType > > interpolatorFactorOutput = 
+			new NLinearInterpolatorFactory<FloatType>();
 
 	// outofbounds strategy factories
-	public OutOfBoundsStrategyFactory<FloatType> strategyFactoryGauss = new OutOfBoundsStrategyMirrorFactory<FloatType>();
+	public OutOfBoundsFactory<FloatType, RandomAccessibleInterval< FloatType > > strategyFactoryGauss = 
+			new OutOfBoundsMirrorFactory<FloatType, RandomAccessibleInterval<FloatType>>( OutOfBoundsMirrorFactory.Boundary.SINGLE );
 
 	// segmentation
 	public boolean writeOutputImage = true;
@@ -710,144 +715,4 @@ public class SPIMConfiguration
 
 		return output;
 	}
-
-    public void printProperties()
-    {
-    	IOFunctions.println("timepointPattern: " + timepointPattern);
-    	if (timepoints != null)
-    	{
-    		System.out.print("Time Points: ");
-    		for (final int tp : timepoints)
-    			System.out.print(tp + " ");
-
-    		IOFunctions.println();
-    	}
-
-    	IOFunctions.println("anglePattern: " + anglePattern);
-    	if (angles != null)
-    	{
-    		System.out.print("Angles: ");
-    		for (final int angle : angles)
-    			System.out.print(angle + " ");
-
-    		IOFunctions.println();
-    	}
-
-    	//IOFunctions.println("angleString: " + angleString);
-
-    	IOFunctions.println("inputFilePattern: " + inputFilePattern);
-    	if (file != null)
-    		for (int x = 0; x < file.length; x++)
-    			for (int y = 0; y < file[x].length; y++)
-    				IOFunctions.println("File["+x+"]["+y+"] = " + file[x][y]);
-
-    	IOFunctions.println("inputdirectory: " + inputdirectory);
-    	IOFunctions.println("outputdirectory: " + outputdirectory);
-    	IOFunctions.println("registrationFiledirectory: " + registrationFiledirectory);
-    	IOFunctions.println("debugLevel: " + debugLevel);
-    	IOFunctions.println("showImageJWindow: " + showImageJWindow);
-
-    	IOFunctions.println("timeLapseRegistration: " + timeLapseRegistration);
-    	IOFunctions.println("referenceTimePoint: " + referenceTimePoint);
-
-    	// image factories
-    	imageFactory.printProperties();
-    	recursiveGaussFactory.printProperties();
-    	imageFactoryFusion.printProperties();
-    	outputImageFactory.printProperties();
-    	entropyFactory.printProperties();
-    	scaleSpaceFactory.printProperties();
-
-    	// for cached image arrays
-    	IOFunctions.println("tempDir: " + tempDir);
-
-    	// for the interpolation
-    	//interpolatorFactorOutput.printProperties();
-    	strategyFactoryOutput.printProperties();
-
-    	// outofbounds strategy factories
-    	strategyFactoryGauss.printProperties();
-
-    	IOFunctions.println("writeOutputImage: " + writeOutputImage);
-    	IOFunctions.println("showOutputImage: " + showOutputImage);
-    	IOFunctions.println("useScaleSpace: " + useScaleSpace);
-    	IOFunctions.println("useEntropy: " + useEntropy);
-    	IOFunctions.println("useGauss: " + useGauss);
-    	IOFunctions.println("useLinearBlening: " + useLinearBlening);
-
-    	IOFunctions.println("paralellFusion: " + paralellFusion);
-    	IOFunctions.println("sequentialFusion: " + sequentialFusion);
-    	IOFunctions.println("multipleImageFusion: " + multipleImageFusion);
-
-    	IOFunctions.println("registerOnly: " + registerOnly);
-    	IOFunctions.println("readSegmentation: " + readSegmentation);
-    	IOFunctions.println("writeSegmentation: " + writeSegmentation);
-    	IOFunctions.println("readRegistration: " + readRegistration);
-    	IOFunctions.println("writeRegistration: " + writeRegistration);
-
-    	IOFunctions.println("zStretching: " + zStretching);
-    	IOFunctions.println("background: " + background);
-
-    	// threshold segmentation
-    	IOFunctions.println("threshold: " + threshold);
-    	IOFunctions.println("fixed threshold: " + fixedThreshold);
-    	IOFunctions.println("useFixedThreshold: " + useFixedThreshold);
-    	IOFunctions.println("minBlackBorder: " + minBlackBorder);
-    	IOFunctions.println("minSize: " + minSize);
-    	IOFunctions.println("maxSize: " + maxSize);
-    	IOFunctions.println("useCenterOfMass: " + useCenterOfMass);
-
-    	// ScaleSpace Segmentation
-    	IOFunctions.println("minPeakValue: " + minPeakValue);
-    	IOFunctions.println("minInitialPeakValue: " + minInitialPeakValue);
-    	IOFunctions.println("identityRadius: " + identityRadius);
-    	IOFunctions.println("maximaTolerance: " + maximaTolerance);
-    	IOFunctions.println("imageSigma: " + imageSigma);
-    	IOFunctions.println("initialSigma: " + initialSigma);
-    	IOFunctions.println("stepsPerOctave: " + stepsPerOctave);
-    	IOFunctions.println("steps: " + steps);
-
-    	// PointDescriptor properties
-    	IOFunctions.println("differenceThreshold: " + differenceThreshold);
-    	IOFunctions.println("ratioOfDistance: " + ratioOfDistance);
-    	IOFunctions.println("neighbors: " + neighbors);
-    	IOFunctions.println("useAssociatedBeads: " + useAssociatedBeads);
-    	IOFunctions.println("useRANSAC: " + useRANSAC);
-
-        // RANSAC
-    	IOFunctions.println("max_epsilon: " + max_epsilon);
-    	IOFunctions.println("min_inlier_ratio: " + min_inlier_ratio);
-    	IOFunctions.println("numIterations: " + numIterations);
-
-    	// output image
-    	IOFunctions.println("scale: " + scale);
-    	IOFunctions.println("cropOffsetX: " + cropOffsetX);
-    	IOFunctions.println("cropOffsetY: " + cropOffsetY);
-    	IOFunctions.println("cropOffsetZ: " + cropOffsetZ);
-    	IOFunctions.println("cropSizeX: " + cropSizeX);
-    	IOFunctions.println("cropSizeY: " + cropSizeY);
-    	IOFunctions.println("cropSizeZ: " + cropSizeZ);
-    	IOFunctions.println("numberOfThreads: " + numberOfThreads);
-
-    	// defines the sigma of the volumes injected
-    	IOFunctions.println("sigma: " + sigma);
-
-        // where the injected Gaussian Distributions are cut off
-    	IOFunctions.println("cutOffRadiusGauss: " + cutOffRadiusGauss);
-
-        // the number of histogram bins for computing the entropy
-    	IOFunctions.println("histogramBins: " + histogramBins);
-
-        // the window Sizes for computing the local entropy
-    	IOFunctions.println("windowSizeX: " + windowSizeX);
-    	IOFunctions.println("windowSizeY: " + windowSizeY);
-
-        // linear blending
-    	IOFunctions.println("alpha: " + alpha);
-
-        // gauss fusion
-    	IOFunctions.println("fusionSigma1: " + fusionSigma1);
-    	IOFunctions.println("fusionSigma2: " + fusionSigma2);
-
-    }
 }

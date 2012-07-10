@@ -1,14 +1,14 @@
+import ij.IJ;
+
 import java.io.File;
 import java.util.Date;
 
-import ij.IJ;
-
-import mpicbg.imglib.container.cell.CellContainerFactory;
 import mpicbg.spim.Reconstruction;
 import mpicbg.spim.io.ConfigurationParserException;
 import mpicbg.spim.io.IOFunctions;
 import mpicbg.spim.io.SPIMConfiguration;
-
+import net.imglib2.img.cell.CellImgFactory;
+import net.imglib2.type.numeric.real.FloatType;
 import fiji.util.gui.GenericDialogPlus;
 
 public class SPIM_Registration extends SPIMRegistrationAbstract
@@ -221,7 +221,7 @@ public class SPIM_Registration extends SPIMRegistrationAbstract
 		conf.cropSizeX = cropSizeXStatic;
 		conf.cropSizeY = cropSizeYStatic;
 		conf.cropSizeZ = cropSizeZStatic;
-		conf.outputImageFactory = new CellContainerFactory( 256 );
+		conf.outputImageFactory = new CellImgFactory<FloatType>( 256 );
 		
 		// check the directory string
 		conf.inputdirectory = conf.inputdirectory.replace('\\', '/');
@@ -250,9 +250,6 @@ public class SPIM_Registration extends SPIMRegistrationAbstract
 			IJ.error( "Cannot parse input: " + e );
 			return null;
 		}
-		
-		// set interpolator stuff
-		conf.interpolatorFactorOutput.setOutOfBoundsStrategyFactory( conf.strategyFactoryOutput );
 		
 		// check if directories exist
 		File dir = new File(conf.outputdirectory, "");

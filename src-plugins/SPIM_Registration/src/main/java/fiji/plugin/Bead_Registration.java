@@ -23,12 +23,16 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Date;
 
-import mpicbg.imglib.container.array.ArrayContainerFactory;
-import mpicbg.imglib.image.Image;
-import mpicbg.imglib.image.display.imagej.ImageJFunctions;
-import mpicbg.imglib.io.LOCI;
-import mpicbg.imglib.multithreading.SimpleMultiThreading;
-import mpicbg.imglib.type.numeric.real.FloatType;
+import net.imglib2.exception.ImgLibException;
+import net.imglib2.img.Img;
+import net.imglib2.img.array.ArrayImgFactory;
+import net.imglib2.img.imageplus.ImagePlusImg;
+import net.imglib2.img.imageplus.ImagePlusImgFactory;
+import net.imglib2.io.ImgIOException;
+import net.imglib2.io.ImgOpener;
+import net.imglib2.multithreading.SimpleMultiThreading;
+import net.imglib2.type.numeric.real.FloatType;
+
 import mpicbg.spim.Reconstruction;
 import mpicbg.spim.io.ConfigurationParserException;
 import mpicbg.spim.io.IOFunctions;
@@ -657,7 +661,16 @@ public class Bead_Registration implements PlugIn
 		final String file = gd.getNextString();
 		
 		IOFunctions.println( "Loading " + file );
-		final Image<FloatType> img = LOCI.openLOCIFloatType( file, new ArrayContainerFactory() );
+		ImgOpener opener = new ImgOpener();
+		ImagePlusImg<FloatType, ?> img;
+		try 
+		{
+			img = (ImagePlusImg<FloatType, ?>)(opener.openImg( file, new ImagePlusImgFactory<FloatType>(), new FloatType() ).getImg() );
+		} 
+		catch (ImgIOException e1) 
+		{
+			img = null;
+		}
 		
 		if ( img == null )
 		{
@@ -665,10 +678,18 @@ public class Bead_Registration implements PlugIn
 			return;
 		}
 		
-		img.getDisplay().setMinMax();
-		final ImagePlus imp = ImageJFunctions.copyToImagePlus( img );
-		img.close();
+		ImagePlus imp = null;
+		try 
+		{
+			imp = img.getImagePlus();
+		}
+		catch (ImgLibException e) 
+		{
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 		
+		imp.resetDisplayRange();
 		imp.show();		
 		imp.setSlice( imp.getStackSize() / 2 );	
 		imp.setRoi( 0, 0, imp.getWidth()/3, imp.getHeight()/3 );		
@@ -739,9 +760,6 @@ public class Bead_Registration implements PlugIn
 			IJ.error( "Cannot parse input: " + e );
 			return false;
 		}
-
-		// set interpolator stuff
-		conf.interpolatorFactorOutput.setOutOfBoundsStrategyFactory( conf.strategyFactoryOutput );
 
 		// check if directories exist
 		File dir = new File(conf.outputdirectory, "");

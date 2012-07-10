@@ -20,10 +20,7 @@ public class SPIM_Registration_File extends SPIMRegistrationAbstract
         
         try 
         {        	
-			config = ConfigurationParserSPIM.parseFile( configurationFile );
-			
-			if ( config.debugLevelInt <= ViewStructure.DEBUG_ALL )
-				config.printProperties();
+			config = ConfigurationParserSPIM.parseFile( configurationFile );			
 		} 
         catch ( ConfigurationParserException e ) 
         {

@@ -11,15 +11,10 @@ import javax.media.j3d.BranchGroup;
 import javax.media.j3d.Transform3D;
 import javax.vecmath.Matrix4f;
 
-import mpicbg.imglib.algorithm.gauss.DownSample;
-import mpicbg.imglib.algorithm.mirror.MirrorImage;
-import mpicbg.imglib.container.ContainerFactory;
-import mpicbg.imglib.container.cell.CellContainerFactory;
-import mpicbg.imglib.cursor.Cursor;
-import mpicbg.imglib.image.Image;
-import mpicbg.imglib.image.display.imagej.ImageJFunctions;
-import mpicbg.imglib.io.LOCI;
-import mpicbg.imglib.type.numeric.real.FloatType;
+import net.imglib2.Cursor;
+import net.imglib2.img.Img;
+import net.imglib2.type.numeric.real.FloatType;
+
 import mpicbg.models.AbstractAffineModel3D;
 import mpicbg.spim.io.IOFunctions;
 import mpicbg.spim.mpicbg.TileSPIM;
@@ -248,7 +243,7 @@ public class ViewDataBeads implements Comparable< ViewDataBeads >
 	/**
 	 * The input image
 	 */
-	private Image<FloatType> image = null;
+	private Img<FloatType> image = null;
 	private boolean isNormalized;
 	private float minValue = 0;
 	private float maxValue = 0;
@@ -264,7 +259,7 @@ public class ViewDataBeads implements Comparable< ViewDataBeads >
 	 * The link to the input image of this view, normalized to [0...1]
 	 * @return the link or null unable to open
 	 */
-	public Image<FloatType> getImage()
+	public Img<FloatType> getImage()
 	{
 		return getImage( true );
 	}
@@ -273,7 +268,7 @@ public class ViewDataBeads implements Comparable< ViewDataBeads >
 	 * The link to the input image of this view
 	 * @return the link or null unable to open
 	 */
-	public Image<FloatType> getImage( final boolean normalize )
+	public Img<FloatType> getImage( final boolean normalize )
 	{
 		return getImage( getViewStructure().getSPIMConfiguration().imageFactory, normalize );
 	}
@@ -281,7 +276,7 @@ public class ViewDataBeads implements Comparable< ViewDataBeads >
 	/**
 	 * The currently downsampled image cached
 	 */
-	protected Image<FloatType> downSampledImage = null;
+	protected Img<FloatType> downSampledImage = null;
 	protected int currentDownSamplingFactor = -1;
 
 	/**
@@ -289,7 +284,7 @@ public class ViewDataBeads implements Comparable< ViewDataBeads >
 	 *
 	 * @param downSamplingFactor - the factor
 	 */
-	public Image<FloatType> getDownSampledImage( final int downSamplingFactor )
+	public Img<FloatType> getDownSampledImage( final int downSamplingFactor )
 	{
 		return getDownSampledImage( downSamplingFactor, true );
 	}
@@ -301,7 +296,7 @@ public class ViewDataBeads implements Comparable< ViewDataBeads >
 	 * @param normalize - if normalized to [0...1] or not
 	 * @return
 	 */
-	public Image<FloatType> getDownSampledImage( final int downSamplingFactor, final boolean normalize )
+	public Img<FloatType> getDownSampledImage( final int downSamplingFactor, final boolean normalize )
 	{
 		// if there is no downsampling we just return the image as is
 		if ( downSamplingFactor == 1 )
@@ -315,7 +310,7 @@ public class ViewDataBeads implements Comparable< ViewDataBeads >
 			IOFunctions.println( "Computing " + downSamplingFactor + "x Downsampling for " + getName() );
 
 		currentDownSamplingFactor = downSamplingFactor;
-		final Image<FloatType> img = getImage();
+		final Img<FloatType> img = getImage();
 
 		final DownSample<FloatType> downSample = new DownSample<FloatType>( img, 1.0f / downSamplingFactor );
 		if ( !downSample.checkInput() || !downSample.process() )
@@ -339,7 +334,7 @@ public class ViewDataBeads implements Comparable< ViewDataBeads >
 	 * The link to the input image of this view normalized to [0...1]
 	 * @return the link or null unable to open
 	 */
-	public Image<FloatType> getImage( final ContainerFactory imageFactory )
+	public Img<FloatType> getImage( final ContainerFactory imageFactory )
 	{
 		return getImage( imageFactory, true );
 	}
@@ -348,7 +343,7 @@ public class ViewDataBeads implements Comparable< ViewDataBeads >
 	 * The link to the input image of this view
 	 * @return the link or null unable to open
 	 */
-	public Image<FloatType> getImage( final ContainerFactory imageFactory, final boolean normalize )
+	public Img<FloatType> getImage( final ContainerFactory imageFactory, final boolean normalize )
 	{
 		if ( image == null )
 		{
@@ -428,14 +423,14 @@ public class ViewDataBeads implements Comparable< ViewDataBeads >
 			if ( getMirrorHorizontally() )
 			{
 				IOFunctions.println( "Mirroring horizontally: " + this );
-				final MirrorImage<FloatType> mirror = new MirrorImage<FloatType>( image, 0 );
+				final MirrorImg<FloatType> mirror = new MirrorImg<FloatType>( image, 0 );
 				mirror.process();
 			}
 
 			if ( getMirrorVertically() )
 			{
 				IOFunctions.println( "Mirroring vertically: " + this );
-				final MirrorImage<FloatType> mirror = new MirrorImage<FloatType>( image, 1 );
+				final MirrorImg<FloatType> mirror = new MirrorImg<FloatType>( image, 1 );
 				mirror.process();
 			}
 
@@ -508,12 +503,22 @@ public class ViewDataBeads implements Comparable< ViewDataBeads >
 	 * Normalizes the image to the range [0...1]
 	 * @param image - the image to normalize
 	 */
-	public static float[] normalizeImage( final Image<FloatType> image )
+	public static float[] normalizeImage( final Img<FloatType> image )
 	{
-		image.getDisplay().setMinMax();
-
-		final float min = (float)image.getDisplay().getMin();
-		final float max = (float)image.getDisplay().getMax();
+		float min = image.firstElement().get();
+		float max = min;
+		
+		for ( final FloatType t : image )
+		{
+			final float value = t.get();
+			
+			if ( value > max )
+				max = value;
+			
+			if ( value < min )
+				min = value;
+		}
+		
 		final float diff = max - min;
 
 		if ( Float.isNaN( diff ) || Float.isInfinite(diff) || diff == 0 )
@@ -522,19 +527,17 @@ public class ViewDataBeads implements Comparable< ViewDataBeads >
 			return new float[]{ min, max };
 		}
 
-		final Cursor<FloatType> cursor = image.createCursor();
+		final Cursor<FloatType> cursor = image.cursor();
 
 		while ( cursor.hasNext() )
 		{
 			cursor.fwd();
 
-			final float value = cursor.getType().get();
+			final float value = cursor.get().get();
 			final float norm = (value - min) / diff;
 
-			cursor.getType().set( norm );
+			cursor.get().set( norm );
 		}
-
-		image.getDisplay().setMinMax(0, 1);
 
 		return new float[]{ min, max };
 	}
@@ -545,10 +548,7 @@ public class ViewDataBeads implements Comparable< ViewDataBeads >
 	public void closeImage()
 	{
 		if ( image != null )
-		{
-			image.close();
 			image = null;
-		}
 	}
 
 	@Override

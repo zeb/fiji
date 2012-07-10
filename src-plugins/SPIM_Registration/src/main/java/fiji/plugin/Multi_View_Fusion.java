@@ -16,7 +16,9 @@ import java.io.FilenameFilter;
 import java.io.IOException;
 import java.util.ArrayList;
 
-import mpicbg.imglib.container.cell.CellContainerFactory;
+import net.imglib2.img.cell.CellImgFactory;
+import net.imglib2.type.numeric.real.FloatType;
+
 import mpicbg.spim.Reconstruction;
 import mpicbg.spim.io.ConfigurationParserException;
 import mpicbg.spim.io.IOFunctions;
@@ -503,7 +505,7 @@ public class Multi_View_Fusion implements PlugIn
 		conf.cropSizeX = cropSizeXStatic;
 		conf.cropSizeY = cropSizeYStatic;
 		conf.cropSizeZ = cropSizeZStatic;
-		conf.outputImageFactory = new CellContainerFactory( 256 );
+		conf.outputImageFactory = new CellImgFactory<FloatType>( 256 );
 		
 		conf.overrideImageZStretching = true;
 
