@@ -457,7 +457,7 @@ public class VisualizationFunctions
 		final ArrayList<Point3f> boundingBox = new ArrayList<Point3f>();
 		
 		final Transform3D transformation = view.getTransform3D();
-		final int[] imageSize = view.getImageSize();
+		final long[] imageSize = view.getImageSize();
 		
 		Point3f from, to;
 		
@@ -552,13 +552,13 @@ public class VisualizationFunctions
 
 	public static ArrayList<Point3f> getBoundingBox( final ViewDataBeads view )
 	{
-		final int[] to = view.getImageSize();
-		final int[] fr = view.getImageSizeOffset();
+		final long[] to = view.getImageSize();
+		final long[] fr = view.getImageSizeOffset();
 
 		return getBoundingBox( fr, to );
 	}
 	
-	public static ArrayList<Point3f> getBoundingBox( final int[] fr, final int[] to )
+	public static ArrayList<Point3f> getBoundingBox( final long[] fr, final long[] to )
 	{
 		final ArrayList<Point3f> boundingBox = new ArrayList<Point3f>();
 		

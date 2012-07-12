@@ -112,7 +112,7 @@ public abstract class SPIMImageFusion
 					IOFunctions.printErr( "Warning: Only one view given: " + view );				
 			}
 			
-			final int[] dim = view.getImageSize();			
+			final long[] dim = view.getImageSize();			
 			
 			final float[] minCoordinate = new float[]{ 0, 0, 0 };
 			final float[] maxCoordinate = new float[]{ dim[0], dim[1], dim[2] };

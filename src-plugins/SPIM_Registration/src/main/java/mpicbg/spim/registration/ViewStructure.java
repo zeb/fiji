@@ -4,10 +4,12 @@ import ij.IJ;
 
 import java.util.ArrayList;
 
-import mpicbg.imglib.container.cell.CellContainerFactory;
-import mpicbg.imglib.image.Image;
-import mpicbg.imglib.io.LOCI;
-import mpicbg.imglib.type.numeric.real.FloatType;
+import net.imglib2.img.Img;
+import net.imglib2.img.ImgPlus;
+import net.imglib2.img.cell.CellImgFactory;
+import net.imglib2.io.ImgOpener;
+import net.imglib2.type.numeric.real.FloatType;
+
 import mpicbg.models.AbstractAffineModel3D;
 import mpicbg.spim.fusion.FusionControl;
 import mpicbg.spim.io.IOFunctions;
@@ -322,16 +324,23 @@ public class ViewStructure
 		{
 			IOFunctions.println( "Opening first image to determine z-stretching." );
 			
-			Image<FloatType> image;
+			ImgPlus<FloatType> image;
 			
 			try
 			{
-				image = LOCI.openLOCIFloatType( conf.file[ timePointIndex ][ 0 ][ 0 ][ 0 ].getPath(), conf.imageFactory );
+				image = new ImgOpener().openImg( conf.file[ timePointIndex ][ 0 ][ 0 ][ 0 ].getPath(), conf.imageFactory, new FloatType() );
 			}
 			catch ( Exception e )
 			{
 				IJ.log( "Failed to open with factory provided, trying CellFactory." );
-				image = LOCI.openLOCIFloatType( conf.file[ timePointIndex ][ 0 ][ 0 ][ 0 ].getPath(), new CellContainerFactory( 256 ) );
+				try
+				{
+					image = new ImgOpener().openImg( conf.file[ timePointIndex ][ 0 ][ 0 ][ 0 ].getPath(), new CellImgFactory<FloatType>( 256 ), new FloatType() );
+				}
+				catch ( Exception e2 )
+				{
+					image = null;
+				}
 			}
 
 			if ( image == null )
@@ -340,9 +349,9 @@ public class ViewStructure
 				return null;
 			}
 			
-			zStretching = image.getCalibration( 2 ) / image.getCalibration( 0 );
+			zStretching = image.calibration( 2 ) / image.calibration( 0 );
 			IOFunctions.println( "z-stretching = " + zStretching );
-			image.close();
+			image = null;
 		}
 
 		int idNr = 0;

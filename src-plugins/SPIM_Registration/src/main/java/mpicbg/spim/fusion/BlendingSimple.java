@@ -11,7 +11,7 @@ public class BlendingSimple extends CombinedPixelWeightener<BlendingSimple>
 	final float[] weights, border;
 	final float[][] scaling;
 
-	final int[][] imageSizes;
+	final long[][] imageSizes;
 
 	float percentScaling = 0.3f;
 
@@ -27,7 +27,7 @@ public class BlendingSimple extends CombinedPixelWeightener<BlendingSimple>
 		border = new float[ numDimensions ];
 
 		// cache image sizes
-		imageSizes = new int[ numViews ][];
+		imageSizes = new long[ numViews ][];
 
 		for ( int i = 0; i < numViews; ++i )
 		{
@@ -65,7 +65,7 @@ public class BlendingSimple extends CombinedPixelWeightener<BlendingSimple>
 	public float getWeight( final int view )  { return weights[ view ]; }
 
 	@Override
-	public void updateWeights( final int[][] locations, final boolean[] useView )
+	public void updateWeights( final long[][] locations, final boolean[] useView )
 	{
 		final float[][] tmp = new float[ locations.length ][ locations[ 0 ].length ];
 
@@ -101,7 +101,7 @@ public class BlendingSimple extends CombinedPixelWeightener<BlendingSimple>
 		}
 	}
 
-	final public static double computeWeight( final int[] location, final int[] dimensions, final float[] border, final float[] dimensionScaling, final float percentScaling )
+	final public static double computeWeight( final int[] location, final long[] dimensions, final float[] border, final float[] dimensionScaling, final float percentScaling )
 	{
 		final float[] tmp = new float[ location.length ];
 
@@ -111,7 +111,7 @@ public class BlendingSimple extends CombinedPixelWeightener<BlendingSimple>
 		return computeWeight( tmp, dimensions, border, dimensionScaling, percentScaling );
 	}
 
-	final public static double computeWeight( final float[] location, final int[] dimensions, final float[] border, final float[] dimensionScaling, final float percentScaling )
+	final public static double computeWeight( final float[] location, final long[] dimensions, final float[] border, final float[] dimensionScaling, final float percentScaling )
 	{
 		// compute multiplicative distance to the respective borders [0...1]
 		double minDistance = 1;

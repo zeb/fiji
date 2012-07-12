@@ -523,7 +523,7 @@ public class IOFunctions
 		return writeSegmentation( view.getBeadStructure().getBeadList(), view.getImageSize(), view.getName(), view.getID(), directory );
 	}
 	
-	public static boolean writeSegmentation( final ArrayList<Bead> beads, final int[] imgSize, final String viewName, final int viewID, final String directory )
+	public static boolean writeSegmentation( final ArrayList<Bead> beads, final long[] imgSize, final String viewName, final int viewID, final String directory )
 	{
 		final String fileName = directory + viewName + ".beads.txt";
 		
@@ -721,7 +721,7 @@ public class IOFunctions
 		try
 		{
 			BufferedReader in = TextFileAccess.openFileRead( directory + view.getName() + ".dim" );
-			final int[] imageSize = new int[3];
+			final long[] imageSize = new long[3];
 			
 			for (int j = 0; j < imageSize.length; j++)
 				imageSize[j] = -1;
@@ -731,15 +731,15 @@ public class IOFunctions
 				String entry = in.readLine().trim();					
 				if (entry.startsWith("image width:"))
 				{
-					imageSize[0] = Integer.parseInt(entry.substring(13, entry.length()).trim());
+					imageSize[0] = Long.parseLong(entry.substring(13, entry.length()).trim());
 				}
 				else if (entry.startsWith("image height:"))
 				{
-					imageSize[1] = Integer.parseInt(entry.substring(13, entry.length()).trim());
+					imageSize[1] = Long.parseLong(entry.substring(13, entry.length()).trim());
 				}
 				else if (entry.startsWith("image depth:"))
 				{
-					imageSize[2] = Integer.parseInt(entry.substring(13, entry.length()).trim());
+					imageSize[2] = Long.parseLong(entry.substring(13, entry.length()).trim());
 				}
 			}				
 			in.close();

@@ -23,7 +23,7 @@ public abstract class CombinedPixelWeightener<I>
 	 * @param locations - the locations of the source pixel in each source image 
 	 * @param use - if the particular view is hit or not
 	 */
-	public abstract void updateWeights( final int[][] locations, final boolean[] use );
+	public abstract void updateWeights( final long[][] locations, final boolean[] use );
 
 	public abstract void updateWeights( final float[][] locations, final boolean[] use );
 

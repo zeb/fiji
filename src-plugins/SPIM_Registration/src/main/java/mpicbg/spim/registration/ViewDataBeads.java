@@ -267,7 +267,7 @@ public class ViewDataBeads implements Comparable< ViewDataBeads >
 	 * The link to the input image of this view, normalized to [0...1]
 	 * @return the link or null unable to open
 	 */
-	public Img<FloatType> getImage()
+	public ImgPlus<FloatType> getImage()
 	{
 		return getImage( true );
 	}
@@ -276,7 +276,7 @@ public class ViewDataBeads implements Comparable< ViewDataBeads >
 	 * The link to the input image of this view
 	 * @return the link or null unable to open
 	 */
-	public Img<FloatType> getImage( final boolean normalize )
+	public ImgPlus<FloatType> getImage( final boolean normalize )
 	{
 		return getImage( getViewStructure().getSPIMConfiguration().imageFactory, normalize );
 	}
@@ -351,7 +351,7 @@ public class ViewDataBeads implements Comparable< ViewDataBeads >
 	 * The link to the input image of this view
 	 * @return the link or null unable to open
 	 */
-	public Img<FloatType> getImage( final ImgFactory< FloatType > imageFactory, final boolean normalize )
+	public ImgPlus<FloatType> getImage( final ImgFactory< FloatType > imageFactory, final boolean normalize )
 	{
 		if ( image == null )
 		{

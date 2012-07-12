@@ -8,20 +8,24 @@ import java.util.concurrent.atomic.AtomicInteger;
 import javax.vecmath.Point3d;
 import javax.vecmath.Point3i;
 
-import mpicbg.imglib.algorithm.math.LocalizablePoint;
-import mpicbg.imglib.algorithm.scalespace.DifferenceOfGaussianPeak;
-import mpicbg.imglib.algorithm.scalespace.DifferenceOfGaussianReal1;
-import mpicbg.imglib.algorithm.scalespace.SubpixelLocalization;
-import mpicbg.imglib.cursor.LocalizableByDimCursor3D;
-import mpicbg.imglib.cursor.special.HyperSphereIterator;
-import mpicbg.imglib.image.Image;
-import mpicbg.imglib.image.ImageFactory;
-import mpicbg.imglib.image.display.imagej.ImageJFunctions;
-import mpicbg.imglib.multithreading.SimpleMultiThreading;
-import mpicbg.imglib.outofbounds.OutOfBoundsStrategyValueFactory;
-import mpicbg.imglib.type.numeric.integer.IntType;
-import mpicbg.imglib.type.numeric.real.FloatType;
-import mpicbg.imglib.util.Util;
+import net.imglib2.Point;
+import net.imglib2.RandomAccess;
+import net.imglib2.RandomAccessible;
+import net.imglib2.algorithm.legacy.scalespace.DifferenceOfGaussian;
+import net.imglib2.algorithm.legacy.scalespace.DifferenceOfGaussianPeak;
+import net.imglib2.algorithm.legacy.scalespace.SubpixelLocalization;
+import net.imglib2.algorithm.region.hypersphere.HyperSphere;
+import net.imglib2.exception.IncompatibleTypeException;
+import net.imglib2.img.Img;
+import net.imglib2.img.ImgFactory;
+import net.imglib2.img.ImgPlus;
+import net.imglib2.img.cell.CellImgFactory;
+import net.imglib2.img.display.imagej.ImageJFunctions;
+import net.imglib2.multithreading.SimpleMultiThreading;
+import net.imglib2.type.numeric.integer.IntType;
+import net.imglib2.type.numeric.real.FloatType;
+import net.imglib2.view.Views;
+
 import mpicbg.spim.io.IOFunctions;
 import mpicbg.spim.io.SPIMConfiguration;
 import mpicbg.spim.registration.ViewDataBeads;
@@ -120,10 +124,8 @@ public class BeadSegmentation
 		    		
 		    		if ( debugBeads )
 		    		{
-						Image<FloatType> img = getFoundBeads( view );				
-						img.setName( "imglib" );
-						img.getDisplay().setMinMax();
-						ImageJFunctions.copyToImagePlus( img ).show();				
+						Img<FloatType> img = getFoundBeads( view );				
+						ImageJFunctions.show( img );				
 						SimpleMultiThreading.threadHaltUnClean();		    			
 		    		}
 		    		
@@ -151,35 +153,34 @@ public class BeadSegmentation
 		}
 	}
 		
-	public Image<FloatType> getFoundBeads( final ViewDataBeads view )
+	public Img<FloatType> getFoundBeads( final ViewDataBeads view )
 	{
 		// display found beads
-		ImageFactory<FloatType> factory = new ImageFactory<FloatType>( new FloatType(), view.getViewStructure().getSPIMConfiguration().imageFactory );
-		Image<FloatType> img = factory.createImage( view.getImageSize() );
-		
-		LocalizableByDimCursor3D<FloatType> cursor = (LocalizableByDimCursor3D<FloatType>) img.createLocalizableByDimCursor();		
+		ImgFactory<FloatType> factory = view.getViewStructure().getSPIMConfiguration().imageFactory;
+		Img<FloatType> img = factory.create( view.getImageSize(), new FloatType() );
+		RandomAccessible< FloatType > r = Views.extendValue( img , new FloatType() );
 		
 		for ( Bead bead : view.getBeadStructure().getBeadList())
 		{
 			final float[] pos = bead.getL();
+			final Point p = new Point( pos.length );
 			
-			final LocalizablePoint p = new LocalizablePoint( pos );
+			for ( int i = 0; i < pos.length; ++i )
+				p.setPosition( Math.round( pos[ i ] ), i );
+				
+			final HyperSphere< FloatType > hs = new HyperSphere<FloatType>( r, p, 1 );
 			
-			HyperSphereIterator<FloatType> it = new HyperSphereIterator<FloatType>( img, p, 1, new OutOfBoundsStrategyValueFactory<FloatType>() );
-			
-			for ( final FloatType f : it )
+			for ( final FloatType f : hs )
 				f.setOne();			
 		}
-		
-		cursor.close();
-
+	
 		return img;
 	}
 			
 	protected BeadStructure extractBeadsLaPlaceImgLib( final ViewDataBeads view, final SPIMConfiguration conf )
 	{
 		// load the image
-		final Image<FloatType> img = view.getImage();
+		final ImgPlus<FloatType> img = view.getImage();
 
         float imageSigma = conf.imageSigma;
         float initialSigma = view.getInitialSigma();
@@ -213,8 +214,8 @@ public class BeadSegmentation
         final float[] sigmaDiff = LaPlaceFunctions.computeSigmaDiff(sigma, imageSigma);
          
 		// compute difference of gaussian
-		final DifferenceOfGaussianReal1<FloatType> dog = new DifferenceOfGaussianReal1<FloatType>( img, conf.strategyFactoryGauss, sigmaDiff[0], sigmaDiff[1], minInitialPeakValue, K_MIN1_INV );
-		dog.setKeepDoGImage( true );
+		final DifferenceOfGaussian<FloatType> dog = new DifferenceOfGaussian<FloatType>( img.getImg(), conf.imageFactory, conf.strategyFactoryGauss, sigmaDiff[0], sigmaDiff[1], minInitialPeakValue, K_MIN1_INV );
+		dog.setKeepDoGImg( true );
 		
 		if ( !dog.checkInput() || !dog.process() )
 		{
@@ -230,7 +231,7 @@ public class BeadSegmentation
         	if ( peakList.get( i ).isMin() )
         		peakList.remove( i );
 		
-		final SubpixelLocalization<FloatType> spl = new SubpixelLocalization<FloatType>( dog.getDoGImage(), dog.getPeaks() );
+		final SubpixelLocalization<FloatType> spl = new SubpixelLocalization<FloatType>( dog.getDoGImg(), dog.getPeaks() );
 		spl.setAllowMaximaTolerance( true );
 		spl.setMaxNumMoves( 10 );
 		
@@ -239,12 +240,10 @@ public class BeadSegmentation
     		if ( viewStructure.getDebugLevel() <= ViewStructure.DEBUG_ERRORONLY )
     			IOFunctions.println("(" + new Date(System.currentTimeMillis()) + "): Warning! Failed to compute subpixel localization " + spl.getErrorMessage() );
 		}
-
-		dog.getDoGImage().close();
 			
         final BeadStructure beads = new BeadStructure();
         int id = 0;
-        final float[] pos = new float[ img.getNumDimensions() ];
+        final float[] pos = new float[ img.numDimensions() ];
         
         int peakTooLow = 0;
         int invalid = 0;
@@ -288,20 +287,26 @@ public class BeadSegmentation
 	protected BeadStructure extractBeadsThresholdSegmentation( final ViewDataBeads view, final float thresholdI, final int minSize, final int maxSize, final int minBlackBorder)
 	{
 		final SPIMConfiguration conf = view.getViewStructure().getSPIMConfiguration();
-		final Image<FloatType> img  = view.getImage();
+		final Img<FloatType> img  = view.getImage( false );
 		
 		//
 		// Extract connected components
 		//
 		
-		final ImageFactory<IntType> imageFactory = new ImageFactory<IntType>( new IntType(), img.getContainerFactory() );
-		final Image<IntType> connectedComponents = imageFactory.createImage( img.getDimensions() );
+		ImgFactory<IntType> imageFactory;
+		try 
+		{
+			imageFactory = img.factory().imgFactory( new IntType() );
+		} 
+		catch (IncompatibleTypeException e1) 
+		{
+			imageFactory = new CellImgFactory<IntType>( 256 );
+		}
+		final Img<IntType> connectedComponents = imageFactory.create( img, new IntType() );
 
 		int label = 0;
 		
-		img.getDisplay().setMinMax();
-		
-		final int maxValue = (int) Util.round( img.getDisplay().getMax() );
+		final int maxValue = (int) Math.round( view.getMaxValueUnnormed() );
 
 		final float thresholdImg;
 
@@ -323,12 +328,14 @@ public class BeadSegmentation
 		final ArrayList<Point3i> neighbors = getVisitedNeighbors();
 		final ConnectedComponent components = new ConnectedComponent();
 		
-		final int w = connectedComponents.getDimension( 0 );
-		final int h = connectedComponents.getDimension( 1 );
-		final int d = connectedComponents.getDimension( 2 );
+		final long w = connectedComponents.dimension( 0 );
+		final long h = connectedComponents.dimension( 1 );
+		final long d = connectedComponents.dimension( 2 );
 
-		final LocalizableByDimCursor3D<FloatType> cursorImg = (LocalizableByDimCursor3D<FloatType>) img.createLocalizableByDimCursor();
-		final LocalizableByDimCursor3D<IntType> cursorComponents = (LocalizableByDimCursor3D<IntType>) connectedComponents.createLocalizableByDimCursor();
+		final RandomAccess<FloatType> cursorImg = img.randomAccess();
+		final RandomAccess<IntType> cursorComponents = connectedComponents.randomAccess();
+		
+		final int[] tmp = new int[ 3 ];
 		
 		for (int z = 0; z < d; z++)
 		{
@@ -337,10 +344,11 @@ public class BeadSegmentation
 			for (int y = 0; y < h; y++)
 				for (int x = 0; x < w; x++)
 				{
-					cursorImg.setPosition( x, y, z );
+					tmp[ 0 ] = x; tmp[ 1 ] = y; tmp[ 2 ] = z;
+					cursorImg.setPosition( tmp );
 					
 					// is above threshold?
-					if ( cursorImg.getType().get() > thresholdImg)
+					if ( cursorImg.get().get() > thresholdImg)
 					{
 						// check previously visited neighboring pixels if they
 						// have a label assigned
@@ -350,14 +358,15 @@ public class BeadSegmentation
 						if (neighboringLabels == null || neighboringLabels.size() == 0)
 						{
 							label++;
-							cursorComponents.setPosition( x, y, z );
-							cursorComponents.getType().set( label );
+							tmp[ 0 ] = x; tmp[ 1 ] = y; tmp[ 2 ] = z;
+							cursorComponents.setPosition( tmp );
+							cursorComponents.get().set( label );
 							components.addLabel(label);
 						}
 						else if (neighboringLabels.size() == 1) 
 						// if there is only one neighboring label, set this one
 						{
-							cursorComponents.getType().set( neighboringLabels.get(0) );
+							cursorComponents.get().set( neighboringLabels.get(0) );
 						}
 						else
 						// remember all the labels are actually the same
@@ -377,15 +386,12 @@ public class BeadSegmentation
 								System.exit(0);
 							}
 
-							cursorComponents.getType().set( label1 );
+							cursorComponents.get().set( label1 );
 						}
 					}
 				}
 		}
-		
-		cursorImg.close();
-		cursorComponents.close();
-		
+				
 		// merge components
 		components.equalizeLabels(connectedComponents);
 		if ( viewStructure.getDebugLevel() <= ViewStructure.DEBUG_ALL )
@@ -409,17 +415,18 @@ public class BeadSegmentation
 		return beads;
 	}
 	
-	protected ArrayList<Integer> getNeighboringLabels( final Image<IntType> connectedComponents, final ArrayList<Point3i> neighbors, final int x, final int y, final int z )
+	protected ArrayList<Integer> getNeighboringLabels( final Img<IntType> connectedComponents, final ArrayList<Point3i> neighbors, final int x, final int y, final int z )
 	{
 		final ArrayList<Integer> labels = new ArrayList<Integer>();
 		final Iterator<Point3i> iterateNeighbors = neighbors.iterator();
 		
-		final int w = connectedComponents.getDimension( 0 );
-		final int h = connectedComponents.getDimension( 1 );
-		final int d = connectedComponents.getDimension( 2 );
+		final long w = connectedComponents.dimension( 0 );
+		final long h = connectedComponents.dimension( 1 );
+		final long d = connectedComponents.dimension( 2 );
 		
-		final LocalizableByDimCursor3D<IntType> cursor = (LocalizableByDimCursor3D<IntType>) connectedComponents.createLocalizableByDimCursor();
-
+		final RandomAccess<IntType> cursor = connectedComponents.randomAccess();
+		final int[] tmp = new int[ 3 ];
+		
 		while (iterateNeighbors.hasNext())
 		{
 			Point3i neighbor = iterateNeighbors.next();
@@ -430,15 +437,14 @@ public class BeadSegmentation
 
 			if (xp >= 0 && yp >= 0 && zp >= 0 && xp < w && yp < h && zp < d )
 			{
-				cursor.setPosition( xp, yp, zp );
-				int label = cursor.getType().get();
+				tmp[ 0 ] = xp; tmp[ 1 ] = yp; tmp[ 2 ] = zp;
+				cursor.setPosition( tmp );
+				int label = cursor.get().get();
 
 				if (label != 0 && !labels.contains(neighbor)) 
 					labels.add(label);
 			}
 		}
-		
-		cursor.close();
 
 		return labels;
 	}

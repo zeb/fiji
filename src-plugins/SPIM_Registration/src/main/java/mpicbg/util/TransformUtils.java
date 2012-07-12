@@ -22,7 +22,7 @@ public class TransformUtils
 	 * @return - float[ numDimensions ][ 2 ], in the respective dimension d
 	 * float[ d ][ 0 ] is min, float[ d ][ 1 ] is max
 	 */
-	public static float[][] getMinMaxDim( final int[] dimensions, final CoordinateTransform transform )
+	public static float[][] getMinMaxDim( final long[] dimensions, final CoordinateTransform transform )
 	{
 		final int numDimensions = dimensions.length;
 

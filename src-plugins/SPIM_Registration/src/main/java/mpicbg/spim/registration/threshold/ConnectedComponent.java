@@ -6,11 +6,11 @@ import java.util.Iterator;
 
 import javax.vecmath.Point3d;
 
-import mpicbg.imglib.cursor.LocalizableByDimCursor3D;
-import mpicbg.imglib.image.Image;
-import mpicbg.imglib.type.numeric.integer.IntType;
-import mpicbg.imglib.type.numeric.real.FloatType;
 import mpicbg.spim.io.IOFunctions;
+import net.imglib2.RandomAccess;
+import net.imglib2.img.Img;
+import net.imglib2.type.numeric.integer.IntType;
+import net.imglib2.type.numeric.real.FloatType;
 
 public class ConnectedComponent
 {	
@@ -24,18 +24,19 @@ public class ConnectedComponent
 	private HashMap<Integer, Integer> labelGroups = new HashMap<Integer, Integer>();
 	
 	// equalizes the labels and counts the number of pixels well as min and max coordinates
-	public void equalizeLabels( final Image<IntType> connectedComponents )
+	public void equalizeLabels( final Img<IntType> connectedComponents )
 	{		
-		final int w = connectedComponents.getDimension( 0 );
-		final int h = connectedComponents.getDimension( 1 );
-		final int d = connectedComponents.getDimension( 2 );
+		final long w = connectedComponents.dimension( 0 );
+		final long h = connectedComponents.dimension( 1 );
+		final long d = connectedComponents.dimension( 2 );
 
 		components = new ArrayList<ComponentProperties>();
 
 		for (int i = 0; i < distinctLabels.size(); i++)
 			components.add(new ComponentProperties());
 		
-		final LocalizableByDimCursor3D<IntType> cursor = (LocalizableByDimCursor3D<IntType>) connectedComponents.createLocalizableByDimCursor();
+		final RandomAccess<IntType> cursor = connectedComponents.randomAccess();
+		final int[] tmp = new int[ 3 ];
 		
 		for (int z = 0; z < d; z++)
 		{
@@ -43,19 +44,21 @@ public class ConnectedComponent
 			for (int y = 0; y < h; y++)
 				for (int x = 0; x < w; x++)
 				{
-					cursor.setPosition( x, y, z );
-					final int pixel = cursor.getType().get();					
+					tmp[ 0 ] = x; tmp[ 1 ] = y; tmp[ 2 ] = z;
+					cursor.setPosition( tmp );
+					final int pixel = cursor.get().get();					
 					
 					if ( pixel > 0 )
 					{
-						cursor.getType().set( getLabelGroup(pixel) + 1 ); // starts with 0 which is the background per definition
+						cursor.get().set( getLabelGroup(pixel) + 1 ); // starts with 0 which is the background per definition
 						
-						cursor.setPosition( x, y, z );
-						ComponentProperties compProp = components.get( cursor.getType().get() - 1 );
+						tmp[ 0 ] = x; tmp[ 1 ] = y; tmp[ 2 ] = z;
+						cursor.setPosition( tmp );
+						ComponentProperties compProp = components.get( cursor.get().get() - 1 );
 						
 						compProp.size++;
 						
-						compProp.label = cursor.getType().get();
+						compProp.label = cursor.get().get();
 						
 						if (x < compProp.minX) compProp.minX = x;
 						if (y < compProp.minY) compProp.minY = y;
@@ -70,8 +73,6 @@ public class ConnectedComponent
 				}
 		}
 		
-		cursor.close();
-
 		//PrintWriter out = fileAccess.openFileWrite("components.txt");
 		//out.println("size" + "\t" + "sizeX" + "\t" + "sizeY" + "\t" + "sizeZ");
 
@@ -89,13 +90,13 @@ public class ConnectedComponent
 		//out.close();					
 	}
 	
-	public ArrayList<ComponentProperties> getBeads( final Image<IntType> connectedComponents, final Image<FloatType> img, 
+	public ArrayList<ComponentProperties> getBeads( final Img<IntType> connectedComponents, final Img<FloatType> img, 
 													final int minSize, final int maxSize, final int minBlackBorder, 
 													final boolean useCenterOfMass, final double circularityFactor)
 	{
-		final int w = connectedComponents.getDimension( 0 );
-		final int h = connectedComponents.getDimension( 1 );
-		final int d = connectedComponents.getDimension( 2 );
+		final long w = connectedComponents.dimension( 0 );
+		final long h = connectedComponents.dimension( 1 );
+		final long d = connectedComponents.dimension( 2 );
 		//OldFloatArray3D spheres = new OldFloatArray3D(connectedComponents.width, connectedComponents.height, connectedComponents.depth);
 		//OldFloatArray3D psf = new OldFloatArray3D(21, 21, 21);
 		//OldFloatArray3D count = new OldFloatArray3D(21, 21, 21);
@@ -130,7 +131,8 @@ public class ConnectedComponent
 				
 				compProp.center = new Point3d(0,0,0);
 				
-				final LocalizableByDimCursor3D<FloatType> cursor = (LocalizableByDimCursor3D<FloatType>) img.createLocalizableByDimCursor();
+				final RandomAccess<FloatType> cursor = img.randomAccess();
+				final int[] tmp = new int[ 3 ];
 				
 				float maxIntensity = -Float.MAX_VALUE;
 				Point3d maxCenter = new Point3d();
@@ -148,8 +150,9 @@ public class ConnectedComponent
 							}
 							else*/
 							{
-								cursor.setPosition(x, y, z);
-								float value = cursor.getType().get();
+								tmp[ 0 ] = x; tmp[ 1 ] = y; tmp[ 2 ] = z;
+								cursor.setPosition( tmp );
+								float value = cursor.get().get();
 
 								if (useCenterOfMass)
 								{
@@ -174,8 +177,6 @@ public class ConnectedComponent
 
 							}
 						}
-				
-				cursor.close();
 				
 				if (!isIsolated)
 				{
