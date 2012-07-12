@@ -529,7 +529,6 @@ public class VisualizeBeads
 		try
 		{
 			config = ConfigurationParserSPIM.parseFile("spimconfig/configuration.txt");
-			config.printProperties();
 		}
 		catch (final ConfigurationParserException e)
 		{

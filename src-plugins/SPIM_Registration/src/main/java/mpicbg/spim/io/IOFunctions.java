@@ -72,9 +72,6 @@ public class IOFunctions
         try 
         {
  			config = ConfigurationParserSPIM.parseFile( spimConfigFile );
-			
-			if ( config.debugLevelInt <= ViewStructure.DEBUG_ALL )
-				config.printProperties();
 		} 
         catch ( ConfigurationParserException e ) 
         {

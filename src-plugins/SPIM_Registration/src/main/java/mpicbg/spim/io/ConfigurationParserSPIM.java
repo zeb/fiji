@@ -388,9 +388,6 @@ public class ConfigurationParserSPIM
 		// here all angles, timepoints and channels are parsed from the input strings
 		conf.getFileNames();
 		
-		// set interpolator stuff
-		conf.interpolatorFactorOutput.setOutOfBoundsStrategyFactory( conf.strategyFactoryOutput );	
-		
 		// close files
 		try
 		{

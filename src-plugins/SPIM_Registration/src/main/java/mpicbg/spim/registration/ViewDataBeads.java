@@ -13,9 +13,12 @@ import javax.vecmath.Matrix4f;
 
 import net.imglib2.Cursor;
 import net.imglib2.img.Img;
+import net.imglib2.img.ImgFactory;
+import net.imglib2.img.display.imagej.ImageJFunctions;
 import net.imglib2.type.numeric.real.FloatType;
 
 import mpicbg.models.AbstractAffineModel3D;
+import mpicbg.spim.ImgSPIM;
 import mpicbg.spim.io.IOFunctions;
 import mpicbg.spim.mpicbg.TileSPIM;
 import mpicbg.spim.registration.bead.BeadStructure;
@@ -243,7 +246,7 @@ public class ViewDataBeads implements Comparable< ViewDataBeads >
 	/**
 	 * The input image
 	 */
-	private Img<FloatType> image = null;
+	private ImgSPIM image = null;
 	private boolean isNormalized;
 	private float minValue = 0;
 	private float maxValue = 0;
@@ -334,7 +337,7 @@ public class ViewDataBeads implements Comparable< ViewDataBeads >
 	 * The link to the input image of this view normalized to [0...1]
 	 * @return the link or null unable to open
 	 */
-	public Img<FloatType> getImage( final ContainerFactory imageFactory )
+	public Img<FloatType> getImage( final ImgFactory< FloatType > imageFactory )
 	{
 		return getImage( imageFactory, true );
 	}
@@ -343,7 +346,7 @@ public class ViewDataBeads implements Comparable< ViewDataBeads >
 	 * The link to the input image of this view
 	 * @return the link or null unable to open
 	 */
-	public Img<FloatType> getImage( final ContainerFactory imageFactory, final boolean normalize )
+	public Img<FloatType> getImage( final ImgFactory< FloatType > imageFactory, final boolean normalize )
 	{
 		if ( image == null )
 		{
@@ -373,7 +376,7 @@ public class ViewDataBeads implements Comparable< ViewDataBeads >
 				{
 					imp = exp.openNotProjected( s, timePoint, timePoint, r, angle, channel, zMin, zMax, f, f, yMin, yMax, xMin, xMax, SPIMExperiment.X, SPIMExperiment.Y, SPIMExperiment.Z, false );
 				}
-				image = ImageJFunctions.convertFloat( imp );
+				image = new ImgSPIM( ImageJFunctions.convertFloat( imp ) );
 				image.setCalibration( new float[]{ 1, 1, (float)getViewStructure().getSPIMConfiguration().getZStretchingHuisken() } );
 			}
 			else
@@ -423,7 +426,7 @@ public class ViewDataBeads implements Comparable< ViewDataBeads >
 			if ( getMirrorHorizontally() )
 			{
 				IOFunctions.println( "Mirroring horizontally: " + this );
-				final MirrorImg<FloatType> mirror = new MirrorImg<FloatType>( image, 0 );
+				final MirrorImage<FloatType> mirror = new MirrorImage<FloatType>( image, 0 );
 				mirror.process();
 			}
 
