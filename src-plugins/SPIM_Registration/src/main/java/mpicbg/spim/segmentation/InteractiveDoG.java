@@ -2,7 +2,6 @@ package mpicbg.spim.segmentation;
 
 import fiji.tool.SliceListener;
 import fiji.tool.SliceObserver;
-import ij.CompositeImage;
 import ij.IJ;
 import ij.ImageJ;
 import ij.ImagePlus;
@@ -40,23 +39,26 @@ import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.util.ArrayList;
 
-import mpicbg.imglib.algorithm.gauss.GaussianConvolutionReal;
-import mpicbg.imglib.algorithm.math.LocalizablePoint;
-import mpicbg.imglib.algorithm.scalespace.DifferenceOfGaussianPeak;
-import mpicbg.imglib.algorithm.scalespace.DifferenceOfGaussianReal1;
-import mpicbg.imglib.algorithm.scalespace.SubpixelLocalization;
-import mpicbg.imglib.container.array.ArrayContainerFactory;
-import mpicbg.imglib.cursor.LocalizableByDimCursor;
-import mpicbg.imglib.cursor.LocalizableCursor;
-import mpicbg.imglib.cursor.array.ArrayCursor;
-import mpicbg.imglib.image.Image;
-import mpicbg.imglib.image.ImageFactory;
-import mpicbg.imglib.image.display.imagej.ImageJFunctions;
-import mpicbg.imglib.multithreading.SimpleMultiThreading;
-import mpicbg.imglib.outofbounds.OutOfBoundsStrategyMirrorFactory;
-import mpicbg.imglib.outofbounds.OutOfBoundsStrategyValueFactory;
-import mpicbg.imglib.type.numeric.real.FloatType;
-import mpicbg.imglib.util.Util;
+import net.imglib2.Cursor;
+import net.imglib2.Point;
+import net.imglib2.RandomAccess;
+import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.algorithm.gauss.Gauss;
+import net.imglib2.algorithm.legacy.scalespace.DifferenceOfGaussian;
+import net.imglib2.algorithm.legacy.scalespace.DifferenceOfGaussianPeak;
+import net.imglib2.algorithm.legacy.scalespace.SubpixelLocalization;
+import net.imglib2.img.Img;
+import net.imglib2.img.ImgPlus;
+import net.imglib2.img.array.ArrayImgFactory;
+import net.imglib2.img.display.imagej.ImageJFunctions;
+import net.imglib2.multithreading.SimpleMultiThreading;
+import net.imglib2.outofbounds.OutOfBoundsConstantValueFactory;
+import net.imglib2.outofbounds.OutOfBoundsMirrorFactory;
+import net.imglib2.outofbounds.OutOfBoundsMirrorFactory.Boundary;
+import net.imglib2.type.numeric.real.FloatType;
+import net.imglib2.util.Util;
+import net.imglib2.view.Views;
+
 import mpicbg.spim.registration.ViewDataBeads;
 import mpicbg.spim.registration.ViewStructure;
 import mpicbg.spim.registration.detection.DetectionSegmentation;
@@ -93,8 +95,8 @@ public class InteractiveDoG implements PlugIn
 	ImagePlus imp;
 	int channel = 0;
 	Rectangle rectangle;
-	Image<FloatType> img;
-	Image<FloatType> source;
+	Img<FloatType> img;
+	Img<FloatType> source;
 	ArrayList<DifferenceOfGaussianPeak<FloatType>> peaks;
 	
 	Color originalColor = new Color( 0.8f, 0.8f, 0.8f );
@@ -136,7 +138,7 @@ public class InteractiveDoG implements PlugIn
 	public void setSigma2isAdjustable( final boolean state ) { sigma2IsAdjustable = state; }
 	
 	// for the case that it is needed again, we can save one conversion
-	public Image<FloatType> getConvertedImage() { return source; }
+	public Img<FloatType> getConvertedImage() { return source; }
 	
 	public InteractiveDoG( final ImagePlus imp, final int channel ) 
 	{ 
@@ -175,7 +177,7 @@ public class InteractiveDoG implements PlugIn
 			return;
 		}
 		
-		// copy the ImagePlus into an ArrayImage<FloatType> for faster access
+		// copy the ImagePlus into an ArrayImg<FloatType> for faster access
 		source = convertToFloat( imp, channel, 0 );
 		
 		// show the interactive kit
@@ -259,11 +261,11 @@ public class InteractiveDoG implements PlugIn
 	        // the upper boundary
 	        this.sigma2 = sigma[ 1 ];
 	        
-			final DifferenceOfGaussianReal1<FloatType> dog = new DifferenceOfGaussianReal1<FloatType>( img, new OutOfBoundsStrategyValueFactory<FloatType>(), sigmaDiff[ 0 ], sigmaDiff[ 1 ], thresholdMin/4, K_MIN1_INV );
-			dog.setKeepDoGImage( true );
+			final DifferenceOfGaussian<FloatType> dog = new DifferenceOfGaussian<FloatType>( img, img.factory(), new OutOfBoundsConstantValueFactory<FloatType, RandomAccessibleInterval< FloatType >>( new FloatType() ), sigmaDiff[ 0 ], sigmaDiff[ 1 ], thresholdMin/4, K_MIN1_INV );
+			dog.setKeepDoGImg( true );
 			dog.process();
 			
-			final SubpixelLocalization<FloatType> subpixel = new SubpixelLocalization<FloatType>( dog.getDoGImage(), dog.getPeaks() );
+			final SubpixelLocalization<FloatType> subpixel = new SubpixelLocalization<FloatType>( dog.getDoGImg(), dog.getPeaks() );
 			subpixel.process();
 			
 			peaks = dog.getPeaks();
@@ -284,8 +286,8 @@ public class InteractiveDoG implements PlugIn
 		{
 			if ( ( peak.isMax() && lookForMaxima ) || ( peak.isMin() && lookForMinima ) )
 			{
-				final float x = peak.getPosition( 0 ); 
-				final float y = peak.getPosition( 1 );
+				final float x = peak.getIntPosition( 0 ); 
+				final float y = peak.getIntPosition( 1 );
 				
 				if ( Math.abs( peak.getValue().get() ) > threshold &&
 					 x >= extraSize/2 && y >= extraSize/2 &&
@@ -324,44 +326,44 @@ public class InteractiveDoG implements PlugIn
 	 * @param extraSize - the extra size around so that detections at the border of the roi are not messed up
 	 * @return
 	 */
-	protected Image<FloatType> extractImage( final Image<FloatType> source, final Rectangle rectangle, final int extraSize )
+	protected Img<FloatType> extractImage( final Img<FloatType> source, final Rectangle rectangle, final int extraSize )
 	{
-		final Image<FloatType> img = new ImageFactory<FloatType>( new FloatType(), new ArrayContainerFactory() ).createImage( new int[]{ rectangle.width+extraSize, rectangle.height+extraSize } );
+		final Img<FloatType> img = new ArrayImgFactory<FloatType>().create( new int[]{ rectangle.width+extraSize, rectangle.height+extraSize }, new FloatType() );
 		
 		final int offsetX = rectangle.x - extraSize/2;
 		final int offsetY = rectangle.y - extraSize/2;
 
-		final int[] location = new int[ source.getNumDimensions() ];
+		final int[] location = new int[ source.numDimensions() ];
 		
 		if ( location.length > 2 )
 			location[ 2 ] = (imp.getCurrentSlice()-1)/imp.getNChannels();
 				
-		final LocalizableCursor<FloatType> cursor = img.createLocalizableCursor();
-		final LocalizableByDimCursor<FloatType> positionable;
+		final Cursor<FloatType> cursor = img.localizingCursor();
+		final RandomAccess<FloatType> positionable;
 		
 		if ( offsetX >= 0 && offsetY >= 0 && 
-			 offsetX + img.getDimension( 0 ) < source.getDimension( 0 ) && 
-			 offsetY + img.getDimension( 1 ) < source.getDimension( 1 ) )
+			 offsetX + img.dimension( 0 ) < source.dimension( 0 ) && 
+			 offsetY + img.dimension( 1 ) < source.dimension( 1 ) )
 		{
 			// it is completely inside so we need no outofbounds for copying
-			positionable = source.createLocalizableByDimCursor();
+			positionable = source.randomAccess();
 		}
 		else
 		{
-			positionable = source.createLocalizableByDimCursor( new OutOfBoundsStrategyMirrorFactory<FloatType>() );
+			positionable = Views.extendMirrorSingle( source ).randomAccess();
 		}
 			
 		while ( cursor.hasNext() )
 		{
 			cursor.fwd();
-			cursor.getPosition( location );
+			cursor.localize( location );
 			
 			location[ 0 ] += offsetX;
 			location[ 1 ] += offsetY;
 			
 			positionable.setPosition( location );
 			
-			cursor.getType().set( positionable.getType() );			
+			cursor.get().set( positionable.get() );			
 		}
 		
 		return img;
@@ -373,18 +375,18 @@ public class InteractiveDoG implements PlugIn
 	 * @param imp - the {@link ImagePlus} input image
 	 * @return - the normalized copy [0...1]
 	 */
-	public static Image<FloatType> convertToFloat( final ImagePlus imp, int channel, int timepoint )
+	public static Img<FloatType> convertToFloat( final ImagePlus imp, int channel, int timepoint )
 	{
 		// stupid 1-offset of imagej
 		channel++;
 		timepoint++;
 		
-		final Image<FloatType> img;
+		final Img<FloatType> img;
 		
 		if ( imp.getNSlices() > 1 )
-			img = new ImageFactory<FloatType>( new FloatType(), new ArrayContainerFactory() ).createImage( new int[]{ imp.getWidth(), imp.getHeight(), imp.getNSlices() } );
+			img = new ArrayImgFactory<FloatType>().create( new int[]{ imp.getWidth(), imp.getHeight(), imp.getNSlices() }, new FloatType() );
 		else
-			img = new ImageFactory<FloatType>( new FloatType(), new ArrayContainerFactory() ).createImage( new int[]{ imp.getWidth(), imp.getHeight() } );
+			img = new ArrayImgFactory<FloatType>().create( new int[]{ imp.getWidth(), imp.getHeight() }, new FloatType() );
 		
 		final int sliceSize = imp.getWidth() * imp.getHeight();
 		
@@ -393,7 +395,7 @@ public class InteractiveDoG implements PlugIn
 		
 		if ( ip instanceof FloatProcessor )
 		{
-			final ArrayCursor<FloatType> cursor = (ArrayCursor<FloatType>)img.createCursor();
+			final Cursor<FloatType> cursor = img.cursor();
 			
 			float[] pixels = (float[])ip.getPixels();
 			int i = 0;
@@ -415,7 +417,7 @@ public class InteractiveDoG implements PlugIn
 		}
 		else if ( ip instanceof ByteProcessor )
 		{
-			final ArrayCursor<FloatType> cursor = (ArrayCursor<FloatType>)img.createCursor();
+			final Cursor<FloatType> cursor = img.cursor();
 
 			byte[] pixels = (byte[])ip.getPixels();
 			int i = 0;
@@ -436,7 +438,7 @@ public class InteractiveDoG implements PlugIn
 		}
 		else if ( ip instanceof ShortProcessor )
 		{
-			final ArrayCursor<FloatType> cursor = (ArrayCursor<FloatType>)img.createCursor();
+			final Cursor<FloatType> cursor = img.cursor();
 
 			short[] pixels = (short[])ip.getPixels();
 			int i = 0;
@@ -458,13 +460,13 @@ public class InteractiveDoG implements PlugIn
 		}
 		else // some color stuff or so 
 		{
-			final LocalizableCursor<FloatType> cursor = img.createLocalizableCursor();
-			final int[] location = new int[ img.getNumDimensions() ];
+			final Cursor<FloatType> cursor = img.localizingCursor();
+			final int[] location = new int[ img.numDimensions() ];
 
 			while ( cursor.hasNext() )
 			{
 				cursor.fwd();
-				cursor.getPosition( location );
+				cursor.localize( location );
 				
 				// only get new imageprocessor if necessary
 				if ( location[ 2 ] != z )
@@ -474,11 +476,11 @@ public class InteractiveDoG implements PlugIn
 					ip = imp.getStack().getProcessor( imp.getStackIndex( channel, z + 1, timepoint ) );
 				}
 				
-				cursor.getType().set( ip.getPixelValue( location[ 0 ], location[ 1 ] ) );
+				cursor.get().set( ip.getPixelValue( location[ 0 ], location[ 1 ] ) );
 			}
 		}
 		
-		ViewDataBeads.normalizeImage( img );
+		ViewDataBeads.normalizeImage( img, "" );
 		
 		return img;
 	}
@@ -704,8 +706,8 @@ public class InteractiveDoG implements PlugIn
 			// test the parameters on the complete stack
 			final ArrayList<DifferenceOfGaussianPeak<FloatType>> peaks = 
 				DetectionSegmentation.extractBeadsLaPlaceImgLib( 
-			                                				source, 
-			                                				new OutOfBoundsStrategyMirrorFactory<FloatType>(), 
+			                                				new ImgPlus<FloatType>( source ), 
+			                                				new OutOfBoundsMirrorFactory<FloatType, RandomAccessibleInterval<FloatType>>( Boundary.SINGLE ), 
 			                                				imageSigma, 
 			                                				sigma,
 			                                				sigma2,
@@ -716,22 +718,22 @@ public class InteractiveDoG implements PlugIn
 			                                				ViewStructure.DEBUG_MAIN );
 			
 			// display as extra image
-			Image<FloatType> detections = source.createNewImage();
-			final LocalizableByDimCursor<FloatType> c = detections.createLocalizableByDimCursor();
+			Img<FloatType> detections = source.factory().create( source, source.firstElement() );
+			final RandomAccess<FloatType> c = detections.randomAccess();
 			
 	        for ( final DifferenceOfGaussianPeak<FloatType> peak : peaks )
 	        {
-				final LocalizablePoint p = new LocalizablePoint( new float[]{ peak.getSubPixelPosition( 0 ), peak.getSubPixelPosition( 1 ), peak.getSubPixelPosition( 2 ) } );
+				final Point p = new Point( new int[]{ Math.round( peak.getSubPixelPosition( 0 ) ), Math.round( peak.getSubPixelPosition( 1 ) ), Math.round( peak.getSubPixelPosition( 2 ) ) } );
 				
 				c.setPosition( p );
-				c.getType().set( 1 );
+				c.get().set( 1 );
 	        }
 	        
+	        double[] sigma = new double[ detections.numDimensions() ];
+	        for ( int d = 0; d < detections.numDimensions(); ++d )
+	        	sigma[ d ] = 2;
 	        
-	        final GaussianConvolutionReal<FloatType> gauss = new GaussianConvolutionReal<FloatType>( detections, new OutOfBoundsStrategyValueFactory<FloatType>(), 2 );
-	        gauss.process();
-	        
-	        detections = gauss.getResult();
+	        Gauss.inFloatInPlace( sigma, detections );
 	        
 	        ImageJFunctions.show( detections );
 		}

@@ -5,40 +5,36 @@ import java.util.Date;
 import java.util.Vector;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import mpicbg.imglib.algorithm.integral.IntegralImageLong;
-import mpicbg.imglib.algorithm.scalespace.DifferenceOfGaussianPeak;
-import mpicbg.imglib.algorithm.scalespace.DifferenceOfGaussianReal1;
-import mpicbg.imglib.algorithm.scalespace.SubpixelLocalization;
-import mpicbg.imglib.cursor.LocalizableByDimCursor;
-import mpicbg.imglib.cursor.LocalizableCursor;
-import mpicbg.imglib.function.Converter;
-import mpicbg.imglib.image.Image;
-import mpicbg.imglib.multithreading.Chunk;
-import mpicbg.imglib.multithreading.SimpleMultiThreading;
-import mpicbg.imglib.outofbounds.OutOfBoundsStrategyFactory;
-import mpicbg.imglib.outofbounds.OutOfBoundsStrategyMirrorFactory;
-import mpicbg.imglib.type.numeric.RealType;
-import mpicbg.imglib.type.numeric.integer.LongType;
-import mpicbg.imglib.type.numeric.real.FloatType;
-import mpicbg.imglib.util.Util;
+import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.algorithm.legacy.scalespace.DifferenceOfGaussian;
+import net.imglib2.algorithm.legacy.scalespace.DifferenceOfGaussianPeak;
+import net.imglib2.algorithm.legacy.scalespace.SubpixelLocalization;
+import net.imglib2.img.Img;
+import net.imglib2.img.ImgPlus;
+import net.imglib2.outofbounds.OutOfBoundsFactory;
+import net.imglib2.outofbounds.OutOfBoundsMirrorFactory;
+import net.imglib2.outofbounds.OutOfBoundsMirrorFactory.Boundary;
+import net.imglib2.type.numeric.RealType;
+import net.imglib2.type.numeric.real.FloatType;
+
 import mpicbg.spim.io.IOFunctions;
 import mpicbg.spim.registration.ViewDataBeads;
 import mpicbg.spim.registration.ViewStructure;
 
 public class DetectionSegmentation 
 {	
-	public static <T extends RealType<T>> ArrayList< DifferenceOfGaussianPeak<T> > extractBeadsLaPlaceImgLib( 
-			final Image<T> img,
+	public static ArrayList< DifferenceOfGaussianPeak<FloatType> > extractBeadsLaPlaceImgLib( 
+			final ImgPlus<FloatType> img,
 			final float initialSigma,
 			float minPeakValue,
 			float minInitialPeakValue )
 	{
-		return extractBeadsLaPlaceImgLib(img, new OutOfBoundsStrategyMirrorFactory<T>(), 0.5f, initialSigma, minPeakValue, minInitialPeakValue, 4, true, false, ViewStructure.DEBUG_MAIN );
+		return extractBeadsLaPlaceImgLib(img, new OutOfBoundsMirrorFactory<FloatType, RandomAccessibleInterval<FloatType>>( Boundary.SINGLE ), 0.5f, initialSigma, minPeakValue, minInitialPeakValue, 4, true, false, ViewStructure.DEBUG_MAIN );
 	}	
 
-	public static <T extends RealType<T>> ArrayList< DifferenceOfGaussianPeak<T> > extractBeadsLaPlaceImgLib( 
- 			final Image<T> img,
- 			final OutOfBoundsStrategyFactory<T> oobsFactory,
+	public static ArrayList< DifferenceOfGaussianPeak<FloatType> > extractBeadsLaPlaceImgLib( 
+ 			final ImgPlus<FloatType> img,
+ 			final OutOfBoundsFactory<FloatType, RandomAccessibleInterval<FloatType>> oobsFactory,
  			final float imageSigma, 
  			final float initialSigma,
  			float minPeakValue,
@@ -55,9 +51,9 @@ public class DetectionSegmentation
 				return extractBeadsLaPlaceImgLib(img, oobsFactory, imageSigma, sigma1, sigma2, minPeakValue, minInitialPeakValue, findMax, findMin, debugLevel );
          	}
 	
-	public static <T extends RealType<T>> ArrayList< DifferenceOfGaussianPeak<T> > extractBeadsLaPlaceImgLib( 
-			final Image<T> img,
-			final OutOfBoundsStrategyFactory<T> oobsFactory,
+	public static ArrayList< DifferenceOfGaussianPeak<FloatType> > extractBeadsLaPlaceImgLib( 
+			final ImgPlus<FloatType> img,
+			final OutOfBoundsFactory<FloatType, RandomAccessibleInterval<FloatType>> oobsFactory,
 			final float imageSigma, 
 			final float sigma1,
 			final float sigma2,
@@ -83,9 +79,9 @@ public class DetectionSegmentation
         sigmaDiff[ 1 ][ 1 ] = sigmaDiffXY[ 1 ];
 
         // sigmaZ is at least twice the image sigma
-		if ( img.getNumDimensions() == 3 )
+		if ( img.numDimensions() == 3 )
 		{
-			final float sigma1Z = Math.max( imageSigma * 2, sigma1 / img.getCalibration( 2 ) );
+			final float sigma1Z = Math.max( imageSigma * 2, sigma1 / (float)img.calibration( 2 ) );
 			final float sigma2Z = sigma1Z * k;
 			final float[] sigmaZ = new float[]{ sigma1Z, sigma2Z };
 			final float[] sigmaDiffZ = computeSigmaDiff( sigmaZ, imageSigma );
@@ -99,19 +95,19 @@ public class DetectionSegmentation
         //System.out.println( sigmaDiff[ 1 ][ 0 ] + ", " + sigmaDiff[ 1 ][ 1 ] + ", " + sigmaDiff[ 1 ][ 2 ] );
         
 		// compute difference of gaussian
-		final DifferenceOfGaussianReal1<T> dog = new DifferenceOfGaussianReal1<T>( img, oobsFactory, sigmaDiff[0], sigmaDiff[1], minInitialPeakValue, K_MIN1_INV );
-		dog.setKeepDoGImage( true );
+		final DifferenceOfGaussian<FloatType> dog = new DifferenceOfGaussian<FloatType>( img.getImg(), img.factory(), oobsFactory, sigmaDiff[0], sigmaDiff[1], minInitialPeakValue, K_MIN1_INV );
+		dog.setKeepDoGImg( true );
 		
 		if ( !dog.checkInput() || !dog.process() )
 		{
     		if ( debugLevel <= ViewStructure.DEBUG_ERRORONLY )
     			IOFunctions.println("(" + new Date(System.currentTimeMillis()) + "): Cannot compute difference of gaussian for " + dog.getErrorMessage() );
 			
-			return new ArrayList< DifferenceOfGaussianPeak<T> >();
+			return new ArrayList< DifferenceOfGaussianPeak<FloatType> >();
 		}
 
 		// remove all minima
-        final ArrayList< DifferenceOfGaussianPeak<T> > peakList = dog.getPeaks();
+        final ArrayList< DifferenceOfGaussianPeak<FloatType> > peakList = dog.getPeaks();
         for ( int i = peakList.size() - 1; i >= 0; --i )
         {
         	if ( !findMin )
@@ -127,7 +123,7 @@ public class DetectionSegmentation
         	}
         }
 		
-        final SubpixelLocalization<T> spl = new SubpixelLocalization<T>( dog.getDoGImage(), dog.getPeaks() );
+        final SubpixelLocalization<FloatType> spl = new SubpixelLocalization<FloatType>( dog.getDoGImg(), dog.getPeaks() );
 		spl.setAllowMaximaTolerance( true );
 		spl.setMaxNumMoves( 10 );
 		
@@ -139,7 +135,6 @@ public class DetectionSegmentation
 		
 		//dog.getDoGImage().getDisplay().setMinMax();
 		//ImageJFunctions.copyToImagePlus( dog.getDoGImage() ).show();
-		dog.getDoGImage().close();
 			
         int peakTooLow = 0;
         int invalid = 0;
@@ -148,7 +143,7 @@ public class DetectionSegmentation
 		// remove entries that are too low
         for ( int i = peakList.size() - 1; i >= 0; --i )
         {
-        	final DifferenceOfGaussianPeak<T> maximum = peakList.get( i );
+        	final DifferenceOfGaussianPeak<FloatType> maximum = peakList.get( i );
         	
         	if ( !maximum.isValid() )
         		++invalid;
