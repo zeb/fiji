@@ -84,7 +84,6 @@ public class SPIMConfiguration
 	public boolean useScaleSpace = true;
 
 	// which fusion weightening
-    public boolean useEntropy = false;
     public boolean useGauss = false;
     public boolean useLinearBlening = true;
 

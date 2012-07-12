@@ -1,13 +1,14 @@
 package mpicbg.spim.fusion;
 
-import mpicbg.imglib.container.ContainerFactory;
+import net.imglib2.img.ImgFactory;
+import net.imglib2.type.numeric.real.FloatType;
 import mpicbg.spim.registration.ViewDataBeads;
 
 public class GaussContentFactory implements IsolatedPixelWeightenerFactory<GaussContent>
 {
-	ContainerFactory gaussContentContainer;
+	ImgFactory< FloatType > gaussContentContainer;
 	
-	public GaussContentFactory( final ContainerFactory gaussContentContainer ) { this.gaussContentContainer = gaussContentContainer; }
+	public GaussContentFactory( final ImgFactory< FloatType > gaussContentContainer ) { this.gaussContentContainer = gaussContentContainer; }
 	
 	@Override
 	public GaussContent createInstance( final ViewDataBeads view ) 
@@ -20,7 +21,6 @@ public class GaussContentFactory implements IsolatedPixelWeightenerFactory<Gauss
 	public void printProperties()
 	{
 		System.out.print("GaussContentFactory(): Owns Factory for Image<FloatType>");
-		gaussContentContainer.printProperties();
 	}
 	
 	public String getErrorMessage() { return ""; }

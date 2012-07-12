@@ -12,10 +12,15 @@ import javax.media.j3d.Transform3D;
 import javax.vecmath.Matrix4f;
 
 import net.imglib2.Cursor;
+import net.imglib2.algorithm.legacy.downsample.DownSample;
+import net.imglib2.algorithm.legacy.mirror.MirrorImage;
+import net.imglib2.algorithm.stats.ComputeMinMax;
 import net.imglib2.img.Img;
 import net.imglib2.img.ImgFactory;
 import net.imglib2.img.ImgPlus;
+import net.imglib2.img.cell.CellImgFactory;
 import net.imglib2.img.display.imagej.ImageJFunctions;
+import net.imglib2.io.ImgOpener;
 import net.imglib2.type.numeric.real.FloatType;
 
 import mpicbg.models.AbstractAffineModel3D;
@@ -220,28 +225,28 @@ public class ViewDataBeads implements Comparable< ViewDataBeads >
 	/**
 	 * The size of the input stack
 	 */
-	protected int[] imageSize = null;
-	public int[] getImageSize()
+	protected long[] imageSize = null;
+	public long[] getImageSize()
 	{
 		if ( imageSize == null )
 			loadDimensions();
 
 		return imageSize.clone();
 	}
-	public void setImageSize( final int[] size ) { this.imageSize = size; }
+	public void setImageSize( final long[] size ) { this.imageSize = size; }
 
 	/**
 	 * The offset of the input stack
 	 */
-	protected int[] imageSizeOffset = null;
-	public int[] getImageSizeOffset()
+	protected long[] imageSizeOffset = null;
+	public long[] getImageSizeOffset()
 	{
 		if ( imageSizeOffset == null )
-			return new int[ getImageSize().length ];
+			return new long[ getImageSize().length ];
 
 		return imageSizeOffset.clone();
 	}
-	public void setImageSizeOffset( final int[] imageSizeOffset ) { this.imageSizeOffset = imageSizeOffset; }
+	public void setImageSizeOffset( final long[] imageSizeOffset ) { this.imageSizeOffset = imageSizeOffset; }
 
 	/**
 	 * The input image
@@ -391,7 +396,7 @@ public class ViewDataBeads implements Comparable< ViewDataBeads >
 				
 				try
 				{
-					image = LOCI.openLOCIFloatType( s, imageFactory );
+					image = new ImgOpener().openImg( s, imageFactory, new FloatType() );
 				}
 				catch ( Exception e ) { image = null; }
 				
@@ -403,7 +408,12 @@ public class ViewDataBeads implements Comparable< ViewDataBeads >
 					if ( f.exists() )
 					{
 						IJ.log( "File: " + f.getAbsolutePath() + " exists, trying to open with CellImg." );
-						image = LOCI.openLOCIFloatType( s, new CellContainerFactory( 256 ) );
+						
+						try
+						{
+							image = new ImgOpener().openImg( s, new CellImgFactory< FloatType >( 256 ), new FloatType() );
+						}
+						catch ( Exception e ) { image = null; }
 						
 						if ( image == null )
 						{
@@ -433,7 +443,7 @@ public class ViewDataBeads implements Comparable< ViewDataBeads >
 			if ( getMirrorVertically() )
 			{
 				IOFunctions.println( "Mirroring vertically: " + this );
-				final MirrorImg<FloatType> mirror = new MirrorImg<FloatType>( image, 1 );
+				final MirrorImage<FloatType> mirror = new MirrorImage<FloatType>( image, 1 );
 				mirror.process();
 			}
 
@@ -448,12 +458,18 @@ public class ViewDataBeads implements Comparable< ViewDataBeads >
 			}
 			else
 			{
-				image.getDisplay().setMinMax();
-				minValue = (float)image.getDisplay().getMin();
-				maxValue = (float)image.getDisplay().getMax();
+				final FloatType min = new FloatType();
+				final FloatType max = new FloatType();
+				
+				ComputeMinMax.computeMinMax( image, min, max );
+
+				minValue = min.get();
+				maxValue = max.get();
 				isNormalized = false;
 			}
-			setImageSize( image.getDimensions() );
+			long[] tmp = new long[ image.numDimensions() ];
+			image.dimensions( tmp );
+			setImageSize( tmp );
 			
 			// now write dims for further use
 			IOFunctions.writeDim( this, getViewStructure().getSPIMConfiguration().registrationFiledirectory );
@@ -506,22 +522,15 @@ public class ViewDataBeads implements Comparable< ViewDataBeads >
 	 * Normalizes the image to the range [0...1]
 	 * @param image - the image to normalize
 	 */
-	public static float[] normalizeImage( final Img<FloatType> image )
+	public static float[] normalizeImage( final ImgPlus<FloatType> image )
 	{
-		float min = image.firstElement().get();
-		float max = min;
+		final FloatType minType = new FloatType();
+		final FloatType maxType = new FloatType();
 		
-		for ( final FloatType t : image )
-		{
-			final float value = t.get();
-			
-			if ( value > max )
-				max = value;
-			
-			if ( value < min )
-				min = value;
-		}
-		
+		ComputeMinMax.computeMinMax( image, minType, maxType );
+
+		float min = minType.get();
+		float max = maxType.get();
 		final float diff = max - min;
 
 		if ( Float.isNaN( diff ) || Float.isInfinite(diff) || diff == 0 )

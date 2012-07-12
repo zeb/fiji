@@ -1,24 +1,25 @@
 package mpicbg.spim.fusion;
 
+import net.imglib2.RandomAccess;
+import net.imglib2.algorithm.fft.FourierConvolution;
+import net.imglib2.algorithm.fft2.FFTConvolution;
+import net.imglib2.img.Img;
+import net.imglib2.img.ImgFactory;
+import net.imglib2.img.ImgPlus;
+import net.imglib2.outofbounds.OutOfBoundsFactory;
+import net.imglib2.type.numeric.real.FloatType;
+import net.imglib2.view.Views;
 import ij.IJ;
 import ij.ImagePlus;
-import mpicbg.imglib.algorithm.fft.FourierConvolution;
-import mpicbg.imglib.container.ContainerFactory;
-import mpicbg.imglib.container.array.ArrayContainerFactory;
-import mpicbg.imglib.cursor.Cursor;
-import mpicbg.imglib.cursor.LocalizableByDimCursor;
-import mpicbg.imglib.image.Image;
-import mpicbg.imglib.image.display.imagej.ImageJFunctions;
-import mpicbg.imglib.outofbounds.OutOfBoundsStrategyFactory;
-import mpicbg.imglib.type.numeric.real.FloatType;
+
 import mpicbg.spim.io.SPIMConfiguration;
 import mpicbg.spim.registration.ViewDataBeads;
 
 public class GaussContent extends IsolatedPixelWeightener<GaussContent> 
 {
-	Image<FloatType> gaussContent;
+	Img<FloatType> gaussContent;
 	
-	protected GaussContent( final ViewDataBeads view, final ContainerFactory entropyContainer ) 
+	protected GaussContent( final ViewDataBeads view, final ImgFactory< FloatType > entropyContainer ) 
 	{
 		super( view );
 		
@@ -42,8 +43,8 @@ public class GaussContent extends IsolatedPixelWeightener<GaussContent>
 			k1[ view.getNumDimensions() - 1 ] = conf.fusionSigma1 / view.getZStretching();
 			k2[ view.getNumDimensions() - 1 ] = conf.fusionSigma2 / view.getZStretching();		
 			
-			final Image<FloatType> kernel1 = FourierConvolution.createGaussianKernel( new ArrayContainerFactory(), k1 );
-			final Image<FloatType> kernel2 = FourierConvolution.createGaussianKernel( new ArrayContainerFactory(), k2 );
+			final Img<FloatType> kernel1 = FourierConvolution.createGaussianKernel( new ArrayContainerFactory(), k1 );
+			final Img<FloatType> kernel2 = FourierConvolution.createGaussianKernel( new ArrayContainerFactory(), k2 );
 	
 			// compute I*sigma1
 			FourierConvolution<FloatType, FloatType> fftConv1 = new FourierConvolution<FloatType, FloatType>( view.getImage(), kernel1 );
@@ -95,27 +96,27 @@ public class GaussContent extends IsolatedPixelWeightener<GaussContent>
 	}
 
 	@Override
-	public LocalizableByDimCursor<FloatType> getResultIterator()
+	public RandomAccess<FloatType> randomAccess()
 	{
         // the iterator we need to get values from the weightening image
-		return gaussContent.createLocalizableByDimCursor();
+		return gaussContent.randomAccess();
 	}
 	
 	@Override
-	public LocalizableByDimCursor<FloatType> getResultIterator( OutOfBoundsStrategyFactory<FloatType> factory )
+	public RandomAccess<FloatType> randomAccess( OutOfBoundsFactory<FloatType, Img<FloatType>> factory )
 	{
         // the iterator we need to get values from the weightening image
-		return gaussContent.createLocalizableByDimCursor( factory );
+		return Views.extend( gaussContent, factory).randomAccess();
 	}
 	
 	@Override
 	public void close()
 	{
-		gaussContent.close();
+		gaussContent = null;
 	}
 
 	@Override
-	public Image<FloatType> getResultImage() {
+	public Img<FloatType> getResultImage() {
 		return gaussContent;
 	}
 }

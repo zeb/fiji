@@ -29,9 +29,6 @@ public class FusionControl
 		final ArrayList<IsolatedPixelWeightenerFactory<?>> isolatedWeightenerFactories = new ArrayList<IsolatedPixelWeightenerFactory<?>>();
 		final ArrayList<CombinedPixelWeightenerFactory<?>> combinedWeightenerFactories = new ArrayList<CombinedPixelWeightenerFactory<?>>();
 		
-		if (conf.useEntropy)
-			isolatedWeightenerFactories.add( new EntropyFastFactory( conf.entropyFactory ) );
-
 		if (conf.useGauss)
 			isolatedWeightenerFactories.add( new GaussContentFactory( conf.entropyFactory ) );
 

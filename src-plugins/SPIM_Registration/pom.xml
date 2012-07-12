@@ -59,6 +59,21 @@
 		</dependency>
 		<dependency>
 			<groupId>net.imglib2</groupId>
+			<artifactId>imglib2-core</artifactId>
+			<version>${imagej.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>net.imglib2</groupId>
+			<artifactId>imglib2-algorithms-core</artifactId>
+			<version>${imagej.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>net.imglib2</groupId>
+			<artifactId>imglib2-algorithms-gpl</artifactId>
+			<version>${imagej.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>net.imglib2</groupId>
 			<artifactId>imglib2-algorithms-legacy</artifactId>
 			<version>${imagej.version}</version>
 		</dependency>
