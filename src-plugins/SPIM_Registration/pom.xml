@@ -58,6 +58,11 @@
 			<version>${imagej.version}</version>
 		</dependency>
 		<dependency>
+			<groupId>net.imglib2</groupId>
+			<artifactId>imglib2-algorithms-legacy</artifactId>
+			<version>${imagej.version}</version>
+		</dependency>
+		<dependency>
 			<groupId>jfree</groupId>
 			<artifactId>jcommon</artifactId>
 			<version>1.0.15</version>
