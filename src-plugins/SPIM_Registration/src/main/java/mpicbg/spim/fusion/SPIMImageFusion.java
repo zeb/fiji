@@ -49,7 +49,7 @@ public abstract class SPIMImageFusion
 	
 	public ImagePlus getFusedImageCopy() { return ImageJFunctions.show( getFusedImage() ); } 
 	public ImagePlus getFusedImageVirtual() { return ImageJFunctions.show( getFusedImage() ); } 
-	public boolean saveAsTiffs( final String dir, final String name, final int channelIndex ) { return ImgLibSaver.saveAsTiffs( getFusedImage(), dir, name + "_ch" + viewStructure.getChannelNum( channelIndex ), ImagePlus.GRAY32 ); }  
+	public boolean saveAsTiffs( final String dir, final String name, final int channelIndex ) { return ImgLibSaver.saveAsTiffs( getFusedImage(), dir, name + "_ch" + viewStructure.getChannelNum( channelIndex ) ); }  
 	
 	public Point3f getOutputImageMinCoordinate() { return min; }
 	public Point3f getOutputImageMaxCoordinate() { return max; }

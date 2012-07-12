@@ -6,8 +6,17 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.vecmath.Point3f;
 
+import net.imglib2.Cursor;
+import net.imglib2.RandomAccess;
+import net.imglib2.RandomAccessible;
+import net.imglib2.RealRandomAccess;
+import net.imglib2.RealRandomAccessible;
 import net.imglib2.img.Img;
+import net.imglib2.img.ImgFactory;
+import net.imglib2.multithreading.SimpleMultiThreading;
 import net.imglib2.type.numeric.real.FloatType;
+import net.imglib2.util.Util;
+import net.imglib2.view.Views;
 
 import mpicbg.models.AbstractAffineModel3D;
 import mpicbg.models.NoninvertibleModelException;
@@ -30,19 +39,16 @@ public class MappingFusionSequential extends SPIMImageFusion
 		if ( viewStructure.getDebugLevel() <= ViewStructure.DEBUG_MAIN )
 			IOFunctions.println("(" + new Date(System.currentTimeMillis()) + "): Reserving memory for fused image.");
 
-		final ImageFactory<FloatType> fusedImageFactory = conf.outputImageFactory;
+		final ImgFactory<FloatType> fusedImageFactory = conf.outputImageFactory;
 
-		fusedImage = fusedImageFactory.createImage( new int[]{ imgW, imgH, imgD }, "Fused image");
-		weights = fusedImageFactory.createImage( new int[]{ imgW, imgH, imgD }, "Weights image");
+		fusedImage = fusedImageFactory.create( new int[]{ imgW, imgH, imgD }, new FloatType());
+		weights = fusedImageFactory.create( new int[]{ imgW, imgH, imgD }, new FloatType());
 		this.numParalellStacks = numParalellStacks;
 
 		if ( fusedImage == null )
 		{
 			if ( viewStructure.getDebugLevel() <= ViewStructure.DEBUG_ERRORONLY )
-				IOFunctions.println("MappingFusionSequentialImages.constructor: Cannot create output image: " + conf.outputImageFactory.getErrorMessage());
-
-			if ( weights != null )
-				weights.close();
+				IOFunctions.println("MappingFusionSequentialImages.constructor: Cannot create output image: " + conf.outputImageFactory );
 
 			return;
 		}
@@ -50,9 +56,7 @@ public class MappingFusionSequential extends SPIMImageFusion
 		if ( weights == null )
 		{
 			if ( viewStructure.getDebugLevel() <= ViewStructure.DEBUG_ERRORONLY )
-				IOFunctions.println("MappingFusionSequentialImages.constructor: Cannot create weights image: " + conf.outputImageFactory.getErrorMessage());
-
-			fusedImage.close();
+				IOFunctions.println("MappingFusionSequentialImages.constructor: Cannot create weights image: " + conf.outputImageFactory );
 
 			return;
 		}
@@ -71,8 +75,8 @@ public class MappingFusionSequential extends SPIMImageFusion
 		// clear the previous output image
 		if ( channelIndex > 0 )
 		{
-			final Cursor<FloatType> iteratorFused = fusedImage.createCursor();
-			final Cursor<FloatType> iteratorWeights = weights.createCursor();
+			final Cursor<FloatType> iteratorFused = fusedImage.cursor();
+			final Cursor<FloatType> iteratorWeights = weights.cursor();
 
 			// compute final image
 			while ( iteratorFused.hasNext() )
@@ -80,12 +84,9 @@ public class MappingFusionSequential extends SPIMImageFusion
 				iteratorFused.fwd();
 				iteratorWeights.fwd();
 
-				iteratorFused.getType().set( 0 );
-				iteratorWeights.getType().set( 0 );
+				iteratorFused.get().set( 0 );
+				iteratorWeights.get().set( 0 );
 			}
-
-			iteratorFused.close();
-			iteratorWeights.close();
 		}
 
 		//
@@ -124,7 +125,7 @@ public class MappingFusionSequential extends SPIMImageFusion
 			models[ i ] = (AbstractAffineModel3D<?>)views.get( i ).getTile().getModel();
 		}
 
-		final int[][] imageSizes = new int[numViews][];
+		final long[][] imageSizes = new long[numViews][];
 		for ( int i = 0; i < numViews; ++i )
 			imageSizes[ i ] = views.get( i ).getImageSize();
 
@@ -264,16 +265,21 @@ public class MappingFusionSequential extends SPIMImageFusion
 			        			combW[i] = combinedWeightenerFactories.get(i).createInstance( views );
 
 							// get iterators for isolated weights
-			        		final LocalizableByDimCursor<FloatType> isoIterators[][] = new LocalizableByDimCursor[ isoW.length ][ numViews ];
+			        		final RandomAccess<FloatType> isoIterators[][] = new RandomAccess[ isoW.length ][ numViews ];
 							for (int i = 0; i < isoW.length; i++)
 								for (int view = viewIndexStart; view < viewIndexEnd; view++)
-									isoIterators[i][view] = isoW[i][view].getResultIterator();
+									isoIterators[i][view] = isoW[i][view].randomAccess();
 
 			    			// create Interpolated Iterators for the input images (every thread need own ones!)
-			    			final Interpolator<FloatType>[] interpolators = new Interpolator[ numViews ];
+			    			final RealRandomAccess<FloatType>[] interpolators = new RealRandomAccess[ numViews ];
 							for (int view = viewIndexStart; view < viewIndexEnd; view++)
-			    				interpolators[ view ] = views.get( view ).getImage( false ).createInterpolator( conf.interpolatorFactorOutput );
-
+							{
+			    				final RandomAccessible< FloatType > r1 = Views.extend( views.get( view ).getImage( false ), conf.strategyFactoryOutput );
+			    				final RealRandomAccessible< FloatType > r2 = Views.interpolate( r1, conf.interpolatorFactorOutput );
+			    				interpolators[ view ] = r2.realRandomAccess(); 
+			    				//interpolators[ view ] = views.get( view ).getImage( false ).createInterpolator( conf.interpolatorFactorOutput );
+							}
+							
 							final Point3f[] tmpCoordinates = new Point3f[ numViews ];
 							final int[][] loc = new int[ numViews ][ 3 ];
 			    			final float[][] locf = new float[ numViews ][ 3 ];
@@ -286,20 +292,20 @@ public class MappingFusionSequential extends SPIMImageFusion
 								for ( final ViewDataBeads view : processViews )
 									IOFunctions.println( "(" + new Date(System.currentTimeMillis()) + "): Starting fusion for: " + view.getName() );
 
-							final LocalizableCursor<FloatType> iteratorFused = fusedImage.createLocalizableCursor();
-							final LocalizableCursor<FloatType> iteratorWeights = weights.createLocalizableCursor();
+							final Cursor<FloatType> iteratorFused = fusedImage.localizingCursor();
+							final Cursor<FloatType> iteratorWeights = weights.localizingCursor();
 
 							while (iteratorFused.hasNext())
 							{
 								iteratorFused.next();
 								iteratorWeights.next();
 
-								if (iteratorFused.getPosition( 2 ) % numThreads == myNumber)
+								if (iteratorFused.getIntPosition( 2 ) % numThreads == myNumber)
 								{
 									// get the coordinates if cropped
-									final int x = iteratorFused.getPosition(0) + cropOffsetX;
-									final int y = iteratorFused.getPosition(1) + cropOffsetY;
-									final int z = iteratorFused.getPosition(2) + cropOffsetZ;
+									final int x = iteratorFused.getIntPosition(0) + cropOffsetX;
+									final int y = iteratorFused.getIntPosition(1) + cropOffsetY;
+									final int z = iteratorFused.getIntPosition(2) + cropOffsetZ;
 
 									int num = 0;
 									for (int i = startView; i < endView; ++i)
@@ -362,37 +368,34 @@ public class MappingFusionSequential extends SPIMImageFusion
 			    								for (int i = 0; i < isoW.length; i++)
 			    								{
 			    									isoIterators[ i ][ view ].setPosition( loc[ view ] );
-													weight *= isoIterators[ i ][ view ].getType().get();
+													weight *= isoIterators[ i ][ view ].get().get();
 			    								}
 
 			    								tmp[ 0 ] = tmpCoordinates[ view ].x;
 			    								tmp[ 1 ] = tmpCoordinates[ view ].y;
 			    								tmp[ 2 ] = tmpCoordinates[ view ].z;
 
-			    								interpolators[ view ].moveTo( tmp );
+			    								interpolators[ view ].setPosition( tmp );
 
-												final float intensity = interpolators[ view ].getType().get();
+												final float intensity = interpolators[ view ].get().get();
 												final float value = weight * intensity;
 
 
-												iteratorWeights.getType().set( iteratorWeights.getType().get() + weight );
-												iteratorFused.getType().set( iteratorFused.getType().get() + value );
+												iteratorWeights.get().set( iteratorWeights.get().get() + weight );
+												iteratorFused.get().set( iteratorFused.get().get() + value );
 			    							}
 									}
 								}
 							}
 
-							iteratorFused.close();
-							iteratorWeights.close();
-
 							// close iterators
 							for ( int view = viewIndexStart; view < viewIndexEnd; ++view )
-								interpolators[ view ].close();
+								interpolators[ view ] = null;
 
 		        			// close isolated iterators
 							for (int i = 0; i < isoW.length; i++)
 								for( int view = viewIndexStart; view < viewIndexEnd; ++view )
-									isoIterators[i][view].close();
+									isoIterators[i][view] = null;
 
 							// close weighteners
 							// close combined pixel weighteners
@@ -430,35 +433,24 @@ public class MappingFusionSequential extends SPIMImageFusion
 		if ( viewStructure.getDebugLevel() <= ViewStructure.DEBUG_MAIN )
 			IOFunctions.println("Computing final output image (Channel " + channelIndex +  ").");
 
-		final Cursor<FloatType> iteratorFused = fusedImage.createCursor();
-		final Cursor<FloatType> iteratorWeights = weights.createCursor();
+		final Cursor<FloatType> iteratorFused = fusedImage.cursor();
+		final Cursor<FloatType> iteratorWeights = weights.cursor();
 
 		// compute final image
 		while (iteratorFused.hasNext())
 		{
 			iteratorFused.fwd();
 			iteratorWeights.fwd();
-			final float weight = iteratorWeights.getType().get();
+			final float weight = iteratorWeights.get().get();
 
 			if (weight > 0)
-				iteratorFused.getType().set( iteratorFused.getType().get()/weight );
+				iteratorFused.get().set( iteratorFused.get().get()/weight );
 		}
-
-		iteratorFused.close();
-		iteratorWeights.close();
 
 		if ( viewStructure.getDebugLevel() <= ViewStructure.DEBUG_MAIN )
 			IOFunctions.println("(" + new Date(System.currentTimeMillis()) + "): Done computing output image (Channel " + channelIndex +  ").");
 	}
 
 	@Override
-	public Image<FloatType> getFusedImage() { return fusedImage; }
-
-	@Override
-	public void closeImages()
-	{
-		fusedImage.close();
-		weights.close();
-	}
-
+	public Img<FloatType> getFusedImage() { return fusedImage; }
 }

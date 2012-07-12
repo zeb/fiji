@@ -17,7 +17,7 @@ import ij.process.ImageProcessor;
  */
 public class ImgLibSaver 
 {
-	public static boolean saveAsTiffs( final Img< FloatType > img, String directory, final String name, final int type )
+	public static boolean saveAsTiffs( final Img< FloatType > img, String directory, final String name )
 	{
 		boolean everythingOK = true;
 

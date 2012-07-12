@@ -6,16 +6,18 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.vecmath.Point3f;
 
-import com.sun.net.httpserver.Authenticator.Success;
+import net.imglib2.Cursor;
+import net.imglib2.RandomAccess;
+import net.imglib2.RandomAccessible;
+import net.imglib2.RealRandomAccess;
+import net.imglib2.RealRandomAccessible;
+import net.imglib2.img.Img;
+import net.imglib2.img.ImgFactory;
+import net.imglib2.multithreading.SimpleMultiThreading;
+import net.imglib2.type.numeric.real.FloatType;
+import net.imglib2.util.Util;
+import net.imglib2.view.Views;
 
-import mpicbg.imglib.cursor.LocalizableByDimCursor;
-import mpicbg.imglib.cursor.LocalizableCursor;
-import mpicbg.imglib.image.Image;
-import mpicbg.imglib.image.ImageFactory;
-import mpicbg.imglib.interpolation.Interpolator;
-import mpicbg.imglib.multithreading.SimpleMultiThreading;
-import mpicbg.imglib.type.numeric.real.FloatType;
-import mpicbg.imglib.util.Util;
 import mpicbg.models.AbstractAffineModel3D;
 import mpicbg.models.NoninvertibleModelException;
 import mpicbg.spim.io.IOFunctions;
@@ -24,7 +26,7 @@ import mpicbg.spim.registration.ViewStructure;
 
 public class PreDeconvolutionFusion extends SPIMImageFusion
 {
-	final Image<FloatType> images[], weights[];
+	final Img<FloatType> images[], weights[];
 	final int numViews;
 	
 	public PreDeconvolutionFusion( final ViewStructure viewStructure, final ViewStructure referenceViewStructure, 
@@ -37,21 +39,21 @@ public class PreDeconvolutionFusion extends SPIMImageFusion
 		if ( viewStructure.getDebugLevel() <= ViewStructure.DEBUG_MAIN )
 			IOFunctions.println("(" + new Date(System.currentTimeMillis()) + "): Reserving memory for fused image.");
 		
-		final ImageFactory<FloatType> imageFactory = new ImageFactory<FloatType>( new FloatType(), conf.outputImageFactory );
+		final ImgFactory<FloatType> imageFactory = conf.outputImageFactory;
 		numViews = viewStructure.getNumViews();
 		
-		images = new Image[ numViews ];
-		weights = new Image[ numViews ];
+		images = new Img[ numViews ];
+		weights = new Img[ numViews ];
 		
 		for ( int view = 0; view < numViews; view++ )
 		{
-			weights[ view ] = imageFactory.createImage( new int[]{ imgW, imgH, imgD }, "weights_" + view );
-			images[ view ] = imageFactory.createImage( new int[]{ imgW, imgH, imgD }, "view_" + view ); 
+			weights[ view ] = imageFactory.create( new int[]{ imgW, imgH, imgD }, new FloatType() );
+			images[ view ] = imageFactory.create( new int[]{ imgW, imgH, imgD }, new FloatType() ); 
 			
 			if ( images[ view ] == null || weights[ view ] == null )
 			{
 				if ( viewStructure.getDebugLevel() <= ViewStructure.DEBUG_ERRORONLY )
-					IOFunctions.println("PreDeconvolutionFusion.constructor: Cannot create output image: " + conf.outputImageFactory.getErrorMessage() );
+					IOFunctions.println("PreDeconvolutionFusion.constructor: Cannot create output image: " + conf.outputImageFactory.getClass().getSimpleName() );
 
 				return;
 			}
@@ -174,7 +176,7 @@ public class PreDeconvolutionFusion extends SPIMImageFusion
 			models[ i ] = (AbstractAffineModel3D<?>)views.get( i ).getTile().getModel(); 
 		}
 		
-		final int[][] imageSizes = new int[numViews][];		
+		final long[][] imageSizes = new long[numViews][];		
 		for ( int i = 0; i < numViews; ++i )
 			imageSizes[ i ] = views.get( i ).getImageSize();
 		
@@ -210,10 +212,10 @@ public class PreDeconvolutionFusion extends SPIMImageFusion
 		        			combW[i] = combinedWeightenerFactories.get(i).createInstance( views );
 		            	
 						// get iterators for isolated weights
-		        		final LocalizableByDimCursor<FloatType> isoIterators[][] = new LocalizableByDimCursor[ isoW.length ][ numViews ];            		
+		        		final RandomAccess<FloatType> isoIterators[][] = new RandomAccess[ isoW.length ][ numViews ];            		
 						for (int i = 0; i < isoW.length; i++)
 							for (int view = 0; view < isoW[i].length; view++)
-								isoIterators[i][view] = isoW[i][view].getResultIterator();
+								isoIterators[i][view] = isoW[i][view].randomAccess();
 		        		
 		    			final Point3f[] tmpCoordinates = new Point3f[ numViews ];
 		    			final int[][] loc = new int[ numViews ][ 3 ];
@@ -223,23 +225,28 @@ public class PreDeconvolutionFusion extends SPIMImageFusion
 		    			for ( int i = 0; i < numViews; ++i )
 		    				tmpCoordinates[ i ] = new Point3f();
 		    			
-		    			final LocalizableCursor<FloatType> outIntensity[] = new LocalizableCursor[ numViews ];
-		    			final LocalizableCursor<FloatType> outWeights[] = new LocalizableCursor[ numViews ];
+		    			final Cursor<FloatType> outIntensity[] = new Cursor[ numViews ];
+		    			final Cursor<FloatType> outWeights[] = new Cursor[ numViews ];
 		    			
 		    			final float[] tmpWeights = new float[ numViews ];
 		    			
 		    			for ( int i = 0; i < numViews; ++i )
 		    			{
-		    				outIntensity[ i ] = images[ i ].createLocalizableCursor();
-		    				outWeights[ i ] = weights[ i ].createLocalizableCursor();
+		    				outIntensity[ i ] = images[ i ].localizingCursor();
+		    				outWeights[ i ] = weights[ i ].localizingCursor();
 		    			}
 		    			
-		    			final LocalizableCursor<FloatType> firstCursor = outIntensity[ 0 ];
+		    			final Cursor<FloatType> firstCursor = outIntensity[ 0 ];
 		    			
 		    			// create Interpolated Iterators for the input images (every thread need own ones!)
-		    			final Interpolator<FloatType>[] interpolators = new Interpolator[ numViews ];
+		    			final RealRandomAccess<FloatType>[] interpolators = new RealRandomAccess[ numViews ];
 		    			for (int view = 0; view < numViews ; view++)
-		    				interpolators[ view ] = views.get( view ).getImage().createInterpolator( conf.interpolatorFactorOutput );
+		    			{
+		    				final RandomAccessible< FloatType > r1 = Views.extend( views.get( view ).getImage( false ), conf.strategyFactoryOutput );
+		    				final RealRandomAccessible< FloatType > r2 = Views.interpolate( r1, conf.interpolatorFactorOutput );
+		    				interpolators[ view ] = r2.realRandomAccess(); 
+		    				//interpolators[ view ] = views.get( view ).getImage().createInterpolator( conf.interpolatorFactorOutput );
+		    			}
 		    			
 		    			while ( firstCursor.hasNext() )
 		    			{
@@ -249,12 +256,12 @@ public class PreDeconvolutionFusion extends SPIMImageFusion
 			    				outWeights[ i ].fwd();
 			    			}
 		    				
-		        			if ( firstCursor.getPosition(2) % numThreads == myNumber )
+		        			if ( firstCursor.getIntPosition(2) % numThreads == myNumber )
 		        			{
 		        				// get the coordinates if cropped (all coordinates are the same, so we only use the first cursor)
-		        				final int x = firstCursor.getPosition( 0 ) + cropOffsetX;
-		        				final int y = firstCursor.getPosition( 1 ) + cropOffsetY;
-		        				final int z = firstCursor.getPosition( 2 ) + cropOffsetZ;
+		        				final int x = firstCursor.getIntPosition( 0 ) + cropOffsetX;
+		        				final int y = firstCursor.getIntPosition( 1 ) + cropOffsetY;
+		        				final int z = firstCursor.getIntPosition( 2 ) + cropOffsetZ;
 
 		        				// how many view contribute at this position
 								int num = 0;
@@ -317,21 +324,21 @@ public class PreDeconvolutionFusion extends SPIMImageFusion
 		    								for (int i = 0; i < isoW.length; i++)
 		    								{
 		    									isoIterators[ i ][ view ].setPosition( loc[ view ] );
-												weight *= isoIterators[ i ][ view ].getType().get();
+												weight *= isoIterators[ i ][ view ].get().get();
 		    								}        									      
 		    								
 		    								tmp[ 0 ] = tmpCoordinates[view].x;
 		    								tmp[ 1 ] = tmpCoordinates[view].y;
 		    								tmp[ 2 ] = tmpCoordinates[view].z;
 		    								
-		    								interpolators[view].moveTo( tmp );
+		    								interpolators[view].setPosition( tmp );
 		    								
 		    								//value += weight * interpolators[view].getType().get(); 
 		    								sumWeights += weight;
 		    								
 		    								// set the intensity, remember the weight
 		    								tmpWeights[ view ] = weight;
-		    								outIntensity[ view ].getType().set( interpolators[view].getType().get() );
+		    								outIntensity[ view ].get().set( interpolators[view].get().get() );
 		    							}
 		    						}
 		    						
@@ -342,7 +349,7 @@ public class PreDeconvolutionFusion extends SPIMImageFusion
 			    						{
 			    							if ( use[view] )
 			    							{
-			    								outWeights[ view ].getType().set( tmpWeights[ view ]/sumWeights );
+			    								outWeights[ view ].get().set( tmpWeights[ view ]/sumWeights );
 			    							}
 			    						}
 		    						}
@@ -354,9 +361,9 @@ public class PreDeconvolutionFusion extends SPIMImageFusion
 	        			
 		    			for ( int i = 0; i < numViews; ++i )
 		    			{
-		    				outIntensity[ i ].close();
-		    				outWeights[ i ].close();
-	        				interpolators[ i ].close();
+		    				outIntensity[ i ] = null;
+		    				outWeights[ i ] = null;
+	        				interpolators[ i ] = null;
 		    			}
 		    			
 	        			// close combined pixel weighteners
@@ -366,7 +373,7 @@ public class PreDeconvolutionFusion extends SPIMImageFusion
 	        			// close isolated iterators
 						for (int i = 0; i < isoW.length; i++)
 							for (int view = 0; view < isoW[i].length; view++)
-								isoIterators[i][view].close();
+								isoIterators[i][view] = null;
          			
                 	}
                 	catch (NoninvertibleModelException e)
@@ -404,15 +411,8 @@ public class PreDeconvolutionFusion extends SPIMImageFusion
 	}
 
 	@Override
-	public Image<FloatType> getFusedImage() { return null; }
+	public Img<FloatType> getFusedImage() { return null; }
 	
-	public Image<FloatType> getFusedImage( final int index ) { return images[ index ]; }
-	public Image<FloatType> getWeightImage( final int index ) { return weights[ index ]; }
-
-	@Override
-	public void closeImages() 
-	{
-		// do nothing, we still need them!
-	}
-
+	public Img<FloatType> getFusedImage( final int index ) { return images[ index ]; }
+	public Img<FloatType> getWeightImage( final int index ) { return weights[ index ]; }
 }

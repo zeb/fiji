@@ -1,28 +1,34 @@
 package mpicbg.spim.fusion;
 
+import ij.ImagePlus;
+
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.vecmath.Point3f;
 
-import mpicbg.imglib.cursor.LocalizableCursor;
-import mpicbg.imglib.image.Image;
-import mpicbg.imglib.image.ImageFactory;
-import mpicbg.imglib.image.display.imagej.ImageJFunctions;
-import mpicbg.imglib.interpolation.Interpolator;
-import mpicbg.imglib.multithreading.SimpleMultiThreading;
-import mpicbg.imglib.type.numeric.real.FloatType;
-import mpicbg.imglib.util.Util;
+import net.imglib2.Cursor;
+import net.imglib2.RandomAccessible;
+import net.imglib2.RealRandomAccess;
+import net.imglib2.RealRandomAccessible;
+import net.imglib2.img.Img;
+import net.imglib2.img.ImgFactory;
+import net.imglib2.multithreading.SimpleMultiThreading;
+import net.imglib2.type.numeric.real.FloatType;
+import net.imglib2.util.Util;
+import net.imglib2.view.Views;
+
 import mpicbg.models.AbstractAffineModel3D;
 import mpicbg.models.NoninvertibleModelException;
 import mpicbg.spim.io.IOFunctions;
+import mpicbg.spim.io.ImgLibSaver;
 import mpicbg.spim.registration.ViewDataBeads;
 import mpicbg.spim.registration.ViewStructure;
 
 public class MappingFusionSequentialDifferentOutput extends SPIMImageFusion
 {
-	final Image<FloatType> fusedImages[];
+	final Img<FloatType> fusedImages[];
 	final int numViews;
 
 	//int angleIndicies[] = new int[]{ 0, 6, 7 };
@@ -47,8 +53,8 @@ public class MappingFusionSequentialDifferentOutput extends SPIMImageFusion
 				angleIndicies[ view ] = view;
 		}
 
-		fusedImages = new Image[ angleIndicies.length ];
-		final ImageFactory<FloatType> fusedImageFactory = new ImageFactory<FloatType>( new FloatType(), conf.outputImageFactory );
+		fusedImages = new Img[ angleIndicies.length ];
+		final ImgFactory<FloatType> fusedImageFactory = conf.outputImageFactory;
 
 		final long size = (4l * imgW * imgH * imgD)/(1000l*1000l);
 
@@ -57,10 +63,10 @@ public class MappingFusionSequentialDifferentOutput extends SPIMImageFusion
 			if ( viewStructure.getDebugLevel() <= ViewStructure.DEBUG_MAIN )
 				IOFunctions.println( "(" + new Date(System.currentTimeMillis()) + "): Reserving " + size + " MiB for '" + viewStructure.getViews().get( angleIndicies[i] ).getName() + "'" );
 
-			fusedImages[ i ] = fusedImageFactory.createImage( new int[]{ imgW, imgH, imgD }, "Fused image" );
+			fusedImages[ i ] = fusedImageFactory.create( new int[]{ imgW, imgH, imgD }, new FloatType() );
 
 			if ( fusedImages[i] == null && viewStructure.getDebugLevel() <= ViewStructure.DEBUG_ERRORONLY )
-				IOFunctions.printErr("MappingFusionSequentialDifferentOutput.constructor: Cannot create output image: " + conf.outputImageFactory.getErrorMessage());
+				IOFunctions.printErr("MappingFusionSequentialDifferentOutput.constructor: Cannot create output image: " + conf.outputImageFactory );
 		}
 	}
 
@@ -123,21 +129,21 @@ public class MappingFusionSequentialDifferentOutput extends SPIMImageFusion
 							if ( viewStructure.getDebugLevel() <= ViewStructure.DEBUG_MAIN )
 								IOFunctions.println("(" + new Date(System.currentTimeMillis()) + "): Loading view: " + view.getName());
 
-							final Image<FloatType> img = view.getImage( conf.imageFactoryFusion, false );
-							final Interpolator<FloatType> interpolator = img.createInterpolator( conf.interpolatorFactorOutput );
+							final RandomAccessible< FloatType > r1 = Views.extend( view.getImage( false ), conf.strategyFactoryOutput );
+		    				final RealRandomAccessible< FloatType > r2 = Views.interpolate( r1, conf.interpolatorFactorOutput );
+							final RealRandomAccess<FloatType> interpolator = r2.realRandomAccess();
 
 							final Point3f tmpCoordinates = new Point3f();
 
-							final int[] imageSize = view.getImageSize();
-							final int w = imageSize[ 0 ];
-							final int h = imageSize[ 1 ];
-							final int d = imageSize[ 2 ];
+							final long[] imageSize = view.getImageSize();
+							final long w = imageSize[ 0 ];
+							final long h = imageSize[ 1 ];
+							final long d = imageSize[ 2 ];
 
 							final AbstractAffineModel3D<?> model = (AbstractAffineModel3D<?>)view.getTile().getModel();
 
 							// temporary float array
 				        	final float[] tmp = new float[ 3 ];
-
 
 				    		final CombinedPixelWeightener<?>[] combW = new CombinedPixelWeightener<?>[combinedWeightenerFactories.size()];
 				    		for (int i = 0; i < combW.length; i++)
@@ -156,7 +162,7 @@ public class MappingFusionSequentialDifferentOutput extends SPIMImageFusion
 							if ( viewStructure.getDebugLevel() <= ViewStructure.DEBUG_MAIN )
 								IOFunctions.println("(" + new Date(System.currentTimeMillis()) + "): Starting fusion for: " + view.getName());
 
-							final LocalizableCursor<FloatType> iteratorFused = fusedImages[ viewIndex ].createLocalizableCursor();
+							final Cursor<FloatType> iteratorFused = fusedImages[ viewIndex ].localizingCursor();
 
 							try
 							{
@@ -165,9 +171,9 @@ public class MappingFusionSequentialDifferentOutput extends SPIMImageFusion
 									iteratorFused.next();
 
 									// get the coordinates if cropped
-									final int x = iteratorFused.getPosition(0) + cropOffsetX;
-									final int y = iteratorFused.getPosition(1) + cropOffsetY;
-									final int z = iteratorFused.getPosition(2) + cropOffsetZ;
+									final int x = iteratorFused.getIntPosition(0) + cropOffsetX;
+									final int y = iteratorFused.getIntPosition(1) + cropOffsetY;
+									final int z = iteratorFused.getIntPosition(2) + cropOffsetZ;
 
 									tmpCoordinates.x = x * scale + min.x;
 									tmpCoordinates.y = y * scale + min.y;
@@ -205,8 +211,8 @@ public class MappingFusionSequentialDifferentOutput extends SPIMImageFusion
 
 											interpolator.setPosition( tmp );
 
-											final float intensity = interpolator.getType().get();
-											iteratorFused.getType().set( intensity * weight );
+											final float intensity = interpolator.get().get();
+											iteratorFused.get().set( intensity * weight );
 										}
 								}
 							}
@@ -215,9 +221,6 @@ public class MappingFusionSequentialDifferentOutput extends SPIMImageFusion
 				        		if ( viewStructure.getDebugLevel() <= ViewStructure.DEBUG_ERRORONLY )
 				        			IOFunctions.println( "MappingFusionSequentialDifferentOutput(): Model not invertible for " + viewStructure );
 				        	}
-
-				        	iteratorFused.close();
-							interpolator.close();
 
 							// unload input image
 							view.closeImage();
@@ -232,9 +235,9 @@ public class MappingFusionSequentialDifferentOutput extends SPIMImageFusion
 	}
 
 	@Override
-	public Image<FloatType> getFusedImage() { return fusedImages[ 0 ]; }
+	public Img<FloatType> getFusedImage() { return fusedImages[ 0 ]; }
 
-	public Image<FloatType> getFusedImage( final int index ) { return fusedImages[ index ]; }
+	public Img<FloatType> getFusedImage( final int index ) { return fusedImages[ index ]; }
 
 	@Override
 	public boolean saveAsTiffs( final String dir, final String name, final int channelIndex )
@@ -251,17 +254,9 @@ public class MappingFusionSequentialDifferentOutput extends SPIMImageFusion
 			if ( viewStructure.getDebugLevel() <= ViewStructure.DEBUG_MAIN )
 				IOFunctions.println( "(" + new Date(System.currentTimeMillis()) + "): Saving '" + name + "_ch" + view.getChannel() + "_angle" + view.getAcqusitionAngle() + "'" );
 
-			success &= ImageJFunctions.saveAsTiffs( fusedImages[ i ], dir, name + "_ch" + view.getChannel() + "_angle" + view.getAcqusitionAngle(), ImageJFunctions.GRAY32 );
+			success &= ImgLibSaver.saveAsTiffs( fusedImages[ i ], dir, name + "_ch" + view.getChannel() + "_angle" + view.getAcqusitionAngle() );
 		}
 
 		return success;
 	}
-
-	@Override
-	public void closeImages()
-	{
-		for (int i = 0; i < fusedImages.length; i++)
-			fusedImages[i].close();
-	}
-
 }

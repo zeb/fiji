@@ -6,16 +6,20 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.vecmath.Point3f;
 
-import mpicbg.imglib.cursor.LocalizableByDimCursor;
-import mpicbg.imglib.cursor.LocalizableCursor;
-import mpicbg.imglib.image.Image;
-import mpicbg.imglib.image.ImageFactory;
-import mpicbg.imglib.interpolation.Interpolator;
-import mpicbg.imglib.interpolation.linear.LinearInterpolatorFactory;
-import mpicbg.imglib.multithreading.SimpleMultiThreading;
-import mpicbg.imglib.outofbounds.OutOfBoundsStrategyValueFactory;
-import mpicbg.imglib.type.numeric.real.FloatType;
-import mpicbg.imglib.util.Util;
+import net.imglib2.Cursor;
+import net.imglib2.RandomAccess;
+import net.imglib2.RandomAccessible;
+import net.imglib2.RealRandomAccess;
+import net.imglib2.RealRandomAccessible;
+import net.imglib2.img.Img;
+import net.imglib2.img.ImgFactory;
+import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
+import net.imglib2.multithreading.SimpleMultiThreading;
+import net.imglib2.outofbounds.OutOfBoundsConstantValueFactory;
+import net.imglib2.type.numeric.real.FloatType;
+import net.imglib2.util.Util;
+import net.imglib2.view.Views;
+
 import mpicbg.models.AbstractAffineModel3D;
 import mpicbg.models.NoninvertibleModelException;
 import mpicbg.spim.io.IOFunctions;
@@ -24,7 +28,7 @@ import mpicbg.spim.registration.ViewStructure;
 
 public class MappingFusionParalellMaxWeight extends SPIMImageFusion
 {
-	final Image<FloatType> fusedImage;
+	final Img<FloatType> fusedImage;
 
 	public MappingFusionParalellMaxWeight( final ViewStructure viewStructure, final ViewStructure referenceViewStructure,
 								  final ArrayList<IsolatedPixelWeightenerFactory<?>> isolatedWeightenerFactories,
@@ -36,13 +40,13 @@ public class MappingFusionParalellMaxWeight extends SPIMImageFusion
 		if ( viewStructure.getDebugLevel() <= ViewStructure.DEBUG_MAIN )
 			IOFunctions.println("(" + new Date(System.currentTimeMillis()) + "): Reserving memory for fused image.");
 
-		final ImageFactory<FloatType> fusedImageFactory = new ImageFactory<FloatType>( new FloatType(), conf.outputImageFactory );
-		fusedImage = fusedImageFactory.createImage( new int[]{ imgW, imgH, imgD }, "Fused image");
+		final ImgFactory<FloatType> fusedImageFactory = conf.outputImageFactory;
+		fusedImage = fusedImageFactory.create( new int[]{ imgW, imgH, imgD }, new FloatType() );
 
 		if (fusedImage == null)
 		{
 			if ( viewStructure.getDebugLevel() <= ViewStructure.DEBUG_ERRORONLY )
-				IOFunctions.println("MappingFusionParalell.constructor: Cannot create output image: " + conf.outputImageFactory.getErrorMessage());
+				IOFunctions.println("MappingFusionParalell.constructor: Cannot create output image: " + conf.outputImageFactory );
 
 			return;
 		}
@@ -169,7 +173,7 @@ public class MappingFusionParalellMaxWeight extends SPIMImageFusion
 		for (int view = 0; view < numViews ; view++)
 			views.get( view ).unnormalizeImage();
 
-		final int[][] imageSizes = new int[numViews][];
+		final long[][] imageSizes = new long[numViews][];
 		for ( int i = 0; i < numViews; ++i )
 			imageSizes[ i ] = views.get( i ).getImageSize();
 
@@ -206,10 +210,10 @@ public class MappingFusionParalellMaxWeight extends SPIMImageFusion
 		        			combW[i] = combinedWeightenerFactories.get(i).createInstance( views );
 
 						// get iterators for isolated weights
-		        		final LocalizableByDimCursor<FloatType> isoIterators[][] = new LocalizableByDimCursor[ isoW.length ][ numViews ];
+		        		final RandomAccess<FloatType> isoIterators[][] = new RandomAccess[ isoW.length ][ numViews ];
 						for (int i = 0; i < isoW.length; i++)
 							for (int view = 0; view < isoW[i].length; view++)
-								isoIterators[i][view] = isoW[i][view].getResultIterator();
+								isoIterators[i][view] = isoW[i][view].randomAccess();
 
 		    			final Point3f[] tmpCoordinates = new Point3f[ numViews ];
 		    			final int[][] loc = new int[ numViews ][ 3 ];
@@ -219,29 +223,39 @@ public class MappingFusionParalellMaxWeight extends SPIMImageFusion
 		    			for ( int i = 0; i < numViews; ++i )
 		    				tmpCoordinates[ i ] = new Point3f();
 
-		    			final LocalizableCursor<FloatType> it = fusedImage.createLocalizableCursor();
+		    			final Cursor<FloatType> it = fusedImage.localizingCursor();
 
 		    			// create Interpolated Iterators for the input images (every thread need own ones!)
-		    			final Interpolator<FloatType>[] imageInterpolators = new Interpolator[ numViews ];
+		    			final RealRandomAccess<FloatType>[] imageInterpolators = new RealRandomAccess[ numViews ];
 		    			for (int view = 0; view < numViews ; view++)
-		    				imageInterpolators[ view ] = views.get( view ).getImage( false ).createInterpolator( conf.interpolatorFactorOutput );
-
+		    			{
+		    				final RandomAccessible< FloatType > r1 = Views.extend( views.get( view ).getImage( false ), conf.strategyFactoryOutput );
+		    				final RealRandomAccessible< FloatType > r2 = Views.interpolate( r1, conf.interpolatorFactorOutput );
+		    				imageInterpolators[ view ] = r2.realRandomAccess(); 
+		    				//imageInterpolators[ view ] = views.get( view ).getImage( false ).createInterpolator( conf.interpolatorFactorOutput );
+		    			}
+		    			
 		    			// create Interpolators for weights
-		    			final Interpolator<FloatType>[][] weightInterpolators = new Interpolator[ isoW.length ][ numViews ];
+		    			final RealRandomAccess<FloatType>[][] weightInterpolators = new RealRandomAccess[ isoW.length ][ numViews ];
 		    			for (int i = 0; i < isoW.length; i++)
 		    				for (int view = 0; view < numViews ; view++)
-		    					weightInterpolators[i][ view ] = isoW[i][view].getResultImage().createInterpolator( new LinearInterpolatorFactory<FloatType>( new OutOfBoundsStrategyValueFactory<FloatType>()) );
-
+		    				{
+			    				final RandomAccessible< FloatType > r1 = Views.extend( isoW[i][view].getResultImage(), new OutOfBoundsConstantValueFactory<FloatType, Img<FloatType>>( new FloatType() ) );
+			    				final RealRandomAccessible< FloatType > r2 = Views.interpolate( r1, new NLinearInterpolatorFactory<FloatType>() );
+			    				weightInterpolators[i][ view ] = r2.realRandomAccess(); 
+		    					//weightInterpolators[i][ view ] = isoW[i][view].getResultImage().createInterpolator( new LinearInterpolatorFactory<FloatType>( new OutOfBoundsStrategyValueFactory<FloatType>()) );
+		    				}
+		    			
 		    			while (it.hasNext())
 		    			{
 		    				it.fwd();
 
-		        			if (it.getPosition(2) % numThreads == myNumber)
+		        			if (it.getIntPosition(2) % numThreads == myNumber)
 		        			{
 		        				// get the coordinates if cropped
-		        				final int x = it.getPosition(0) + cropOffsetX;
-		        				final int y = it.getPosition(1) + cropOffsetY;
-		        				final int z = it.getPosition(2) + cropOffsetZ;
+		        				final int x = it.getIntPosition(0) + cropOffsetX;
+		        				final int y = it.getIntPosition(1) + cropOffsetY;
+		        				final int z = it.getIntPosition(2) + cropOffsetZ;
 
 								int num = 0;
 								for (int i = 0; i < numViews; ++i)
@@ -308,7 +322,7 @@ public class MappingFusionParalellMaxWeight extends SPIMImageFusion
 		    								for (int i = 0; i < isoW.length; i++)
 		    								{
 		    									weightInterpolators[i][view].setPosition( tmp );
-		    									weight = weightInterpolators[i][view].getType().get();
+		    									weight = weightInterpolators[i][view].get().get();
 		    								}
 
 		    								if ( weight > maxWeight )
@@ -342,7 +356,7 @@ public class MappingFusionParalellMaxWeight extends SPIMImageFusion
 	    								tmp[ 2 ] = tmpCoordinates[maxView].z;
 
 	    								imageInterpolators[maxView].setPosition( tmp );
-		    							it.getType().set( imageInterpolators[maxView].getType().get() );
+		    							it.get().set( imageInterpolators[maxView].get().get() );
 		    						}
 
 	    						}
@@ -350,13 +364,12 @@ public class MappingFusionParalellMaxWeight extends SPIMImageFusion
 	            			} // myThread loop
 	        			} // iterator loop
 
-	        			it.close();
 	        			for (int i = 0; i < isoW.length; i++)
 							for (int view = 0; view < numViews; view++)
-								weightInterpolators[i][view].close();
+								weightInterpolators[i][view] = null;
 
 						for (int view = 0; view < numViews; view++)
-							imageInterpolators[view].close();
+							imageInterpolators[view] = null;
 
 	        			// close combined pixel weighteners
 	        			for (int i = 0; i < combW.length; i++)
@@ -365,7 +378,7 @@ public class MappingFusionParalellMaxWeight extends SPIMImageFusion
 	        			// close isolated iterators
 						for (int i = 0; i < isoW.length; i++)
 							for (int view = 0; view < isoW[i].length; view++)
-								isoIterators[i][view].close();
+								isoIterators[i][view] = null;
 
                 	}
                 	catch (final NoninvertibleModelException e)
@@ -403,5 +416,5 @@ public class MappingFusionParalellMaxWeight extends SPIMImageFusion
 	}
 
 	@Override
-	public Image<FloatType> getFusedImage() { return fusedImage; }
+	public Img<FloatType> getFusedImage() { return fusedImage; }
 }
