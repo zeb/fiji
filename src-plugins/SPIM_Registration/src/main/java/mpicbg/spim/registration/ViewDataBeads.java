@@ -14,11 +14,11 @@ import javax.vecmath.Matrix4f;
 import net.imglib2.Cursor;
 import net.imglib2.img.Img;
 import net.imglib2.img.ImgFactory;
+import net.imglib2.img.ImgPlus;
 import net.imglib2.img.display.imagej.ImageJFunctions;
 import net.imglib2.type.numeric.real.FloatType;
 
 import mpicbg.models.AbstractAffineModel3D;
-import mpicbg.spim.ImgSPIM;
 import mpicbg.spim.io.IOFunctions;
 import mpicbg.spim.mpicbg.TileSPIM;
 import mpicbg.spim.registration.bead.BeadStructure;
@@ -246,7 +246,7 @@ public class ViewDataBeads implements Comparable< ViewDataBeads >
 	/**
 	 * The input image
 	 */
-	private ImgSPIM image = null;
+	private ImgPlus<FloatType> image = null;
 	private boolean isNormalized;
 	private float minValue = 0;
 	private float maxValue = 0;
@@ -376,7 +376,7 @@ public class ViewDataBeads implements Comparable< ViewDataBeads >
 				{
 					imp = exp.openNotProjected( s, timePoint, timePoint, r, angle, channel, zMin, zMax, f, f, yMin, yMax, xMin, xMax, SPIMExperiment.X, SPIMExperiment.Y, SPIMExperiment.Z, false );
 				}
-				image = new ImgSPIM( ImageJFunctions.convertFloat( imp ) );
+				image = new ImgPlus<FloatType>( ImageJFunctions.convertFloat( imp ) );
 				image.setCalibration( new float[]{ 1, 1, (float)getViewStructure().getSPIMConfiguration().getZStretchingHuisken() } );
 			}
 			else
