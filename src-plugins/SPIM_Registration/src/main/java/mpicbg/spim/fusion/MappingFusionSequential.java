@@ -6,15 +6,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.vecmath.Point3f;
 
-import mpicbg.imglib.cursor.Cursor;
-import mpicbg.imglib.cursor.LocalizableByDimCursor;
-import mpicbg.imglib.cursor.LocalizableCursor;
-import mpicbg.imglib.image.Image;
-import mpicbg.imglib.image.ImageFactory;
-import mpicbg.imglib.interpolation.Interpolator;
-import mpicbg.imglib.multithreading.SimpleMultiThreading;
-import mpicbg.imglib.type.numeric.real.FloatType;
-import mpicbg.imglib.util.Util;
+import net.imglib2.img.Img;
+import net.imglib2.type.numeric.real.FloatType;
+
 import mpicbg.models.AbstractAffineModel3D;
 import mpicbg.models.NoninvertibleModelException;
 import mpicbg.spim.io.IOFunctions;
@@ -23,7 +17,7 @@ import mpicbg.spim.registration.ViewStructure;
 
 public class MappingFusionSequential extends SPIMImageFusion
 {
-	final Image<FloatType> fusedImage, weights;
+	final Img<FloatType> fusedImage, weights;
 	final int numParalellStacks;
 
 	public MappingFusionSequential( final ViewStructure viewStructure, final ViewStructure referenceViewStructure,
@@ -36,7 +30,7 @@ public class MappingFusionSequential extends SPIMImageFusion
 		if ( viewStructure.getDebugLevel() <= ViewStructure.DEBUG_MAIN )
 			IOFunctions.println("(" + new Date(System.currentTimeMillis()) + "): Reserving memory for fused image.");
 
-		final ImageFactory<FloatType> fusedImageFactory = new ImageFactory<FloatType>( new FloatType(), conf.outputImageFactory );
+		final ImageFactory<FloatType> fusedImageFactory = conf.outputImageFactory;
 
 		fusedImage = fusedImageFactory.createImage( new int[]{ imgW, imgH, imgD }, "Fused image");
 		weights = fusedImageFactory.createImage( new int[]{ imgW, imgH, imgD }, "Weights image");

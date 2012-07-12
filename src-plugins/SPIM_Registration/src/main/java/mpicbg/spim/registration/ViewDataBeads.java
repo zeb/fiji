@@ -451,7 +451,7 @@ public class ViewDataBeads implements Comparable< ViewDataBeads >
 
 			if ( normalize )
 			{
-				final float[] minmax = normalizeImage( image );
+				final float[] minmax = normalizeImage( image, image.getName() );
 				minValue = minmax[ 0 ];
 				maxValue = minmax[ 1 ];
 				isNormalized = true;
@@ -522,7 +522,7 @@ public class ViewDataBeads implements Comparable< ViewDataBeads >
 	 * Normalizes the image to the range [0...1]
 	 * @param image - the image to normalize
 	 */
-	public static float[] normalizeImage( final ImgPlus<FloatType> image )
+	public static float[] normalizeImage( final Img<FloatType> image, final String title )
 	{
 		final FloatType minType = new FloatType();
 		final FloatType maxType = new FloatType();
@@ -535,7 +535,7 @@ public class ViewDataBeads implements Comparable< ViewDataBeads >
 
 		if ( Float.isNaN( diff ) || Float.isInfinite(diff) || diff == 0 )
 		{
-			IOFunctions.println("Cannot normalize image " + image.getName() + ", min=" + min + "  + max=" + max );
+			IOFunctions.println("Cannot normalize image " + title + ", min=" + min + "  + max=" + max );
 			return new float[]{ min, max };
 		}
 

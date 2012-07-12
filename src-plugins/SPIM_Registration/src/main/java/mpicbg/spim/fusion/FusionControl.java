@@ -3,9 +3,10 @@ package mpicbg.spim.fusion;
 import java.util.ArrayList;
 import java.util.Date;
 
-import mpicbg.imglib.image.Image;
-import mpicbg.imglib.image.display.imagej.ImageJFunctions;
-import mpicbg.imglib.type.numeric.real.FloatType;
+import net.imglib2.img.Img;
+import net.imglib2.img.display.imagej.ImageJFunctions;
+import net.imglib2.type.numeric.real.FloatType;
+
 import mpicbg.spim.io.IOFunctions;
 import mpicbg.spim.io.SPIMConfiguration;
 import mpicbg.spim.registration.ViewDataBeads;
@@ -80,8 +81,6 @@ public class FusionControl
 					if ( viewStructure.getDebugLevel() <= ViewStructure.DEBUG_MAIN )
 						IOFunctions.println("(" + new Date(System.currentTimeMillis()) + "): Displaying image (Channel " + channelIndex +  ").");
 					
-					fusion.getFusedImage().getDisplay().setMinMax();
-					
 					String name = viewStructure.getSPIMConfiguration().inputFilePattern;			
 					String replaceTP = SPIMConfiguration.getReplaceStringTimePoints( name );
 					String replaceChannel = SPIMConfiguration.getReplaceStringChannels( name );
@@ -92,9 +91,7 @@ public class FusionControl
 					if ( replaceChannel != null )
 						name = name.replace( replaceChannel, "" + channelID );
 
-					fusion.getFusedImage().setName( "Fused_" + name );
-					
-					ImageJFunctions.copyToImagePlus( fusion.getFusedImage() ).show();
+					ImageJFunctions.show( fusion.getFusedImage() ).setTitle( "Fused_" + name );
 					//fusion.getFusedImageVirtual().show();
 				}
 				else
@@ -107,7 +104,7 @@ public class FusionControl
 						
 						for ( final ViewDataBeads view : viewStructure.getViews() )
 						{
-							final Image<FloatType> fused = multipleFusion.getFusedImage( i++ );
+							final Img<FloatType> fused = multipleFusion.getFusedImage( i++ );
 		
 							String name = viewStructure.getSPIMConfiguration().inputFilePattern;			
 							String replaceTP = SPIMConfiguration.getReplaceStringTimePoints( name );
@@ -127,10 +124,7 @@ public class FusionControl
 							}
 							catch (Exception e ){};
 							
-							fused.setName( name );
-							fused.getDisplay().setMinMax();
-							
-							ImageJFunctions.copyToImagePlus( fused ).show();
+							ImageJFunctions.show( fused ).setTitle( name );
 						}
 					}
 				}
@@ -144,9 +138,6 @@ public class FusionControl
 				fusion.saveAsTiffs( conf.outputdirectory, "img_tl" + timePoint, channelIndex );
 			}					
 		}
-		
-		if  ( !conf.isDeconvolution )
-			fusion.closeImages();
 	}
 	
 }

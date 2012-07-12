@@ -1,15 +1,14 @@
 package mpicbg.spim.io;
 
+import net.imglib2.RandomAccess;
+import net.imglib2.img.Img;
+import net.imglib2.iterator.ZeroMinIntervalIterator;
+import net.imglib2.type.Type;
+import net.imglib2.type.numeric.real.FloatType;
 import ij.ImagePlus;
 import ij.io.FileSaver;
 import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
-import mpicbg.imglib.cursor.LocalizablePlaneCursor;
-import mpicbg.imglib.cursor.array.ArrayLocalizableCursor;
-import mpicbg.imglib.image.Image;
-import mpicbg.imglib.image.display.Display;
-import mpicbg.imglib.type.Type;
-import mpicbg.imglib.type.label.FakeType;
 
 /**
  * 
@@ -18,14 +17,8 @@ import mpicbg.imglib.type.label.FakeType;
  */
 public class ImgLibSaver 
 {
-	public static <T extends Type<T>> boolean saveAsTiffs( final Image<T> img, String directory, final int type )
+	public static boolean saveAsTiffs( final Img< FloatType > img, String directory, final String name, final int type )
 	{
-		return saveAsTiffs( img, directory, img.getName(), type );
-	}
-
-	public static <T extends Type<T>> boolean saveAsTiffs( final Image<T> img, String directory, final String name, final int type )
-	{
-		final Display<T> display = img.getDisplay();
 		boolean everythingOK = true;
 
 		if ( directory == null )
@@ -36,7 +29,7 @@ public class ImgLibSaver
 		if (directory.length() > 0 && !directory.endsWith("/"))
 			directory = directory + "/";
 
-		final int numDimensions = img.getNumDimensions();
+		final int numDimensions = img.numDimensions();
 
 		final int[] dimensionPositions = new int[ numDimensions ];
 
@@ -47,7 +40,7 @@ public class ImgLibSaver
 
 		if ( numDimensions <= 2 )
 		{
-			final ImageProcessor ip = new FloatProcessor( img.getDimension( dimX ), img.getDimension( dimY ), extractSliceFloat( img, display, dimX, dimY, dimensionPositions ), null);//extract2DSlice( img, display,type, dimX, dimY, dimensionPositions );
+			final ImageProcessor ip = new FloatProcessor( (int)img.dimension( dimX ), (int)img.dimension( dimY ), extractSliceFloat( img, dimX, dimY, dimensionPositions ), null);
 			final ImagePlus slice = new ImagePlus( name + ".tif", ip);
         	final FileSaver fs = new FileSaver( slice );
         	everythingOK = everythingOK && fs.saveAsTiff(directory + slice.getTitle());
@@ -56,18 +49,18 @@ public class ImgLibSaver
 		}
 		else // n dimensions
 		{
-			final int extraDimensions[] = new int[ numDimensions - 2 ];
+			final long extraDimensions[] = new long[ numDimensions - 2 ];
 			final int extraDimPos[] = new int[ extraDimensions.length ];
 
 			for ( int d = 2; d < numDimensions; ++d )
-				extraDimensions[ d - 2 ] = img.getDimension( d );
+				extraDimensions[ d - 2 ] = (int)img.dimension( d );
 
 			// the max number of digits for each dimension
 			final int maxLengthDim[] = new int[ extraDimensions.length ];
 
 			for ( int d = 2; d < numDimensions; ++d )
 			{
-				final String num = "" + (img.getDimension( d ) - 1);
+				final String num = "" + (img.dimension( d ) - 1);
 				maxLengthDim[ d - 2 ] = num.length();
 			}
 
@@ -75,17 +68,17 @@ public class ImgLibSaver
 			// Here we "misuse" a ArrayLocalizableCursor to iterate through the dimensions (d > 2),
 			// he will iterate all dimensions as we want ( iterate through d=3, inc 4, iterate through 3, inc 4, ... )
 			//
-			final ArrayLocalizableCursor<FakeType> cursor = ArrayLocalizableCursor.createLinearCursor( extraDimensions );
-
+			final ZeroMinIntervalIterator cursor = new ZeroMinIntervalIterator( extraDimensions );
+			
 			while ( cursor.hasNext() )
 			{
 				cursor.fwd();
-				cursor.getPosition( extraDimPos );
+				cursor.localize( extraDimPos );
 
 				for ( int d = 2; d < numDimensions; ++d )
 					dimensionPositions[ d ] = extraDimPos[ d - 2 ];
 
-				final ImageProcessor ip = new FloatProcessor( img.getDimension( dimX ), img.getDimension( dimY ), extractSliceFloat( img, display, dimX, dimY, dimensionPositions ), null);
+				final ImageProcessor ip = new FloatProcessor( (int)img.dimension( dimX ), (int)img.dimension( dimY ), extractSliceFloat( img, dimX, dimY, dimensionPositions ), null);
 
 	        	String desc = "";
 
@@ -114,35 +107,47 @@ public class ImgLibSaver
 		return everythingOK;
 	}
 
-    private final static <T extends Type<T>> float[] extractSliceFloat( final Image<T> img, final Display<T> display, final int dimX, final int dimY, final int[] dimensionPositions )
+    private final static float[] extractSliceFloat( final Img<FloatType> img, final int dimX, final int dimY, final int[] dimensionPositions )
     {
-		final int sizeX = img.getDimension( dimX );
-		final int sizeY = img.getDimension( dimY );
+		final int sizeX = (int)img.dimension( dimX );
+		final int sizeY = (int)img.dimension( dimY );
     	
-    	final LocalizablePlaneCursor<T> cursor = img.createLocalizablePlaneCursor();		
-		cursor.reset( dimX, dimY, dimensionPositions );   	
-		
+    	final RandomAccess<FloatType> cursor = img.randomAccess();
+    	final int[] tmp = dimensionPositions.clone();
+    	
 		// store the slice image
     	float[] sliceImg = new float[ sizeX * sizeY ];
     	
-    	if ( dimY < img.getNumDimensions() )
-    	{
-	    	while ( cursor.hasNext() )
-	    	{
-	    		cursor.fwd();
-	    		sliceImg[ cursor.getPosition( dimX ) + cursor.getPosition( dimY ) * sizeX ] = display.get32Bit( cursor.getType() );    		
-	    	}
+    	int i = 0;
+    	
+    	if ( dimY < img.numDimensions() )
+    	{    		
+    		for ( int y = 0; y < sizeY; ++y )
+    		{
+    	    	tmp[ dimX ] = 0;
+    	    	tmp[ dimY ] = y;
+    	    	cursor.setPosition( dimensionPositions );
+    	    	
+        		for ( int x = 0; x < sizeX - 1; ++x )
+        		{
+        			sliceImg[ i++ ] = cursor.get().get();
+        			cursor.fwd( dimX );
+        		}
+    			sliceImg[ i++ ] = cursor.get().get();
+    		}
     	}
     	else // only a 1D image
     	{
-	    	while ( cursor.hasNext() )
-	    	{
-	    		cursor.fwd();
-	    		sliceImg[ cursor.getPosition( dimX ) ] = display.get32Bit( cursor.getType() );    		
-	    	}    		
+	    	tmp[ dimX ] = 0;
+	    	cursor.setPosition( dimensionPositions );
+    		
+    		for ( int x = 0; x < sizeX - 1; ++x )
+    		{
+    			sliceImg[ i++ ] = cursor.get().get();
+    			cursor.fwd( dimX );		
+    		}
+			sliceImg[ i++ ] = cursor.get().get();    		
     	}
-    	
-    	cursor.close();
 
     	return sliceImg;
     }

@@ -1,11 +1,13 @@
 package mpicbg.spim.fusion;
 
+import net.imglib2.Cursor;
 import net.imglib2.RandomAccess;
 import net.imglib2.algorithm.fft.FourierConvolution;
 import net.imglib2.algorithm.fft2.FFTConvolution;
 import net.imglib2.img.Img;
 import net.imglib2.img.ImgFactory;
 import net.imglib2.img.ImgPlus;
+import net.imglib2.img.array.ArrayImgFactory;
 import net.imglib2.outofbounds.OutOfBoundsFactory;
 import net.imglib2.type.numeric.real.FloatType;
 import net.imglib2.view.Views;
@@ -43,49 +45,35 @@ public class GaussContent extends IsolatedPixelWeightener<GaussContent>
 			k1[ view.getNumDimensions() - 1 ] = conf.fusionSigma1 / view.getZStretching();
 			k2[ view.getNumDimensions() - 1 ] = conf.fusionSigma2 / view.getZStretching();		
 			
-			final Img<FloatType> kernel1 = FourierConvolution.createGaussianKernel( new ArrayContainerFactory(), k1 );
-			final Img<FloatType> kernel2 = FourierConvolution.createGaussianKernel( new ArrayContainerFactory(), k2 );
+			final Img<FloatType> kernel1 = FourierConvolution.createGaussianKernel( new ArrayImgFactory<FloatType>(), k1 );
+			final Img<FloatType> kernel2 = FourierConvolution.createGaussianKernel( new ArrayImgFactory<FloatType>(), k2 );
 	
-			// compute I*sigma1
-			FourierConvolution<FloatType, FloatType> fftConv1 = new FourierConvolution<FloatType, FloatType>( view.getImage(), kernel1 );
 			
-			fftConv1.setNumThreads( numThreads );
-			fftConv1.process();		
-			final Image<FloatType> conv1 = fftConv1.getResult();
-			
-			fftConv1.close();
-			fftConv1 = null;
+			final Img<FloatType> conv1 = view.getImage().getImg().copy();
+			final FFTConvolution<FloatType> fftConv1 = new FFTConvolution<FloatType>( conv1, kernel1 );
+			fftConv1.run();
 					
 			// compute ( I - I*sigma1 )^2
-			final Cursor<FloatType> cursorImg = view.getImage().createCursor();
-			final Cursor<FloatType> cursorConv = conv1.createCursor();
+			final Cursor<FloatType> cursorImg = view.getImage().cursor();
+			final Cursor<FloatType> cursorConv = conv1.cursor();
 			
 			while ( cursorImg.hasNext() )
 			{
 				cursorImg.fwd();
 				cursorConv.fwd();
 				
-				final float diff = cursorImg.getType().get() - cursorConv.getType().get();
+				final float diff = cursorImg.get().get() - cursorConv.get().get();
 				
-				cursorConv.getType().set( diff*diff );
+				cursorConv.get().set( diff*diff );
 			}
 	
 			// compute ( ( I - I*sigma1 )^2 ) * sigma2
-			FourierConvolution<FloatType, FloatType> fftConv2 = new FourierConvolution<FloatType, FloatType>( conv1, kernel2 );
-			fftConv2.setNumThreads( numThreads );
-			fftConv2.process();	
+			final FFTConvolution<FloatType> fftConv2 = new FFTConvolution<FloatType>( conv1, kernel1 );
+			fftConv2.run();
 			
-			gaussContent = fftConv2.getResult();
-
-			fftConv2.close();
-			fftConv2 = null;
+			gaussContent = conv1;
 			
-			// close the unnecessary image
-			kernel1.close();
-			kernel2.close();
-			conv1.close();
-			
-			ViewDataBeads.normalizeImage( gaussContent );
+			ViewDataBeads.normalizeImage( gaussContent, "Gausian content based of " + view.getName() );
 		}
 		catch ( OutOfMemoryError e )
 		{

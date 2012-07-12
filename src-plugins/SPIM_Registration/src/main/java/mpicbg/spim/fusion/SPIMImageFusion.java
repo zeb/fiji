@@ -4,11 +4,12 @@ import ij.ImagePlus;
 
 import javax.vecmath.Point3f;
 
+import net.imglib2.img.Img;
+import net.imglib2.img.display.imagej.ImageJFunctions;
+import net.imglib2.type.numeric.real.FloatType;
+
 import java.util.ArrayList;
 
-import mpicbg.imglib.image.Image;
-import mpicbg.imglib.image.display.imagej.ImageJFunctions;
-import mpicbg.imglib.type.numeric.real.FloatType;
 import mpicbg.models.AbstractAffineModel3D;
 import mpicbg.spim.io.IOFunctions;
 import mpicbg.spim.io.ImgLibSaver;
@@ -44,12 +45,11 @@ public abstract class SPIMImageFusion
 	}
 	
 	public abstract void fuseSPIMImages( int channelIndex );	
-	public abstract Image<FloatType> getFusedImage();
+	public abstract Img<FloatType> getFusedImage();
 	
-	public ImagePlus getFusedImageCopy() { return ImageJFunctions.copyToImagePlus( getFusedImage() ); } 
-	public ImagePlus getFusedImageVirtual() { return ImageJFunctions.displayAsVirtualStack( getFusedImage() ); } 
-	public void closeImages() { getFusedImage().close(); }
-	public boolean saveAsTiffs( final String dir, final String name, final int channelIndex ) { return ImgLibSaver.saveAsTiffs( getFusedImage(), dir, name + "_ch" + viewStructure.getChannelNum( channelIndex ), ImageJFunctions.GRAY32 ); }  
+	public ImagePlus getFusedImageCopy() { return ImageJFunctions.show( getFusedImage() ); } 
+	public ImagePlus getFusedImageVirtual() { return ImageJFunctions.show( getFusedImage() ); } 
+	public boolean saveAsTiffs( final String dir, final String name, final int channelIndex ) { return ImgLibSaver.saveAsTiffs( getFusedImage(), dir, name + "_ch" + viewStructure.getChannelNum( channelIndex ), ImagePlus.GRAY32 ); }  
 	
 	public Point3f getOutputImageMinCoordinate() { return min; }
 	public Point3f getOutputImageMaxCoordinate() { return max; }
