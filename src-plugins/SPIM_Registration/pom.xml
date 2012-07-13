@@ -38,28 +38,18 @@
 			<version>${imagej1.version}</version>
 		</dependency>
 		<dependency>
-			<groupId>mpicbg</groupId>
-			<artifactId>imglib-algorithms</artifactId>
-			<version>${imagej.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>mpicbg</groupId>
-			<artifactId>imglib-ij</artifactId>
-			<version>${imagej.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>mpicbg</groupId>
-			<artifactId>imglib-io</artifactId>
-			<version>${imagej.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>mpicbg</groupId>
-			<artifactId>imglib</artifactId>
+			<groupId>net.imglib2</groupId>
+			<artifactId>imglib2-core</artifactId>
 			<version>${imagej.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>net.imglib2</groupId>
-			<artifactId>imglib2-core</artifactId>
+			<artifactId>imglib2-ij</artifactId>
+			<version>${imagej.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>net.imglib2</groupId>
+			<artifactId>imglib2-io</artifactId>
 			<version>${imagej.version}</version>
 		</dependency>
 		<dependency>

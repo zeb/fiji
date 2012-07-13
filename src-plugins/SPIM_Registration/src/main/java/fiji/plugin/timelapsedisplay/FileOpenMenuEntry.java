@@ -1,5 +1,7 @@
 package fiji.plugin.timelapsedisplay;
 
+import ij.IJ;
+
 import java.awt.Point;
 import java.awt.event.ActionEvent;
 import java.io.File;
@@ -9,11 +11,11 @@ import javax.swing.AbstractAction;
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
 
-import mpicbg.imglib.container.array.ArrayContainerFactory;
-import mpicbg.imglib.image.Image;
-import mpicbg.imglib.image.display.imagej.ImageJFunctions;
-import mpicbg.imglib.io.LOCI;
-import mpicbg.imglib.type.numeric.real.FloatType;
+import net.imglib2.img.Img;
+import net.imglib2.img.array.ArrayImgFactory;
+import net.imglib2.img.display.imagej.ImageJFunctions;
+import net.imglib2.io.ImgOpener;
+import net.imglib2.type.numeric.real.FloatType;
 
 import org.jfree.chart.ChartPanel;
 
@@ -75,8 +77,16 @@ public class FileOpenMenuEntry extends AbstractAction
 				for ( final RegistrationStatistics stat : data )
 					if ( stat.timePoint == tp )
 					{
-						final Image<FloatType> image = LOCI.openLOCIFloatType( stat.worstView.getAbsolutePath(), new ArrayContainerFactory() );
-						ImageJFunctions.show( image );
+						try
+						{
+							ImgOpener opener = new ImgOpener();
+							final Img<FloatType> image = opener.openImg( stat.worstView.getAbsolutePath(), new ArrayImgFactory<FloatType>(), new FloatType() );
+							ImageJFunctions.show( image );
+						}
+						catch ( Exception e1 )
+						{
+							IJ.log( "Cannt open file: '" + stat.worstView.getAbsolutePath() + "': " + e1 );
+						}
 						break;
 					}
 			}
