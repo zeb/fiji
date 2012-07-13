@@ -18,14 +18,18 @@ import java.util.List;
 import java.util.Vector;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import mpicbg.imglib.algorithm.scalespace.DifferenceOfGaussian.SpecialPoint;
-import mpicbg.imglib.algorithm.scalespace.DifferenceOfGaussianPeak;
-import mpicbg.imglib.image.Image;
-import mpicbg.imglib.multithreading.SimpleMultiThreading;
-import mpicbg.imglib.outofbounds.OutOfBoundsStrategyMirrorFactory;
-import mpicbg.imglib.type.numeric.integer.UnsignedByteType;
-import mpicbg.imglib.type.numeric.integer.UnsignedShortType;
-import mpicbg.imglib.type.numeric.real.FloatType;
+import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.algorithm.legacy.scalespace.DifferenceOfGaussian.SpecialPoint;
+import net.imglib2.algorithm.legacy.scalespace.DifferenceOfGaussianPeak;
+import net.imglib2.img.Img;
+import net.imglib2.img.ImgPlus;
+import net.imglib2.multithreading.SimpleMultiThreading;
+import net.imglib2.outofbounds.OutOfBoundsMirrorFactory;
+import net.imglib2.outofbounds.OutOfBoundsMirrorFactory.Boundary;
+import net.imglib2.type.numeric.integer.UnsignedByteType;
+import net.imglib2.type.numeric.integer.UnsignedShortType;
+import net.imglib2.type.numeric.real.FloatType;
+
 import mpicbg.models.AbstractAffineModel3D;
 import mpicbg.models.InvertibleBoundable;
 import mpicbg.models.Model;
@@ -634,7 +638,7 @@ public class Matching
 	protected static ArrayList<DifferenceOfGaussianPeak<FloatType>> extractCandidates( final ImagePlus imp, final int channel, final int timepoint, final DescriptorParameters params )
 	{
 		// get the input images for registration
-		final Image<FloatType> img = InteractiveDoG.convertToFloat( imp, channel, timepoint );
+		final ImgPlus<FloatType> img = new ImgPlus<FloatType>( InteractiveDoG.convertToFloat( imp, channel, timepoint ) );
 		
 		// extract Calibrations
 		final Calibration cal = imp.getCalibration();
@@ -967,10 +971,10 @@ public class Matching
 		return descriptors;
 	}
 	
-	protected static ArrayList<DifferenceOfGaussianPeak<FloatType>> computeDoG( final Image<FloatType> image, final float sigma1, final float sigma2, 
+	protected static ArrayList<DifferenceOfGaussianPeak<FloatType>> computeDoG( final ImgPlus<FloatType> image, final float sigma1, final float sigma2, 
 			final boolean lookForMaxima, final boolean lookForMinima, final float threshold )
 	{
-		return DetectionSegmentation.extractBeadsLaPlaceImgLib( image, new OutOfBoundsStrategyMirrorFactory<FloatType>(), 0.5f, sigma1, sigma2, threshold, threshold/4, lookForMaxima, lookForMinima, ViewStructure.DEBUG_MAIN );
+		return DetectionSegmentation.extractBeadsLaPlaceImgLib( image, new OutOfBoundsMirrorFactory<FloatType, RandomAccessibleInterval< FloatType >>( Boundary.SINGLE ), 0.5f, sigma1, sigma2, threshold, threshold/4, lookForMaxima, lookForMinima, ViewStructure.DEBUG_MAIN );
 	}
 
 	private static PrintWriter openFileWrite(final File file)

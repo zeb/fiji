@@ -1,10 +1,8 @@
 package process;
 
-import ij.IJ;
-import mpicbg.imglib.algorithm.scalespace.DifferenceOfGaussianPeak;
-import mpicbg.imglib.multithreading.SimpleMultiThreading;
-import mpicbg.imglib.type.numeric.real.FloatType;
-import mpicbg.imglib.util.Util;
+import net.imglib2.algorithm.legacy.scalespace.DifferenceOfGaussianPeak;
+import net.imglib2.type.numeric.real.FloatType;
+import net.imglib2.util.Util;
 import mpicbg.models.Point;
 import fiji.util.node.Leaf;
 
