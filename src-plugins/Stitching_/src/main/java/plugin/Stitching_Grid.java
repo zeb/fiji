@@ -14,6 +14,10 @@ import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.HashMap;
 
+import net.imglib2.type.numeric.integer.UnsignedByteType;
+import net.imglib2.type.numeric.integer.UnsignedShortType;
+import net.imglib2.type.numeric.real.FloatType;
+
 import loci.common.services.ServiceFactory;
 import loci.formats.ChannelSeparator;
 import loci.formats.IFormatReader;
@@ -22,9 +26,6 @@ import loci.formats.meta.MetadataRetrieve;
 import loci.formats.services.OMEXMLService;
 import loci.plugins.BF;
 import loci.plugins.in.ImporterOptions;
-import mpicbg.imglib.type.numeric.integer.UnsignedByteType;
-import mpicbg.imglib.type.numeric.integer.UnsignedShortType;
-import mpicbg.imglib.type.numeric.real.FloatType;
 import mpicbg.models.InvertibleBoundable;
 import mpicbg.models.TranslationModel2D;
 import mpicbg.models.TranslationModel3D;

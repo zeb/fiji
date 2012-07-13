@@ -36,13 +36,13 @@ public class BlendingPixelFusion implements PixelFusion
 		this.images = images;
 		this.percentScaling = fractionBlended;
 		
-		this.numDimensions = images.get( 0 ).getImage().getNumDimensions();
+		this.numDimensions = images.get( 0 ).getImage().numDimensions();
 		this.numImages = images.size();
 		this.dimensions = new int[ numImages ][ numDimensions ];
 		
 		for ( int i = 0; i < numImages; ++i )
 			for ( int d = 0; d < numDimensions; ++d )
-				dimensions[ i ][ d ] = images.get( i ).getImage().getDimension( d ) - 1; 
+				dimensions[ i ][ d ] = (int)images.get( i ).getImage().dimension( d ) - 1; 
 
 		this.border = new float[ numDimensions ];
 

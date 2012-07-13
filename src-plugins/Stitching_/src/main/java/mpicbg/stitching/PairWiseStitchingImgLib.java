@@ -9,21 +9,24 @@ import java.util.ArrayList;
 import java.util.Vector;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import mpicbg.imglib.algorithm.fft.PhaseCorrelation;
-import mpicbg.imglib.algorithm.fft.PhaseCorrelationPeak;
-import mpicbg.imglib.algorithm.scalespace.DifferenceOfGaussianPeak;
-import mpicbg.imglib.algorithm.scalespace.SubpixelLocalization;
-import mpicbg.imglib.cursor.LocalizableByDimCursor;
-import mpicbg.imglib.cursor.LocalizableCursor;
-import mpicbg.imglib.image.Image;
-import mpicbg.imglib.image.ImageFactory;
-import mpicbg.imglib.image.display.imagej.ImageJFunctions;
-import mpicbg.imglib.multithreading.Chunk;
-import mpicbg.imglib.multithreading.SimpleMultiThreading;
-import mpicbg.imglib.type.numeric.RealType;
-import mpicbg.imglib.type.numeric.integer.UnsignedByteType;
-import mpicbg.imglib.type.numeric.integer.UnsignedShortType;
-import mpicbg.imglib.type.numeric.real.FloatType;
+import net.imglib2.Cursor;
+import net.imglib2.RandomAccess;
+import net.imglib2.algorithm.legacy.fft.PhaseCorrelation;
+import net.imglib2.algorithm.legacy.fft.PhaseCorrelationPeak;
+import net.imglib2.algorithm.legacy.scalespace.DifferenceOfGaussianPeak;
+import net.imglib2.algorithm.legacy.scalespace.SubpixelLocalization;
+import net.imglib2.exception.IncompatibleTypeException;
+import net.imglib2.img.Img;
+import net.imglib2.img.ImgFactory;
+import net.imglib2.img.array.ArrayImgFactory;
+import net.imglib2.img.display.imagej.ImageJFunctions;
+import net.imglib2.multithreading.Chunk;
+import net.imglib2.multithreading.SimpleMultiThreading;
+import net.imglib2.type.NativeType;
+import net.imglib2.type.numeric.RealType;
+import net.imglib2.type.numeric.integer.UnsignedByteType;
+import net.imglib2.type.numeric.integer.UnsignedShortType;
+import net.imglib2.type.numeric.real.FloatType;
 
 /**
  * Pairwise Stitching of two ImagePlus using ImgLib1 and PhaseCorrelation.
@@ -54,7 +57,7 @@ public class PairWiseStitchingImgLib
 		{
 			if ( imp1.getType() == ImagePlus.GRAY32 )
 			{
-				final Image<FloatType> image1 = getWrappedImageFloat( imp1, params.channel1, timepoint1 );
+				final Img<FloatType> image1 = getWrappedImageFloat( imp1, params.channel1, timepoint1 );
 				
 				if ( imp2.getType() == ImagePlus.GRAY32 )
 					result = performStitching( image1, getWrappedImageFloat( imp2, params.channel2, timepoint2 ), params );
@@ -64,12 +67,10 @@ public class PairWiseStitchingImgLib
 					result = performStitching( image1, getWrappedImageUnsignedByte( imp2, params.channel2, timepoint2 ), params );
 				else
 					IJ.log( "Unknown image type: " + imp2.getType() );
-				
-				image1.close();
 			}
 			else if ( imp1.getType() == ImagePlus.GRAY16 )
 			{
-				final Image<UnsignedShortType> image1 = getWrappedImageUnsignedShort( imp1, params.channel1, timepoint1 );
+				final Img<UnsignedShortType> image1 = getWrappedImageUnsignedShort( imp1, params.channel1, timepoint1 );
 				
 				if ( imp2.getType() == ImagePlus.GRAY32 )
 					result = performStitching( image1, getWrappedImageFloat( imp2, params.channel2, timepoint2 ), params );
@@ -79,12 +80,10 @@ public class PairWiseStitchingImgLib
 					result = performStitching( image1, getWrappedImageUnsignedByte( imp2, params.channel2, timepoint2 ), params );
 				else
 					IJ.log( "Unknown image type: " + imp2.getType() );
-
-				image1.close();
 			} 
 			else if ( imp1.getType() == ImagePlus.GRAY8 )
 			{
-				final Image<UnsignedByteType> image1 = getWrappedImageUnsignedByte( imp1, params.channel1, timepoint1 );
+				final Img<UnsignedByteType> image1 = getWrappedImageUnsignedByte( imp1, params.channel1, timepoint1 );
 				
 				if ( imp2.getType() == ImagePlus.GRAY32 )
 					result = performStitching( image1, getWrappedImageFloat( imp2, params.channel2, timepoint2 ), params );
@@ -94,8 +93,6 @@ public class PairWiseStitchingImgLib
 					result = performStitching( image1, getWrappedImageUnsignedByte( imp2, params.channel2, timepoint2 ), params );
 				else
 					IJ.log( "Unknown image type: " + imp2.getType() );
-				
-				image1.close();
 			} 
 			else
 			{
@@ -104,46 +101,55 @@ public class PairWiseStitchingImgLib
 		}
 		else
 		{
-			final ImageFactory<UnsignedByteType> imgFactoryByte = new ImageFactory<UnsignedByteType>( new UnsignedByteType(), StitchingParameters.phaseCorrelationFactory );
-			final ImageFactory<UnsignedShortType> imgFactoryShort = new ImageFactory<UnsignedShortType>( new UnsignedShortType(), StitchingParameters.phaseCorrelationFactory );
-			final ImageFactory<FloatType> imgFactoryFloat = new ImageFactory<FloatType>( new FloatType(), StitchingParameters.phaseCorrelationFactory );
+			ImgFactory<UnsignedByteType> imgFactoryByte;
+			ImgFactory<UnsignedShortType> imgFactoryShort;
+			ImgFactory<FloatType> imgFactoryFloat;
+			
+			try { imgFactoryByte = StitchingParameters.phaseCorrelationFactory.imgFactory( new UnsignedByteType() ); } 
+			catch (IncompatibleTypeException e) { imgFactoryByte = new ArrayImgFactory<UnsignedByteType>(); }
+			
+			try { imgFactoryShort = StitchingParameters.phaseCorrelationFactory.imgFactory( new UnsignedShortType() ); } 
+			catch (IncompatibleTypeException e) { imgFactoryShort = new ArrayImgFactory<UnsignedShortType>(); }
+			
+			try { imgFactoryFloat = StitchingParameters.phaseCorrelationFactory.imgFactory( new FloatType() ); } 
+			catch (IncompatibleTypeException e) { imgFactoryFloat = new ArrayImgFactory<FloatType>(); }
 			
 			if ( imp1.getType() == ImagePlus.GRAY32 )
 			{
-				final Image< FloatType > image1 = getImage( imp1, roi1, imgFactoryFloat, params.channel1, timepoint1 );
+				final Img< FloatType > image1 = getImage( imp1, roi1, imgFactoryFloat, new FloatType(), params.channel1, timepoint1 );
 				
 				if ( imp2.getType() == ImagePlus.GRAY32 )
-					result = performStitching( image1, getImage( imp2, roi2, imgFactoryFloat, params.channel2, timepoint2 ), params );
+					result = performStitching( image1, getImage( imp2, roi2, imgFactoryFloat, new FloatType(), params.channel2, timepoint2 ), params );
 				else if ( imp2.getType() == ImagePlus.GRAY16 )
-					result = performStitching( image1, getImage( imp2, roi2, imgFactoryShort, params.channel2, timepoint2 ), params );
+					result = performStitching( image1, getImage( imp2, roi2, imgFactoryShort, new UnsignedShortType(), params.channel2, timepoint2 ), params );
 				else if ( imp2.getType() == ImagePlus.GRAY8 )
-					result = performStitching( image1, getImage( imp2, roi2, imgFactoryByte, params.channel2, timepoint2 ), params );
+					result = performStitching( image1, getImage( imp2, roi2, imgFactoryByte, new UnsignedByteType(), params.channel2, timepoint2 ), params );
 				else
 					IJ.log( "Unknown image type: " + imp2.getType() );					
 			}
 			else if ( imp1.getType() == ImagePlus.GRAY16 )
 			{
-				final Image< UnsignedShortType > image1 = getImage( imp1, roi1, imgFactoryShort, params.channel1, timepoint1 );
+				final Img< UnsignedShortType > image1 = getImage( imp1, roi1, imgFactoryShort, new UnsignedShortType(), params.channel1, timepoint1 );
 				
 				if ( imp2.getType() == ImagePlus.GRAY32 )
-					result = performStitching( image1, getImage( imp2, roi2, imgFactoryFloat, params.channel2, timepoint2 ), params );
+					result = performStitching( image1, getImage( imp2, roi2, imgFactoryFloat, new FloatType(), params.channel2, timepoint2 ), params );
 				else if ( imp2.getType() == ImagePlus.GRAY16 )
-					result = performStitching( image1, getImage( imp2, roi2, imgFactoryShort, params.channel2, timepoint2 ), params );
+					result = performStitching( image1, getImage( imp2, roi2, imgFactoryShort, new UnsignedShortType(), params.channel2, timepoint2 ), params );
 				else if ( imp2.getType() == ImagePlus.GRAY8 )
-					result = performStitching( image1, getImage( imp2, roi2, imgFactoryByte, params.channel2, timepoint2 ), params );
+					result = performStitching( image1, getImage( imp2, roi2, imgFactoryByte, new UnsignedByteType(), params.channel2, timepoint2 ), params );
 				else
 					IJ.log( "Unknown image type: " + imp2.getType() );					
 			}
 			else if ( imp1.getType() == ImagePlus.GRAY8 )
 			{
-				final Image< UnsignedByteType > image1 = getImage( imp1, roi1, imgFactoryByte, params.channel1, timepoint1 );
+				final Img< UnsignedByteType > image1 = getImage( imp1, roi1, imgFactoryByte, new UnsignedByteType(), params.channel1, timepoint1 );
 				
 				if ( imp2.getType() == ImagePlus.GRAY32 )
-					result = performStitching( image1, getImage( imp2, roi2, imgFactoryFloat, params.channel2, timepoint2 ), params );
+					result = performStitching( image1, getImage( imp2, roi2, imgFactoryFloat, new FloatType(), params.channel2, timepoint2 ), params );
 				else if ( imp2.getType() == ImagePlus.GRAY16 )
-					result = performStitching( image1, getImage( imp2, roi2, imgFactoryShort, params.channel2, timepoint2 ), params );
+					result = performStitching( image1, getImage( imp2, roi2, imgFactoryShort, new UnsignedShortType(), params.channel2, timepoint2 ), params );
 				else if ( imp2.getType() == ImagePlus.GRAY8 )
-					result = performStitching( image1, getImage( imp2, roi2, imgFactoryByte, params.channel2, timepoint2 ), params );
+					result = performStitching( image1, getImage( imp2, roi2, imgFactoryByte, new UnsignedByteType(), params.channel2, timepoint2 ), params );
 				else
 					IJ.log( "Unknown image type: " + imp2.getType() );					
 			}
@@ -169,7 +175,7 @@ public class PairWiseStitchingImgLib
 		return result;
 	}
 
-	public static < T extends RealType<T>, S extends RealType<S> > PairWiseStitchingResult performStitching( final Image<T> img1, final Image<S> img2, final StitchingParameters params )
+	public static < T extends RealType<T>, S extends RealType<S> > PairWiseStitchingResult performStitching( final Img<T> img1, final Img<S> img2, final StitchingParameters params )
 	{
 		if ( img1 == null )
 		{
@@ -192,33 +198,33 @@ public class PairWiseStitchingImgLib
 		return result;
 	}
 	
-	public static < T extends RealType<T>, S extends RealType<S> > PairWiseStitchingResult computePhaseCorrelation( final Image<T> img1, final Image<S> img2, final int numPeaks, final boolean subpixelAccuracy )
+	public static < T extends RealType<T>, S extends RealType<S> > PairWiseStitchingResult computePhaseCorrelation( final Img<T> img1, final Img<S> img2, final int numPeaks, final boolean subpixelAccuracy )
 	{
 		final PhaseCorrelation< T, S > phaseCorr = new PhaseCorrelation<T, S>( img1, img2 );
 		phaseCorr.setInvestigateNumPeaks( numPeaks );
 		
 		if ( subpixelAccuracy )
-			phaseCorr.setKeepPhaseCorrelationMatrix( true );
+			phaseCorr.setKeepPCM( true );
 		
 		phaseCorr.setComputeFFTinParalell( true );
 		phaseCorr.process();
 
 		// result
 		final PhaseCorrelationPeak pcp = phaseCorr.getShift();
-		final float[] shift = new float[ img1.getNumDimensions() ];
+		final float[] shift = new float[ img1.numDimensions() ];
 		final PairWiseStitchingResult result;
 		
 		if ( subpixelAccuracy )
 		{
-			final Image<FloatType> pcm = phaseCorr.getPhaseCorrelationMatrix();		
+			final Img<FloatType> pcm = phaseCorr.getPCM();		
 		
 			final ArrayList<DifferenceOfGaussianPeak<FloatType>> list = new ArrayList<DifferenceOfGaussianPeak<FloatType>>();		
 			final Peak p = new Peak( pcp );
 			list.add( p );
 					
 			final SubpixelLocalization<FloatType> spl = new SubpixelLocalization<FloatType>( pcm, list );
-			final boolean move[] = new boolean[ pcm.getNumDimensions() ];
-			for ( int i = 0; i < pcm.getNumDimensions(); ++i )
+			final boolean move[] = new boolean[ pcm.numDimensions() ];
+			for ( int i = 0; i < pcm.numDimensions(); ++i )
 				move[ i ] = false;
 			spl.setCanMoveOutside( true );
 			spl.setAllowedToMoveInDim( move );
@@ -228,16 +234,14 @@ public class PairWiseStitchingImgLib
 			
 			final Peak peak = (Peak)list.get( 0 );
 			
-			for ( int d = 0; d < img1.getNumDimensions(); ++d )
+			for ( int d = 0; d < img1.numDimensions(); ++d )
 				shift[ d ] = peak.getPCPeak().getPosition()[ d ] + peak.getSubPixelPositionOffset( d );
-			
-			pcm.close();
 			
 			result = new PairWiseStitchingResult( shift, pcp.getCrossCorrelationPeak(), p.getValue().get() );
 		}
 		else
 		{
-			for ( int d = 0; d < img1.getNumDimensions(); ++d )
+			for ( int d = 0; d < img1.numDimensions(); ++d )
 				shift[ d ] = pcp.getPosition()[ d ];
 			
 			result = new PairWiseStitchingResult( shift, pcp.getCrossCorrelationPeak(), pcp.getPhaseCorrelationPeak() );
@@ -251,12 +255,13 @@ public class PairWiseStitchingImgLib
 	 * 
 	 * @param imp - the {@link ImagePlus}
 	 * @param imgFactory - the {@link ImageFactory} defining wher to put it into
+	 * @param targetType - an instance of T
 	 * @param channel - which channel (if channel=0 means average all channels)
 	 * @param timepoint - which timepoint
 	 * 
 	 * @return - the {@link Image} or null if it was not an ImagePlus.GRAY8, ImagePlus.GRAY16 or ImagePlus.GRAY32
 	 */
-	public static < T extends RealType<T> > Image<T> getImage( final ImagePlus imp, Roi roi, final ImageFactory<T> imgFactory, final int channel, final int timepoint )
+	public static < T extends RealType<T> & NativeType< T > > Img<T> getImage( final ImagePlus imp, Roi roi, final ImgFactory<T> imgFactory, final T targetType, final int channel, final int timepoint )
 	{
 		// first test the roi
 		roi = getOnlyRectangularRoi( roi );
@@ -293,7 +298,7 @@ public class PairWiseStitchingImgLib
 		}
 		
 		// create the Image
-		final Image<T> img = imgFactory.createImage( size );
+		final Img<T> img = imgFactory.create( size, targetType );
 		final boolean success;
 		
 		// copy the content
@@ -309,14 +314,9 @@ public class PairWiseStitchingImgLib
 		}
 		
 		if ( success )
-		{
 			return img;
-		}
 		else
-		{
-			img.close();
 			return null;
-		}
 	}
 	
 	/**
@@ -330,13 +330,13 @@ public class PairWiseStitchingImgLib
 	 * 
 	 * @return true if successful, false if the ImagePlus type was unknow
 	 */
-	public static < T extends RealType< T > > boolean averageAllChannels( final Image< T > target, final int[] offset, final ImagePlus imp, final int timepoint )
+	public static < T extends RealType< T > > boolean averageAllChannels( final Img< T > target, final int[] offset, final ImagePlus imp, final int timepoint )
 	{
 		final int numChannels = imp.getNChannels();
 		
 		if ( imp.getType() == ImagePlus.GRAY8 )
 		{
-			final ArrayList< Image< UnsignedByteType > > images = new ArrayList<Image<UnsignedByteType>>();
+			final ArrayList< Img< UnsignedByteType > > images = new ArrayList<Img<UnsignedByteType>>();
 
 			// first get wrapped instances of all channels
 			for ( int c = 1; c <= numChannels; ++c )
@@ -347,7 +347,7 @@ public class PairWiseStitchingImgLib
 		}
 		else if ( imp.getType() == ImagePlus.GRAY16 )
 		{
-			final ArrayList< Image< UnsignedShortType > > images = new ArrayList<Image<UnsignedShortType>>();
+			final ArrayList< Img< UnsignedShortType > > images = new ArrayList<Img<UnsignedShortType>>();
 
 			// first get wrapped instances of all channels
 			for ( int c = 1; c <= numChannels; ++c )
@@ -358,7 +358,7 @@ public class PairWiseStitchingImgLib
 		}
 		else if ( imp.getType() == ImagePlus.GRAY32 )
 		{
-			final ArrayList< Image< FloatType > > images = new ArrayList<Image<FloatType>>();
+			final ArrayList< Img< FloatType > > images = new ArrayList<Img<FloatType>>();
 
 			// first get wrapped instances of all channels
 			for ( int c = 1; c <= numChannels; ++c )
@@ -385,11 +385,11 @@ public class PairWiseStitchingImgLib
 	 * 
 	 * @return true if successful, false if the ImagePlus type was unknow
 	 */
-	public static < T extends RealType< T > > boolean fillInChannel( final Image< T > target, final int[] offset, final ImagePlus imp, final int channel, final int timepoint )
+	public static < T extends RealType< T > > boolean fillInChannel( final Img< T > target, final int[] offset, final ImagePlus imp, final int channel, final int timepoint )
 	{
 		if ( imp.getType() == ImagePlus.GRAY8 )
 		{
-			final ArrayList< Image< UnsignedByteType > > images = new ArrayList<Image<UnsignedByteType>>();
+			final ArrayList< Img< UnsignedByteType > > images = new ArrayList<Img<UnsignedByteType>>();
 
 			// first get wrapped instances of all channels
 			images.add( getWrappedImageUnsignedByte( imp, channel, timepoint ) );			
@@ -399,7 +399,7 @@ public class PairWiseStitchingImgLib
 		}
 		else if ( imp.getType() == ImagePlus.GRAY16 )
 		{
-			final ArrayList< Image< UnsignedShortType > > images = new ArrayList<Image<UnsignedShortType>>();
+			final ArrayList< Img< UnsignedShortType > > images = new ArrayList<Img<UnsignedShortType>>();
 
 			// first get wrapped instances of all channels
 			images.add( getWrappedImageUnsignedShort( imp, channel, timepoint ) );			
@@ -409,7 +409,7 @@ public class PairWiseStitchingImgLib
 		}
 		else if ( imp.getType() == ImagePlus.GRAY32 )
 		{
-			final ArrayList< Image< FloatType > > images = new ArrayList<Image<FloatType>>();
+			final ArrayList< Img< FloatType > > images = new ArrayList<Img<FloatType>>();
 
 			// first get wrapped instances of all channels
 			images.add( getWrappedImageFloat( imp, channel, timepoint ) );
@@ -432,15 +432,15 @@ public class PairWiseStitchingImgLib
 	 * @param offset - the offset of the area (might be [0,0] or [0,0,0])
 	 * @param sources - a list of input Images
 	 */
-	protected static < T extends RealType< T >, S extends RealType< S > > void averageAllChannels( final Image< T > target, final ArrayList< Image< S > > sources, final int[] offset )
+	protected static < T extends RealType< T >, S extends RealType< S > > void averageAllChannels( final Img< T > target, final ArrayList< Img< S > > sources, final int[] offset )
 	{
 		// get the major numbers
-		final int numDimensions = target.getNumDimensions();
+		final int numDimensions = target.numDimensions();
 		final float numImages = sources.size();
-		long imageSize = target.getDimension( 0 );
+		long imageSize = target.dimension( 0 );
 		
-		for ( int d = 1; d < target.getNumDimensions(); ++d )
-			imageSize *= target.getDimension( d );
+		for ( int d = 1; d < target.numDimensions(); ++d )
+			imageSize *= target.dimension( d );
 
 		// run multithreaded
 		final AtomicInteger ai = new AtomicInteger(0);					
@@ -462,38 +462,38 @@ public class PairWiseStitchingImgLib
                 	final long loopSize = myChunk.getLoopSize();
                 	
             		// the cursor for the output
-            		final LocalizableCursor< T > targetCursor =  target.createLocalizableCursor();
+            		final Cursor< T > targetCursor =  target.localizingCursor();
             		
             		// the input cursors
-            		final ArrayList< LocalizableByDimCursor< S > > sourceCursors = new ArrayList< LocalizableByDimCursor< S > > ();
+            		final ArrayList< RandomAccess< S > > sourceCursors = new ArrayList< RandomAccess< S > > ();
             		
-            		for ( final Image< S > source : sources )
-            			sourceCursors.add( source.createLocalizableByDimCursor() );
+            		for ( final Img< S > source : sources )
+            			sourceCursors.add( source.randomAccess() );
             		
             		// temporary array
             		final int[] location = new int[ numDimensions ]; 
 
             		// move to the starting position of the current thread
-            		targetCursor.fwd( startPos );
+            		targetCursor.jumpFwd( startPos );
                     
             		// do as many pixels as wanted by this thread
                     for ( long j = 0; j < loopSize; ++j )
             		{
             			targetCursor.fwd();
-            			targetCursor.getPosition( location );
+            			targetCursor.localize( location );
             			
             			for ( int d = 0; d < numDimensions; ++d )
             				location[ d ] += offset[ d ];
             			
             			float sum = 0;
             			
-            			for ( final LocalizableByDimCursor< S > sourceCursor : sourceCursors )
+            			for ( final RandomAccess< S > sourceCursor : sourceCursors )
             			{
             				sourceCursor.setPosition( location );
-            				sum += sourceCursor.getType().getRealFloat();
+            				sum += sourceCursor.get().getRealFloat();
             			}
             			
-            			targetCursor.getType().setReal( sum / numImages );
+            			targetCursor.get().setReal( sum / numImages );
             		}                	
                 }
             });
@@ -512,7 +512,7 @@ public class PairWiseStitchingImgLib
 	 * 
 	 * @return - the {@link Image} or null if it was not an ImagePlus.GRAY8 or if channel = 0
 	 */
-	public static Image<UnsignedByteType> getWrappedImageUnsignedByte( final ImagePlus imp, final int channel, final int timepoint )
+	public static Img<UnsignedByteType> getWrappedImageUnsignedByte( final ImagePlus imp, final int channel, final int timepoint )
 	{
 		if ( channel == 0 || imp.getType() != ImagePlus.GRAY8 )
 			return null;
@@ -531,7 +531,7 @@ public class PairWiseStitchingImgLib
 	 * 
 	 * @return - the {@link Image} or null if it was not an ImagePlus.GRAY16 or if channel = 0
 	 */
-	public static Image<UnsignedShortType> getWrappedImageUnsignedShort( final ImagePlus imp, final int channel, final int timepoint )
+	public static Img<UnsignedShortType> getWrappedImageUnsignedShort( final ImagePlus imp, final int channel, final int timepoint )
 	{
 		if ( channel == 0 || imp.getType() != ImagePlus.GRAY16 )
 			return null;
@@ -550,7 +550,7 @@ public class PairWiseStitchingImgLib
 	 * 
 	 * @return - the {@link Image} or null if it was not an ImagePlus.GRAY32 or if channel = 0
 	 */
-	public static Image<FloatType> getWrappedImageFloat( final ImagePlus imp, final int channel, final int timepoint )
+	public static Img<FloatType> getWrappedImageFloat( final ImagePlus imp, final int channel, final int timepoint )
 	{
 		if ( channel == 0 || imp.getType() != ImagePlus.GRAY32 )
 			return null;
@@ -559,7 +559,7 @@ public class PairWiseStitchingImgLib
 	}
 
 	/**
-	 * Determines if this imageplus with these parameters can be wrapped directly into an Image<T>.
+	 * Determines if this imageplus with these parameters can be wrapped directly into an Img<T>.
 	 * This is important, because if we would wrap the first but not the second image, they would
 	 * have different {@link ImageFactory}s
 	 * 
