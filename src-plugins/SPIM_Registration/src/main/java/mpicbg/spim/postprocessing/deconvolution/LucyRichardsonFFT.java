@@ -1,37 +1,36 @@
 package mpicbg.spim.postprocessing.deconvolution;
 
-import mpicbg.imglib.algorithm.fft.FourierConvolution;
-import mpicbg.imglib.image.Image;
-import mpicbg.imglib.type.numeric.real.FloatType;
+import net.imglib2.algorithm.fft2.FFTConvolution;
+import net.imglib2.img.Img;
+import net.imglib2.type.numeric.real.FloatType;
 
 public class LucyRichardsonFFT 
 {
-	final Image<FloatType> image, kernel, weight;
-	final FourierConvolution<FloatType, FloatType> fftConvolution;
+	final Img<FloatType> image, kernel, weight;
+	final FFTConvolution<FloatType> fftConvolution;
 	
-	Image<FloatType> viewContribution = null;
+	Img<FloatType> viewContribution = null;
 	
-	public LucyRichardsonFFT( final Image<FloatType> image, final Image<FloatType> weight, final Image<FloatType> kernel, final int cpusPerView )
+	public LucyRichardsonFFT( final Img<FloatType> image, final Img<FloatType> weight, final Img<FloatType> kernel, final int cpusPerView )
 	{
 		this.image = image;
 		this.kernel = kernel;
 		this.weight = weight;
 		
-		fftConvolution = new FourierConvolution<FloatType, FloatType>( image, kernel );	
-		fftConvolution.setNumThreads( Math.max( 1, cpusPerView ) );
+		fftConvolution = new FFTConvolution<FloatType>( image, kernel );	
 	}
 
-	public Image<FloatType> getImage() { return image; }
-	public Image<FloatType> getWeight() { return weight; }
-	public Image<FloatType> getKernel() { return kernel; }
-	public Image<FloatType> getViewContribution() { return viewContribution; }
+	public Img<FloatType> getImage() { return image; }
+	public Img<FloatType> getWeight() { return weight; }
+	public Img<FloatType> getKernel() { return kernel; }
+	public Img<FloatType> getViewContribution() { return viewContribution; }
 	
-	public FourierConvolution<FloatType, FloatType> getFFTConvolution() { return fftConvolution; }
+	public FFTConvolution<FloatType> getFFTConvolution() { return fftConvolution; }
 	
-	public void setViewContribution( final Image<FloatType> viewContribution )
+	public void setViewContribution( final Img<FloatType> viewContribution )
 	{
 		if ( this.viewContribution != null )
-			this.viewContribution.close();
+			this.viewContribution = null;
 		
 		this.viewContribution = viewContribution;
 	}

@@ -7,27 +7,21 @@ import java.math.MathContext;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.concurrent.atomic.AtomicInteger;
-import weka.classifiers.meta.AdditiveRegression;
 
-import mpicbg.imglib.algorithm.fft.FourierConvolution;
-import mpicbg.imglib.container.array.ArrayContainerFactory;
-import mpicbg.imglib.cursor.Cursor;
-import mpicbg.imglib.image.Image;
-import mpicbg.imglib.image.display.imagej.ImageJFunctions;
-import mpicbg.imglib.io.LOCI;
-import mpicbg.imglib.multithreading.SimpleMultiThreading;
-import mpicbg.imglib.type.numeric.real.FloatType;
-import mpicbg.spim.io.IOFunctions;
-import mpicbg.spim.io.SPIMConfiguration;
-import mpicbg.spim.registration.ViewDataBeads;
 import mpicbg.util.RealSum;
+import net.imglib2.Cursor;
+import net.imglib2.algorithm.fft2.FFTConvolution;
+import net.imglib2.img.Img;
+import net.imglib2.img.display.imagej.ImageJFunctions;
+import net.imglib2.multithreading.SimpleMultiThreading;
+import net.imglib2.type.numeric.real.FloatType;
 
 public class LucyRichardsonMultiViewDeconvolution
 {
 	public static boolean debug = false;
 	public static int debugInterval = 10;
 	
-	public static Image<FloatType> lucyRichardsonMultiView( final ArrayList<LucyRichardsonFFT> data, final int minIterations, final int maxIterations, final boolean multiplicative, final double lambda, final int numThreads )
+	public static Img<FloatType> lucyRichardsonMultiView( final ArrayList<LucyRichardsonFFT> data, final int minIterations, final int maxIterations, final boolean multiplicative, final double lambda, final int numThreads )
 	{
 		//final int numThreads = Runtime.getRuntime().availableProcessors();
 		final int numViews = data.size();
@@ -35,7 +29,8 @@ public class LucyRichardsonMultiViewDeconvolution
 		//final double minValue = (1.0 / ( 10000.0 * numPixels ) );		
 		final double minValue = 0.0001;
 		
-		final Image<FloatType> psi = data.get( 0 ).getImage().createNewImage( "psi (deconvolved image)" );		
+		final Img<FloatType> template = data.get( 0 ).getImage();
+		final Img<FloatType> psi = template.factory().create( template, template.firstElement() );		
 		
 		//
 		// for every image the integral of all pixel values
@@ -80,20 +75,20 @@ public class LucyRichardsonMultiViewDeconvolution
 		//
 		// the real data image psi is initialized with the average 
 		//		
-		final Cursor<FloatType> cursorPsiGlobal = psi.createCursor();				
+		final Cursor<FloatType> cursorPsiGlobal = psi.cursor();				
 		//final float avgFloat = (float)( 1.0 / (double)numPixels );
 		final float avgFloat = (float)avg;
 		
 		while ( cursorPsiGlobal.hasNext() )
 		{
 			cursorPsiGlobal.fwd();
-			cursorPsiGlobal.getType().set( avgFloat );
+			cursorPsiGlobal.get().set( avgFloat );
 		}
 
 		cursorPsiGlobal.reset();
 				
-		final Image<FloatType> nextPsi = psi.createNewImage();
-		final Cursor<FloatType> cursorNextPsiGlobal = nextPsi.createCursor();
+		final Img<FloatType> nextPsi = psi.factory().create( psi, psi.firstElement() );
+		final Cursor<FloatType> cursorNextPsiGlobal = nextPsi.cursor();
 		
 		//
 		// Start iteration
@@ -113,7 +108,7 @@ public class LucyRichardsonMultiViewDeconvolution
 			while ( cursorNextPsiGlobal.hasNext() )
 			{
 				cursorNextPsiGlobal.fwd();				
-				cursorNextPsiGlobal.getType().set( 1 );
+				cursorNextPsiGlobal.get().set( 1 );
 			}		
 			
 			//
@@ -136,47 +131,41 @@ public class LucyRichardsonMultiViewDeconvolution
 		        				final LucyRichardsonFFT processingData = data.get( view );
 		        								
 		        				// convolve psi (current guess of the image) with the PSF of the current view
-		        				final FourierConvolution<FloatType, FloatType> fftConvolution = processingData.getFFTConvolution();
-		        				fftConvolution.replaceImage( psi );
-		        				fftConvolution.process();
-		        				final Image<FloatType> psiBlurred = fftConvolution.getResult();
+		        				final FFTConvolution<FloatType> fftConvolution = processingData.getFFTConvolution();
+		        				final Img<FloatType> psiBlurred = psi.copy();
+		        				fftConvolution.setImg( psiBlurred );
+		        				fftConvolution.run(); //in-place
 		        				
 		        				//psiBlurred.getDisplay().setMinMax();
 		        				//psiBlurred.setName( "psiBlurred " + view );
 		        				//ImageJFunctions.copyToImagePlus( psiBlurred ).show();
 
 		        				// compute quotient img/psiBlurred
-		        				final Cursor<FloatType> cursorImg = processingData.getImage().createCursor();
-		        				final Cursor<FloatType> cursorPsiBlurred = psiBlurred.createCursor();
+		        				final Cursor<FloatType> cursorImg = processingData.getImage().cursor();
+		        				final Cursor<FloatType> cursorPsiBlurred = psiBlurred.cursor();
 	
 		        				while ( cursorImg.hasNext() )
 		        				{
 		        					cursorImg.fwd(); cursorPsiBlurred.fwd();
 		        					
-		        					final float imgValue = cursorImg.getType().get();
-		        					final float psiBlurredValue = cursorPsiBlurred.getType().get();
+		        					final float imgValue = cursorImg.get().get();
+		        					final float psiBlurredValue = cursorPsiBlurred.get().get();
 		        										
-		        					cursorPsiBlurred.getType().set( imgValue / psiBlurredValue );
+		        					cursorPsiBlurred.get().set( imgValue / psiBlurredValue );
 		        				}	
-		        								
-		        				cursorImg.close();
-		        				cursorPsiBlurred.close();
-
+	
 		        				//psiBlurred.getDisplay().setMinMax();
 		        				//psiBlurred.setName( "img/psiBlurred " + view );
 		        				//ImageJFunctions.copyToImagePlus( psiBlurred ).show();
 
 		        				// blur the residuals image with the kernel
-		        				fftConvolution.replaceImage( psiBlurred );
-		        				fftConvolution.process();
-		        				processingData.setViewContribution( fftConvolution.getResult() );
+		        				fftConvolution.setImg( psiBlurred );
+		        				fftConvolution.run(); //in-place
+		        				processingData.setViewContribution( psiBlurred );
 
 		        				//fftConvolution.getResult().getDisplay().setMinMax();
 		        				//fftConvolution.getResult().setName( "conv(img/psiBlurred) " + view );
 		        				//ImageJFunctions.copyToImagePlus( fftConvolution.getResult() ).show();
-
-		        				// close unecessary psiBlurred
-		        				psiBlurred.close();				
 		        			}
 	                }
 	            });
@@ -193,11 +182,11 @@ public class LucyRichardsonMultiViewDeconvolution
 
 			for ( int view = 0; view < numViews; ++view )
 			{
-				blurredResidualsCursors.add( data.get( view ).getViewContribution().createCursor() );
-				//imageCursors.add( data.get( view ).getImage().createCursor() );
+				blurredResidualsCursors.add( data.get( view ).getViewContribution().cursor() );
+				//imageCursors.add( data.get( view ).getImage().cursor() );
 				
 				if ( data.get( view ).getWeight() != null )	
-					weightCursors.add( data.get( view ).getWeight().createCursor() );
+					weightCursors.add( data.get( view ).getWeight().cursor() );
 				
 				//data.get( view ).getWeight().getDisplay().setMinMax();
 				//data.get( view ).getWeight().setName( "weight " + view );
@@ -211,7 +200,7 @@ public class LucyRichardsonMultiViewDeconvolution
 			{
 				cursorNextPsiGlobal.fwd();
 				
-				double value = cursorNextPsiGlobal.getType().get();
+				double value = cursorNextPsiGlobal.get().get();
 				
 				if ( !multiplicative )
 					value = 0;
@@ -230,13 +219,13 @@ public class LucyRichardsonMultiViewDeconvolution
 						//cursorImage.fwd();
 						cursorWeight.fwd();
 						
-						final float weight = cursorWeight.getType().get();
+						final float weight = cursorWeight.get().get();
 						if ( weight > 0 )
 						{
 							if ( multiplicative )
-								value *= Math.pow( cursorResidualsBlurred.getType().get(), weight );
+								value *= Math.pow( cursorResidualsBlurred.get().get(), weight );
 							else
-								value += cursorResidualsBlurred.getType().get() * weight;
+								value += cursorResidualsBlurred.get().get() * weight;
 
 							num += weight;
 						}
@@ -252,7 +241,7 @@ public class LucyRichardsonMultiViewDeconvolution
 						cursorResidualsBlurred.fwd();
 						//cursorImage.fwd();
 						
-						value *= cursorResidualsBlurred.getType().get();
+						value *= cursorResidualsBlurred.get().get();
 						num++;
 					}					
 				}
@@ -262,17 +251,17 @@ public class LucyRichardsonMultiViewDeconvolution
 				if ( num > 0 )
 				{
 					if ( multiplicative )
-						value = (double)cursorPsiGlobal.getType().get() * Math.pow( value, 1.0/num );
+						value = (double)cursorPsiGlobal.get().get() * Math.pow( value, 1.0/num );
 					else
-						value = (double)cursorPsiGlobal.getType().get() * cursorNextPsiGlobal.getType().get() * value/num;
+						value = (double)cursorPsiGlobal.get().get() * cursorNextPsiGlobal.get().get() * value/num;
 				}
 				else
 				{
 					// maybe that works ...
-					value = minValue; //(double)cursorPsiGlobal.getType().get() * cursorNextPsiGlobal.getType().get();					
+					value = minValue; //(double)cursorPsiGlobal.get().get() * cursorNextPsiGlobal.get().get();					
 				}
 				
-				cursorNextPsiGlobal.getType().set( (float)value );
+				cursorNextPsiGlobal.get().set( (float)value );
 			}
 
 			//nextPsi.getDisplay().setMinMax();
@@ -280,15 +269,6 @@ public class LucyRichardsonMultiViewDeconvolution
 			//ImageJFunctions.copyToImagePlus( nextPsi ).show();
 
 			//SimpleMultiThreading.threadHaltUnClean();
-			
-			for ( final Cursor<FloatType> cursorResidualsBlurred : blurredResidualsCursors )
-				cursorResidualsBlurred.close();
-
-			//for ( final Cursor<FloatType> cursorImage : imageCursors )
-			//	cursorImage.close();
-
-			for ( final Cursor<FloatType> cursorWeight : weightCursors )
-				cursorWeight.close();
 
 			//
 			// perform Tikhonov regularization if desired
@@ -300,9 +280,9 @@ public class LucyRichardsonMultiViewDeconvolution
 				while ( cursorNextPsiGlobal.hasNext() )
 				{
 					cursorNextPsiGlobal.fwd();
-					final float f = cursorNextPsiGlobal.getType().get();
+					final float f = cursorNextPsiGlobal.get().get();
 					final float reg = (float)( (Math.sqrt( 1.0 + 2.0*lambda*f ) - 1.0) / lambda );
-					cursorNextPsiGlobal.getType().set( reg );
+					cursorNextPsiGlobal.get().set( reg );
 				}
 			}
 			
@@ -320,15 +300,15 @@ public class LucyRichardsonMultiViewDeconvolution
 				cursorPsiGlobal.fwd(); 
 				cursorNextPsiGlobal.fwd();
 				
-				final float lastPsiValue = cursorPsiGlobal.getType().get();
+				final float lastPsiValue = cursorPsiGlobal.get().get();
 				
 				final float nextPsiValue;
-				if ( Float.isNaN( cursorNextPsiGlobal.getType().get() ) )
+				if ( Float.isNaN( cursorNextPsiGlobal.get().get() ) )
 					nextPsiValue = (float)minValue;
 				else
-					nextPsiValue = (float)Math.max( minValue, cursorNextPsiGlobal.getType().get() );
+					nextPsiValue = (float)Math.max( minValue, cursorNextPsiGlobal.get().get() );
 				
-				cursorPsiGlobal.getType().set( nextPsiValue );
+				cursorPsiGlobal.get().set( nextPsiValue );
 				
 				final float change = Math.abs( lastPsiValue - nextPsiValue );				
 				sumChange += change;
@@ -344,22 +324,10 @@ public class LucyRichardsonMultiViewDeconvolution
 			
 			
 			if ( debug && i % debugInterval == 0 )
-			{
-				Image<FloatType> psiCopy = psi.clone();
-				//ViewDataBeads.normalizeImage( psiCopy );
-				psiCopy.setName( "Iteration " + i + " l=" + lambda );
-				psiCopy.getDisplay().setMinMax( 0, 1 );
-				ImageJFunctions.copyToImagePlus( psiCopy ).show();
-				psiCopy.close();
-				psiCopy = null;
-			}
+				ImageJFunctions.show( psi.copy() ).setTitle( "Iteration " + i + " l=" + lambda );
 		}
 		while ( i < maxIterations );
-		
-		cursorPsiGlobal.close();
-		cursorNextPsiGlobal.close();
-		nextPsi.close();
-
+	
 		return psi;
 	}
 	
@@ -377,9 +345,9 @@ public class LucyRichardsonMultiViewDeconvolution
 		
 		for ( final LucyRichardsonFFT fft : data )
 		{
-			cursorsImage.add( fft.getImage().createCursor() );
+			cursorsImage.add( fft.getImage().cursor() );
 			if ( fft.getWeight() != null )
-				cursorsWeight.add( fft.getWeight().createCursor() );
+				cursorsWeight.add( fft.getWeight().cursor() );
 		}
 		
 		final Cursor<FloatType> cursor = cursorsImage.get( 0 );
@@ -395,7 +363,7 @@ A:		while ( cursor.hasNext() )
 			
 			// only sum if all views overlap
 			//for ( final Cursor<FloatType> c : cursorsWeight )
-			//	if ( c.getType().get() == 0 )
+			//	if ( c.get().get() == 0 )
 			//		continue A;
 			
 			// sum up individual intensities
@@ -404,9 +372,9 @@ A:		while ( cursor.hasNext() )
 			
 			for ( int i = 0; i < cursorsImage.size(); ++i )
 			{
-				if ( cursorsWeight.get( i ).getType().get() != 0 )
+				if ( cursorsWeight.get( i ).get().get() != 0 )
 				{
-					sumLocal += cursorsImage.get( i ).getType().get();
+					sumLocal += cursorsImage.get( i ).get().get();
 					countLocal++;
 				}
 			}
@@ -448,50 +416,41 @@ A:		while ( cursor.hasNext() )
 			{
 				c.fwd();
 				// TODO: this is removed for testing only!
-				//c.getType().set( (float)(c.getType().get() / sums[ i++ ]) );
+				//c.get().set( (float)(c.get().get() / sums[ i++ ]) );
 			}
 		}
 		*/
-		// close all cursors
-		for ( final Cursor<FloatType> c : cursorsImage )
-			c.close();
-		for ( final Cursor<FloatType> c : cursorsWeight )
-			c.close();
 		
 		// return the average intensity in the overlapping area
 		return avg;
 	}
 
 	
-	final private static BigDecimal sumImage( final Image<FloatType> img )
+	final private static BigDecimal sumImage( final Img<FloatType> img )
 	{
 		BigDecimal sum = new BigDecimal( 0, MathContext.UNLIMITED );
 		
-		final Cursor<FloatType> cursorImg = img.createCursor();
+		final Cursor<FloatType> cursorImg = img.cursor();
 		
 		while ( cursorImg.hasNext() )
 		{
 			cursorImg.fwd();
-			sum = sum.add( BigDecimal.valueOf( (double)cursorImg.getType().get() ) );
+			sum = sum.add( BigDecimal.valueOf( (double)cursorImg.get().get() ) );
 		}
-		
-		cursorImg.close();
 
 		return sum;
 	}
 	
-	final private static void normImage( final Image<FloatType> img )
+	final private static void normImage( final Img<FloatType> img )
 	{
 		final BigDecimal sum = sumImage( img );	
 		
-		final Cursor<FloatType> cursor = img.createCursor();
+		final Cursor<FloatType> cursor = img.cursor();
 					
 		while ( cursor.hasNext() )
 		{
 			cursor.fwd();
-			cursor.getType().set( (float) ((double)cursor.getType().get() / sum.doubleValue()) );
+			cursor.get().set( (float) ((double)cursor.get().get() / sum.doubleValue()) );
 		}
-		
-		cursor.close();		
 	}
 }

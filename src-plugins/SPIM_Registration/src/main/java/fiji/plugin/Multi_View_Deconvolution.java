@@ -23,6 +23,7 @@ import mpicbg.spim.fusion.FusionControl;
 import mpicbg.spim.fusion.PreDeconvolutionFusion;
 import mpicbg.spim.io.ConfigurationParserException;
 import mpicbg.spim.io.IOFunctions;
+import mpicbg.spim.io.ImgLibSaver;
 import mpicbg.spim.io.SPIMConfiguration;
 import mpicbg.spim.postprocessing.deconvolution.ExtractPSF;
 import mpicbg.spim.postprocessing.deconvolution.LucyRichardsonFFT;
@@ -141,17 +142,14 @@ public class Multi_View_Deconvolution implements PlugIn
 
 			if ( replaceChannel != null )
 				name = name.replace( replaceChannel, "" + conf.channelsFuse[ 0 ] );
-
-			deconvolved.setName( "DC(l=" + lambda + ")_" + name );
 			
 			if ( conf.showOutputImage )
 			{
-				deconvolved.getDisplay().setMinMax( 0 , 1 );
-				ImageJFunctions.copyToImagePlus( deconvolved ).show();
+				ImageJFunctions.show( deconvolved ).setTitle( "DC(l=" + lambda + ")_" + name );
 			}
 
 			if ( conf.writeOutputImage )
-				ImageJFunctions.saveAsTiffs( deconvolved, conf.outputdirectory, "DC(l=" + lambda + ")_" + name + "_ch" + viewStructure.getChannelNum( 0 ), ImageJFunctions.GRAY32 );
+				ImgLibSaver.saveAsTiffs( deconvolved, conf.outputdirectory, "DC(l=" + lambda + ")_" + name + "_ch" + viewStructure.getChannelNum( 0 ) );
 		}
 	}
 

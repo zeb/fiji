@@ -6,9 +6,22 @@ import java.util.ArrayList;
 
 import net.imglib2.Cursor;
 import net.imglib2.RandomAccess;
+import net.imglib2.RandomAccessible;
+import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.RealRandomAccess;
+import net.imglib2.algorithm.legacy.transform.ImageTransform;
 import net.imglib2.img.Img;
+import net.imglib2.img.ImgFactory;
+import net.imglib2.img.array.ArrayImgFactory;
+import net.imglib2.interpolation.InterpolatorFactory;
+import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
+import net.imglib2.outofbounds.OutOfBoundsConstantValueFactory;
+import net.imglib2.outofbounds.OutOfBoundsFactory;
+import net.imglib2.outofbounds.OutOfBoundsMirrorFactory;
+import net.imglib2.outofbounds.OutOfBoundsMirrorFactory.Boundary;
 import net.imglib2.type.numeric.real.FloatType;
 import net.imglib2.util.Util;
+import net.imglib2.view.Views;
 
 import mpicbg.models.AbstractAffineModel3D;
 import mpicbg.models.AffineModel3D;
@@ -259,8 +272,9 @@ public class ExtractPSF
 			
 			//System.out.println( MathLib.printCoordinates( minMaxDim[ d ] ) + " size " + size[ d ] + " newSize " + newSize[ d ] );
 		}
-		
-		final ImageTransform<FloatType> transform = new ImageTransform<FloatType>( psf, model, new LinearInterpolatorFactory<FloatType>( new OutOfBoundsStrategyValueFactory<FloatType>()));
+		// new OutOfBoundsConstantValueFactory<FloatType, RandomAccessibleInterval<FloatType> > ( new FloatType() )
+		//new NLinearInterpolatorFactory<FloatType>()
+		final ImageTransform<FloatType> transform = new ImageTransform<FloatType>( psf, model, new NLinearInterpolatorFactory<FloatType>(), new OutOfBoundsConstantValueFactory<FloatType, RandomAccessibleInterval<FloatType> > ( new FloatType() ) );
 		transform.setOffset( offset );
 		transform.setNewImageSize( newSize );
 		
@@ -270,9 +284,9 @@ public class ExtractPSF
 			return null;
 		}
 		
-		final Image<FloatType> transformedPSF = transform.getResult();
+		final Img<FloatType> transformedPSF = transform.getResult();
 		
-		ViewDataBeads.normalizeImage( transformedPSF );
+		ViewDataBeads.normalizeImage( transformedPSF, "transformedPSF" );
 		
 		return transformedPSF;
 	}
@@ -283,19 +297,16 @@ public class ExtractPSF
 	 * @param size - the size in which the psf is extracted (in pixel units, z-scaling is ignored)
 	 * @return - the psf, NOT z-scaling corrected
 	 */
-	protected static Image<FloatType> extractPSF( final ViewDataBeads view, final int[] size )
+	protected static Img<FloatType> extractPSF( final ViewDataBeads view, final int[] size )
 	{
 		final int numDimensions = size.length;
 		
-		final OutOfBoundsStrategyFactory<FloatType> outside = new OutOfBoundsStrategyMirrorFactory<FloatType>();
-		final InterpolatorFactory<FloatType> interpolatorFactory = new LinearInterpolatorFactory<FloatType>( outside );
+		final ImgFactory<FloatType> imageFactory = new ArrayImgFactory<FloatType>();
+		final Img<FloatType> img = view.getImage();
+		final Img<FloatType> psf = imageFactory.create( size, new FloatType() );
 		
-		final ImageFactory<FloatType> imageFactory = new ImageFactory<FloatType>( new FloatType(), new ArrayContainerFactory() );
-		final Image<FloatType> img = view.getImage();
-		final Image<FloatType> psf = imageFactory.createImage( size );
-		
-		final Interpolator<FloatType> interpolator = img.createInterpolator( interpolatorFactory );
-		final LocalizableCursor<FloatType> psfCursor = psf.createLocalizableCursor();
+		final RealRandomAccess<FloatType> interpolator = Views.interpolate( Views.extendMirrorSingle( img ), new NLinearInterpolatorFactory<FloatType>() ).realRandomAccess();
+		final Cursor<FloatType> psfCursor = psf.localizingCursor();
 		
 		final int[] sizeHalf = size.clone();		
 		for ( int d = 0; d < numDimensions; ++d )
@@ -318,14 +329,14 @@ public class ExtractPSF
 				while ( psfCursor.hasNext() )
 				{
 					psfCursor.fwd();
-					psfCursor.getPosition( tmpI );
+					psfCursor.localize( tmpI );
 
 					for ( int d = 0; d < numDimensions; ++d )
 						tmpF[ d ] = tmpI[ d ] - sizeHalf[ d ] + position[ d ];
 					
-					interpolator.moveTo( tmpF );
+					interpolator.setPosition( tmpF );
 					
-					psfCursor.getType().add( interpolator.getType() );
+					psfCursor.get().add( interpolator.get() );
 				}
 			}
 		}
@@ -337,10 +348,10 @@ public class ExtractPSF
 		while ( psfCursor.hasNext() )
 		{
 			psfCursor.fwd();
-			psfCursor.getType().div( n );			
+			psfCursor.get().div( n );			
 		}	
 	
-		ViewDataBeads.normalizeImage( psf );
+		ViewDataBeads.normalizeImage( psf, "PSF" );
 		
 		return psf;
 	}
