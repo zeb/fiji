@@ -2,24 +2,18 @@ package mpicbg.spim.registration.detection;
 
 import java.util.ArrayList;
 import java.util.Date;
-import java.util.Vector;
-import java.util.concurrent.atomic.AtomicInteger;
 
+import mpicbg.spim.io.IOFunctions;
+import mpicbg.spim.registration.ViewStructure;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.algorithm.legacy.scalespace.DifferenceOfGaussian;
 import net.imglib2.algorithm.legacy.scalespace.DifferenceOfGaussianPeak;
 import net.imglib2.algorithm.legacy.scalespace.SubpixelLocalization;
-import net.imglib2.img.Img;
 import net.imglib2.img.ImgPlus;
 import net.imglib2.outofbounds.OutOfBoundsFactory;
 import net.imglib2.outofbounds.OutOfBoundsMirrorFactory;
 import net.imglib2.outofbounds.OutOfBoundsMirrorFactory.Boundary;
-import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.real.FloatType;
-
-import mpicbg.spim.io.IOFunctions;
-import mpicbg.spim.registration.ViewDataBeads;
-import mpicbg.spim.registration.ViewStructure;
 
 public class DetectionSegmentation 
 {	
