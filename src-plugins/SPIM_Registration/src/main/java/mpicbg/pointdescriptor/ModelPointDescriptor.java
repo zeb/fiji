@@ -32,8 +32,8 @@ public class ModelPointDescriptor< P extends Point > extends AbstractPointDescri
 	{
 		super( basisPoint, orderedNearestNeighboringPoints, similarityMeasure, matcher );
 		
-		if ( !model.canDoNumDimension( numDimensions ) )
-			throw new NoSuitablePointsException( model.getClass().getName() + " does not support dim = " + numDimensions );
+		if ( !model.canDoNumDimension( numDimensionsOfPoints ) )
+			throw new NoSuitablePointsException( model.getClass().getName() + " does not support dim = " + numDimensionsOfPoints );
 		
 		/* check that number of points is at least model.getMinNumMatches() */
 		if ( numNeighbors() < model.getMinNumMatches() )

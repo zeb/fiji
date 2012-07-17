@@ -54,9 +54,6 @@ public class Bead extends DetectionView< BeadIdentification, Bead >
 	}
 
 	@Override
-	public Bead[] createArray( final int n ){ return new Bead[ n ];	}
-
-	@Override
 	public BeadIdentification createIdentification() 
 	{
 		return new BeadIdentification( this );

@@ -42,9 +42,6 @@ public class Nucleus extends DetectionView<NucleusIdentification, Nucleus>
 			return desc + " - no view assigned";
 	}
 
-	@Override
-	public Nucleus[] createArray( final int n ){ return new Nucleus[ n ];	}
-
 	public boolean equals( final Nucleus o )
 	{
 		if ( useW )
