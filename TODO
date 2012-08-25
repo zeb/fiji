@@ -1,6 +1,11 @@
 A loose TODO list for Fiji
 ==========================
 
+- teach the Script Editor to fake pom.xml files by default instead of Fakefiles
+- Fix commit-{plugin,submodule} for MiniMaven
+- make Maven plugin to sort-copy artifacts to plugins/ and jars/
+- finalize the lazydeploy plugin for Maven
+- teach Jenkins to deploy Fiji stuff
 - fix Temporal-Color Code for recent ImageJ hyperstack breakage
 - provide a Fiji exception handler that
 	- suggests updating if Fiji is out of date; and then
