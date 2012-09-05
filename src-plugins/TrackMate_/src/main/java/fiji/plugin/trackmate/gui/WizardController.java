@@ -68,7 +68,7 @@ public class WizardController<T extends RealType<T> & NativeType<T>> implements 
 		if (imp != null && imp.getWindow() != null ) {
 			window = imp.getWindow();
 		}
-		this.wizard = new TrackMateWizard<T>(window);
+		this.wizard = new TrackMateWizard<T>(window, this);
 		this.logger = wizard.getLogger();
 
 		plugin.setLogger(logger);
@@ -96,7 +96,16 @@ public class WizardController<T extends RealType<T> & NativeType<T>> implements 
 	public TrackMateWizard<T> getWizard() {
 		return wizard;
 	}
+	
+	/**
+	 * Expose the {@link TrackMate_} plugin piloted by the wizard.
+	 */
+	public TrackMate_<T> getPlugin() {
+		return plugin;
+	}
 
+	
+	
 	/*
 	 * PROTECTED METHODS
 	 */
@@ -137,7 +146,7 @@ public class WizardController<T extends RealType<T> & NativeType<T>> implements 
 		descriptors.add(new DetectorChoiceDescriptor<T>());
 		//		descriptors.add(new DetectorConfigurationPanelDescriptor()); // will be instantiated on the fly, see DetectorChoiceDescriptor
 		descriptors.add(new DetectorDescriptor<T>());
-		descriptors.add(new InitFilterPanel<T>());
+		descriptors.add(new InitFilterDescriptor<T>());
 		descriptors.add(new DisplayerChoiceDescriptor<T>());
 		descriptors.add(new LaunchDisplayerDescriptor<T>());
 		descriptors.add(new SpotFilterDescriptor<T>());

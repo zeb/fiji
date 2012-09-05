@@ -1,22 +1,19 @@
 package fiji.build.minimaven;
 
-import fiji.build.minimaven.JavaCompiler.CompileError;
-
 import java.io.BufferedReader;
-import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.jar.Attributes.Name;
 import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
 import java.util.zip.ZipEntry;
@@ -26,6 +23,8 @@ import javax.xml.parsers.ParserConfigurationException;
 import org.xml.sax.Attributes;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.DefaultHandler;
+
+import fiji.build.minimaven.JavaCompiler.CompileError;
 
 public class POM extends DefaultHandler implements Comparable<POM> {
 	protected final BuildEnvironment env;
@@ -115,23 +114,53 @@ public class POM extends DefaultHandler implements Comparable<POM> {
 		if (!buildFromSource)
 			return true;
 		for (POM child : getDependencies(true, env.downloadAutomatically, "test"))
-			if (child != null && !child.upToDate(includingJar))
+			if (child != null && !child.upToDate(includingJar)) {
+				if (env.verbose) {
+					env.err.println(getArtifactId() + " not up-to-date because of " + child.getArtifactId());
+				}
 				return false;
+			}
 
 		File source = getSourceDirectory();
 
 		List<String> notUpToDates = new ArrayList<String>();
 		long lastModified = addRecursively(notUpToDates, source, ".java", target, ".class", false);
 		int count = notUpToDates.size();
-		if (count == 0)
-			return true;
+
+		// ugly work-around for Bio-Formats: EFHSSF.java only contains commented-out code
+		if (count == 1 && notUpToDates.get(0).endsWith("poi/hssf/dev/EFHSSF.java")) {
+			count = 0;
+		}
+
+		if (count > 0) {
+			if (env.verbose) {
+				final StringBuilder files = new StringBuilder();
+				int counter = 0;
+				for (String item : notUpToDates) {
+					if (counter > 3) {
+						files.append(", ...");
+						break;
+					}
+					else if (counter > 0) {
+						files.append(", ");
+					}
+					files.append(item);
+				}
+				env.err.println(getArtifactId() + " not up-to-date because " + count + " source files are not up-to-date (" + files + ")");
+			}
+			return false;
+		}
 		long lastModified2 = updateRecursively(new File(source.getParentFile(), "resources"), target, true);
 		if (lastModified < lastModified2)
 			lastModified = lastModified2;
 		if (includingJar) {
 			File jar = getTarget();
-			if (!jar.exists() || jar.lastModified() < lastModified)
+			if (!jar.exists() || jar.lastModified() < lastModified) {
+				if (env.verbose) {
+					env.err.println(getArtifactId() + " not up-to-date because " + jar + " is not up-to-date");
+				}
 				return false;
+			}
 		}
 		return true;
 	}
@@ -151,6 +180,9 @@ public class POM extends DefaultHandler implements Comparable<POM> {
 	protected void addToJarRecursively(JarOutputStream out, File directory, String prefix) throws IOException {
 		for (File file : directory.listFiles())
 			if (file.isFile()) {
+				// For backwards-compatibility with the Fiji Updater, let's not include pom.properties files in the Updater itself
+				if (file.getAbsolutePath().endsWith("/Fiji_Updater/target/classes/META-INF/maven/sc.fiji/Fiji_Updater/pom.properties"))
+					continue;
 				out.putNextEntry(new ZipEntry(prefix + file.getName()));
 				BuildEnvironment.copy(new FileInputStream(file), out, false);
 			}
@@ -230,23 +262,25 @@ public class POM extends DefaultHandler implements Comparable<POM> {
 			BuildEnvironment.copyFile(pom, targetFile);
 		}
 
-		if (makeJar) {
-			JarOutputStream out;
-			if (mainClass == null && !includeImplementationBuild)
-				out = new JarOutputStream(new FileOutputStream(getTarget()));
+		if (mainClass != null || includeImplementationBuild) {
+			File file = new File(target, "META-INF/MANIFEST.MF");
+			Manifest manifest = null;
+			if (file.exists())
+				manifest = new Manifest(new FileInputStream(file));
 			else {
-				String text = "Manifest-Version: 1.0\n";
-				if (mainClass != null)
-					text += "Main-Class: " + mainClass + "\n";
-				if (includeImplementationBuild)
-					text += "Implementation-Build: " + env.getImplementationBuild(directory) + "\n";
-				InputStream input = new ByteArrayInputStream(text.getBytes());
-				Manifest manifest = null;
-				try {
-					manifest = new Manifest(input);
-				} catch(Exception e) { }
-				out = new JarOutputStream(new FileOutputStream(getTarget()), manifest);
+				manifest = new Manifest();
+				manifest.getMainAttributes().put(Name.MANIFEST_VERSION, "1.0");
+				file.getParentFile().mkdirs();
 			}
+			if (mainClass != null)
+				manifest.getMainAttributes().put(Name.MAIN_CLASS, mainClass);
+			if (includeImplementationBuild && !getArtifactId().equals("Fiji_Updater"))
+				manifest.getMainAttributes().put(new Name("Implementation-Build"), env.getImplementationBuild(directory));
+			manifest.write(new FileOutputStream(file));
+		}
+
+		if (makeJar) {
+			JarOutputStream out = new JarOutputStream(new FileOutputStream(getTarget()));
 			addToJarRecursively(out, target, "");
 			out.close();
 		}
@@ -275,7 +309,7 @@ public class POM extends DefaultHandler implements Comparable<POM> {
 				long lastModified2 = file.lastModified();
 				if (lastModified < lastModified2)
 					lastModified = lastModified2;
-				if (!includeUpToDates || !targetFile.exists() || targetFile.lastModified() < lastModified2)
+				if (includeUpToDates || !targetFile.exists() || targetFile.lastModified() < lastModified2)
 					list.add(file.getPath());
 			}
 		return lastModified;
@@ -330,10 +364,18 @@ public class POM extends DefaultHandler implements Comparable<POM> {
 		return mainClass;
 	}
 
+	public String getPackaging() {
+		return packaging;
+	}
+
 	public File getTarget() {
 		if (!buildFromSource)
 			return target;
 		return new File(new File(directory, "target"), getJarName());
+	}
+
+	public File getDirectory() {
+		return directory;
 	}
 
 	public boolean getBuildFromSource() {
@@ -348,7 +390,7 @@ public class POM extends DefaultHandler implements Comparable<POM> {
 		for (POM pom : getDependencies(true, env.downloadAutomatically, "test", forCompile ? "runtime" : "provided")) {
 			if (env.debug)
 				env.err.println("Adding dependency " + pom.coordinate + " to classpath");
-			builder.append(File.pathSeparator).append(pom.target);
+			builder.append(File.pathSeparator).append(pom.getTarget());
 		}
 		return builder.toString();
 	}
@@ -400,10 +442,13 @@ public class POM extends DefaultHandler implements Comparable<POM> {
 			}
 			// make sure that snapshot .pom files are updated once a day
 			if (!env.offlineMode && downloadAutomatically && pom != null && dependency.version != null &&
-					dependency.version.endsWith("-SNAPSHOT") && dependency.snapshotVersion == null &&
+					(dependency.version.startsWith("[") || dependency.version.endsWith("-SNAPSHOT")) &&
 					pom.directory.getPath().startsWith(BuildEnvironment.mavenRepository.getPath())) {
 				if (maybeDownloadAutomatically(dependency, !env.verbose, downloadAutomatically)) {
-					dependency.setSnapshotVersion(SnapshotPOMHandler.parse(new File(pom.directory, "maven-metadata-snapshot.xml")));
+					if (dependency.version.startsWith("["))
+						dependency.setSnapshotVersion(VersionPOMHandler.parse(new File(pom.directory.getParentFile(), "maven-metadata-version.xml")));
+					else
+						dependency.setSnapshotVersion(SnapshotPOMHandler.parse(new File(pom.directory, "maven-metadata-snapshot.xml")));
 				}
 			}
 			if (pom == null && downloadAutomatically)
@@ -518,7 +563,7 @@ public class POM extends DefaultHandler implements Comparable<POM> {
 		String key = dependency.getKey();
 		if (env.localPOMCache.containsKey(key)) {
 			POM result = env.localPOMCache.get(key); // may be null
-			if (result == null || BuildEnvironment.compareVersion(dependency.version, result.coordinate.version) <= 0)
+			if (result == null || BuildEnvironment.compareVersion(dependency.getVersion(), result.coordinate.getVersion()) <= 0)
 				return result;
 		}
 
@@ -536,13 +581,17 @@ public class POM extends DefaultHandler implements Comparable<POM> {
 		}
 
 		String path = BuildEnvironment.mavenRepository.getPath() + "/" + dependency.groupId.replace('.', '/') + "/" + dependency.artifactId + "/";
-		if (dependency.version.startsWith("[")) try {
+		if (dependency.version == null) {
+			env.err.println("Skipping invalid dependency (version unset): " + dependency);
+			return null;
+		}
+		if (dependency.version.startsWith("[") && dependency.snapshotVersion == null) try {
 			if (!maybeDownloadAutomatically(dependency, quiet, downloadAutomatically))
 				return null;
 			if (dependency.version.startsWith("["))
-				dependency.version = VersionPOMHandler.parse(new File(path, "maven-metadata-version.xml"));
+				dependency.snapshotVersion = VersionPOMHandler.parse(new File(path, "maven-metadata-version.xml"));
 		} catch (FileNotFoundException e) { /* ignore */ }
-		path += dependency.version + "/";
+		path += dependency.getVersion() + "/";
 		if (dependency.version.endsWith("-SNAPSHOT")) try {
 			if (!maybeDownloadAutomatically(dependency, quiet, downloadAutomatically)) {
 				File file = findInFijiDirectories(dependency);
@@ -559,9 +608,7 @@ public class POM extends DefaultHandler implements Comparable<POM> {
 				return env.fakePOM(file, dependency);
 		}
 
-		path += dependency.getPOMName();
-
-		File file = new File(path);
+		File file = new File(path, dependency.getPOMName());
 		if (!file.exists()) {
 			if (downloadAutomatically) {
 				if (!maybeDownloadAutomatically(dependency, quiet, downloadAutomatically))
@@ -576,7 +623,7 @@ public class POM extends DefaultHandler implements Comparable<POM> {
 			}
 		}
 
-		POM result = env.parse(new File(path), null, dependency.classifier);
+		POM result = env.parse(new File(path, dependency.getPOMName()), null, dependency.classifier);
 		if (result != null) {
 			if (result.target.getName().endsWith("-SNAPSHOT.jar")) {
 				result.coordinate.version = dependency.version;
@@ -584,6 +631,14 @@ public class POM extends DefaultHandler implements Comparable<POM> {
 			}
 			if (result.parent == null)
 				result.parent = getRoot();
+			if (result.packaging.equals("jar") && !new File(path, dependency.getJarName()).exists()) {
+				if (downloadAutomatically)
+					download(dependency, quiet);
+				else {
+					env.localPOMCache.remove(key);
+					return null;
+				}
+			}
 		}
 		else if (!quiet && !dependency.optional)
 			env.err.println("Artifact " + dependency.artifactId + " not found" + (downloadAutomatically ? "" : "; consider 'get-dependencies'"));
@@ -594,15 +649,15 @@ public class POM extends DefaultHandler implements Comparable<POM> {
 		env.parseMultiProjects();
 		String key = dependency.getKey();
 		POM result = env.localPOMCache.get(key);
-		if (result != null && BuildEnvironment.compareVersion(dependency.version, result.coordinate.version) <= 0)
+		if (result != null && BuildEnvironment.compareVersion(dependency.getVersion(), result.coordinate.getVersion()) <= 0)
 			return result;
 		return null;
 	}
 
 	protected File findInFijiDirectories(Coordinate dependency) {
 		for (String jarName : new String[] {
-			"jars/" + dependency.artifactId + "-" + dependency.version + ".jar",
-			"plugins/" + dependency.artifactId + "-" + dependency.version + ".jar",
+			"jars/" + dependency.artifactId + "-" + dependency.getVersion() + ".jar",
+			"plugins/" + dependency.artifactId + "-" + dependency.getVersion() + ".jar",
 			"jars/" + dependency.artifactId + ".jar",
 			"plugins/" + dependency.artifactId + ".jar"
 		}) {
@@ -618,7 +673,6 @@ public class POM extends DefaultHandler implements Comparable<POM> {
 		return pom;
 	}
 
-	// TODO: if there is no internet connection, do not try to download -SNAPSHOT versions
 	protected boolean maybeDownloadAutomatically(Coordinate dependency, boolean quiet, boolean downloadAutomatically) {
 		if (!downloadAutomatically || env.offlineMode)
 			return true;
@@ -664,7 +718,7 @@ public class POM extends DefaultHandler implements Comparable<POM> {
 		if (!properties.containsKey("project.groupId"))
 			properties.put("project.groupId", coordinate.groupId);
 		if (!properties.containsKey("project.version"))
-			properties.put("project.version", coordinate.version);
+			properties.put("project.version", coordinate.getVersion());
 	}
 
 	public void startElement(String uri, String name, String qualifiedName, Attributes attributes) {
@@ -818,9 +872,7 @@ public class POM extends DefaultHandler implements Comparable<POM> {
 			result = coordinate.groupId.compareTo(other.coordinate.groupId);
 		if (result != 0)
 			return result;
-		if (coordinate.version != null && other.coordinate.version != null)
-			return BuildEnvironment.compareVersion(coordinate.version, other.coordinate.version);
-		return 0;
+		return BuildEnvironment.compareVersion(coordinate.getVersion(), other.coordinate.getVersion());
 	}
 
 	public String toString() {

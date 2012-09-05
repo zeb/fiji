@@ -50,6 +50,10 @@ public class BuildEnvironment {
 		mavenRepository = repository;
 	}
 
+	public void setVerbose(boolean verbose) {
+		this.verbose = verbose;
+	}
+
 	public boolean getDownloadAutomatically() {
 		return downloadAutomatically && !offlineMode;
 	}
@@ -121,7 +125,8 @@ public class BuildEnvironment {
 			throw new SAXException("Missing artifactId: " + file);
 		if (pom.coordinate.groupId == null || pom.coordinate.groupId.equals(""))
 			throw new SAXException("Missing groupId: " + file);
-		if (pom.coordinate.version == null || pom.coordinate.version.equals(""))
+		String version = pom.coordinate.getVersion();
+		if (version == null || version.equals(""))
 			throw new SAXException("Missing version: " + file);
 
 		pom.children = new POM[pom.modules.size()];
@@ -166,8 +171,12 @@ public class BuildEnvironment {
 				if (pom.maybeDownloadAutomatically(pom.parentCoordinate, !verbose, downloadAutomatically))
 					pom.parent = pom.findPOM(dependency, !verbose, downloadAutomatically);
 			}
-			// prevent infinite loops (POMs without parents get the current root as parent)
-			if (pom.parent != null) {
+			if (pom.parent == null) {
+				throw new RuntimeException("Parent not found: " + pom.parentCoordinate
+						+ (downloadAutomatically ? "" : " (please call MiniMaven's 'download'"));
+			}
+			else {
+				// prevent infinite loops (POMs without parents get the current root as parent)
 				if (pom.parent.parent == pom)
 					pom.parent.parent = null;
 				if (pom.parent.includeImplementationBuild)
@@ -194,7 +203,7 @@ public class BuildEnvironment {
 		else if (dependency.artifactId.equals("imglib2-io"))
 			pom.dependencies.add(new Coordinate("loci", "bio-formats", "${bio-formats.version}"));
 		else if (dependency.artifactId.equals("jfreechart"))
-			pom.dependencies.add(new Coordinate("jfree", "jcommon", "1.0.16"));
+			pom.dependencies.add(new Coordinate("jfree", "jcommon", "1.0.17"));
 
 		String key = dependency.getKey();
 		if (localPOMCache.containsKey(key))
@@ -266,16 +275,16 @@ public class BuildEnvironment {
 
 			// Only check versions once per day
 			File versionMetaData = new File(directory, "maven-metadata-version.xml");
-			if (System.currentTimeMillis() - versionMetaData.lastModified() < 24 * 60 * 60 * 1000l)
+			if (System.currentTimeMillis() - versionMetaData.lastModified() < updateInterval * 60 * 1000l)
 				return;
 
 			String message = quiet ? null : "Checking for new version of " + dependency.artifactId;
 			String metadataURL = repositoryURL + path + "maven-metadata.xml";
 			downloadAndVerify(metadataURL, directory, versionMetaData.getName(), message);
-			dependency.version = VersionPOMHandler.parse(versionMetaData);
-			if (dependency.version == null)
+			dependency.snapshotVersion = VersionPOMHandler.parse(versionMetaData);
+			if (dependency.snapshotVersion == null)
 				throw new IOException("No version found in " + metadataURL);
-			path = "/" + dependency.groupId.replace('.', '/') + "/" + dependency.artifactId + "/" + dependency.version + "/";
+			path = "/" + dependency.groupId.replace('.', '/') + "/" + dependency.artifactId + "/" + dependency.snapshotVersion + "/";
 			directory = new File(mavenRepository, path);
 			if (new File(directory, dependency.getJarName()).exists() &&
 					new File(directory, dependency.getPOMName()).exists())

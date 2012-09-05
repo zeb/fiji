@@ -54,7 +54,7 @@ Linux)
 	*)
 		platform=linux
 		arch=i386
-		mvnopts="-Dos.arch=$arch"
+		mvnopts="-Dos.arch=i386 -P i386-Linux -P !amd64-Linux"
 		;;
 	esac
 	;;
@@ -87,4 +87,4 @@ cp ${macprefix}ImageJ-$platform$exe ${macprefix}fiji-$platform$exe &&
 cp ${macprefix}ImageJ-$platform$exe ${macprefix}ImageJ$exe &&
 cp ${macprefix}ImageJ-$platform$exe ${macprefix}fiji$exe &&
 
-cp $path/target/$artifactId-$version.jar jars/$artifactId.jar
+cp $path/target/$artifactId-$version.jar jars/$artifactId-$version.jar

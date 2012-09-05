@@ -8,6 +8,7 @@ import java.awt.FileDialog;
 import java.io.File;
 import java.io.FilenameFilter;
 import java.util.List;
+import java.util.Map;
 
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
@@ -26,9 +27,10 @@ import fiji.plugin.trackmate.Spot;
 import fiji.plugin.trackmate.SpotCollection;
 import fiji.plugin.trackmate.TrackMateModel;
 import fiji.plugin.trackmate.TrackMate_;
-import fiji.plugin.trackmate.detection.DetectorSettings;
 import fiji.plugin.trackmate.io.TmXmlReader;
+import fiji.plugin.trackmate.io.TmXmlReader_v12;
 import fiji.plugin.trackmate.tracking.TrackerSettings;
+import fiji.plugin.trackmate.util.Version;
 import fiji.plugin.trackmate.visualization.TrackMateModelView;
 import fiji.plugin.trackmate.visualization.hyperstack.HyperStackDisplayer;
 
@@ -93,6 +95,7 @@ public class GuiReader <T extends RealType<T> & NativeType<T>> {
 	 * @param file  the file to load
 	 */
 	public void loadFile(File file) {
+		
 		// Init target fields
 		TrackMateModel<T> model = new TrackMateModel<T>();
 		plugin = new TrackMate_<T>(model);
@@ -104,10 +107,20 @@ public class GuiReader <T extends RealType<T> & NativeType<T>> {
 
 		// Open and parse file
 		logger.log("Opening file "+file.getName()+'\n');
-		TmXmlReader<T> reader = new TmXmlReader<T>(file, logger);
+		TmXmlReader<T> reader = new TmXmlReader<T>(file, logger, plugin);
 		reader.parse();
 		logger.log("  Parsing file done.\n");
 
+		// Check file version & deal with older save format
+		String fileVersionStr = reader.getVersion();
+		Version fileVersion = new Version(fileVersionStr);
+		Version currentVersion = new Version("1.3.0");
+		if (fileVersion.compareTo(currentVersion ) < 0) {
+			logger.log("  Detected an older file format: v"+fileVersionStr);
+			logger.log(" Converting on the fly.\n");
+			// We substitute an able reader
+			reader = new TmXmlReader_v12<T>(file, logger, plugin);
+		}
 		
 		// Retrieve data and update GUI
 		Settings<T> settings = null;
@@ -146,7 +159,7 @@ public class GuiReader <T extends RealType<T> & NativeType<T>> {
 		{ // Try to read detector settings
 			logger.log("  Reading detector settings...");
 			reader.getDetectorSettings(settings);
-			DetectorSettings<T> detectorSettings = settings.detectorSettings;
+			Map<String, Object> detectorSettings = settings.detectorSettings;
 			if (null == detectorSettings) {
 				echoNotFound();
 				// Stop at start panel
@@ -160,14 +173,15 @@ public class GuiReader <T extends RealType<T> & NativeType<T>> {
 
 			// Update 2nd panel: detector choice
 			DetectorChoiceDescriptor<T> detectorChoiceDescriptor = (DetectorChoiceDescriptor<T>) wizard.getPanelDescriptorFor(DetectorChoiceDescriptor.DESCRIPTOR);
+			detectorChoiceDescriptor.setPlugin(plugin);
 			detectorChoiceDescriptor.aboutToDisplayPanel();
 
 			// Instantiate descriptor for the detector configuration and update it
 			DetectorConfigurationPanelDescriptor<T> detectConfDescriptor = new DetectorConfigurationPanelDescriptor<T>();
 			detectConfDescriptor.setPlugin(plugin);
 			detectConfDescriptor.setWizard(wizard);
+			detectConfDescriptor.updateComponent();
 			wizard.registerWizardDescriptor(DetectorConfigurationPanelDescriptor.DESCRIPTOR, detectConfDescriptor);
-			detectConfDescriptor.aboutToDisplayPanel();
 		}
 
 
@@ -189,7 +203,7 @@ public class GuiReader <T extends RealType<T> & NativeType<T>> {
 			echoDone();
 
 			// Next panel that needs to know is the initial filter one
-			InitFilterPanel<T> panel = (InitFilterPanel<T>) wizard.getPanelDescriptorFor(InitFilterPanel.DESCRIPTOR);
+			InitFilterDescriptor<T> panel = (InitFilterDescriptor<T>) wizard.getPanelDescriptorFor(InitFilterDescriptor.DESCRIPTOR);
 			panel.aboutToDisplayPanel();
 		}
 
@@ -200,7 +214,7 @@ public class GuiReader <T extends RealType<T> & NativeType<T>> {
 			if (initialThreshold == null) {
 				echoNotFound();
 				// No initial threshold, so set it
-				targetDescriptor = InitFilterPanel.DESCRIPTOR;
+				targetDescriptor = InitFilterDescriptor.DESCRIPTOR;
 				if (!imp.isVisible())
 					imp.show();
 				echoLoadingFinished();
@@ -215,7 +229,7 @@ public class GuiReader <T extends RealType<T> & NativeType<T>> {
 
 		// Prepare the next panel, which is the spot filter panel
 		SpotFilterDescriptor<T> spotFilterDescriptor = (SpotFilterDescriptor<T>) wizard.getPanelDescriptorFor(SpotFilterDescriptor.DESCRIPTOR);
-		spotFilterDescriptor.setPlugin(plugin);
+		spotFilterDescriptor.setWizard(wizard);
 
 		{ // Try to read feature thresholds
 			logger.log("  Loading spot filters...");
@@ -440,7 +454,7 @@ public class GuiReader <T extends RealType<T> & NativeType<T>> {
 	}
 	
 	private void echoDone() {
-		logger.log("\b\b\b done.\n");
+		logger.log(" done.\n"); 
 	}
 	
 	private void echoNotFound() {

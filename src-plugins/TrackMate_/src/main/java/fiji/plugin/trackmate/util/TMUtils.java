@@ -20,6 +20,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -29,6 +30,7 @@ import javax.swing.filechooser.FileNameExtensionFilter;
 
 import net.imglib2.exception.ImgLibException;
 import net.imglib2.meta.Axes;
+import net.imglib2.meta.AxisType;
 import net.imglib2.meta.Metadata;
 import net.imglib2.multithreading.SimpleMultiThreading;
 import net.imglib2.type.NativeType;
@@ -71,6 +73,8 @@ public class TMUtils {
 	public static final String POSITION_Z = "POSITION_Z";
 	/** The name of the spot T position feature. */
 	public static final String POSITION_T = "POSITION_T";
+	/** The name of the frame feature. */
+	public static final String FRAME = "FRAME";
 
 	/** The position features. */
 	public final static String[] POSITION_FEATURES = new String[] { POSITION_X, POSITION_Y, POSITION_Z };
@@ -118,8 +122,56 @@ public class TMUtils {
 	/*
 	 * STATIC METHODS
 	 */
+	
+	/**
+	 * Check the presence and the validity of a key in a map, and test it is of the desired class.
+	 * @param map the map to inspect.
+	 * @param key  the key to find.
+	 * @param expectedClass  the expected class of the target value .
+	 * @param errorHolder will be appended with an error message.
+	 * @return  true if the key is found in the map, and map a value of the desired class.
+	 */
+	public static final boolean checkParameter(Map<String, Object> map, String key, Class<?> expectedClass, StringBuilder errorHolder) {
+		Object obj = map.get(key);
+		if (null == obj) {
+			errorHolder.append("Parameter "+key+" could not be found in settings map.\n");
+			return true;
+		}
+		if (!expectedClass.isInstance(obj)) {
+			errorHolder.append("Value for parameter "+key+" is not of the right class. Expected "+expectedClass.getName()+", got "+obj.getClass().getName()+".\n");
+			return false;
+		}
+		return true;
+	}
 
-
+	
+	/**
+	 * Generate a string representation of a map, typically a settings map.
+	 */
+	public static final String echoMap(final Map<String, Object> map, int indent) {
+		// Build string
+		StringBuilder builder = new StringBuilder();
+		for (String key : map.keySet()) {
+			for (int i = 0; i < indent; i++) {
+				builder.append(" ");
+			}
+			builder.append("- ");
+			builder.append(key.toLowerCase().replace("_", " "));
+			builder.append(": ");
+			Object obj = map.get(key);
+			if (obj instanceof Map) {
+				builder.append('\n');
+				@SuppressWarnings("unchecked")
+				Map<String, Object> submap = (Map<String, Object>) obj;
+				builder.append(echoMap(submap , indent + 2));
+			} else {
+				builder.append(obj.toString());
+				builder.append('\n');
+			}
+		}
+		return builder.toString();
+	}
+	
 	/**
 	 * Prompt the user for a target xml file.
 	 *  
@@ -175,11 +227,11 @@ public class TMUtils {
 	 * Read and return an integer attribute from a JDom {@link Element}, and substitute a default value of 0
 	 * if the attribute is not found or of the wrong type.
 	 */
-	public static  final int readIntAttribute(Element element, String name, Logger logger) {
+	public static final int readIntAttribute(Element element, String name, Logger logger) {
 		return readIntAttribute(element, name, logger, 0);
 	}
 
-	public static  final int readIntAttribute(Element element, String name, Logger logger, int defaultValue) {
+	public static final int readIntAttribute(Element element, String name, Logger logger, int defaultValue) {
 		int val = defaultValue;
 		Attribute att = element.getAttribute(name);
 		if (null == att) {
@@ -194,7 +246,7 @@ public class TMUtils {
 		return val;
 	}
 
-	public static  final double readFloatAttribute(Element element, String name, Logger logger) {
+	public static final double readFloatAttribute(Element element, String name, Logger logger) {
 		double val = 0;
 		Attribute att = element.getAttribute(name);
 		if (null == att) {
@@ -209,7 +261,7 @@ public class TMUtils {
 		return val;
 	}
 
-	public static  final double readDoubleAttribute(Element element, String name, Logger logger) {
+	public static final double readDoubleAttribute(Element element, String name, Logger logger) {
 		double val = 0;
 		Attribute att = element.getAttribute(name);
 		if (null == att) {
@@ -224,7 +276,7 @@ public class TMUtils {
 		return val;
 	}
 
-	public static  final boolean readBooleanAttribute(Element element, String name, Logger logger) {
+	public static final boolean readBooleanAttribute(Element element, String name, Logger logger) {
 		boolean val = false;
 		Attribute att = element.getAttribute(name);
 		if (null == att) {
@@ -253,10 +305,10 @@ public class TMUtils {
 	}
 
 	/**
-	 * Return a copy of this collection of spot, translated by the amount specified in 
+	 * Translate each spot of the given collection by the amount specified in 
 	 * argument. The distances are all understood in physical units.
 	 * <p>
-	 * This is meant to deal with a crpoped image. The translation will bring the spot
+	 * This is meant to deal with a cropped image. The translation will bring the spot
 	 * coordinates back to the top-left corner of the un-cropped image reference. 
 	 */
 	public static void translateSpots(final Collection<Spot> spots, double dx, double dy, double dz) {
@@ -517,6 +569,41 @@ public class TMUtils {
 		return selectedSpots;
 	}
 
+	
+	/*
+	 * ImgPlus & calibration & axes 
+	 */
+	
+	/**
+	 * @return the index of the target axisd in the given metadata. Return -1 if 
+	 * the azis was not found.
+	 */
+	public static final int findAxisIndex(final Metadata img, final AxisType axis) {
+		AxisType[] axes = new AxisType[img.numDimensions()];
+		img.axes(axes);
+		int index = Arrays.asList(axes).indexOf(axis);
+		return index;
+	}
+
+	public static final int findXAxisIndex(final Metadata img) {
+		return findAxisIndex(img, Axes.X);
+	}
+
+	public static final int findYAxisIndex(final Metadata img) {
+		return findAxisIndex(img, Axes.Y);
+	}
+
+	public static final int findZAxisIndex(final Metadata img) {
+		return findAxisIndex(img, Axes.Z);
+	}
+	
+	public static final int findTAxisIndex(final Metadata img) {
+		return findAxisIndex(img, Axes.TIME);
+	}
+
+	public static final int findCAxisIndex(final Metadata img) {
+		return findAxisIndex(img, Axes.CHANNEL);
+	}
 
 	/**
 	 * Return the xyz calibration stored in an {@link Metadata} in a 3-elements
@@ -618,7 +705,7 @@ public class TMUtils {
 	 * together.
 	 */
 	public static Map<String, double[]> getSpotFeatureValues(final SpotCollection spots, final List<String> features, final Logger logger) {
-		final Map<String, double[]> featureValues = new  HashMap<String, double[]>();
+		final Map<String, double[]> featureValues = new  ConcurrentHashMap<String, double[]>(features.size());
 		if (null == spots || spots.isEmpty())
 			return featureValues;
 		// Get the total quantity of spot we have
