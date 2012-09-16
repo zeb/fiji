@@ -307,7 +307,7 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 			newSpot.putFeature(Spot.POSITION_T, frame * displayer.getSttings().dt);
 			newSpot.putFeature(Spot.FRAME, frame);
 			newSpot.putFeature(Spot.RADIUS, radius);
-
+			
 			model.beginUpdate();
 			try {
 				model.addSpotTo(newSpot, frame);

@@ -1,9 +1,13 @@
 package fiji.plugin.multiviewtracker;
 
 import ij.ImagePlus;
+import ij.gui.ScrollbarWithLabel;
 import ij.gui.StackWindow;
 
+import java.awt.Component;
 import java.awt.Point;
+import java.awt.event.AdjustmentEvent;
+import java.awt.event.AdjustmentListener;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -25,7 +29,7 @@ import fiji.plugin.trackmate.visualization.AbstractTrackMateModelView;
 import fiji.plugin.trackmate.visualization.TrackMateModelView;
 import fiji.util.gui.OverlayedImageCanvas;
 
-public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends AbstractTrackMateModelView<T>  {
+public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends AbstractTrackMateModelView<T> implements AdjustmentListener  {
 
 	private static final boolean DEBUG = false;
 	public static final String NAME = "MultiView Displayer";
@@ -56,7 +60,6 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 		this.imps = imps;
 		this.transforms = transforms;
 		this.model = model;
-		render();
 	}
 
 	/*
@@ -257,7 +260,12 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 			window.setVisible(true);
 			windows.put(imp,  window);
 			
-			imp.updateAndDraw();
+			// Add a listener for time slider
+			Component[] cs = window.getComponents();
+			if (cs.length > 1) {
+				((ScrollbarWithLabel) cs[2]).addAdjustmentListener (this); // We assume the 2nd is for time
+			}
+			
 		}
 		registerEditTool();
 		
@@ -342,5 +350,15 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 
 	public Settings<T> getSttings() {
 		return model.getSettings();
+	}
+
+	/**
+	 * Notified when any of the imps change slider.
+	 */
+	@Override
+	public void adjustmentValueChanged(AdjustmentEvent event) {
+		for (ImagePlus imp : imps) {
+			imp.setT(event.getValue());
+		}
 	}
 }
