@@ -1,4 +1,4 @@
-package fiji.plugin.trackmate.util;
+package fiji.plugin.multiviewtracker.util;
 
 import java.io.BufferedReader;
 import java.io.File;

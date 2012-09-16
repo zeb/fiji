@@ -9,6 +9,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import mpicbg.models.AffineModel3D;
+import mpicbg.models.NoninvertibleModelException;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
 
@@ -19,14 +21,13 @@ import fiji.plugin.trackmate.Spot;
 import fiji.plugin.trackmate.SpotImp;
 import fiji.plugin.trackmate.TrackMateModel;
 import fiji.plugin.trackmate.TrackMateModelChangeEvent;
-import fiji.plugin.trackmate.util.TMUtils;
 import fiji.plugin.trackmate.visualization.AbstractTrackMateModelView;
 import fiji.plugin.trackmate.visualization.TrackMateModelView;
 import fiji.util.gui.OverlayedImageCanvas;
 
 public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends AbstractTrackMateModelView<T>  {
 
-	private static final boolean DEBUG = true;
+	private static final boolean DEBUG = false;
 	public static final String NAME = "MultiView Displayer";
 	public static final String INFO_TEXT = "<html>" +
 			"<ul>" +
@@ -41,18 +42,19 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 	private List<ImagePlus> imps;
 	Map<ImagePlus, StackWindow> windows = new HashMap<ImagePlus, StackWindow>();
 	Map<ImagePlus, OverlayedImageCanvas> canvases = new HashMap<ImagePlus, OverlayedImageCanvas>();
-	Map<ImagePlus, SpotOverlay<T>> spotOverlays = new HashMap<ImagePlus, SpotOverlay<T>>();
-	Map<ImagePlus, TrackOverlay<T>> trackOverlays = new HashMap<ImagePlus, TrackOverlay<T>>();
-	Map<ImagePlus, double[]> calibrations = new HashMap<ImagePlus, double[]>();
+	Map<ImagePlus, TransformedSpotOverlay<T>> spotOverlays = new HashMap<ImagePlus, TransformedSpotOverlay<T>>();
+	Map<ImagePlus, TransformedTrackOverlay<T>> trackOverlays = new HashMap<ImagePlus, TransformedTrackOverlay<T>>();
 
 	private MVSpotEditTool<T> editTool;
+	private Map<ImagePlus, AffineModel3D> transforms;
 
 	/*
 	 * CONSTRUCTORS
 	 */
 
-	public MultiViewDisplayer(List<ImagePlus> imps, TrackMateModel<T> model) {
+	public MultiViewDisplayer(List<ImagePlus> imps, Map<ImagePlus, AffineModel3D> transforms, TrackMateModel<T> model) {
 		this.imps = imps;
+		this.transforms = transforms;
 		this.model = model;
 		render();
 	}
@@ -63,17 +65,23 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 
 	final Spot getCLickLocation(final Point point, ImagePlus imp) {
 		OverlayedImageCanvas canvas = canvases.get(imp);
-		double[] calibration = calibrations.get(imp);
 		if (null == canvas) {
-			System.err.println("ImagePlus "+imp+" is unknown to this displaer "+this);
+			System.err.println("ImagePlus "+imp+" is unknown to this displayer "+this);
 			return null;
 		}
-		final double ix = canvas.offScreenXD(point.x) + 0.5f;
-		final double iy =  canvas.offScreenYD(point.y) + 0.5f;
-		final double x = ix * calibration[0];
-		final double y = iy * calibration[1];
-		final double z = (imp.getSlice()-1) * calibration[2];
-		return new SpotImp(new double[] {x, y, z});
+		final float ix = (float) (canvas.offScreenXD(point.x) + 0.5);
+		final float iy = (float) (canvas.offScreenYD(point.y) + 0.5);
+		final float iz = imp.getSlice()-1;
+		float[] physicalCoords = new float[] { 1, 1, 1 };
+		float[] pixelCoords = new float[] { ix, iy, iz };
+		try {
+			physicalCoords = transforms.get(imp).applyInverse(pixelCoords);
+		} catch (NoninvertibleModelException e) {
+			System.err.println("Failed to convert click location to physical coordinates.\n" +
+					"Model was: "+transforms.get(imp)+" and coords were "+pixelCoords);
+			e.printStackTrace();
+		}
+		return new SpotImp(new double[] { physicalCoords[0], physicalCoords[1], physicalCoords[2] });
 	}
 
 	/*
@@ -84,16 +92,16 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 	 * Hook for subclassers. Instantiate here the overlay you want to use for the spots. 
 	 * @return
 	 */
-	protected static <T extends RealType<T> & NativeType<T>> SpotOverlay<T> createSpotOverlay(final ImagePlus imp, final TrackMateModel<T> model, final Map<String, Object> displaySettings) {
-		return new SpotOverlay<T>(model, imp, displaySettings);
+	protected static <T extends RealType<T> & NativeType<T>> TransformedSpotOverlay<T> createSpotOverlay(final ImagePlus imp, final AffineModel3D transform, final TrackMateModel<T> model, final Map<String, Object> displaySettings) {
+		return new TransformedSpotOverlay<T>(model, imp, transform, displaySettings);
 	}
 
 	/**
 	 * Hook for subclassers. Instantiate here the overlay you want to use for the spots. 
 	 * @return
 	 */
-	protected static <T extends RealType<T> & NativeType<T>> TrackOverlay<T> createTrackOverlay(final ImagePlus imp, final TrackMateModel<T> model, final Map<String, Object> displaySettings) {
-		return new TrackOverlay<T>(model, imp, displaySettings);
+	protected static <T extends RealType<T> & NativeType<T>> TransformedTrackOverlay<T> createTrackOverlay(final ImagePlus imp, final TrackMateModel<T> model, final Map<String, Object> displaySettings) {
+		return new TransformedTrackOverlay<T>(model, imp, displaySettings);
 	}
 
 	@Override
@@ -104,6 +112,24 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 	/*
 	 * PUBLIC METHODS
 	 */
+	
+//	@Override
+//	public void displayChanged(DisplayChangeEvent e) {
+//		if (vwins == null) return;
+//
+//		Object source = e.getSource();
+//		int type = e.getType();
+//		int value = e.getValue();
+//
+//		ImagePlus imp;
+//		ImageWindow iw;
+//
+//		// Current imagewindow
+//		ImageWindow iwc = WindowManager.getCurrentImage().getWindow();
+//
+//		// pass on only if event comes from current window
+//		if (!iwc.equals(source)) return;
+//	}
 
 	@Override
 	public void modelChanged(TrackMateModelChangeEvent event) {
@@ -117,7 +143,7 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 			// Rebuild track overlay only if edges were added or removed, or if at least one spot was removed. 
 			final List<DefaultWeightedEdge> edges = event.getEdges();
 			if (edges != null && edges.size() > 0) {
-				for (TrackOverlay<T> trackOverlay : trackOverlays.values()) {
+				for (TransformedTrackOverlay<T> trackOverlay : trackOverlays.values()) {
 					trackOverlay.computeTrackColors();
 				}
 				redoOverlay = true;				
@@ -127,7 +153,7 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 					redoOverlay = true;
 					for (Spot spot : event.getSpots()) {
 						if (event.getSpotFlag(spot) == TrackMateModelChangeEvent.FLAG_SPOT_REMOVED) {
-							for (TrackOverlay<T> trackOverlay : trackOverlays.values()) {
+							for (TransformedTrackOverlay<T> trackOverlay : trackOverlays.values()) {
 								trackOverlay.computeTrackColors();
 							}
 							break;
@@ -138,7 +164,7 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 			break;
 
 		case TrackMateModelChangeEvent.SPOTS_COMPUTED:
-			for (SpotOverlay<T> spotOverlay : spotOverlays.values()) {
+			for (TransformedSpotOverlay<T> spotOverlay : spotOverlays.values()) {
 				spotOverlay.computeSpotColors();
 			}
 			redoOverlay = true;
@@ -146,7 +172,7 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 
 		case TrackMateModelChangeEvent.TRACKS_VISIBILITY_CHANGED:
 		case TrackMateModelChangeEvent.TRACKS_COMPUTED:
-			for (TrackOverlay<T> trackOverlay : trackOverlays.values()) {
+			for (TransformedTrackOverlay<T> trackOverlay : trackOverlays.values()) {
 				trackOverlay.computeTrackColors();
 			}
 			redoOverlay = true;
@@ -162,14 +188,14 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 
 	@Override
 	public void highlightEdges(Collection<DefaultWeightedEdge> edges) {
-		for(TrackOverlay<T> trackOverlay : trackOverlays.values()) {
+		for(TransformedTrackOverlay<T> trackOverlay : trackOverlays.values()) {
 			trackOverlay.setHighlight(edges);
 		}
 	}
 
 	@Override
 	public void highlightSpots(Collection<Spot> spots) {
-		for (SpotOverlay<T> spotOverlay : spotOverlays.values()) {
+		for (TransformedSpotOverlay<T> spotOverlay : spotOverlays.values()) {
 			spotOverlay.setSpotSelection(spots);
 		}
 		for(ImagePlus imp : imps) {
@@ -190,9 +216,20 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 		if (frame == -1)
 			return;
 		for(ImagePlus imp : imps) {
-			double[] calibration = calibrations.get(imp);
-			long z = Math.round(spot.getFeature(Spot.POSITION_Z) / calibration[2] ) + 1;
-			imp.setPosition(1, (int) z, frame+1);
+			
+			float[] physicalCoords = new float[3];
+			spot.localize(physicalCoords);
+			float[] pixelCoords = new float[] {1, 1, 1};
+			try {
+				pixelCoords = transforms.get(imp).applyInverse(physicalCoords);
+			} catch (NoninvertibleModelException e) {
+				System.err.println("Failed to convert view location to physical coordinates.\n" +
+						"Model was: "+transforms.get(imp)+" and coords were "+pixelCoords);
+				e.printStackTrace();
+			}
+			
+			int z = Math.round(pixelCoords[2]) + 1;
+			imp.setPosition(1, z, frame+1);
 		}
 	}
 
@@ -205,13 +242,10 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 		for (ImagePlus imp : imps) {
 			imp.setOpenAsHyperStack(true);
 			
-			double[] calibration = TMUtils.getSpatialCalibration(imp);
-			calibrations.put(imp, calibration);
-			
-			SpotOverlay<T> spotOverlay = createSpotOverlay(imp, model, displaySettings);
+			TransformedSpotOverlay<T> spotOverlay = createSpotOverlay(imp, transforms.get(imp), model, displaySettings);
 			spotOverlays.put(imp, spotOverlay);
 			
-			TrackOverlay<T> trackOverlay = createTrackOverlay(imp, model, displaySettings);
+			TransformedTrackOverlay<T> trackOverlay = createTrackOverlay(imp, model, displaySettings);
 			trackOverlays.put(imp, trackOverlay);
 			
 			OverlayedImageCanvas canvas = new OverlayedImageCanvas(imp);
@@ -283,18 +317,18 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 		super.setDisplaySettings(key, value);
 		// If we modified the feature coloring, then we recompute NOW the colors.
 		if (key == TrackMateModelView.KEY_SPOT_COLOR_FEATURE) {
-			for (SpotOverlay<T> spotOverlay : spotOverlays.values()) {
+			for (TransformedSpotOverlay<T> spotOverlay : spotOverlays.values()) {
 				spotOverlay.computeSpotColors();
 			}
 		}
 		if (key == TrackMateModelView.KEY_TRACK_COLOR_FEATURE) {
-			for (TrackOverlay<T> trackOverlay : trackOverlays.values()) {
+			for (TransformedTrackOverlay<T> trackOverlay : trackOverlays.values()) {
 				trackOverlay.computeTrackColors();
 			}
 		}
 	}
 
-	public SpotOverlay<T> getSpotOverlay(final ImagePlus imp) {
+	public TransformedSpotOverlay<T> getSpotOverlay(final ImagePlus imp) {
 		return spotOverlays.get(imp);
 	}
 
@@ -302,8 +336,8 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 		return canvases.get(imp);
 	}
 
-	public double[] getCalibration(final ImagePlus imp) {
-		return calibrations.get(imp);
+	public  AffineModel3D getTransform(final ImagePlus imp) {
+		return transforms.get(imp);
 	}
 
 	public Settings<T> getSttings() {

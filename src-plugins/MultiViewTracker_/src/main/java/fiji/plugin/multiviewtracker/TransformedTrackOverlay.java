@@ -34,7 +34,7 @@ import fiji.util.gui.OverlayedImageCanvas.Overlay;
  * The overlay class in charge of drawing the tracks on the hyperstack window.
  * @author Jean-Yves Tinevez <jeanyves.tinevez@gmail.com> 2010 - 2011
  */
-public class TrackOverlay <T extends RealType<T> & NativeType<T>> implements Overlay {
+public class TransformedTrackOverlay <T extends RealType<T> & NativeType<T>> implements Overlay {
 	protected final double[] calibration;
 	protected final ImagePlus imp;
 	protected Map<Integer, Color> edgeColors;
@@ -46,7 +46,7 @@ public class TrackOverlay <T extends RealType<T> & NativeType<T>> implements Ove
 	 * CONSTRUCTOR
 	 */
 
-	public TrackOverlay(final TrackMateModel<T> model, final ImagePlus imp, final Map<String, Object> displaySettings) {
+	public TransformedTrackOverlay(final TrackMateModel<T> model, final ImagePlus imp, final Map<String, Object> displaySettings) {
 		this.model = model;
 		this.calibration = TMUtils.getSpatialCalibration(model.getSettings().imp);
 		this.imp = imp;
