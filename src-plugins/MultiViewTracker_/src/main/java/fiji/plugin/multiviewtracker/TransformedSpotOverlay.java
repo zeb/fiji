@@ -13,11 +13,10 @@ import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.Stroke;
 import java.awt.geom.AffineTransform;
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import mpicbg.models.AffineModel3D;
 import mpicbg.models.NoninvertibleModelException;
@@ -49,7 +48,6 @@ public class TransformedSpotOverlay<T extends RealType<T> & NativeType<T>> imple
 	protected final ImagePlus imp;
 	protected Composite composite = AlphaComposite.getInstance(AlphaComposite.SRC_OVER);
 	protected FontMetrics fm;
-	protected Collection<Spot> spotSelection = new ArrayList<Spot>();
 	protected Map<String, Object> displaySettings;
 	protected final TrackMateModel<T> model;
 	protected final AffineModel3D transform;
@@ -102,6 +100,7 @@ public class TransformedSpotOverlay<T extends RealType<T> & NativeType<T>> imple
 		
 		final int frame = imp.getFrame()-1;
 		final double mag = (double) magnification;
+		final Set<Spot> spotSelection = model.getSpotSelection();
 		
 		// Transform back to get physical coordinates of the currently viewed z-slice
 		final int pixelCoordsZ = imp.getSlice()-1;
@@ -178,10 +177,6 @@ public class TransformedSpotOverlay<T extends RealType<T> & NativeType<T>> imple
 	@Override
 	public void setComposite(Composite composite) {
 		this.composite = composite;
-	}
-
-	public void setSpotSelection(Collection<Spot> spots) {
-		this.spotSelection = spots;
 	}
 
 	protected void drawSpot(final Graphics2D g2d, final Spot spot, final int pixelZSlice, final int xcorner, final int ycorner, final double magnification) {

@@ -198,11 +198,8 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 
 	@Override
 	public void highlightSpots(Collection<Spot> spots) {
-		for (TransformedSpotOverlay<T> spotOverlay : spotOverlays.values()) {
-			spotOverlay.setSpotSelection(spots);
-		}
 		for(ImagePlus imp : imps) {
-			imp.updateAndDraw();
+			imp.draw();
 		}
 	}
 
@@ -267,6 +264,8 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 			}
 			
 		}
+		
+		model.addTrackMateSelectionChangeListener(this);
 		registerEditTool();
 		
 	}
