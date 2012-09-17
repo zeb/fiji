@@ -28,15 +28,18 @@ public class MultiViewExample {
 		// Open several imp
 		List<ImagePlus> imps = new ArrayList<ImagePlus>();
 
-		ImagePlus imp1 = IJ.openImage("/Users/tinevez/Desktop/Data/Celegans-XY.tif");
+//		ImagePlus imp1 = IJ.openImage("/Users/tinevez/Desktop/Data/Celegans-XY.tif");
+		ImagePlus imp1 = IJ.openImage("E:/Users/JeanYves/Desktop/Data/Celegans.tif");
 		imp1.show();
 		imps.add(imp1);
 		
-		ImagePlus imp2 = IJ.openImage("/Users/tinevez/Desktop/Data/Celegans-XZ.tif");
+//		ImagePlus imp2 = IJ.openImage("/Users/tinevez/Desktop/Data/Celegans-XZ.tif");
+		ImagePlus imp2 = IJ.openImage("E:/Users/JeanYves/Desktop/Data/Celegans_XZ.tif");
 		imp2.show();
 		imps.add(imp2);
 		
-		ImagePlus imp3 = IJ.openImage("/Users/tinevez/Desktop/Data/Celegans-YZ.tif");
+//		ImagePlus imp3 = IJ.openImage("/Users/tinevez/Desktop/Data/Celegans-YZ.tif");
+		ImagePlus imp3 = IJ.openImage("E:/Users/JeanYves/Desktop/Data/Celegans_YZ.tif");
 		imp3.show();
 		imps.add(imp3);
 		
