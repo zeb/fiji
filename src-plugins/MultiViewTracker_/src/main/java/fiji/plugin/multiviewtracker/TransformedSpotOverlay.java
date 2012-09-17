@@ -41,7 +41,7 @@ import fiji.util.gui.OverlayedImageCanvas.Overlay;
 public class TransformedSpotOverlay<T extends RealType<T> & NativeType<T>> implements Overlay {
 
 	private static final Font LABEL_FONT = new Font("Arial", Font.BOLD, 12);
-	private static final boolean DEBUG = true;
+	private static final boolean DEBUG = false;
 
 	/** The color mapping of the target collection. */
 	protected Map<Spot, Color> targetColor;
@@ -133,7 +133,7 @@ public class TransformedSpotOverlay<T extends RealType<T> & NativeType<T>> imple
 			for(Spot spot : spotSelection) {
 				sFrame = target.getFrame(spot);
 				if (DEBUG)
-					System.out.println("[SpotOverlay] For spot "+spot+" in selection, found frame "+sFrame);
+					System.out.println("[TransformedSpotOverlay] For spot "+spot+" in selection, found frame "+sFrame);
 				if (null == sFrame || sFrame != frame)
 					continue;
 				drawSpot(g2d, spot, pixelCoordsZ, xcorner, ycorner, mag);

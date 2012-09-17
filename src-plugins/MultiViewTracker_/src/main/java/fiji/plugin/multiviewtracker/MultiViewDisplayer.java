@@ -116,24 +116,6 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 	 * PUBLIC METHODS
 	 */
 	
-//	@Override
-//	public void displayChanged(DisplayChangeEvent e) {
-//		if (vwins == null) return;
-//
-//		Object source = e.getSource();
-//		int type = e.getType();
-//		int value = e.getValue();
-//
-//		ImagePlus imp;
-//		ImageWindow iw;
-//
-//		// Current imagewindow
-//		ImageWindow iwc = WindowManager.getCurrentImage().getWindow();
-//
-//		// pass on only if event comes from current window
-//		if (!iwc.equals(source)) return;
-//	}
-
 	@Override
 	public void modelChanged(TrackMateModelChangeEvent event) {
 		if (DEBUG)

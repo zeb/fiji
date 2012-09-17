@@ -36,7 +36,7 @@ import fiji.tool.AbstractTool;
 
 public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends AbstractTool implements MouseMotionListener, MouseListener, KeyListener, DetectorKeys {
 
-	private static final boolean DEBUG = true;
+	private static final boolean DEBUG = false;
 
 	private static final double COARSE_STEP = 2;
 	private static final double FINE_STEP = 0.2f;
@@ -303,7 +303,7 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 
 		// Copy spots from previous frame
 		case KeyEvent.VK_V: {
-			
+
 			if (e.isShiftDown()) {
 				copySpotsFromPreviousFrame(model, displayer, imp);
 				e.consume();
@@ -315,15 +315,15 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 			e.consume(); // consume it: we do not want IJ to close the window
 			break;
 		}
-		
+
 		// Switch auto-linking mode on & off 
 		case KeyEvent.VK_L: {
 			switchLinkingMode();
 			e.consume(); // consume it: we do not want IJ to close the window
 			break;
 		}
-		
-		
+
+
 
 		}
 
@@ -338,7 +338,7 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 	public void keyReleased(KeyEvent e) { 
 		if (DEBUG) 
 			System.out.println("[SpotEditTool] keyReleased: "+e.getKeyChar());
-		
+
 		final ImagePlus imp = getImagePlus(e);
 		if (imp == null)
 			return;
@@ -429,31 +429,38 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 
 		// Update model
 		String message;
+		
+		// First the spot
 		model.beginUpdate();
 		try {
 			model.addSpotTo(newSpot, frame);
-			
-			final Set<Spot> spotSelection = model.getSpotSelection();
-			if (isLinkingMode && spotSelection.size() == 1) { // if we are in the right mode & if there is only one spot in selection
-				Spot targetSpot = spotSelection.iterator().next();
-					if (targetSpot.getFeature(Spot.FRAME).intValue() != newSpot.getFeature(Spot.FRAME).intValue()) { // & if they are on different frames
-						model.addEdge(targetSpot, newSpot, -1);
-						message = "Added new spot "+newSpot+" to frame " + frame + ", linked to spot " + targetSpot + ".";
-					} else {
-						message = "Added new spot "+newSpot+" to frame " + frame + ".";
-					}
-			} else {
-				message = "Added new spot "+newSpot+" to frame " + frame + ".";
-			}
-			
 		} finally {
 			model.endUpdate();
 		}
 		
+		// Then, possibly, the edge. We must do it in a subsequent update, otherwise the model gets confused.
+		final Set<Spot> spotSelection = model.getSpotSelection();
+		if (isLinkingMode && spotSelection.size() == 1) { // if we are in the right mode & if there is only one spot in selection
+			Spot targetSpot = spotSelection.iterator().next();
+			if (targetSpot.getFeature(Spot.FRAME).intValue() != newSpot.getFeature(Spot.FRAME).intValue()) { // & if they are on different frames
+				model.beginUpdate();
+				try {
+					model.addEdge(targetSpot, newSpot, -1);
+				} finally {
+					model.endUpdate();
+				}
+				message = "Added new spot "+newSpot+" to frame " + frame + ", linked to spot " + targetSpot + ".";
+			} else {
+				message = "Added new spot "+newSpot+" to frame " + frame + ".";
+			}
+		} else {
+			message = "Added new spot "+newSpot+" to frame " + frame + ".";
+		}
+
 		// Store new spot as the sole selection for this model
 		model.clearSpotSelection();
 		model.addSpotToSelection(newSpot);
-		
+
 		IJ.showStatus(message);
 	}
 
@@ -491,7 +498,7 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 	}
 
 	private void finishMovingLocalSpot(final TrackMateModel<T> model) {
-		
+
 		if (null == quickEditedSpot)
 			return;
 		model.beginUpdate();
@@ -500,7 +507,7 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 		} finally {
 			model.endUpdate();
 		}
-		
+
 		String spaceUnit = model.getSettings().spaceUnits;
 		IJ.showStatus(String.format("Moved spot %s to x=%.1f %s, y=%.1f %s, z=%.1f %s, frame = %d.", 
 				quickEditedSpot.getName(), 
@@ -510,7 +517,7 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 				quickEditedSpot.getFeature(Spot.FRAME).intValue()				));
 		quickEditedSpot = null;
 	}
-	
+
 	private void changeRadiusLocalSpot(final TrackMateModel<T> model, final MultiViewDisplayer<T> displayer, final ImagePlus imp, final KeyEvent event) {
 		Point mouseLocation = MouseInfo.getPointerInfo().getLocation();
 		SwingUtilities.convertPointFromScreen(mouseLocation, displayer.getCanvas(imp));
@@ -577,7 +584,7 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 				dt = 1;
 
 			IJ.showStatus("Copied " + previousFrameSpots.size() + " spots from frame " + (currentFrame-1) + " to frame " + currentFrame + ".");
-			
+
 			for(Spot spot : previousFrameSpots) {
 				Spot newSpot = new SpotImp(spot, spot.getName());
 				// Deal with features
@@ -610,6 +617,6 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 			}
 		}
 	}
-	
-	
+
+
 }

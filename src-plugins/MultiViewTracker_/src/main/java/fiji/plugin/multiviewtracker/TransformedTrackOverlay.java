@@ -34,6 +34,8 @@ import fiji.util.gui.OverlayedImageCanvas.Overlay;
  * @author Jean-Yves Tinevez <jeanyves.tinevez@gmail.com> 2010 - 2011
  */
 public class TransformedTrackOverlay <T extends RealType<T> & NativeType<T>> implements Overlay {
+	
+	private final static boolean DEBUG = true;
 	protected final double[] calibration;
 	protected final ImagePlus imp;
 	protected Map<Integer, Color> edgeColors;
@@ -65,6 +67,10 @@ public class TransformedTrackOverlay <T extends RealType<T> & NativeType<T>> imp
 		int ntracks = model.getNFilteredTracks();
 		if (ntracks == 0)
 			return;
+		
+		if (DEBUG)
+			System.out.println("[TransformedTrackOverlay] Recomputing track colors. Found " + ntracks + " visible tracks.");
+		
 		InterpolatePaintScale colorMap = (InterpolatePaintScale) displaySettings.get(TrackMateModelView.KEY_COLORMAP);
 		Color defaultColor = (Color) displaySettings.get(TrackMateModelView.KEY_COLOR);
 		edgeColors = new HashMap<Integer, Color>(ntracks);
