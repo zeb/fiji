@@ -103,8 +103,8 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 	 * Hook for subclassers. Instantiate here the overlay you want to use for the spots. 
 	 * @return
 	 */
-	protected static <T extends RealType<T> & NativeType<T>> TransformedTrackOverlay<T> createTrackOverlay(final ImagePlus imp, final TrackMateModel<T> model, final Map<String, Object> displaySettings) {
-		return new TransformedTrackOverlay<T>(model, imp, displaySettings);
+	protected static <T extends RealType<T> & NativeType<T>> TransformedTrackOverlay<T> createTrackOverlay(final ImagePlus imp, final AffineModel3D transform, final TrackMateModel<T> model, final Map<String, Object> displaySettings) {
+		return new TransformedTrackOverlay<T>(model, imp, transform, displaySettings);
 	}
 
 	@Override
@@ -191,8 +191,8 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 
 	@Override
 	public void highlightEdges(Collection<DefaultWeightedEdge> edges) {
-		for(TransformedTrackOverlay<T> trackOverlay : trackOverlays.values()) {
-			trackOverlay.setHighlight(edges);
+		for(ImagePlus imp : imps) {
+			imp.draw();
 		}
 	}
 
@@ -216,18 +216,9 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 		if (frame == -1)
 			return;
 		for(ImagePlus imp : imps) {
-			
 			float[] physicalCoords = new float[3];
 			spot.localize(physicalCoords);
-			float[] pixelCoords = new float[] {1, 1, 1};
-			try {
-				pixelCoords = transforms.get(imp).applyInverse(physicalCoords);
-			} catch (NoninvertibleModelException e) {
-				System.err.println("Failed to convert view location to physical coordinates.\n" +
-						"Model was: "+transforms.get(imp)+" and coords were "+pixelCoords);
-				e.printStackTrace();
-			}
-			
+			float[] pixelCoords = transforms.get(imp).apply(physicalCoords);
 			int z = Math.round(pixelCoords[2]) + 1;
 			imp.setPosition(1, z, frame+1);
 		}
@@ -245,7 +236,7 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 			TransformedSpotOverlay<T> spotOverlay = createSpotOverlay(imp, transforms.get(imp), model, displaySettings);
 			spotOverlays.put(imp, spotOverlay);
 			
-			TransformedTrackOverlay<T> trackOverlay = createTrackOverlay(imp, model, displaySettings);
+			TransformedTrackOverlay<T> trackOverlay = createTrackOverlay(imp, transforms.get(imp), model, displaySettings);
 			trackOverlays.put(imp, trackOverlay);
 			
 			OverlayedImageCanvas canvas = new OverlayedImageCanvas(imp);
