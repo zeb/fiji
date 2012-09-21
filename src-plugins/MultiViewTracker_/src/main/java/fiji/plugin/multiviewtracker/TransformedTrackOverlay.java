@@ -16,7 +16,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import mpicbg.models.AffineModel3D;
+import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
 
@@ -34,20 +34,20 @@ import fiji.util.gui.OverlayedImageCanvas.Overlay;
  * @author Jean-Yves Tinevez <jeanyves.tinevez@gmail.com> 2010 - 2011
  */
 public class TransformedTrackOverlay <T extends RealType<T> & NativeType<T>> implements Overlay {
-	
+
 	private final static boolean DEBUG = true;
 	protected final double[] calibration;
 	protected final ImagePlus imp;
 	protected Map<Integer, Color> edgeColors;
 	protected Map<String, Object> displaySettings;
 	protected final TrackMateModel<T> model;
-	protected final AffineModel3D transform;
+	protected final AffineTransform3D transform;
 
 	/*
 	 * CONSTRUCTOR
 	 */
 
-	public TransformedTrackOverlay(final TrackMateModel<T> model, final ImagePlus imp, final AffineModel3D transform, final Map<String, Object> displaySettings) {
+	public TransformedTrackOverlay(final TrackMateModel<T> model, final ImagePlus imp, final AffineTransform3D transform, final Map<String, Object> displaySettings) {
 		this.model = model;
 		this.calibration = TMUtils.getSpatialCalibration(model.getSettings().imp);
 		this.imp = imp;
@@ -67,10 +67,10 @@ public class TransformedTrackOverlay <T extends RealType<T> & NativeType<T>> imp
 		int ntracks = model.getNFilteredTracks();
 		if (ntracks == 0)
 			return;
-		
+
 		if (DEBUG)
 			System.out.println("[TransformedTrackOverlay] Recomputing track colors. Found " + ntracks + " visible tracks.");
-		
+
 		InterpolatePaintScale colorMap = (InterpolatePaintScale) displaySettings.get(TrackMateModelView.KEY_COLORMAP);
 		Color defaultColor = (Color) displaySettings.get(TrackMateModelView.KEY_COLOR);
 		edgeColors = new HashMap<Integer, Color>(ntracks);
@@ -255,37 +255,32 @@ public class TransformedTrackOverlay <T extends RealType<T> & NativeType<T>> imp
 	 */
 
 	protected void drawEdge(final Graphics2D g2d, final Spot source, final Spot target,
-			final int xcorner, final int ycorner, final float magnification, final float transparency) {
+			final int xcorner, final int ycorner, final double magnification, final float transparency) {
 
 		// Find x & y in physical coordinates
-		final float x0i = source.getFeature(Spot.POSITION_X).floatValue();
-		final float y0i = source.getFeature(Spot.POSITION_Y).floatValue();
-		final float z0i = source.getFeature(Spot.POSITION_Z).floatValue();
+		final double[] physicalPositionSource = new double[3];
+		source.localize(physicalPositionSource);
 
-		final float x1i = target.getFeature(Spot.POSITION_X).floatValue();
-		final float y1i = target.getFeature(Spot.POSITION_Y).floatValue();
-		final float z1i = target.getFeature(Spot.POSITION_Z).floatValue();
+		final double[] physicalPositionTarget = new double[3];
+		target.localize(physicalPositionTarget);
 
 		// In pixel units
-		final float[] spot0p = transform.apply(new float[] { x0i, y0i, z0i });
-		final float x0p = spot0p[0];
-		final float y0p = spot0p[1]; //we don't care for z yet
-
-		final float[] spot1p = transform.apply(new float[] { x1i, y1i, z1i });
-		final float x1p = spot1p[0];
-		final float y1p = spot1p[1]; //we don't care for z yet
+		final double[] pixelPositionSource = new double[3];
+		transform.apply(physicalPositionSource, pixelPositionSource);
+		final double[] pixelPositionTarget = new double[3];
+		transform.apply(physicalPositionTarget, pixelPositionTarget);
 
 		// Scale to image zoom
-		final float x0s = (x0p - xcorner) * magnification ;
-		final float y0s = (y0p - ycorner) * magnification ;
-		final float x1s = (x1p - xcorner) * magnification ;
-		final float y1s = (y1p - ycorner) * magnification ;
+		final double x0s = (pixelPositionSource[0] - xcorner) * magnification ;
+		final double y0s = (pixelPositionSource[1] - ycorner) * magnification ;
+		final double x1s = (pixelPositionTarget[0] - xcorner) * magnification ;
+		final double y1s = (pixelPositionTarget[1] - ycorner) * magnification ;
 
 		// Round
-		final int x0 = Math.round(x0s);
-		final int y0 = Math.round(y0s);
-		final int x1 = Math.round(x1s);
-		final int y1 = Math.round(y1s);
+		final int x0 = (int) Math.round(x0s);
+		final int y0 = (int) Math.round(y0s);
+		final int x1 = (int) Math.round(x1s);
+		final int y1 = (int) Math.round(y1s);
 		g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, transparency));
 		g2d.drawLine(x0, y0, x1, y1);
 
@@ -295,37 +290,31 @@ public class TransformedTrackOverlay <T extends RealType<T> & NativeType<T>> imp
 			final int xcorner, final int ycorner, final float magnification) {
 
 		// Find x & y in physical coordinates
-		final float x0i = source.getFeature(Spot.POSITION_X).floatValue();
-		final float y0i = source.getFeature(Spot.POSITION_Y).floatValue();
-		final float z0i = source.getFeature(Spot.POSITION_Z).floatValue();
+		final double[] physicalPositionSource = new double[3];
+		source.localize(physicalPositionSource);
 
-		final float x1i = target.getFeature(Spot.POSITION_X).floatValue();
-		final float y1i = target.getFeature(Spot.POSITION_Y).floatValue();
-		final float z1i = target.getFeature(Spot.POSITION_Z).floatValue();
+		final double[] physicalPositionTarget = new double[3];
+		target.localize(physicalPositionTarget);
 
 		// In pixel units
-		final float[] spot0p = transform.apply(new float[] { x0i, y0i, z0i });
-		final float x0p = spot0p[0];
-		final float y0p = spot0p[1]; //we don't care for z yet
-
-		final float[] spot1p = transform.apply(new float[] { x1i, y1i, z1i });
-		final float x1p = spot1p[0];
-		final float y1p = spot1p[1]; //we don't care for z yet
+		final double[] pixelPositionSource = new double[3];
+		transform.apply(physicalPositionSource, pixelPositionSource);
+		final double[] pixelPositionTarget = new double[3];
+		transform.apply(physicalPositionTarget, pixelPositionTarget);
 
 		// Scale to image zoom
-		final float x0s = (x0p - xcorner) * magnification ;
-		final float y0s = (y0p - ycorner) * magnification ;
-		final float x1s = (x1p - xcorner) * magnification ;
-		final float y1s = (y1p - ycorner) * magnification ;
+		final double x0s = (pixelPositionSource[0] - xcorner) * magnification ;
+		final double y0s = (pixelPositionSource[1] - ycorner) * magnification ;
+		final double x1s = (pixelPositionTarget[0] - xcorner) * magnification ;
+		final double y1s = (pixelPositionTarget[1] - ycorner) * magnification ;
 
 		// Round
-		final int x0 = Math.round(x0s);
-		final int y0 = Math.round(y0s);
-		final int x1 = Math.round(x1s);
-		final int y1 = Math.round(y1s);
+		final int x0 = (int) Math.round(x0s);
+		final int y0 = (int) Math.round(y0s);
+		final int x1 = (int) Math.round(x1s);
+		final int y1 = (int) Math.round(y1s);
 
 		g2d.drawLine(x0, y0, x1, y1);
-
 	}
 
 	/**

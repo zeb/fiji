@@ -1,22 +1,54 @@
 package fiji.plugin.multiviewtracker.util;
 
 import ij.IJ;
+import ij.ImagePlus;
 
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 
-import mpicbg.models.AffineModel3D;
+import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.util.Util;
 
 public class TransformUtils {
 
 	
-	public static AffineModel3D getZScalingFromFile( final File file )	{
-		final AffineModel3D model = new AffineModel3D();
+	public static final AffineTransform3D makeXZProjection(final ImagePlus imp) {
+		AffineTransform3D transform = new AffineTransform3D();
+		final double[] calibration = Util.getArrayFromValue(1d, 3);
+		calibration[0] = imp.getCalibration().pixelWidth;
+		calibration[1] = imp.getCalibration().pixelHeight;
+		if (imp.getNSlices() > 1)
+			calibration[2] = imp.getCalibration().pixelDepth;
+		transform.set(
+				1/calibration[0], 	0, 			0, 					0,
+				0, 					0,			-1/calibration[1], 	imp.getHeight(), 
+				0, 					1/calibration[2], 0, 			0);
+		return transform;
+	}
+	
+	public static final AffineTransform3D makeYZProjection(final ImagePlus imp) {
+		AffineTransform3D transform = new AffineTransform3D();
+		final double[] calibration = Util.getArrayFromValue(1d, 3);
+		calibration[0] = imp.getCalibration().pixelWidth;
+		calibration[1] = imp.getCalibration().pixelHeight;
+		if (imp.getNSlices() > 1)
+			calibration[2] = imp.getCalibration().pixelDepth;
+		transform.set(
+				0,					0,			1/calibration[0], 	0, 			
+				0, 					1/calibration[1], 	0,			0, 
+				-1/calibration[2], 	0, 					0, 			imp.getNSlices());
+		return transform;
+	}
+	
+	
+	
+	public static AffineTransform3D getZScalingFromFile(final File file )	{
+		final AffineTransform3D model = new AffineTransform3D();
 
 		try  {
 			final BufferedReader in = TextFileAccess.openFileRead( file );
-			float z = 1;
+			double z = 1;
 
 			// the default if nothing is written
 			String savedModel = "AffineModel3D";
@@ -25,7 +57,7 @@ public class TransformUtils {
 				String entry = in.readLine().trim();
 
 				if (entry.startsWith("z-scaling:")) {
-					z = Float.parseFloat(entry.substring(11, entry.length()));
+					z = Double.parseDouble(entry.substring(11, entry.length()));
 				}
 			}
 
@@ -44,48 +76,60 @@ public class TransformUtils {
 
 		return model;
 	}	
+	
+	public static final AffineTransform3D getTransformFromCalibration(final ImagePlus imp) {
+		AffineTransform3D transform = new AffineTransform3D();
+		final double[] calibration = Util.getArrayFromValue(1d, 3);
+		calibration[0] = imp.getCalibration().pixelWidth;
+		calibration[1] = imp.getCalibration().pixelHeight;
+		if (imp.getNSlices() > 1)
+			calibration[2] = imp.getCalibration().pixelDepth;
+		transform.set(
+				1/calibration[0], 	0, 			0, 			0,
+				0, 			1/calibration[1], 	0, 			0, 
+				0, 			0, 			1/calibration[2], 0);
+		return transform;
+	}
 
-	public static AffineModel3D getModelFromFile( final File file )	{
-		final AffineModel3D model = new AffineModel3D();
+	public static final AffineTransform3D getTransformFromFile(final File file )	{
+		final AffineTransform3D model = new AffineTransform3D();
 
-		try 
-		{
+		try  {
 			final BufferedReader in = TextFileAccess.openFileRead( file );
 
 			// get 12 entry float array
-			final float m[] = new float[ 12 ];
+			final double m[] = new double[ 12 ];
 
 			// the default if nothing is written
 			String savedModel = "AffineModel3D";
 
-			while ( in.ready() )
-			{
+			while ( in.ready() ) {
 				String entry = in.readLine().trim();
 
 				if (entry.startsWith("m00:"))
-					m[ 0 ] = Float.parseFloat(entry.substring(5, entry.length()));
+					m[ 0 ] = Double.parseDouble(entry.substring(5, entry.length()));
 				else if (entry.startsWith("m01:"))
-					m[ 1 ] = Float.parseFloat(entry.substring(5, entry.length()));
+					m[ 1 ] = Double.parseDouble(entry.substring(5, entry.length()));
 				else if (entry.startsWith("m02:"))
-					m[ 2 ] = Float.parseFloat(entry.substring(5, entry.length()));
+					m[ 2 ] = Double.parseDouble(entry.substring(5, entry.length()));
 				else if (entry.startsWith("m03:"))
-					m[ 3 ] = Float.parseFloat(entry.substring(5, entry.length()));
+					m[ 3 ] = Double.parseDouble(entry.substring(5, entry.length()));
 				else if (entry.startsWith("m10:"))
-					m[ 4 ] = Float.parseFloat(entry.substring(5, entry.length()));
+					m[ 4 ] = Double.parseDouble(entry.substring(5, entry.length()));
 				else if (entry.startsWith("m11:"))
-					m[ 5 ] = Float.parseFloat(entry.substring(5, entry.length()));
+					m[ 5 ] = Double.parseDouble(entry.substring(5, entry.length()));
 				else if (entry.startsWith("m12:"))
-					m[ 6 ] = Float.parseFloat(entry.substring(5, entry.length()));
+					m[ 6 ] = Double.parseDouble(entry.substring(5, entry.length()));
 				else if (entry.startsWith("m13:"))
-					m[ 7 ] = Float.parseFloat(entry.substring(5, entry.length()));
+					m[ 7 ] = Double.parseDouble(entry.substring(5, entry.length()));
 				else if (entry.startsWith("m20:"))
-					m[ 8 ] = Float.parseFloat(entry.substring(5, entry.length()));
+					m[ 8 ] = Double.parseDouble(entry.substring(5, entry.length()));
 				else if (entry.startsWith("m21:"))
-					m[ 9 ] = Float.parseFloat(entry.substring(5, entry.length()));
+					m[ 9 ] = Double.parseDouble(entry.substring(5, entry.length()));
 				else if (entry.startsWith("m22:"))
-					m[ 10 ] = Float.parseFloat(entry.substring(5, entry.length()));
+					m[ 10 ] = Double.parseDouble(entry.substring(5, entry.length()));
 				else if (entry.startsWith("m23:"))
-					m[ 11 ] = Float.parseFloat(entry.substring(5, entry.length()));
+					m[ 11 ] = Double.parseDouble(entry.substring(5, entry.length()));
 				else if (entry.startsWith("model:"))
 					savedModel = entry.substring(7, entry.length()).trim();
 			}
@@ -97,11 +141,8 @@ public class TransformUtils {
 
 			model.set( m[ 0 ], m[ 1 ], m[ 2 ], m[ 3 ], m[ 4 ], m[ 5 ], m[ 6 ], m[ 7 ], m[ 8 ], m[ 9 ], m[ 10 ], m[ 11 ] );
 
-		} 
-		catch (IOException e) 
-		{
+		}  catch (IOException e)  {
 			IJ.log( "Cannot find file: " + file.getAbsolutePath() + ": " + e );
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 			return null;
 		}

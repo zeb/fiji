@@ -18,8 +18,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import mpicbg.models.AffineModel3D;
-import mpicbg.models.NoninvertibleModelException;
+import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.util.Util;
@@ -41,7 +40,7 @@ import fiji.util.gui.OverlayedImageCanvas.Overlay;
 public class TransformedSpotOverlay<T extends RealType<T> & NativeType<T>> implements Overlay {
 
 	private static final Font LABEL_FONT = new Font("Arial", Font.BOLD, 12);
-	private static final boolean DEBUG = false;
+	private static final boolean DEBUG = true;
 
 	/** The color mapping of the target collection. */
 	protected Map<Spot, Color> targetColor;
@@ -50,26 +49,17 @@ public class TransformedSpotOverlay<T extends RealType<T> & NativeType<T>> imple
 	protected FontMetrics fm;
 	protected Map<String, Object> displaySettings;
 	protected final TrackMateModel<T> model;
-	protected final AffineModel3D transform;
-	protected final AffineModel3D scalingTransform;
+	protected final AffineTransform3D transform;
 
 	/*
 	 * CONSTRUCTOR
 	 */
 
-	public TransformedSpotOverlay(final TrackMateModel<T> model, final ImagePlus imp, final AffineModel3D transform, final Map<String, Object> displaySettings) {
+	public TransformedSpotOverlay(final TrackMateModel<T> model, final ImagePlus imp, final AffineTransform3D transform, final Map<String, Object> displaySettings) {
 		this.model = model;
 		this.imp = imp;
 		this.transform = transform;
 		this.displaySettings = displaySettings;
-		// Create a scaling only transform
-		float[] matrix = new float[12];
-		transform.toArray(matrix);
-		this.scalingTransform = new AffineModel3D();
-		scalingTransform.set(
-				matrix[0], matrix[1], matrix[2], 0,
-				matrix[4], matrix[5], matrix[6], 0, 
-				matrix[8], matrix[9], matrix[10], 0);
 		computeSpotColors();
 	}
 
@@ -182,28 +172,20 @@ public class TransformedSpotOverlay<T extends RealType<T> & NativeType<T>> imple
 	protected void drawSpot(final Graphics2D g2d, final Spot spot, final int pixelZSlice, final int xcorner, final int ycorner, final double magnification) {
 		
 		// Absolute location
-		final double xabs = spot.getFeature(Spot.POSITION_X);
-		final double yabs = spot.getFeature(Spot.POSITION_Y);
-		final double zabs = spot.getFeature(Spot.POSITION_Z);
-		final float[] physicalCoords = new float[] {(float) xabs, (float) yabs, (float) zabs};
+		final double[] physicalCoords = new double[3];
+		spot.localize(physicalCoords);
 		
 		// Transform location
-		final float[] pixelCoords = transform.apply(physicalCoords);
-		final float x = pixelCoords[0];
-		final float y = pixelCoords[1];
+		final double[] pixelCoords = new double[3];
+		transform.apply(physicalCoords, pixelCoords);
+		final double x = pixelCoords[0];
+		final double y = pixelCoords[1];
 		
 		// Transform current view
-		final double physicalDz2;
-		try {
-			final float[] physicalViewCoords = transform.applyInverse(new float[] { x, y, pixelZSlice });
-			Spot viewSpot = new SpotImp(new double[] { physicalViewCoords[0], physicalViewCoords[1], physicalViewCoords[2] } );
-			physicalDz2 = viewSpot.squareDistanceTo(spot);
-		} catch (NoninvertibleModelException e) {
-			System.err.println("Unable to convert z-slice view location to physical coordinates.\n" +
-					"Model was: "+transform+" and Z slice was "+pixelZSlice);
-			e.printStackTrace();
-			return;
-		}
+		final double[] physicalViewCoords = new double[3];
+		transform.applyInverse(physicalViewCoords, new double[] { x, y, pixelZSlice });
+		Spot viewSpot = new SpotImp(physicalViewCoords);
+		final double physicalDz2 = viewSpot.squareDistanceTo(spot);
 
 		// Physical radius, stretched according to display settings
 		final float radiusRatio = (Float) displaySettings.get(TrackMateModelView.KEY_SPOT_RADIUS_RATIO);
@@ -221,11 +203,11 @@ public class TransformedSpotOverlay<T extends RealType<T> & NativeType<T>> imple
 		} else {
 			
 			// Transform radius
-			final float apparentRadius = (float) Math.sqrt(physicalRadius * physicalRadius - physicalDz2);
-			final float[] pixelSizeRadius = transform.apply(new float[] { apparentRadius, apparentRadius, apparentRadius} );
-			float[] tm = transform.getMatrix(null); 
-			final double pixelRadiusX = Math.abs( pixelSizeRadius[0] - tm[3] ) * magnification; 
-			final double pixelRadiusY = Math.abs( pixelSizeRadius[1] - tm[7] ) * magnification; // FIXME DON"T KNOW IF IT WORKS EVERYWHERE 
+			final double apparentRadius = Math.sqrt(physicalRadius * physicalRadius - physicalDz2);
+			final double[] pixelSizeRadius = new double[3];
+			transform.apply(new double[] { apparentRadius, apparentRadius, apparentRadius}, pixelSizeRadius);
+			final double pixelRadiusX = Math.abs( pixelSizeRadius[0] - transform.get(0, 3) ) * magnification; 
+			final double pixelRadiusY = Math.abs( pixelSizeRadius[1] - transform.get(1, 3) ) * magnification; // FIXME DON"T KNOW IF IT WORKS EVERYWHERE 
 
 			// Debug
 			if (DEBUG) {
@@ -233,8 +215,14 @@ public class TransformedSpotOverlay<T extends RealType<T> & NativeType<T>> imple
 						Util.printCoordinates(physicalCoords) + " at pixel "+Util.printCoordinates(pixelCoords)+" with radius = "+pixelRadiusX+"x"+pixelRadiusY);
 			}
 
-			g2d.drawOval((int) Math.round(xs - pixelRadiusX), (int) Math.round(ys - pixelRadiusY), 
-					(int) Math.round(2 * pixelRadiusX), (int) Math.round(2 * pixelRadiusY));		
+			// Draw circle
+			g2d.drawOval(
+					(int) Math.round(xs - pixelRadiusX), 
+					(int) Math.round(ys - pixelRadiusY), 
+					(int) Math.round(2 * pixelRadiusX), 
+					(int) Math.round(2 * pixelRadiusY));
+			
+			// Draw name
 			boolean spotNameVisible = (Boolean) displaySettings.get(TrackMateModelView.KEY_DISPLAY_SPOT_NAMES);
 			if (spotNameVisible ) {
 				String str = spot.toString();

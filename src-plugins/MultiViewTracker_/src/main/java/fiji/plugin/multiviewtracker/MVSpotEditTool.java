@@ -20,7 +20,6 @@ import java.util.Set;
 
 import javax.swing.SwingUtilities;
 
-import mpicbg.models.NoninvertibleModelException;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.util.Util;
@@ -36,7 +35,7 @@ import fiji.tool.AbstractTool;
 
 public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends AbstractTool implements MouseMotionListener, MouseListener, KeyListener, DetectorKeys {
 
-	private static final boolean DEBUG = false;
+	private static final boolean DEBUG = true;
 
 	private static final double COARSE_STEP = 2;
 	private static final double FINE_STEP = 0.2f;
@@ -213,20 +212,13 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 		if (null == displayer)
 			return;
 
-		final float ix = (float) (displayer.getCanvas(imp).offScreenXD(e.getX()) + 0.5f);  // relative to pixel center
-		final float iy =  (float) (displayer.getCanvas(imp).offScreenYD(e.getY()) + 0.5f);
-		final float iz =  imp.getSlice() - 1;
-		final float[] pixelCoords = new float[] { ix, iy, iz };
+		final double ix = displayer.getCanvas(imp).offScreenXD(e.getX()) + 0.5;  // relative to pixel center
+		final double iy = displayer.getCanvas(imp).offScreenYD(e.getY()) + 0.5;
+		final double iz =  imp.getSlice() - 1;
+		final double[] pixelCoords = new double[] { ix, iy, iz };
 
-		final float[] physicalCoords;
-		try {
-			physicalCoords = displayer.getTransform(imp).applyInverse(pixelCoords);
-		} catch (NoninvertibleModelException e1) {
-			System.err.println("Unable to compute back spot physical coordinates.\n" +
-					"Pixel coordinates were "+pixelCoords+". Transform was "+displayer.getTransform(imp));
-			e1.printStackTrace();
-			return;
-		}
+		final double[] physicalCoords = new double[3];
+		displayer.getTransform(imp).applyInverse(physicalCoords, pixelCoords);
 		quickEditedSpot.setPosition(physicalCoords);
 
 		imp.updateAndDraw();
@@ -538,8 +530,8 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 		double radius = target.getFeature(Spot.RADIUS);
 		// We need to get some idea of the current pixel scale, so that our increment is not
 		// out of range for all possible calibration.
-		final float[] transformMatrix = displayer.getTransform(imp).getMatrix(null);
-		float roughScale = Util.computeAverage(new float[] { 
+		final double[] transformMatrix = displayer.getTransform(imp).getRowPackedCopy();
+		final double roughScale = Util.computeAverage(new double[] { 
 				transformMatrix[0],  transformMatrix[1], transformMatrix[2], 
 				transformMatrix[4],  transformMatrix[5], transformMatrix[6], 
 				transformMatrix[8],  transformMatrix[9], transformMatrix[10] } );

@@ -13,10 +13,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import mpicbg.models.AffineModel3D;
-import mpicbg.models.NoninvertibleModelException;
+import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
+import net.imglib2.util.Util;
 
 import org.jgrapht.graph.DefaultWeightedEdge;
 
@@ -31,7 +31,7 @@ import fiji.util.gui.OverlayedImageCanvas;
 
 public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends AbstractTrackMateModelView<T> implements AdjustmentListener  {
 
-	private static final boolean DEBUG = false;
+	private static final boolean DEBUG = true;
 	public static final String NAME = "MultiView Displayer";
 	public static final String INFO_TEXT = "<html>" +
 			"<ul>" +
@@ -50,13 +50,13 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 	Map<ImagePlus, TransformedTrackOverlay<T>> trackOverlays = new HashMap<ImagePlus, TransformedTrackOverlay<T>>();
 
 	private MVSpotEditTool<T> editTool;
-	private Map<ImagePlus, AffineModel3D> transforms;
+	private Map<ImagePlus, AffineTransform3D> transforms;
 
 	/*
 	 * CONSTRUCTORS
 	 */
 
-	public MultiViewDisplayer(List<ImagePlus> imps, Map<ImagePlus, AffineModel3D> transforms, TrackMateModel<T> model) {
+	public MultiViewDisplayer(List<ImagePlus> imps, Map<ImagePlus, AffineTransform3D> transforms, TrackMateModel<T> model) {
 		this.imps = imps;
 		this.transforms = transforms;
 		this.model = model;
@@ -72,19 +72,18 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 			System.err.println("ImagePlus "+imp+" is unknown to this displayer "+this);
 			return null;
 		}
-		final float ix = (float) (canvas.offScreenXD(point.x) + 0.5);
-		final float iy = (float) (canvas.offScreenYD(point.y) + 0.5);
-		final float iz = imp.getSlice()-1;
-		float[] physicalCoords = new float[] { 1, 1, 1 };
-		float[] pixelCoords = new float[] { ix, iy, iz };
-		try {
-			physicalCoords = transforms.get(imp).applyInverse(pixelCoords);
-		} catch (NoninvertibleModelException e) {
-			System.err.println("Failed to convert click location to physical coordinates.\n" +
-					"Model was: "+transforms.get(imp)+" and coords were "+pixelCoords);
-			e.printStackTrace();
+		final double ix = canvas.offScreenXD(point.x) + 0.5;
+		final double iy = canvas.offScreenYD(point.y) + 0.5;
+		final double iz = imp.getSlice()-1;
+		double[] physicalCoords = new double[3];
+		double[] pixelCoords = new double[] { ix, iy, iz };
+		transforms.get(imp).applyInverse(physicalCoords, pixelCoords);
+		
+		if (DEBUG) {
+			System.out.println("[MultiViewDisplayer] Got a mouse click on "+Util.printCoordinates(pixelCoords)+". Converted it to physical coords: "+Util.printCoordinates(physicalCoords));
 		}
-		return new SpotImp(new double[] { physicalCoords[0], physicalCoords[1], physicalCoords[2] });
+		
+		return new SpotImp(physicalCoords);
 	}
 
 	/*
@@ -95,7 +94,7 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 	 * Hook for subclassers. Instantiate here the overlay you want to use for the spots. 
 	 * @return
 	 */
-	protected static <T extends RealType<T> & NativeType<T>> TransformedSpotOverlay<T> createSpotOverlay(final ImagePlus imp, final AffineModel3D transform, final TrackMateModel<T> model, final Map<String, Object> displaySettings) {
+	protected static <T extends RealType<T> & NativeType<T>> TransformedSpotOverlay<T> createSpotOverlay(final ImagePlus imp, final AffineTransform3D transform, final TrackMateModel<T> model, final Map<String, Object> displaySettings) {
 		return new TransformedSpotOverlay<T>(model, imp, transform, displaySettings);
 	}
 
@@ -103,7 +102,7 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 	 * Hook for subclassers. Instantiate here the overlay you want to use for the spots. 
 	 * @return
 	 */
-	protected static <T extends RealType<T> & NativeType<T>> TransformedTrackOverlay<T> createTrackOverlay(final ImagePlus imp, final AffineModel3D transform, final TrackMateModel<T> model, final Map<String, Object> displaySettings) {
+	protected static <T extends RealType<T> & NativeType<T>> TransformedTrackOverlay<T> createTrackOverlay(final ImagePlus imp, final AffineTransform3D transform, final TrackMateModel<T> model, final Map<String, Object> displaySettings) {
 		return new TransformedTrackOverlay<T>(model, imp, transform, displaySettings);
 	}
 
@@ -198,11 +197,12 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 		if (frame == -1)
 			return;
 		for(ImagePlus imp : imps) {
-			float[] physicalCoords = new float[3];
+			double[] physicalCoords = new double[3];
 			spot.localize(physicalCoords);
-			float[] pixelCoords = transforms.get(imp).apply(physicalCoords);
-			int z = Math.round(pixelCoords[2]) + 1;
-			imp.setPosition(1, z, frame+1);
+			double[] pixelCoords =  new double[3];
+			transforms.get(imp).apply(physicalCoords, pixelCoords);
+			long z = Math.round(pixelCoords[2]) + 1;
+			imp.setPosition(1, (int) z, frame+1);
 		}
 	}
 
@@ -316,7 +316,7 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 		return canvases.get(imp);
 	}
 
-	public  AffineModel3D getTransform(final ImagePlus imp) {
+	public  AffineTransform3D getTransform(final ImagePlus imp) {
 		return transforms.get(imp);
 	}
 
