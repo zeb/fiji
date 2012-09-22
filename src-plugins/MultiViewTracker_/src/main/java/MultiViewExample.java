@@ -1,6 +1,7 @@
 
 
 import fiji.plugin.multiviewtracker.MultiViewDisplayer;
+import fiji.plugin.multiviewtracker.MultiViewTrackerConfigPanel;
 import fiji.plugin.multiviewtracker.util.TransformUtils;
 import fiji.plugin.trackmate.Settings;
 import fiji.plugin.trackmate.TrackMateModel;
@@ -14,14 +15,20 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import javax.swing.UIManager;
+import javax.swing.UnsupportedLookAndFeelException;
+
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
 
 public class MultiViewExample {
 
-	public static <T extends RealType<T> & NativeType<T>> void main(String[] args) {
+	public static <T extends RealType<T> & NativeType<T>> void main(String[] args) throws ClassNotFoundException, InstantiationException, IllegalAccessException, UnsupportedLookAndFeelException {
 
+		// Set UI toolkit
+		UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+		
 		// Launch ImageJ
 		ImageJ.main(args);
 
@@ -74,7 +81,10 @@ public class MultiViewExample {
 		// Initialize viewer
 		MultiViewDisplayer<T> viewer = new MultiViewDisplayer<T>(imps, transforms, model);
 		viewer.render();
-
+		
+		// Control panel
+		MultiViewTrackerConfigPanel<T> mvFrame = new MultiViewTrackerConfigPanel<T>(model, viewer);
+		mvFrame.setVisible(true);
 
 	}
 
