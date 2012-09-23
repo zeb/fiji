@@ -31,33 +31,46 @@ public class MultiViewExample2 {
 
 		ImageJ.main(args);
 
+		String rootFolder = "E:/Users/JeanYves/Documents/Projects/PTomancak/Data";
+		
+//		String image1 = "spim1_TL21_Angle90.lsm";
+//		String tranformation1 = "registration/spim1_TL21_Angle90.lsm.registration";
+		String image1 = "spim2_TL21_Angle90.tif";
+		String tranformation1 = "registration/" + image1 + ".registration";
 
-		// Load transformation 1 
-		File file_1 = new File("/Users/tinevez/Projects/PTomancak/Data/registration/spim_TL80_Angle190.lsm.registration");
-		AffineTransform3D transform_1 = TransformUtils.getTransformFromFile(file_1);
-		AffineTransform3D zscaling_1 = TransformUtils.getZScalingFromFile(file_1);
-		transform_1.concatenate(zscaling_1);
+//		String image2 = "spim1_TL21_Angle135.lsm";
+//		String tranformation2 = "registration/spim1_TL21_Angle135.lsm.registration";
+		String image2 = "spim2_TL21_Angle135.tif";
+		String tranformation2 = "registration/" + image2 + ".registration";
 
-		// Load transformation 2 
-		File file_2 = new File("/Users/tinevez/Projects/PTomancak/Data/registration/spim_TL80_Angle230.lsm.registration");
-		AffineTransform3D transform_2 = TransformUtils.getTransformFromFile(file_2);
-		AffineTransform3D zscaling_2 = TransformUtils.getZScalingFromFile(file_2);
-		transform_2.concatenate(zscaling_2);
+		AffineTransform3D transform1 = TransformUtils.getTransformFromFile(new File(rootFolder, tranformation1));
+		AffineTransform3D zscaling1 = TransformUtils.getZScalingFromFile(new File(rootFolder, tranformation1));
+		transform1.concatenate(zscaling1);
 
-		String dirPath = "/Users/tinevez/Projects/PTomancak/Data/"; // dc.getDirectory();
-		String path1 = dirPath + "spim_TL80_Angle190.lsm";
-		String path2 = dirPath + "spim_TL80_Angle230.lsm"; // /Users/tinevez/Projects/PTomancak/Data/spim_TL80_Angle150.lsm
+		AffineTransform3D transform2 = TransformUtils.getTransformFromFile(new File(rootFolder, tranformation2));
+		AffineTransform3D zscaling2 = TransformUtils.getZScalingFromFile(new File(rootFolder, tranformation2));
+		transform2.concatenate(zscaling2);
 
-		ImagePlus imp1 = useImporter(path1);
-		ImagePlus imp2 = useImporter(path2);
+		ImagePlus imp1 = useImporter(new File(rootFolder, image1));
+		ImagePlus imp2 = useImporter(new File(rootFolder, image2));
+		
+		
+		transform1 = transform1.inverse();
+		transform2 = transform2.inverse();
+
+		AffineTransform3D calib1 = TransformUtils.getTransformFromCalibration(imp1);
+//		transform1.concatenate(calib1); // To have real physical coordinates in 1st referential
+		
+		AffineTransform3D calib2 = TransformUtils.getTransformFromCalibration(imp2);
+//		transform2.concatenate(calib2);
 
 		Map<ImagePlus, AffineTransform3D> transforms = new HashMap<ImagePlus, AffineTransform3D>();
-		transforms.put(imp1, transform_1);
-		transforms.put(imp2, transform_2);
+		transforms.put(imp1, transform1);
+		transforms.put(imp2, transform2);
 
-		List<ImagePlus> imps2 = new ArrayList<ImagePlus>();
-		imps2.add(imp1);
-		imps2.add(imp2);
+		List<ImagePlus> imps = new ArrayList<ImagePlus>();
+		imps.add(imp1);
+		imps.add(imp2);
 
 		// Instantiate model
 		Settings<T> settings = new Settings<T>(imp1);
@@ -65,13 +78,13 @@ public class MultiViewExample2 {
 		TrackMateModel<T> model = tm.getModel();
 
 		// Initialize viewer
-		MultiViewDisplayer<T> viewer = new MultiViewDisplayer<T>(imps2, transforms, model);
+		MultiViewDisplayer<T> viewer = new MultiViewDisplayer<T>(imps, transforms, model);
 		viewer.render();
 		
 	}
 
 	
-	public static ImagePlus useImporter(String path) throws IOException, FormatException {
+	public static ImagePlus useImporter(File path) throws IOException, FormatException {
 		LociImporter plugin = new LociImporter();
 		Importer importer = new Importer(plugin);
 		
@@ -79,7 +92,7 @@ public class MultiViewExample2 {
 		ImporterOptions  options = importer.parseOptions("");
 		
 		
-		options.setId(path);
+		options.setId(path.getAbsolutePath());
 		options.setGroupFiles(false);
 		options.setVirtual(true);
 		options.setSplitChannels(true);
