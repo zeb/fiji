@@ -42,6 +42,7 @@ import fiji.plugin.trackmate.gui.ActionListenablePanel;
 import fiji.plugin.trackmate.gui.JNumericTextField;
 import fiji.plugin.trackmate.gui.JPanelColorByFeatureGUI;
 import fiji.plugin.trackmate.visualization.TrackMateModelView;
+import fiji.plugin.trackmate.visualization.trackscheme.TrackSchemeFrame;
 
 public class MultiViewTrackerConfigPanel <T extends RealType<T> & NativeType<T>> extends JFrame {
 
@@ -94,8 +95,17 @@ public class MultiViewTrackerConfigPanel <T extends RealType<T> & NativeType<T>>
 						view.setDisplaySettings(KEY_SPOT_COLOR_FEATURE, jPanelSpotColor.getSelectedFeature());
 						view.refresh();
 					}
+				} else if (event == TRACK_SCHEME_BUTTON_PRESSED) {
+					
+					try {
+						TrackSchemeFrame<T> trackScheme = new TrackSchemeFrame<T>(model);
+						trackScheme.setVisible(true);
+					} finally {
+						jButtonShowTrackScheme.setEnabled(true);
+					}
+					
 				} else {
-					System.out.println("Got event: "+event);
+					System.out.println("Got unkown event: "+event);
 				}
 			}
 		}.start();
