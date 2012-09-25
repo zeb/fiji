@@ -8,7 +8,6 @@ import java.awt.Component;
 import java.awt.Point;
 import java.awt.event.AdjustmentEvent;
 import java.awt.event.AdjustmentListener;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -25,6 +24,7 @@ import fiji.plugin.trackmate.Spot;
 import fiji.plugin.trackmate.SpotImp;
 import fiji.plugin.trackmate.TrackMateModel;
 import fiji.plugin.trackmate.TrackMateModelChangeEvent;
+import fiji.plugin.trackmate.TrackMateSelectionChangeEvent;
 import fiji.plugin.trackmate.visualization.AbstractTrackMateModelView;
 import fiji.plugin.trackmate.visualization.TrackMateModelView;
 import fiji.util.gui.OverlayedImageCanvas;
@@ -171,20 +171,6 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 	}
 
 	@Override
-	public void highlightEdges(Collection<DefaultWeightedEdge> edges) {
-		for(ImagePlus imp : imps) {
-			imp.draw();
-		}
-	}
-
-	@Override
-	public void highlightSpots(Collection<Spot> spots) {
-		for(ImagePlus imp : imps) {
-			imp.draw();
-		}
-	}
-
-	@Override
 	public void centerViewOn(Spot spot) {
 		int frame = - 1;
 		for(int i : model.getFilteredSpots().keySet()) {
@@ -243,6 +229,10 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 		
 	}
 
+	@Override
+	public void selectionChanged(TrackMateSelectionChangeEvent event) {
+		refresh();
+	}
 
 	@Override
 	public void refresh() {
@@ -251,7 +241,6 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 				System.out.println("[MultiViewDisplayer] Refreshing display of "+imp);
 			}
 			imp.updateAndDraw();
-//			windows.get(imp).repaint();
 		}
 	}
 
