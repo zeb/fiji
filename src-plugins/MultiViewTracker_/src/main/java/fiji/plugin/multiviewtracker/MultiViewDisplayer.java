@@ -232,7 +232,7 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 			
 			// Add a listener for time slider
 			Component[] cs = window.getComponents();
-			if (cs.length > 1) {
+			if (cs.length > 2) {
 				((ScrollbarWithLabel) cs[2]).addAdjustmentListener (this); // We assume the 2nd is for time
 			}
 			
