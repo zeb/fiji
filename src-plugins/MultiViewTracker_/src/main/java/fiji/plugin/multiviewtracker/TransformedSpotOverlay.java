@@ -40,7 +40,7 @@ import fiji.util.gui.OverlayedImageCanvas.Overlay;
 public class TransformedSpotOverlay<T extends RealType<T> & NativeType<T>> implements Overlay {
 
 	private static final Font LABEL_FONT = new Font("Arial", Font.BOLD, 12);
-	private static final boolean DEBUG = true;
+	private static final boolean DEBUG = false;
 
 	/** The color mapping of the target collection. */
 	protected Map<Spot, Color> targetColor;
