@@ -31,7 +31,7 @@ import fiji.util.gui.OverlayedImageCanvas;
 
 public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends AbstractTrackMateModelView<T> implements AdjustmentListener  {
 
-	private static final boolean DEBUG = true;
+	private static final boolean DEBUG = false;
 	public static final String NAME = "MultiView Displayer";
 	public static final String INFO_TEXT = "<html>" +
 			"<ul>" +
@@ -231,6 +231,7 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 
 	@Override
 	public void selectionChanged(TrackMateSelectionChangeEvent event) {
+		super.selectionChanged(event);
 		refresh();
 	}
 
