@@ -35,7 +35,7 @@ import fiji.tool.AbstractTool;
 
 public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends AbstractTool implements MouseMotionListener, MouseListener, KeyListener, DetectorKeys {
 
-	private static final boolean DEBUG = true;
+	private static final boolean DEBUG = false;
 
 	private static final double COARSE_STEP = 2;
 	private static final double FINE_STEP = 0.2f;
@@ -92,10 +92,10 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 		if (null == instance) {
 			instance = new MVSpotEditTool<T>();
 			if (DEBUG)
-				System.out.println("[SpotEditTool] Instantiating: "+instance);
+				System.out.println("[MVSpotEditTool] Instantiating: "+instance);
 		}
 		if (DEBUG)
-			System.out.println("[SpotEditTool] Returning instance: "+instance);
+			System.out.println("[MVSpotEditTool] Returning instance: "+instance);
 		return instance;
 	}
 
@@ -129,7 +129,7 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 	 */
 	public void register(final ImagePlus imp, final MultiViewDisplayer<T> displayer) {
 		if (DEBUG)
-			System.out.println("[SpotEditTool] Registering "+imp+" and "+displayer);
+			System.out.println("[MVSpotEditTool] Registering "+imp+" and "+displayer);
 		displayers.put(imp, displayer);
 	}
 
@@ -143,12 +143,12 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 		final ImagePlus imp = getImagePlus(e);
 		final MultiViewDisplayer<T> displayer = displayers.get(imp);
 		if (DEBUG) {
-			System.out.println("[SpotEditTool] @mouseClicked");
-			System.out.println("[SpotEditTool] Got "+imp+ " as ImagePlus");
-			System.out.println("[SpotEditTool] Matching displayer: "+displayer);
+			System.out.println("[MVSpotEditTool] @mouseClicked");
+			System.out.println("[MVSpotEditTool] Got "+imp+ " as ImagePlus");
+			System.out.println("[MVSpotEditTool] Matching displayer: "+displayer);
 
 			for (MouseListener ml : imp.getCanvas().getMouseListeners()) {
-				System.out.println("[SpotEditTool] mouse listener: "+ml);
+				System.out.println("[MVSpotEditTool] mouse listener: "+ml);
 			}
 
 		}
@@ -236,7 +236,7 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 	public void keyPressed(KeyEvent e) { 
 
 		if (DEBUG) 
-			System.out.println("[SpotEditTool] keyPressed: "+KeyEvent.getKeyText(e.getKeyCode()));
+			System.out.println("[MVSpotEditTool] keyPressed: "+KeyEvent.getKeyText(e.getKeyCode()));
 
 		final ImagePlus imp = getImagePlus(e);
 		if (imp == null)
@@ -329,7 +329,7 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 	@Override
 	public void keyReleased(KeyEvent e) { 
 		if (DEBUG) 
-			System.out.println("[SpotEditTool] keyReleased: "+e.getKeyChar());
+			System.out.println("[MVSpotEditTool] keyReleased: "+e.getKeyChar());
 
 		final ImagePlus imp = getImagePlus(e);
 		if (imp == null)
