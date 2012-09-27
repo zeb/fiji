@@ -10,7 +10,7 @@ import static fiji.plugin.trackmate.visualization.TrackMateModelView.KEY_SPOT_RA
 import static fiji.plugin.trackmate.visualization.TrackMateModelView.KEY_TRACKS_VISIBLE;
 import static fiji.plugin.trackmate.visualization.TrackMateModelView.KEY_TRACK_DISPLAY_DEPTH;
 import static fiji.plugin.trackmate.visualization.TrackMateModelView.KEY_TRACK_DISPLAY_MODE;
-import static fiji.plugin.trackmate.visualization.trackscheme.TrackSchemeFrame.TRACK_SCHEME_ICON;
+import static fiji.plugin.trackmate.visualization.trackscheme.TrackScheme.TRACK_SCHEME_ICON;
 
 import java.awt.Component;
 import java.awt.FlowLayout;
@@ -42,7 +42,7 @@ import fiji.plugin.trackmate.gui.ActionListenablePanel;
 import fiji.plugin.trackmate.gui.JNumericTextField;
 import fiji.plugin.trackmate.gui.JPanelColorByFeatureGUI;
 import fiji.plugin.trackmate.visualization.TrackMateModelView;
-import fiji.plugin.trackmate.visualization.trackscheme.TrackSchemeFrame;
+import fiji.plugin.trackmate.visualization.trackscheme.TrackScheme;
 
 public class MultiViewTrackerConfigPanel <T extends RealType<T> & NativeType<T>> extends JFrame {
 
@@ -98,8 +98,8 @@ public class MultiViewTrackerConfigPanel <T extends RealType<T> & NativeType<T>>
 				} else if (event == TRACK_SCHEME_BUTTON_PRESSED) {
 					
 					try {
-						TrackSchemeFrame<T> trackScheme = new TrackSchemeFrame<T>(model);
-						trackScheme.setVisible(true);
+						TrackScheme<T> trackScheme = new TrackScheme<T>(model);
+						trackScheme.render();
 					} finally {
 						jButtonShowTrackScheme.setEnabled(true);
 					}
