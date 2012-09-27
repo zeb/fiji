@@ -25,7 +25,6 @@ import org.jgrapht.graph.DefaultWeightedEdge;
 
 import fiji.plugin.trackmate.Spot;
 import fiji.plugin.trackmate.TrackMateModel;
-import fiji.plugin.trackmate.util.TMUtils;
 import fiji.plugin.trackmate.visualization.TrackMateModelView;
 import fiji.util.gui.OverlayedImageCanvas.Overlay;
 
@@ -35,8 +34,7 @@ import fiji.util.gui.OverlayedImageCanvas.Overlay;
  */
 public class TransformedTrackOverlay <T extends RealType<T> & NativeType<T>> implements Overlay {
 
-	private final static boolean DEBUG = true;
-	protected final double[] calibration;
+	private final static boolean DEBUG = false;
 	protected final ImagePlus imp;
 	protected Map<Integer, Color> edgeColors;
 	protected Map<String, Object> displaySettings;
@@ -49,7 +47,6 @@ public class TransformedTrackOverlay <T extends RealType<T> & NativeType<T>> imp
 
 	public TransformedTrackOverlay(final TrackMateModel<T> model, final ImagePlus imp, final AffineTransform3D transform, final Map<String, Object> displaySettings) {
 		this.model = model;
-		this.calibration = TMUtils.getSpatialCalibration(model.getSettings().imp);
 		this.imp = imp;
 		this.transform = transform;
 		this.displaySettings = displaySettings;
