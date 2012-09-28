@@ -31,6 +31,7 @@ import fiji.plugin.trackmate.SpotImp;
 import fiji.plugin.trackmate.TrackMateModel;
 import fiji.plugin.trackmate.detection.DetectorKeys;
 import fiji.plugin.trackmate.visualization.hyperstack.HyperStackDisplayer;
+import fiji.plugin.trackmate.visualization.trackscheme.SpotImageUpdater;
 import fiji.tool.AbstractTool;
 
 public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends AbstractTool implements MouseMotionListener, MouseListener, KeyListener, DetectorKeys {
@@ -445,9 +446,9 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 		newSpot.putFeature(Spot.POSITION_T, frame * displayer.getSttings().dt);
 		newSpot.putFeature(Spot.FRAME, frame);
 		newSpot.putFeature(Spot.RADIUS, radius);
-
-		// Update model
-		String message;
+		// Update image
+		SpotImageUpdater<T> spotImageUpdater = new SpotImageUpdater<T>(model);
+		spotImageUpdater.update(newSpot);
 		
 		// First the spot
 		model.beginUpdate();
@@ -456,6 +457,12 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 		} finally {
 			model.endUpdate();
 		}
+		
+
+		// Update model
+		String message;
+		
+		
 		
 		// Then, possibly, the edge. We must do it in a subsequent update, otherwise the model gets confused.
 		final Set<Spot> spotSelection = model.getSpotSelection();
@@ -532,6 +539,9 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 			return;
 		}
 		
+		SpotImageUpdater<T> spotImageUpdater = new SpotImageUpdater<T>(model);
+		spotImageUpdater.update(quickEditedSpot);
+		
 		if (null == quickEditedSpot)
 			return;
 		model.beginUpdate();
@@ -591,6 +601,10 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 
 		previousRadius = radius;
 		target.putFeature(Spot.RADIUS, radius);
+		// Update image
+		SpotImageUpdater<T> spotImageUpdater = new SpotImageUpdater<T>(model);
+		spotImageUpdater.update(target);
+		
 		model.beginUpdate();
 		try {
 			model.updateFeatures(target);
@@ -628,6 +642,7 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 
 			IJ.showStatus("Copied " + previousFrameSpots.size() + " spots from frame " + (currentFrame-1) + " to frame " + currentFrame + ".");
 
+			SpotImageUpdater<T> spotImageUpdater = new SpotImageUpdater<T>(model);
 			for(Spot spot : previousFrameSpots) {
 				Spot newSpot = new SpotImp(spot, spot.getName());
 				// Deal with features
@@ -641,8 +656,11 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 				}
 				newSpot.putFeature(Spot.POSITION_T, spot.getFeature(Spot.POSITION_T) + dt);
 				newSpot.putFeature(Spot.FRAME, spot.getFeature(Spot.FRAME) + 1);
+				// Update image
+				spotImageUpdater.update(newSpot);
 				copiedSpots.add(newSpot);
 			}
+			
 
 			model.beginUpdate();
 			try {
