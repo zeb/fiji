@@ -6,7 +6,6 @@ import ij.gui.Toolbar;
 
 import java.awt.MouseInfo;
 import java.awt.Point;
-import java.awt.event.AdjustmentEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.awt.event.MouseEvent;
@@ -88,7 +87,7 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 	/**
 	 * The increment by which to move in time when using keystroke in this tool.
 	 */
-	private int steppingIncrement = DEFAULT_STEPPING_INCREMENT;
+	protected int steppingIncrement = DEFAULT_STEPPING_INCREMENT;
 
 	/*
 	 * CONSTRUCTOR
@@ -252,7 +251,7 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 
 	@Override
 	public void showOptionDialog() {
-		System.out.println("Option dialog"); // DEBUG
+		new MVSpotEditToolOptionDialog<T>(this).setVisible(true);
 	}
 
 	/*
