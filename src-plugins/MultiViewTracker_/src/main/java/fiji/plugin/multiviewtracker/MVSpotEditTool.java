@@ -6,6 +6,7 @@ import ij.gui.Toolbar;
 
 import java.awt.MouseInfo;
 import java.awt.Point;
+import java.awt.event.AdjustmentEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.awt.event.MouseEvent;
@@ -33,8 +34,9 @@ import fiji.plugin.trackmate.detection.DetectorKeys;
 import fiji.plugin.trackmate.visualization.hyperstack.HyperStackDisplayer;
 import fiji.plugin.trackmate.visualization.trackscheme.SpotImageUpdater;
 import fiji.tool.AbstractTool;
+import fiji.tool.ToolWithOptions;
 
-public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends AbstractTool implements MouseMotionListener, MouseListener, KeyListener, DetectorKeys {
+public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends AbstractTool implements ToolWithOptions, MouseMotionListener, MouseListener, KeyListener, DetectorKeys {
 
 	private static final boolean DEBUG = false;
 
@@ -60,6 +62,11 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 
 	/** Fall back default radius when the settings does not give a default radius to use. */
 	private static final double FALL_BACK_RADIUS = 5;
+	/**
+	 *  The default stepping interval when moving in time using keystrokes.
+	 * @see #steppingIncrement
+	 */
+	private static final int DEFAULT_STEPPING_INCREMENT = 3;
 
 
 	@SuppressWarnings("rawtypes")
@@ -78,6 +85,10 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 	 * If false, then no modifications will happens through this tool.
 	 */
 	private boolean isEdtingEnabled = true;
+	/**
+	 * The increment by which to move in time when using keystroke in this tool.
+	 */
+	private int steppingIncrement = DEFAULT_STEPPING_INCREMENT;
 
 	/*
 	 * CONSTRUCTOR
@@ -138,6 +149,9 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 		displayers.put(imp, displayer);
 	}
 
+	
+	
+	
 	/*
 	 * MOUSE AND MOUSE MOTION
 	 */
@@ -229,6 +243,16 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 
 		imp.updateAndDraw();
 
+	}
+	
+	/*
+	 * OPTION DIALOG
+	 */
+	
+
+	@Override
+	public void showOptionDialog() {
+		System.out.println("Option dialog"); // DEBUG
 	}
 
 	/*
@@ -327,6 +351,19 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 			e.consume();
 			break;
 		}
+		
+		// Move in time stepwise
+		case KeyEvent.VK_O:
+		case KeyEvent.VK_P: {
+			boolean forward = true;
+			if (keycode == KeyEvent.VK_O) {
+				forward = false;
+			}
+			stepInTime(imp, forward);
+			e.consume(); 
+			break;
+		}
+				
 
 
 
@@ -334,16 +371,6 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 
 	}
 	
-	private void switchEditingMode() {
-		this.isEdtingEnabled = !isEdtingEnabled;
-		IJ.showStatus("Switched editing mode " +  (isEdtingEnabled ? "on." : "off.") );
-	}
-
-	private void switchLinkingMode() {
-		this.isLinkingMode = !isLinkingMode;
-		IJ.showStatus("Switched auto-linking mode " +  (isLinkingMode ? "on." : "off.") );
-	}
-
 	@Override
 	public void keyReleased(KeyEvent e) { 
 		if (DEBUG) 
@@ -370,6 +397,35 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 	/*
 	 * PRIVATE METHODS
 	 */
+	
+	private void stepInTime(final ImagePlus imp, final boolean forward) {
+		int currentFrame = imp.getT();
+		// Round down to nearest multiple, plus 1 because in ImagePlus, everything is 1-based
+		int nearestMultiple = ( currentFrame / steppingIncrement ) * steppingIncrement + 1;
+		// Compute target frame
+		int targetFrame = nearestMultiple;
+		if (forward) {
+			targetFrame += steppingIncrement;
+		} else {
+			if (nearestMultiple == currentFrame) {
+				targetFrame -= steppingIncrement;
+			}
+		}
+		// Set target T for all views
+		if (targetFrame >0 && targetFrame <= imp.getNFrames()) {
+			displayers.get(imp).setViewsT(targetFrame);
+		}
+	}
+
+	private void switchEditingMode() {
+		this.isEdtingEnabled = !isEdtingEnabled;
+		IJ.showStatus("Switched editing mode " +  (isEdtingEnabled ? "on." : "off.") );
+	}
+
+	private void switchLinkingMode() {
+		this.isLinkingMode = !isLinkingMode;
+		IJ.showStatus("Switched auto-linking mode " +  (isLinkingMode ? "on." : "off.") );
+	}
 
 	private void updateStatusBar(final Spot spot, final String units) {
 		if (null == spot)
@@ -678,6 +734,5 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 			}
 		}
 	}
-
 
 }

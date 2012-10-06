@@ -319,8 +319,12 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 	 */
 	@Override
 	public void adjustmentValueChanged(AdjustmentEvent event) {
+		setViewsT(event.getValue());
+	}
+	
+	public void setViewsT(final int frame) {
 		for (ImagePlus imp : imps) {
-			imp.setT(event.getValue());
+			imp.setT(frame);
 		}
 	}
 }
