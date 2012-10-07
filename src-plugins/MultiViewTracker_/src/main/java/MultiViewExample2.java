@@ -33,13 +33,13 @@ public class MultiViewExample2 {
 
 		String rootFolder = "E:/Users/JeanYves/Documents/Projects/PTomancak/Data";
 		
-//		String image1 = "spim1_TL21_Angle90.lsm";
 //		String tranformation1 = "registration/spim1_TL21_Angle90.lsm.registration";
+//		String image1 = "spim1_TL21_Angle90.lsm";
 		String image1 = "spim2_TL21_Angle90.tif";
 		String tranformation1 = "registration/" + image1 + ".registration";
 
-//		String image2 = "spim1_TL21_Angle135.lsm";
 //		String tranformation2 = "registration/spim1_TL21_Angle135.lsm.registration";
+//		String image2 = "spim1_TL21_Angle135.lsm";
 		String image2 = "spim2_TL21_Angle135.tif";
 		String tranformation2 = "registration/" + image2 + ".registration";
 
@@ -54,16 +54,21 @@ public class MultiViewExample2 {
 		ImagePlus imp1 = useImporter(new File(rootFolder, image1));
 		ImagePlus imp2 = useImporter(new File(rootFolder, image2));
 		
+		/* We will bring back everything to pixel coords in the main imp.
+		 * Then we need to take these pixel coords to physical coords. So we need
+		 * the calibration transform of the main imp.    */ 
+		AffineTransform3D calib1 = TransformUtils.getTransformFromCalibration(imp1);
+		/* But the SPIM transforms already have a scaling for the Z-factor. So we do not
+		 * need to apply it twice. Since the SPIM transform deals with isotropic pixel 
+		 * calibration, we need our physical coords transform be isotropic too. */
+		calib1.set(calib1.get(0, 0), 2, 2);
+		
+		transform1.preConcatenate(calib1.inverse()); // To have real physical coordinates in 1st referential
+		transform2.preConcatenate(calib1.inverse()); // To have real physical coordinates in 1st referential
 		
 		transform1 = transform1.inverse();
 		transform2 = transform2.inverse();
-
-		AffineTransform3D calib1 = TransformUtils.getTransformFromCalibration(imp1);
-//		transform1.concatenate(calib1); // To have real physical coordinates in 1st referential
 		
-		AffineTransform3D calib2 = TransformUtils.getTransformFromCalibration(imp2);
-//		transform2.concatenate(calib2);
-
 		Map<ImagePlus, AffineTransform3D> transforms = new HashMap<ImagePlus, AffineTransform3D>();
 		transforms.put(imp1, transform1);
 		transforms.put(imp2, transform2);
@@ -94,7 +99,7 @@ public class MultiViewExample2 {
 		
 		options.setId(path.getAbsolutePath());
 		options.setGroupFiles(false);
-		options.setVirtual(true);
+		options.setVirtual(false);
 		options.setSplitChannels(true);
 		options.setQuiet(true);
 //

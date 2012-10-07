@@ -50,6 +50,8 @@ public class TransformedSpotOverlay<T extends RealType<T> & NativeType<T>> imple
 	protected Map<String, Object> displaySettings;
 	protected final TrackMateModel<T> model;
 	protected final AffineTransform3D transform;
+	private final double scalingY;
+	private final double scalingX;
 
 	/*
 	 * CONSTRUCTOR
@@ -60,6 +62,10 @@ public class TransformedSpotOverlay<T extends RealType<T> & NativeType<T>> imple
 		this.imp = imp;
 		this.transform = transform;
 		this.displaySettings = displaySettings;
+		// Here we cheat: to get the scaling of the curcke radius, we sue the imp physical calibration, and
+		// not the transform
+		this.scalingX = 1 / imp.getCalibration().pixelWidth;
+		this.scalingY = 1 / imp.getCalibration().pixelHeight;
 		computeSpotColors();
 	}
 
@@ -204,10 +210,8 @@ public class TransformedSpotOverlay<T extends RealType<T> & NativeType<T>> imple
 			
 			// Transform radius
 			final double apparentRadius = Math.sqrt(physicalRadius * physicalRadius - physicalDz2);
-			final double[] pixelSizeRadius = new double[3];
-			transform.apply(new double[] { apparentRadius, apparentRadius, apparentRadius}, pixelSizeRadius);
-			final double pixelRadiusX = Math.abs( pixelSizeRadius[0] - transform.get(0, 3) ) * magnification; 
-			final double pixelRadiusY = Math.abs( pixelSizeRadius[1] - transform.get(1, 3) ) * magnification; // FIXME DON"T KNOW IF IT WORKS EVERYWHERE 
+			final double pixelRadiusX = apparentRadius * scalingX * magnification; 
+			final double pixelRadiusY = apparentRadius * scalingY * magnification;  
 
 			// Debug
 			if (DEBUG) {
