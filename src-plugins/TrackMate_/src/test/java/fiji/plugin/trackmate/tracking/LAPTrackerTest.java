@@ -11,14 +11,14 @@ import java.util.Set;
 
 import org.jgrapht.alg.ConnectivityInspector;
 import org.jgrapht.graph.DefaultWeightedEdge;
-import org.jgrapht.graph.SimpleWeightedGraph;
+import org.jgrapht.graph.SimpleDirectedWeightedGraph;
 import org.junit.Test;
 
 import fiji.plugin.trackmate.Logger;
 import fiji.plugin.trackmate.Spot;
 import fiji.plugin.trackmate.SpotCollection;
 import fiji.plugin.trackmate.SpotImp;
-import fiji.plugin.trackmate.features.spot.BlobDescriptiveStatistics;
+import fiji.plugin.trackmate.features.spot.SpotIntensityAnalyzerFactory;
 
 
 public class LAPTrackerTest implements TrackerKeys {
@@ -73,7 +73,7 @@ public class LAPTrackerTest implements TrackerKeys {
 		}
 		
 		// Check results
-		SimpleWeightedGraph<Spot, DefaultWeightedEdge> graph = tracker.getResult();
+		SimpleDirectedWeightedGraph<Spot, DefaultWeightedEdge> graph = tracker.getResult();
 		verifyTracks(graph, groups, nFrames);
 	}
 
@@ -102,8 +102,8 @@ public class LAPTrackerTest implements TrackerKeys {
 			spot1.setName("G1T"+i);
 			spot2.setName("G2T"+i);
 			// For this test, we need to put a different feature for each track
-			spot1.putFeature(BlobDescriptiveStatistics.MEAN_INTENSITY, 100);
-			spot2.putFeature(BlobDescriptiveStatistics.MEAN_INTENSITY, 200);
+			spot1.putFeature(SpotIntensityAnalyzerFactory.MEAN_INTENSITY, 100);
+			spot2.putFeature(SpotIntensityAnalyzerFactory.MEAN_INTENSITY, 200);
 
 			group1.add(spot1);
 			group2.add(spot2);
@@ -122,7 +122,7 @@ public class LAPTrackerTest implements TrackerKeys {
 		trackerSettings.put(KEY_LINKING_MAX_DISTANCE, 2.);
 		trackerSettings.put(KEY_ALLOW_GAP_CLOSING, false);
 		StringBuilder errorHolder = new StringBuilder();
-		boolean ok = LAPUtils.addFeaturePenaltyToSettings(trackerSettings, KEY_LINKING_FEATURE_PENALTIES, BlobDescriptiveStatistics.MEAN_INTENSITY, 1d, errorHolder );
+		boolean ok = LAPUtils.addFeaturePenaltyToSettings(trackerSettings, KEY_LINKING_FEATURE_PENALTIES, SpotIntensityAnalyzerFactory.MEAN_INTENSITY, 1d, errorHolder );
 		if (!ok) {
 			fail(errorHolder.toString());
 		}
@@ -137,13 +137,13 @@ public class LAPTrackerTest implements TrackerKeys {
 		}
 		
 		// Check results
-		SimpleWeightedGraph<Spot, DefaultWeightedEdge> graph = tracker.getResult();
+		SimpleDirectedWeightedGraph<Spot, DefaultWeightedEdge> graph = tracker.getResult();
 		verifyTracks(graph, groups, nFrames);
 	}
 
 
 
-	private static void verifyTracks(final SimpleWeightedGraph<Spot, DefaultWeightedEdge> graph, List<List<Spot>> groups, int nFrames) {
+	private static void verifyTracks(final SimpleDirectedWeightedGraph<Spot, DefaultWeightedEdge> graph, List<List<Spot>> groups, int nFrames) {
 
 		// Check that we have the right number of vertices
 		assertEquals("The tracking result graph has the wrong number of vertices, ", 

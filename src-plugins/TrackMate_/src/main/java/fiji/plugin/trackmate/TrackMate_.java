@@ -3,7 +3,6 @@ package fiji.plugin.trackmate;
 import fiji.plugin.trackmate.action.TrackMateAction;
 import fiji.plugin.trackmate.detection.SpotDetector;
 import fiji.plugin.trackmate.detection.SpotDetectorFactory;
-import fiji.plugin.trackmate.features.spot.SpotFeatureAnalyzer;
 import fiji.plugin.trackmate.features.track.TrackFeatureAnalyzer;
 import fiji.plugin.trackmate.gui.TrackMateWizard;
 import fiji.plugin.trackmate.gui.WizardController;
@@ -53,7 +52,7 @@ public class TrackMate_<T extends RealType<T> & NativeType<T>>  implements PlugI
 	 */
 	protected TrackMateModel<T> model;
 
-	protected SpotFeatureAnalyzerFactory<T> spotFeatureFactory;
+	protected SpotFeatureAnalyzerProvider<T> spotFeatureFactory;
 	protected TrackFeatureAnalyzerFactory<T> trackFeatureFactory;
 	/** The factory that provides this plugin with available {@link TrackMateModelView}s. */
 	protected ViewFactory<T> viewFactory;
@@ -213,10 +212,10 @@ public class TrackMate_<T extends RealType<T> & NativeType<T>>  implements PlugI
 	/**
 	 * Hook for subclassers.
 	 * <p>
-	 * Create detector factory containing available spot {@link SpotFeatureAnalyzer}s.
+	 * Create the spot feature analyzer provider.
 	 */
-	protected SpotFeatureAnalyzerFactory<T> createSpotFeatureAnalyzerFactory() {
-		return new SpotFeatureAnalyzerFactory<T>();
+	protected SpotFeatureAnalyzerProvider<T> createSpotFeatureAnalyzerFactory() {
+		return new SpotFeatureAnalyzerProvider<T>(model);
 	}
 
 	/**
@@ -259,10 +258,10 @@ public class TrackMate_<T extends RealType<T> & NativeType<T>>  implements PlugI
 	}
 
 	/**
-	 * @return the {@link SpotFeatureAnalyzerFactory} currently registered in this plugin.
+	 * @return the {@link SpotFeatureAnalyzerProvider} currently registered in this plugin.
 	 * @see #createSpotFeatureAnalyzerFactory()
 	 */
-	public SpotFeatureAnalyzerFactory<T> getAvailableSpotFeatureAnalyzers() {
+	public SpotFeatureAnalyzerProvider<T> getAvailableSpotFeatureAnalyzers() {
 		return spotFeatureFactory;
 	}
 

@@ -2,7 +2,6 @@ package fiji.plugin.trackmate.features.spot;
 
 import static org.junit.Assert.assertEquals;
 import net.imglib2.RandomAccess;
-import net.imglib2.algorithm.region.localneighborhood.EllipseNeighborhood;
 import net.imglib2.img.Img;
 import net.imglib2.img.ImgPlus;
 import net.imglib2.img.array.ArrayImgFactory;
@@ -15,6 +14,7 @@ import org.junit.Test;
 
 import fiji.plugin.trackmate.Spot;
 import fiji.plugin.trackmate.SpotImp;
+import fiji.plugin.trackmate.util.SpotNeighborhood;
 
 public class BlobDescriptiveStatisticsTest {
 
@@ -57,13 +57,12 @@ public class BlobDescriptiveStatisticsTest {
 
 	@Test
 	public void testProcessSpot2D() {
-		 BlobDescriptiveStatistics<UnsignedShortType> analyzer = new BlobDescriptiveStatistics<UnsignedShortType>();
-		 analyzer.setTarget(img2D);
-		 analyzer.process(spot);
-		 
-		 assertEquals(TEST_VAL, spot.getFeature(BlobDescriptiveStatistics.MEAN_INTENSITY), Double.MIN_VALUE);
-		 assertEquals(TEST_VAL, spot.getFeature(BlobDescriptiveStatistics.MAX_INTENSITY), Double.MIN_VALUE);
-		 assertEquals(TEST_VAL, spot.getFeature(BlobDescriptiveStatistics.MIN_INTENSITY), Double.MIN_VALUE);
+		SpotIntensityAnalyzer<UnsignedShortType> analyzer = new SpotIntensityAnalyzer<UnsignedShortType>(img2D, null);
+		analyzer.process(spot);
+
+		assertEquals(TEST_VAL, spot.getFeature(SpotIntensityAnalyzerFactory.MEAN_INTENSITY).doubleValue(), Double.MIN_VALUE);
+		assertEquals(TEST_VAL, spot.getFeature(SpotIntensityAnalyzerFactory.MAX_INTENSITY).doubleValue(), Double.MIN_VALUE);
+		assertEquals(TEST_VAL, spot.getFeature(SpotIntensityAnalyzerFactory.MIN_INTENSITY).doubleValue(), Double.MIN_VALUE);
 	}
 	
 	
@@ -74,13 +73,13 @@ public class BlobDescriptiveStatisticsTest {
 		BlobDescriptiveStatisticsTest test = new BlobDescriptiveStatisticsTest();
 		test.setUp();
 		
-		EllipseNeighborhood<UnsignedShortType, ImgPlus<UnsignedShortType>> disc = 
-				new EllipseNeighborhood<UnsignedShortType, ImgPlus<UnsignedShortType>>(
-						test.img2D, 
-						new long[] { Math.round(CENTER[0]), Math.round(CENTER[1]) }, 
-						new long[] { Math.round(RADIUS), Math.round(RADIUS) });
-		for(UnsignedShortType pixel : disc) 
+
+		Spot tmpSpot = new SpotImp(CENTER);
+		tmpSpot.putFeature(Spot.RADIUS, RADIUS);
+		SpotNeighborhood<UnsignedShortType> disc = new SpotNeighborhood<UnsignedShortType>(tmpSpot, test.img2D);
+		for(UnsignedShortType pixel : disc) {
 			pixel.set(1500);
+		}
 		
 		ij.ImageJ.main(args);
 		net.imglib2.img.display.imagej.ImageJFunctions.show(test.img2D);
@@ -88,3 +87,4 @@ public class BlobDescriptiveStatisticsTest {
 	}
 
 }
+

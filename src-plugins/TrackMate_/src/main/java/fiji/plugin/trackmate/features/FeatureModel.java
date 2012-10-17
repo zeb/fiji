@@ -1,38 +1,38 @@
 package fiji.plugin.trackmate.features;
 
 import static fiji.plugin.trackmate.detection.DetectorKeys.KEY_TARGET_CHANNEL;
+
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import net.imglib2.img.ImagePlusAdapter;
-import net.imglib2.img.ImgPlus;
+import net.imglib2.algorithm.MultiThreaded;
 import net.imglib2.multithreading.SimpleMultiThreading;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
-import net.imglib2.view.HyperSliceImgPlus;
-
 import fiji.plugin.trackmate.Dimension;
 import fiji.plugin.trackmate.Logger;
 import fiji.plugin.trackmate.Settings;
 import fiji.plugin.trackmate.Spot;
 import fiji.plugin.trackmate.SpotCollection;
-import fiji.plugin.trackmate.SpotFeatureAnalyzerFactory;
+import fiji.plugin.trackmate.SpotFeatureAnalyzerProvider;
 import fiji.plugin.trackmate.TrackFeatureAnalyzerFactory;
 import fiji.plugin.trackmate.TrackMateModel;
 import fiji.plugin.trackmate.features.spot.SpotFeatureAnalyzer;
+import fiji.plugin.trackmate.features.spot.SpotFeatureAnalyzerFactory;
 import fiji.plugin.trackmate.features.track.TrackFeatureAnalyzer;
 import fiji.plugin.trackmate.util.TMUtils;
 
 /**
  * This class represents the part of the {@link TrackMateModel} that is in charge 
  * of dealing with spot features and track features.
- * @author Jean-Yves Tinevez, 2011
+ * @author Jean-Yves Tinevez, 2011, 2012
  *
  */
-public class FeatureModel <T extends RealType<T> & NativeType<T>> {
+public class FeatureModel <T extends RealType<T> & NativeType<T>> implements MultiThreaded {
 
 	/*
 	 * FIELDS
@@ -60,10 +60,9 @@ public class FeatureModel <T extends RealType<T> & NativeType<T>> {
 	protected List<Map<String, Double>> trackFeatureValues;
 
 	private TrackMateModel<T> model;
-
-	protected SpotFeatureAnalyzerFactory<T> spotAnalyzerFactory;
-
+	protected SpotFeatureAnalyzerProvider<T> spotAnalyzerProvider;
 	protected TrackFeatureAnalyzerFactory<T> trackAnalyzerFactory;
+	protected int numThreads;
 
 
 	/*
@@ -72,6 +71,7 @@ public class FeatureModel <T extends RealType<T> & NativeType<T>> {
 
 	public FeatureModel(TrackMateModel<T> model) {
 		this.model = model;
+		setNumThreads();
 		// To initialize the spot features with the basic features:
 		setSpotFeatureFactory(null);
 	}
@@ -84,7 +84,7 @@ public class FeatureModel <T extends RealType<T> & NativeType<T>> {
 	/*
 	 * SPOT FEATURES
 	 */
-	
+
 
 	/**
 	 * Calculate given features for the all detected spots of this model,
@@ -117,35 +117,36 @@ public class FeatureModel <T extends RealType<T> & NativeType<T>> {
 	 * at once, spots might received more data than required.
 	 */
 	public void computeSpotFeatures(final SpotCollection toCompute, final List<String> features) {
-
-		/* 0 - Determine what analyzers are needed */
-		final List<SpotFeatureAnalyzer<T>> selectedAnalyzers = new ArrayList<SpotFeatureAnalyzer<T>>(); // We want to keep ordering
-		for (String feature : features) {
-			for (String analyzer : spotAnalyzerFactory.getAvailableSpotFeatureAnalyzers()) {
-				if (spotAnalyzerFactory.getFeatures(analyzer).contains(feature) && !selectedAnalyzers.contains(analyzer)) {
-					selectedAnalyzers.add(spotAnalyzerFactory.getSpotFeatureAnalyzer(analyzer));
+		final HashSet<String> selectedKeys = new HashSet<String>(); // We want to keep ordering
+		for(String feature : features) {
+			for(String analyzer : spotAnalyzerProvider.getAvailableSpotFeatureAnalyzers()) {
+				if (spotAnalyzerProvider.getFeatures(analyzer).contains(feature)) {
+					selectedKeys.add(analyzer);
 				}
 			}
 		}
-		
-		computeSpotFeaturesAgent(toCompute, selectedAnalyzers);
+		List<SpotFeatureAnalyzerFactory<T>> selectedAnalyzers = new ArrayList<SpotFeatureAnalyzerFactory<T>>();
+		for(String key : selectedKeys) {
+			selectedAnalyzers.add(spotAnalyzerProvider.getSpotFeatureAnalyzer(key));
+		}
+		computeSpotFeaturesAgent(toCompute, selectedAnalyzers );
 	}
 
 	/**
 	 * Calculate all features for the given spot collection. Does nothing
-	 * if the {@link #spotAnalyzerFactory} was not set, which is typically the 
+	 * if the {@link #spotAnalyzerProvider} was not set, which is typically the 
 	 * case when the iniModules() method of the plugin has not been called. 
 	 * <p>
 	 * Features are calculated for each spot, using their location, and the raw
 	 * image. 
 	 */
 	public void computeSpotFeatures(final SpotCollection toCompute) {
-		if (null == spotAnalyzerFactory)
+		if (null == spotAnalyzerProvider)
 			return;
-		List<String> analyzerNames = spotAnalyzerFactory.getAvailableSpotFeatureAnalyzers();
-		List<SpotFeatureAnalyzer<T>> spotFeatureAnalyzers = new ArrayList<SpotFeatureAnalyzer<T>>(analyzerNames.size());
+		List<String> analyzerNames = spotAnalyzerProvider.getAvailableSpotFeatureAnalyzers();
+		List<SpotFeatureAnalyzerFactory<T>> spotFeatureAnalyzers = new ArrayList<SpotFeatureAnalyzerFactory<T>>(analyzerNames.size());
 		for (String analyzerName : analyzerNames) {
-			spotFeatureAnalyzers.add(spotAnalyzerFactory.getSpotFeatureAnalyzer(analyzerName));
+			spotFeatureAnalyzers.add(spotAnalyzerProvider.getSpotFeatureAnalyzer(analyzerName));
 		}
 		computeSpotFeaturesAgent(toCompute, spotFeatureAnalyzers);
 	}
@@ -162,8 +163,8 @@ public class FeatureModel <T extends RealType<T> & NativeType<T>> {
 	 * @see #updateFeatures(List) 
 	 * @see #updateFeatures(Spot)
 	 */
-	public void setSpotFeatureFactory(final SpotFeatureAnalyzerFactory<T> spotAnalyzerFactory) {
-		this.spotAnalyzerFactory = spotAnalyzerFactory;
+	public void setSpotFeatureFactory(final SpotFeatureAnalyzerProvider<T> spotAnalyzerFactory) {
+		this.spotAnalyzerProvider = spotAnalyzerFactory;
 
 		spotFeatures = new ArrayList<String>();
 		spotFeatureNames = new HashMap<String, String>();
@@ -255,18 +256,18 @@ public class FeatureModel <T extends RealType<T> & NativeType<T>> {
 	public Map<String, double[]> getSpotFeatureValues() {
 		return TMUtils.getSpotFeatureValues(model.getSpots(), spotFeatures, model.getLogger());
 	}
-	
+
 	/**
 	 * The method in charge of computing spot features with the given {@link SpotFeatureAnalyzer}s, for the
 	 * given {@link SpotCollection}.
 	 * @param toCompute
 	 * @param analyzers
 	 */
-	private void computeSpotFeaturesAgent(final SpotCollection toCompute, final List<SpotFeatureAnalyzer<T>> analyzers) {
+	private void computeSpotFeaturesAgent(final SpotCollection toCompute, final List<SpotFeatureAnalyzerFactory<T>> analyzerFactories) {
 
 		final Settings<T> settings = model.getSettings();
 		final Logger logger = model.getLogger();
-		
+
 		// Can't compute any spot feature without an image to compute on.
 		if (settings.imp == null)
 			return;
@@ -276,47 +277,32 @@ public class FeatureModel <T extends RealType<T> & NativeType<T>> {
 
 		final AtomicInteger ai = new AtomicInteger(0);
 		final AtomicInteger progress = new AtomicInteger(0);
-		final Thread[] threads = SimpleMultiThreading.newThreads();
+		final Thread[] threads = SimpleMultiThreading.newThreads(numThreads);
 
-		
-		/* Prepare stack for use with Imglib. This time, since the spot
-		 * coordinates are with respect to the top-left corner of the image, we
-		 * must not generate a cropped version of the image, but a full
-		 * snapshot. */
-	
-		final ImgPlus<T> img = ImagePlusAdapter.wrapImgPlus(settings.imp);
-		int targetChannel = 0;
+		int tc = 0;
 		if (settings != null && settings.detectorSettings != null) {
 			// Try to extract it from detector settings target channel
 			Map<String, Object> ds = settings.detectorSettings;
 			Object obj = ds.get(KEY_TARGET_CHANNEL);
 			if (null != obj && obj instanceof Integer) {
-				targetChannel = ((Integer) obj) - 1;
+				tc = ((Integer) obj) - 1;
 			}
 		}
-		final ImgPlus<T> imgC = HyperSliceImgPlus.fixChannelAxis(img, targetChannel);
+		final int targetChannel = tc;
 
 		// Prepare the thread array
 		for (int ithread = 0; ithread < threads.length; ithread++) {
 
-			threads[ithread] = new Thread(
-					"TrackMate spot feature calculating thread " + (1 + ithread) + "/" + threads.length) {
+			threads[ithread] = new Thread("TrackMate spot feature calculating thread " + (1 + ithread) + "/" + threads.length) {
 
-				@SuppressWarnings({ "rawtypes", "unchecked" })
 				public void run() {
 
 					for (int index = ai.getAndIncrement(); index < numFrames; index = ai.getAndIncrement()) {
 
 						int frame = frameSet.get(index);
-						List<Spot> spotsThisFrame = toCompute.get(frame);
-						
-						ImgPlus<T> imgCT = HyperSliceImgPlus.fixTimeAxis(imgC, frame);
-
-						for (SpotFeatureAnalyzer analyzer : analyzers) {
-							analyzer.setTarget(imgCT);
-							analyzer.process(spotsThisFrame);
+						for (SpotFeatureAnalyzerFactory<T> factory : analyzerFactories) {
+							factory.getAnalyzer(frame, targetChannel).process();
 						}
-
 
 						logger.setProgress(progress.incrementAndGet() / (float) numFrames);
 					} // Finished looping over frames
@@ -336,7 +322,7 @@ public class FeatureModel <T extends RealType<T> & NativeType<T>> {
 	/*
 	 * TRACK FEATURES
 	 */
-	
+
 
 
 	/**
@@ -372,14 +358,14 @@ public class FeatureModel <T extends RealType<T> & NativeType<T>> {
 
 	public void putTrackFeature(final int trackIndex, final String feature, final Double value) {
 		trackFeatureValues.get(trackIndex).put(feature, value);
-		
+
 		// FIXME We store the found feature name if it is not already in the feature name list 
 		// This happens when we load a model from a file: the feature name list is empty, 
 		// because it is normally initiated from the plugin.
 		if (!trackFeatures.contains(feature)) {
 			trackFeatures.add(feature);
 		}
-		
+
 	}
 
 	public Double getTrackFeature(final int trackIndex, final String feature) {
@@ -416,7 +402,7 @@ public class FeatureModel <T extends RealType<T> & NativeType<T>> {
 		}
 		return featureValues;
 	}
-	
+
 	/**
 	 * Instantiate an empty feature 2D map.
 	 */
@@ -435,6 +421,24 @@ public class FeatureModel <T extends RealType<T> & NativeType<T>> {
 		initFeatureMap();
 		for (String analyzer : trackAnalyzerFactory.getAvailableTrackFeatureAnalyzers())
 			trackAnalyzerFactory.getTrackFeatureAnalyzer(analyzer).process(model);
+	}
+
+
+	@Override
+	public void setNumThreads() {
+		this.numThreads = Runtime.getRuntime().availableProcessors();
+	}
+
+
+	@Override
+	public void setNumThreads(int numThreads) {
+		this.numThreads = numThreads;
+	}
+
+
+	@Override
+	public int getNumThreads() {
+		return numThreads;
 	}
 
 

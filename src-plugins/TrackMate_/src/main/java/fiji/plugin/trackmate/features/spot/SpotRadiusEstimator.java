@@ -1,42 +1,24 @@
 package fiji.plugin.trackmate.features.spot;
 
-import java.util.ArrayList;
-import java.util.HashMap;
+import static fiji.plugin.trackmate.features.spot.SpotRadiusEstimatorFactory.ESTIMATED_DIAMETER;
 
+import java.util.Collection;
+
+import net.imglib2.img.ImgPlus;
 import net.imglib2.type.numeric.RealType;
-import fiji.plugin.trackmate.Dimension;
 import fiji.plugin.trackmate.Spot;
 import fiji.plugin.trackmate.SpotImp;
 import fiji.plugin.trackmate.util.SpotNeighborhood;
 import fiji.plugin.trackmate.util.SpotNeighborhoodCursor;
 
-public class RadiusEstimator<T extends RealType<T>> extends IndependentSpotFeatureAnalyzer<T> {
+public class SpotRadiusEstimator<T extends RealType<T>> extends IndependentSpotFeatureAnalyzer<T> {
 
-	/*
-	 * CONSTANT
-	 */
-	
-	/** The single feature key name that this analyzer computes. */
-	public static final String						ESTIMATED_DIAMETER = "ESTIMATED_DIAMETER";
-	public static final ArrayList<String> 			FEATURES = new ArrayList<String>(1);
-	public static final HashMap<String, String> 	FEATURE_NAMES = new HashMap<String, String>(1);
-	public static final HashMap<String, String> 	FEATURE_SHORT_NAMES = new HashMap<String, String>(1);
-	public static final HashMap<String, Dimension> FEATURE_DIMENSIONS = new HashMap<String, Dimension>(1);
-	static {
-		FEATURES.add(ESTIMATED_DIAMETER);
-		FEATURE_NAMES.put(ESTIMATED_DIAMETER, "Estimated diameter");
-		FEATURE_SHORT_NAMES.put(ESTIMATED_DIAMETER, "Diam.");
-		FEATURE_DIMENSIONS.put(ESTIMATED_DIAMETER, Dimension.LENGTH);
-	}
-	
-	private static final double MIN_DIAMETER_RATIO = 0.1f;
-	private static final double MAX_DIAMETER_RATIO = 2;
-	public static final String NAME = "Spot radius estimator";
-	
-	
 	/*
 	 * FIELDS
 	 */
+
+	private static final double MIN_DIAMETER_RATIO = 0.1f;
+	private static final double MAX_DIAMETER_RATIO = 2;
 	
 	/** The number of different diameters to try. */
 	protected int nDiameters = 20;
@@ -49,10 +31,12 @@ public class RadiusEstimator<T extends RealType<T>> extends IndependentSpotFeatu
 	 * and <code>diameter</code> * {@value #MAX_DIAMETER_RATIO}. The optimum is them calculated by doing an interpolation
 	 * over calculated values.
 	 */
-	public RadiusEstimator() { }	
-
+	public SpotRadiusEstimator(ImgPlus<T> img, Collection<Spot> spots) {
+		super(img, spots);
+	}
+	
 	@Override
-	public void process(final Spot spot) {
+	public final void process(final Spot spot) {
 		
 		// Get diameter array and radius squared
 		final double radius = spot.getFeature(Spot.RADIUS);
@@ -68,20 +52,22 @@ public class RadiusEstimator<T extends RealType<T>> extends IndependentSpotFeatu
 
 		// A tmp spot we will use to iterate around the real spot
 		Spot tmpSpot = new SpotImp(spot);
-		tmpSpot.putFeature(Spot.RADIUS, diameters[nDiameters-2]/2);
+		tmpSpot.putFeature(Spot.RADIUS, diameters[nDiameters-1]/2);
 
 		SpotNeighborhood<T> neighborhood = new SpotNeighborhood<T>(tmpSpot , img);
 		SpotNeighborhoodCursor<T> cursor = neighborhood.cursor();
-		double d2;
+		double d2, val;
 		int i;
 		while(cursor.hasNext())  {
 			cursor.fwd();
 			d2 = cursor.getDistanceSquared();
-			for(i = 0 ; i < nDiameters-1 && d2 > r2[i] ; i++) {}
-			ring_intensities[i] += cursor.get().getRealDouble();
-			ring_volumes[i]++;
+			val = cursor.get().getRealDouble();
+			for(i = 0 ; i < nDiameters && d2 > r2[i] ; i++) {
+				ring_intensities[i] += val;
+				ring_volumes[i]++;
+			}
 		}
-
+		
 		// Calculate mean intensities from ring volumes
 		final double[] mean_intensities = new double[diameters.length];
 		for (int j = 0; j < mean_intensities.length; j++) 
@@ -89,9 +75,9 @@ public class RadiusEstimator<T extends RealType<T>> extends IndependentSpotFeatu
 		
 		// Calculate contrasts as minus difference between outer and inner rings mean intensity
 		final double[] contrasts = new double[diameters.length - 1];
-		for (int j = 0; j < contrasts.length; j++) {
-			contrasts[j] = - ( mean_intensities[j+1] - mean_intensities[j] );
-//			System.out.println(String.format("For diameter %.1f, found contrast of %.1f", diameters[j], contrasts[j])); 
+		for (int j = 0; j < contrasts.length-1; j++) {
+			contrasts[j+1] = - ( mean_intensities[j+1] - mean_intensities[j] );
+//			System.out.println(String.format("For diameter %.1f, found contrast of %.1f", diameters[j], contrasts[j])); //DEBUG
 		}
 		
 		// Find max contrast
