@@ -8,6 +8,7 @@ import java.awt.Component;
 import java.awt.Point;
 import java.awt.event.AdjustmentEvent;
 import java.awt.event.AdjustmentListener;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -43,7 +44,7 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 			"</ul>" +
 			"</html>";
 
-	private List<ImagePlus> imps;
+	private Collection<ImagePlus> imps;
 	Map<ImagePlus, StackWindow> windows = new HashMap<ImagePlus, StackWindow>();
 	Map<ImagePlus, OverlayedImageCanvas> canvases = new HashMap<ImagePlus, OverlayedImageCanvas>();
 	Map<ImagePlus, TransformedSpotOverlay<T>> spotOverlays = new HashMap<ImagePlus, TransformedSpotOverlay<T>>();
@@ -56,12 +57,16 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 	 * CONSTRUCTORS
 	 */
 
-	public MultiViewDisplayer(List<ImagePlus> imps, Map<ImagePlus, AffineTransform3D> transforms, TrackMateModel<T> model) {
+	public MultiViewDisplayer(final Collection<ImagePlus> imps, final Map<ImagePlus, AffineTransform3D> transforms, final TrackMateModel<T> model) {
 		this.imps = imps;
 		this.transforms = transforms;
 		this.model = model;
 	}
 
+	public MultiViewDisplayer(final Map<ImagePlus, AffineTransform3D> transforms, final TrackMateModel<T> model) {
+		this(transforms.keySet(), transforms, model);
+	}
+	
 	/*
 	 * DEFAULT METHODS
 	 */
