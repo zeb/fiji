@@ -400,7 +400,12 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 	private void stepInTime(final ImagePlus imp, final boolean forward) {
 		int currentFrame = imp.getT();
 		// Round down to nearest multiple, plus 1 because in ImagePlus, everything is 1-based
-		int nearestMultiple = ( currentFrame / steppingIncrement ) * steppingIncrement + 1;
+		int nearestMultiple;
+		if (steppingIncrement == 1) {
+			nearestMultiple = currentFrame;
+		} else {
+			nearestMultiple = ( currentFrame / steppingIncrement ) * steppingIncrement + 1;
+		}
 		// Compute target frame
 		int targetFrame = nearestMultiple;
 		if (forward) {

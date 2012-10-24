@@ -18,6 +18,9 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.FocusEvent;
 import java.awt.event.FocusListener;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -25,6 +28,8 @@ import java.util.Set;
 
 import javax.swing.ComboBoxModel;
 import javax.swing.DefaultComboBoxModel;
+import javax.swing.Icon;
+import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
@@ -37,10 +42,14 @@ import javax.swing.border.LineBorder;
 
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
+import fiji.plugin.trackmate.Logger;
 import fiji.plugin.trackmate.TrackMateModel;
+import fiji.plugin.trackmate.TrackMate_;
 import fiji.plugin.trackmate.gui.ActionListenablePanel;
 import fiji.plugin.trackmate.gui.JNumericTextField;
 import fiji.plugin.trackmate.gui.JPanelColorByFeatureGUI;
+import fiji.plugin.trackmate.io.TmXmlWriter;
+import fiji.plugin.trackmate.util.TMUtils;
 import fiji.plugin.trackmate.visualization.TrackMateModelView;
 import fiji.plugin.trackmate.visualization.trackscheme.TrackScheme;
 
@@ -50,7 +59,8 @@ public class MultiViewTrackerConfigPanel <T extends RealType<T> & NativeType<T>>
 	private static final long serialVersionUID = 1L;
 
 	public ActionEvent TRACK_SCHEME_BUTTON_PRESSED 	= new ActionEvent(this, 0, "TrackSchemeButtonPushed");
-
+	
+	private static final Icon SAVE_ICON = new ImageIcon(MultiViewTrackerConfigPanel.class.getResource("page_save.png"));
 	private JButton jButtonShowTrackScheme;
 	private JLabel jLabelTrackDisplayMode;
 	private JComboBox jComboBoxDisplayMode;
@@ -65,18 +75,21 @@ public class MultiViewTrackerConfigPanel <T extends RealType<T> & NativeType<T>>
 	private JPanelColorByFeatureGUI jPanelSpotColor;
 	private JNumericTextField jTextFieldSpotRadius;
 	private JCheckBox jCheckBoxDisplayNames;
+	private JButton saveButton;
 	/** The set of {@link TrackMateModelView} views controlled by this controller.	 */
 	private Set<TrackMateModelView<T>> views = new HashSet<TrackMateModelView<T>>();
 
 	private ActionListenablePanel mainPanel;
-
 	private TrackMateModel<T> model;
+	private Logger logger;
+	private File file;
 
 	/*
 	 * CONSTRUCTOR
 	 */
 	public MultiViewTrackerConfigPanel(TrackMateModel<T> model, MultiViewDisplayer<T> view) {
 		this.model = model;
+		this.logger = model.getLogger();
 		register(view);
 		initGUI();
 	}
@@ -84,6 +97,56 @@ public class MultiViewTrackerConfigPanel <T extends RealType<T> & NativeType<T>>
 	/*
 	 * METHODS
 	 */
+	
+	
+	private void save() {
+		saveButton.setEnabled(false);
+		try {
+
+			logger.log("Saving data...\n", Logger.BLUE_COLOR);
+			if (null == file ) {
+				File folder = new File(System.getProperty("user.dir")).getParentFile().getParentFile();
+				try {
+					file = new File(folder.getPath() + File.separator + model.getSettings().imp.getShortTitle() +".xml");
+				} catch (NullPointerException npe) {
+					file = new File(folder.getPath() + File.separator + "MultiViewTrackerData.xml");
+				}
+			}
+
+			File tmpFile = TMUtils.askForFile(file, this, logger);
+			if (null == tmpFile) {
+				saveButton.setEnabled(true);
+				return;
+			}
+			file = tmpFile;
+			TrackMate_<T> plugin = new TrackMate_<T>(model);
+			TmXmlWriter<T> writer = new TmXmlWriter<T>(plugin);
+			try {
+				writer.appendBasicSettings();
+				writer.appendDetectorSettings();
+				writer.appendTrackerSettings();
+				writer.appendInitialSpotFilter();
+				writer.appendSpotFilters();
+				writer.appendFilteredSpots();
+				writer.appendTracks();
+				writer.appendTrackFilters();
+				writer.appendFilteredTracks();
+				writer.appendSpots();
+				writer.writeToFile(file);
+			} catch (FileNotFoundException e) {
+				logger.error("Error finding file for saving:\n"+e.getMessage());
+				e.printStackTrace();
+			} catch (IOException e) {
+				logger.error("IO error when saving:\n"+e.getMessage());
+				e.printStackTrace();
+			} finally {
+				saveButton.setEnabled(true);
+			}
+
+		}	finally {
+			saveButton.setEnabled(true);
+		}
+	}
 	
 	protected void fireAction(final ActionEvent event) {
 		new Thread() {
@@ -356,13 +419,24 @@ public class MultiViewTrackerConfigPanel <T extends RealType<T> & NativeType<T>>
 				});
 				mainPanel.add(jButtonShowTrackScheme);
 			}
+			{
+				saveButton = new JButton("Save", SAVE_ICON);
+				saveButton.setBounds(185, 431, 99, 30);
+				saveButton.addActionListener(new ActionListener() {
+					@Override
+					public void actionPerformed(ActionEvent arg0) {
+						save();
+					}
+				});
+				mainPanel.add(saveButton);
+				setSize(300, 500);
+				setResizable(false);
+			}
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 		
 		getContentPane().add(mainPanel);
-		setSize(300, 500);
-		setResizable(false);
+		
 	}
-	
 }

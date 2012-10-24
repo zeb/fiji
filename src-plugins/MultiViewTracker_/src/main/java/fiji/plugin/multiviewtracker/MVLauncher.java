@@ -1,10 +1,12 @@
 package fiji.plugin.multiviewtracker;
 
 import fiji.plugin.multiviewtracker.util.TransformUtils;
+import fiji.plugin.trackmate.DetectorProvider;
 import fiji.plugin.trackmate.Logger;
 import fiji.plugin.trackmate.Settings;
 import fiji.plugin.trackmate.TrackMateModel;
 import fiji.plugin.trackmate.TrackMate_;
+import fiji.plugin.trackmate.detection.ManualDetectorFactory;
 import ij.IJ;
 import ij.ImageJ;
 import ij.ImagePlus;
@@ -19,10 +21,6 @@ import java.util.Map;
 
 import javax.swing.JFileChooser;
 
-import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.type.NativeType;
-import net.imglib2.type.numeric.RealType;
-
 import loci.formats.FilePattern;
 import loci.formats.FormatException;
 import loci.plugins.LociImporter;
@@ -31,6 +29,9 @@ import loci.plugins.in.ImagePlusReader;
 import loci.plugins.in.ImportProcess;
 import loci.plugins.in.Importer;
 import loci.plugins.in.ImporterOptions;
+import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.type.NativeType;
+import net.imglib2.type.numeric.RealType;
 
 public class MVLauncher <T extends RealType<T> & NativeType<T>> implements PlugIn {
 
@@ -59,9 +60,13 @@ public class MVLauncher <T extends RealType<T> & NativeType<T>> implements PlugI
 			// Load all the data
 			impMap = openSPIM(file, true, Logger.IJ_LOGGER);
 			
-			// Instantiate model
+			// Instantiate model & setup settings
 			ImagePlus imp1 = impMap.keySet().iterator().next();
 			Settings<T> settings = new Settings<T>(imp1);
+			DetectorProvider<T> provider = new DetectorProvider<T>();
+			provider.select(ManualDetectorFactory.DETECTOR_KEY);
+			settings.detectorFactory = provider.getDetectorFactory();
+			settings.detectorSettings = provider.getDefaultSettings();
 			TrackMate_<T> tm = new TrackMate_<T>(settings);
 			TrackMateModel<T> model = tm.getModel();
 
@@ -71,6 +76,10 @@ public class MVLauncher <T extends RealType<T> & NativeType<T>> implements PlugI
 			logger.log("Rendering viewer.\n");
 			viewer.render();
 			logger.log("Done.\n");
+			
+			// Show controller
+			MultiViewTrackerConfigPanel<T> mtvc = new MultiViewTrackerConfigPanel<T>(model, viewer);
+			mtvc.setVisible(true);
 			
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -89,8 +98,6 @@ public class MVLauncher <T extends RealType<T> & NativeType<T>> implements PlugI
 	private static Map<ImagePlus, AffineTransform3D> openSPIM(File path, boolean useVirtual, final Logger logger) throws IOException, FormatException {
 		LociImporter plugin = new LociImporter();
 		Importer importer = new Importer(plugin);
-		
-		
 		ImporterOptions  options = importer.parseOptions("");
 		
 		options.setId(path.getAbsolutePath());
@@ -108,7 +115,6 @@ public class MVLauncher <T extends RealType<T> & NativeType<T>> implements PlugI
 		// Get the ImagePluses - 1 per channel (or angle)
 		ImagePlus[] imps = importer.readPixels(reader, options, displayHandler);
 		int nImps = imps.length;
-		
 		// Get the file names used to build these imps
 		String[] fileNames = process.getVirtualReader().getUsedFiles();
 		int nFileNames = fileNames.length;
@@ -120,6 +126,7 @@ public class MVLauncher <T extends RealType<T> & NativeType<T>> implements PlugI
 		final String[] blocks 		= fp.getBlocks();
 		final String[] prefixes 	= fp.getPrefixes();
 		final String suffix 		= fp.getSuffix();
+		logger.log("File pattern used is "+fp.getPattern()+".\n");
 
 		importer.finish(process);
 
@@ -142,6 +149,7 @@ public class MVLauncher <T extends RealType<T> & NativeType<T>> implements PlugI
 			logger.log("Have " + nImps + " matching ImagePlus, so everything is fine.\n");
 		} else {
 			logger.error("But have " + nImps + " ImagePlus. Something is wrong.\n");
+			imps[0].show();
 			return null;
 		}
 		
