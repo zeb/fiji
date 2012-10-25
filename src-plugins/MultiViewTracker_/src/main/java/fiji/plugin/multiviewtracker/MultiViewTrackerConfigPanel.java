@@ -42,6 +42,7 @@ import javax.swing.border.LineBorder;
 
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
+import fiji.plugin.multiviewtracker.util.Utils;
 import fiji.plugin.trackmate.Logger;
 import fiji.plugin.trackmate.TrackMateModel;
 import fiji.plugin.trackmate.TrackMate_;
@@ -432,8 +433,10 @@ public class MultiViewTrackerConfigPanel <T extends RealType<T> & NativeType<T>>
 					}
 				});
 				mainPanel.add(saveButton);
+				
 				setSize(300, 500);
 				setResizable(false);
+				setTitle("MultiViewTracker v"+Utils.getAPIVersion());
 			}
 		} catch (Exception e) {
 			e.printStackTrace();

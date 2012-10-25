@@ -10,10 +10,22 @@
 	</parent>
 
 	<artifactId>MultiViewTracker_</artifactId>
-	<version>0.0.1-SNAPSHOT</version>
+	<version>0.1.0</version>
 
 	<name>plugins/MultiViewTracker_.jar</name>
 	<description></description>
+
+	<build>
+		<resources>
+			<resource>
+				<directory>src/main/resources</directory>
+				<filtering>true</filtering>
+				<includes>
+					<include>**/*.prop</include>
+				</includes>
+			</resource>
+		</resources>
+	</build>
 
 	<dependencies>
 		<dependency>
