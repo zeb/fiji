@@ -48,6 +48,7 @@ import fiji.plugin.trackmate.TrackMate_;
 import fiji.plugin.trackmate.gui.ActionListenablePanel;
 import fiji.plugin.trackmate.gui.JNumericTextField;
 import fiji.plugin.trackmate.gui.JPanelColorByFeatureGUI;
+import fiji.plugin.trackmate.gui.TrackMateWizard;
 import fiji.plugin.trackmate.io.TmXmlWriter;
 import fiji.plugin.trackmate.util.TMUtils;
 import fiji.plugin.trackmate.visualization.TrackMateModelView;
@@ -60,7 +61,7 @@ public class MultiViewTrackerConfigPanel <T extends RealType<T> & NativeType<T>>
 
 	public ActionEvent TRACK_SCHEME_BUTTON_PRESSED 	= new ActionEvent(this, 0, "TrackSchemeButtonPushed");
 	
-	private static final Icon SAVE_ICON = new ImageIcon(MultiViewTrackerConfigPanel.class.getResource("page_save.png"));
+	private static final Icon SAVE_ICON = new ImageIcon(TrackMateWizard.class.getResource("images/page_save.png"));
 	private JButton jButtonShowTrackScheme;
 	private JLabel jLabelTrackDisplayMode;
 	private JComboBox jComboBoxDisplayMode;
@@ -120,6 +121,8 @@ public class MultiViewTrackerConfigPanel <T extends RealType<T> & NativeType<T>>
 			}
 			file = tmpFile;
 			TrackMate_<T> plugin = new TrackMate_<T>(model);
+			plugin.initModules();
+			plugin.computeTrackFeatures();
 			TmXmlWriter<T> writer = new TmXmlWriter<T>(plugin);
 			try {
 				writer.appendBasicSettings();

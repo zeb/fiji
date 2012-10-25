@@ -63,12 +63,17 @@ public class MVLauncher <T extends RealType<T> & NativeType<T>> implements PlugI
 			// Instantiate model & setup settings
 			ImagePlus imp1 = impMap.keySet().iterator().next();
 			Settings<T> settings = new Settings<T>(imp1);
+			settings.imageFileName = file.getName();
+			settings.imageFolder = file.getParent();
+			
 			DetectorProvider<T> provider = new DetectorProvider<T>();
 			provider.select(ManualDetectorFactory.DETECTOR_KEY);
 			settings.detectorFactory = provider.getDetectorFactory();
 			settings.detectorSettings = provider.getDefaultSettings();
+
 			TrackMate_<T> tm = new TrackMate_<T>(settings);
 			TrackMateModel<T> model = tm.getModel();
+			model.setLogger(logger);
 
 			// Initialize viewer
 			logger.log("Instantiating viewer.\n");
