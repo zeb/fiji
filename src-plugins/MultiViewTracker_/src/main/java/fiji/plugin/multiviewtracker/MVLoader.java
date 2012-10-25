@@ -1,12 +1,13 @@
 package fiji.plugin.multiviewtracker;
 
 import fiji.plugin.multiviewtracker.util.TransformUtils;
-import fiji.plugin.trackmate.DetectorProvider;
 import fiji.plugin.trackmate.Logger;
 import fiji.plugin.trackmate.Settings;
+import fiji.plugin.trackmate.Spot;
+import fiji.plugin.trackmate.SpotCollection;
 import fiji.plugin.trackmate.TrackMateModel;
 import fiji.plugin.trackmate.TrackMate_;
-import fiji.plugin.trackmate.detection.ManualDetectorFactory;
+import fiji.plugin.trackmate.io.TmXmlReader;
 import ij.IJ;
 import ij.ImageJ;
 import ij.ImagePlus;
@@ -15,11 +16,13 @@ import ij.plugin.PlugIn;
 import java.awt.FileDialog;
 import java.awt.Frame;
 import java.io.File;
+import java.io.FilenameFilter;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
 import javax.swing.JFileChooser;
+import javax.swing.filechooser.FileNameExtensionFilter;
 
 import loci.formats.FilePattern;
 import loci.formats.FormatException;
@@ -33,14 +36,17 @@ import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
 
-public class MVLauncher <T extends RealType<T> & NativeType<T>> implements PlugIn {
+import org.jgrapht.graph.DefaultWeightedEdge;
+import org.jgrapht.graph.SimpleDirectedWeightedGraph;
+
+public class MVLoader <T extends RealType<T> & NativeType<T>> implements PlugIn {
 
 	private static final String ANGLE_STRING = "Angle";
 	private static final String REGISTRATION_SUBFOLDER = "registration";
 	private static final String REGISTRATION_FILE_SUFFIX = ".registration";
 
 
-	public MVLauncher() {}
+	public MVLoader() {}
 
 	@Override
 	public void run(String arg) {
@@ -51,33 +57,62 @@ public class MVLauncher <T extends RealType<T> & NativeType<T>> implements PlugI
 		}
 		
 		Logger logger = Logger.IJ_LOGGER;
-		
 		File file = askForFile(folder, null, logger);
+		if (null == file) {
+			return;
+		}
+		
+		TrackMate_<T> plugin = new TrackMate_<T>();
+		plugin.initModules();
+		
+		TmXmlReader<T> reader = new TmXmlReader<T>(file, plugin, logger);
+		reader.parse();
+		
+		// Build model form xml file
+		TrackMateModel<T> model = plugin.getModel();
+		
+		// Settings
+		Settings<T> settings = reader.getSettings();
+		reader.getDetectorSettings(settings);
+		model.setSettings(settings);
+
+		// Spots
+		SpotCollection allSpots = reader.getAllSpots();
+		SpotCollection filteredSpots = reader.getFilteredSpots();
+		model.setSpots(allSpots, false);
+		model.setFilteredSpots(filteredSpots, false);
+		
+		// Tracks
+		SimpleDirectedWeightedGraph<Spot, DefaultWeightedEdge> graph = reader.readTrackGraph();
+		// Ensures lonely spots get added to the graph too
+		for (Spot spot : model.getFilteredSpots()) {
+			graph.addVertex(spot);
+		}
+		
+		if (null != graph) {
+			model.setGraph(graph);
+		}
+		
+		// Logger
+		model.setLogger(logger);
+		
+		// Load image dataset
+		File imageFile = new File(settings.imageFolder, settings.imageFileName);
 		Map<ImagePlus, AffineTransform3D> impMap;
 
 		try {
 			
 			// Load all the data
-			impMap = openSPIM(file, true, Logger.IJ_LOGGER);
+			impMap = openSPIM(imageFile, true, Logger.IJ_LOGGER);
 			
-			// Instantiate model & setup settings
-			ImagePlus imp1 = impMap.keySet().iterator().next();
-			Settings<T> settings = new Settings<T>(imp1);
-			settings.imageFileName = file.getName();
-			settings.imageFolder = file.getParent();
-			
-			DetectorProvider<T> provider = new DetectorProvider<T>();
-			provider.select(ManualDetectorFactory.DETECTOR_KEY);
-			settings.detectorFactory = provider.getDetectorFactory();
-			settings.detectorSettings = provider.getDefaultSettings();
+			// Configure model & setup settings
+			settings.imp = impMap.keySet().iterator().next();
+			settings.imageFileName = imageFile.getName();
+			settings.imageFolder = imageFile.getParent();
 
-			TrackMate_<T> tm = new TrackMate_<T>(settings);
-			TrackMateModel<T> model = tm.getModel();
-			model.setLogger(logger);
-			
 			// Strip feature model
 			model.getFeatureModel().setSpotFeatureFactory(null);
-
+			
 			// Initialize viewer
 			logger.log("Instantiating viewer.\n");
 			MultiViewDisplayer<T> viewer = new MultiViewDisplayer<T>(impMap.keySet(), impMap, model);
@@ -239,11 +274,18 @@ public class MVLauncher <T extends RealType<T> & NativeType<T>> implements PlugI
 
 		if(IJ.isMacintosh()) {
 			// use the native file dialog on the mac
-			FileDialog dialog =	new FileDialog(parent, "Open a SPIM series", FileDialog.LOAD);
+			FileDialog dialog =	new FileDialog(parent, "Open a MultiViewTracker file", FileDialog.LOAD);
 			if (null != file) {
 				dialog.setDirectory(file.getParent());
 				dialog.setFile(file.getName());
 			}
+			FilenameFilter filter = new FilenameFilter() {
+				@Override
+				public boolean accept(File dir, String name) {
+					return name.endsWith(".xml");
+				}
+			};
+			dialog.setFilenameFilter(filter);
 			dialog.setVisible(true);
 			String selectedFile = dialog.getFile();
 			if (null == selectedFile) {
@@ -252,14 +294,11 @@ public class MVLauncher <T extends RealType<T> & NativeType<T>> implements PlugI
 			}
 			file = new File(dialog.getDirectory(), selectedFile);
 		} else {
-			JFileChooser fileChooser;
-			if (null != file) {
-				fileChooser = new JFileChooser(file.getParent());
-				fileChooser.setSelectedFile(file);
-			} else {
-				fileChooser = new JFileChooser();
-			}
-
+			// use a swing file dialog on the other platforms
+			JFileChooser fileChooser = new JFileChooser(file.getParent());
+			fileChooser.setSelectedFile(file);
+			FileNameExtensionFilter filter = new FileNameExtensionFilter("XML files", "xml");
+			fileChooser.setFileFilter(filter);
 			int returnVal = fileChooser.showOpenDialog(parent);
 			if(returnVal == JFileChooser.APPROVE_OPTION) {
 				file = fileChooser.getSelectedFile();
@@ -279,6 +318,6 @@ public class MVLauncher <T extends RealType<T> & NativeType<T>> implements PlugI
 	public static <T extends RealType<T> & NativeType<T>> void main(String[] args) {
 		ImageJ.main(args);
 		String rootFolder = "E:/Users/JeanYves/Documents/Projects/PTomancak/Data";
-		new MVLauncher<T>().run(rootFolder);
+		new MVLoader<T>().run(rootFolder);
 	}
 }
