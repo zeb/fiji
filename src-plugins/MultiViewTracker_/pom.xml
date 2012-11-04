@@ -10,7 +10,7 @@
 	</parent>
 
 	<artifactId>MultiViewTracker_</artifactId>
-	<version>0.0.1-SNAPSHOT</version>
+	<version>0.1.0</version>
 
 	<name>plugins/MultiViewTracker_.jar</name>
 	<description></description>
@@ -105,12 +105,12 @@
 		<dependency>
 			<groupId>${scifio.groupId}</groupId>
 			<artifactId>bio-formats</artifactId>
-			<version>${scifio.version}</version>
+			<version>4.4.4</version>
 		</dependency>
 		<dependency>
 			<groupId>${scifio.groupId}</groupId>
 			<artifactId>loci_plugins</artifactId>
-			<version>${scifio.version}</version>
+			<version>4.4.4</version>
 		</dependency>
 		<dependency>
 			<groupId>net.imglib2</groupId>
