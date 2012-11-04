@@ -146,7 +146,17 @@ public class TransformedSpotOverlay<T extends RealType<T> & NativeType<T>> imple
 	
 	public void computeSpotColors() {
 		final String feature = (String) displaySettings.get(TrackMateModelView.KEY_SPOT_COLOR_FEATURE);
-		// Get min & max
+		targetColor = new HashMap<Spot, Color>( model.getSpots().getNSpots());
+		
+		// Simple case
+		if (null == feature) {
+			for(Spot spot : model.getSpots()) {
+				targetColor.put(spot, TrackMateModelView.DEFAULT_COLOR);
+			}
+			return;
+		}
+		
+		// Feature based. Get min & max
 		double min = Float.POSITIVE_INFINITY;
 		double max = Float.NEGATIVE_INFINITY;
 		Double val;
@@ -159,11 +169,10 @@ public class TransformedSpotOverlay<T extends RealType<T> & NativeType<T>> imple
 				if (val < min) min = val;
 			}
 		}
-		targetColor = new HashMap<Spot, Color>( model.getSpots().getNSpots());
 		for(Spot spot : model.getSpots()) {
 			val = spot.getFeature(feature);
 			InterpolatePaintScale  colorMap = (InterpolatePaintScale) displaySettings.get(TrackMateModelView.KEY_COLORMAP);
-			if (null == feature || null == val)
+			if (null == val)
 				targetColor.put(spot, TrackMateModelView.DEFAULT_COLOR);
 			else
 				targetColor.put(spot, colorMap .getPaint((val-min)/(max-min)) );
