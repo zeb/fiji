@@ -531,7 +531,18 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 			if (targetSpot.getFeature(Spot.FRAME).intValue() != newSpot.getFeature(Spot.FRAME).intValue()) { // & if they are on different frames
 				model.beginUpdate();
 				try {
-					model.addEdge(targetSpot, newSpot, -1);
+					
+					// Put them right in order: since we use a oriented graph,
+					// we want the source spot to precede in time.
+					Spot earlySpot = targetSpot;
+					Spot lateSpot = newSpot;
+					if (Spot.frameComparator.compare(newSpot, targetSpot) < 0) {
+						earlySpot = newSpot;
+						lateSpot = targetSpot;
+					}
+					
+					// Create link
+					model.addEdge(earlySpot, lateSpot, -1);
 				} finally {
 					model.endUpdate();
 				}
