@@ -6,11 +6,14 @@ import ij.gui.Toolbar;
 
 import java.awt.MouseInfo;
 import java.awt.Point;
+import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.event.MouseMotionListener;
+import java.awt.event.MouseWheelEvent;
+import java.awt.event.MouseWheelListener;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -35,7 +38,7 @@ import fiji.plugin.trackmate.visualization.hyperstack.HyperStackDisplayer;
 import fiji.tool.AbstractTool;
 import fiji.tool.ToolWithOptions;
 
-public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends AbstractTool implements ToolWithOptions, MouseMotionListener, MouseListener, KeyListener, DetectorKeys {
+public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends AbstractTool implements ToolWithOptions, MouseMotionListener, MouseListener, MouseWheelListener, KeyListener, DetectorKeys {
 
 	private static final boolean DEBUG = false;
 
@@ -75,6 +78,11 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 	private Double previousRadius = null;
 	/** The spot currently moved. */
 	private Spot quickEditedSpot;
+	/** A flag that states whether the spot we are currently moving around is moved using keyboard + mouse move 
+	 * (space key and mouse move). If false, it means that we move it around using click and drag. 
+	 */
+	private boolean isEditedSpotMovedWithKeyboard;
+
 	/** 
 	 * If true, the next added spot will be automatically linked to the previously created one, given that 
 	 * the new spot is created in a subsequent frame. 
@@ -148,13 +156,51 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 		displayers.put(imp, displayer);
 	}
 
-	
-	
-	
+
+
+
 	/*
 	 * MOUSE AND MOUSE MOTION
 	 */
 
+
+	@Override
+	public void mousePressed(MouseEvent event) {}
+
+
+	@Override
+	public void mouseReleased(MouseEvent event) {
+		
+		if (isEditedSpotMovedWithKeyboard) 
+			return;
+		
+		final ImagePlus imp = getImagePlus(event);
+		final MultiViewDisplayer<T> displayer = displayers.get(imp);
+		if (null == displayer)
+			return;
+		final TrackMateModel<T> model = displayer.getModel();
+		
+		finishMovingLocalSpot(model);
+		event.consume();
+		
+	}
+
+
+	@Override
+	public void mouseEntered(MouseEvent event) {}
+
+
+	@Override
+	public void mouseExited(MouseEvent event) {}
+
+	@Override
+	public void mouseMoved(MouseEvent event) {
+		if (isEditedSpotMovedWithKeyboard) {
+			moveEditedSpotAround(event);
+		}
+	}
+
+	
 	@Override
 	public void mouseClicked(MouseEvent e) {
 
@@ -179,95 +225,146 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 		final TrackMateModel<T> model = displayer.getModel();
 		Spot target = model.getFilteredSpots().getSpotAt(clickLocation, frame);
 
-		// Change selection
-		// only if we are not currently editing and if target is non null
-		if (target == null)
-			return;
-		updateStatusBar(target, imp.getCalibration().getUnits());
-		final int addToSelectionMask = MouseEvent.SHIFT_DOWN_MASK;
-		if ((e.getModifiersEx() & addToSelectionMask) == addToSelectionMask) { 
-			if (model.getSpotSelection().contains(target)) {
-				model.removeSpotFromSelection(target);
-				IJ.showStatus("Removed spot " + target.getName() + "from selection.");
+		// Check desired behavior
+		switch (e.getClickCount()) {
+
+		case 1: {
+			
+			// Change selection
+			// only if target is non null
+			if (target == null)
+				return;
+			updateStatusBar(target, imp.getCalibration().getUnits());
+			final int addToSelectionMask = MouseEvent.SHIFT_DOWN_MASK;
+			if ((e.getModifiersEx() & addToSelectionMask) == addToSelectionMask) { 
+				
+				if (model.getSpotSelection().contains(target)) {
+					model.removeSpotFromSelection(target);
+					IJ.showStatus("Removed spot " + target.getName() + "from selection.");
+				} else {
+					model.addSpotToSelection(target);
+					IJ.showStatus("Added spot " + target.getName() + " to selection.");
+				}
+				
 			} else {
+				
+				model.clearSpotSelection();
 				model.addSpotToSelection(target);
-				IJ.showStatus("Added spot " + target.getName() + " to selection.");
+				isEditedSpotMovedWithKeyboard = false;
+				storeLocalSpot(model, displayer, imp, e);
+				IJ.showStatus("Selected spot " + target.getName() + ".");
+				
 			}
-		} else {
-			model.clearSpotSelection();
-			model.addSpotToSelection(target);
-			IJ.showStatus("Selected spot " + target.getName() + ".");
+			
+			break;
+		}
+
+
+
+		case 2: {
+			// Edit spot
+
+			// Empty current selection
+			model.clearSelection();
+			if (null == target) {
+				// Create a new spot at mouse location
+				addNewSpot(model, displayer, imp);
+			}
+
+			break;
+		}
 		}
 	}
 
+	
+	
+	@Override
+	public void mouseDragged(MouseEvent event) {
+		if (!isEditedSpotMovedWithKeyboard) {
+			moveEditedSpotAround(event);
+		}
+	}
+	
+	
 
+	/*
+	 * MOUSEWHEEL 
+	 */
 
 	@Override
-	public void mousePressed(MouseEvent e) {}
-
-
-	@Override
-	public void mouseReleased(MouseEvent e) {}
-
-
-	@Override
-	public void mouseEntered(MouseEvent e) {}
-
-
-	@Override
-	public void mouseExited(MouseEvent e) {}
-
-	@Override
-	public void mouseDragged(MouseEvent e) { }
-
-	@Override
-	public void mouseMoved(MouseEvent e) {
-		
-		if (!isEdtingEnabled || quickEditedSpot == null)
+	public void mouseWheelMoved(MouseWheelEvent event) {
+		if (!isEdtingEnabled)
 			return;
 
-		final ImagePlus imp = getImagePlus(e);
+		
+		final ImagePlus imp = getImagePlus(event);
 		final MultiViewDisplayer<T> displayer = displayers.get(imp);
 		if (null == displayer)
 			return;
+		
+		Point mouseLocation = MouseInfo.getPointerInfo().getLocation();
+		SwingUtilities.convertPointFromScreen(mouseLocation, displayer.getCanvas(imp));
+		Spot clickLocation = displayer.getCLickLocation(mouseLocation, imp);
+		final int frame = imp.getFrame() - 1;
+		final TrackMateModel<T> model = displayer.getModel();
+		
+		Spot target = model.getFilteredSpots().getSpotAt(clickLocation, frame);
+		if (null == target)
+			return; // Return if we did not "wheel" inside an existing spot.
+		
+		if (DEBUG) {
+			System.out.println("[MVSpotEditTool] @mouseWheelMoved on spot: " + target);
+		}
+		
+		double radius = target.getFeature(Spot.RADIUS);
+		// We need to get some idea of the current pixel scale, so that our increment is not
+		// out of range for all possible calibration.
+		final double[] transformMatrix = displayer.getTransform(imp).getRowPackedCopy();
+		final double roughScale = Util.computeAverage(new double[] { 
+				transformMatrix[0],  transformMatrix[1], transformMatrix[2], 
+				transformMatrix[4],  transformMatrix[5], transformMatrix[6], 
+				transformMatrix[8],  transformMatrix[9], transformMatrix[10] } );
+		if (event.isShiftDown()) 
+			radius += event.getWheelRotation() / roughScale * COARSE_STEP;
+		else 
+			radius += event.getWheelRotation() / roughScale * FINE_STEP;
 
-		final double ix = displayer.getCanvas(imp).offScreenXD(e.getX()) + 0.5;  // relative to pixel center
-		final double iy = displayer.getCanvas(imp).offScreenYD(e.getY()) + 0.5;
-		final double iz =  imp.getSlice() - 1;
-		final double[] pixelCoords = new double[] { ix, iy, iz };
-
-		final double[] physicalCoords = new double[3];
-		displayer.getTransform(imp).applyInverse(physicalCoords, pixelCoords);
-		quickEditedSpot.setPosition(physicalCoords);
-
+		if (radius <= 0)
+			return;
+		
+		target.putFeature(Spot.RADIUS, radius);
 		imp.updateAndDraw();
-
+		event.consume();
+		
+		updateStatusBar(target, imp.getCalibration().getUnits());
 	}
+
+	
 	
 	/*
 	 * OPTION DIALOG
 	 */
-	
 
 	@Override
 	public void showOptionDialog() {
 		new MVSpotEditToolOptionDialog<T>(this).setVisible(true);
 	}
 
+
 	/*
 	 * KEYLISTENER
 	 */
 
 	@Override
-	public void keyTyped(KeyEvent e) { }
+	public void keyTyped(KeyEvent event) { }
 
 	@Override
-	public void keyPressed(KeyEvent e) { 
+	public void keyPressed(KeyEvent event) { 
 
 		if (DEBUG) 
-			System.out.println("[MVSpotEditTool] keyPressed: "+KeyEvent.getKeyText(e.getKeyCode()));
+			System.out.println("[MVSpotEditTool] keyPressed: "+KeyEvent.getKeyText(event.getKeyCode()));
 
-		final ImagePlus imp = getImagePlus(e);
+		final ImagePlus imp = getImagePlus(event);
 		if (imp == null)
 			return;
 		final MultiViewDisplayer<T> displayer = displayers.get(imp);
@@ -276,7 +373,7 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 
 		TrackMateModel<T> model = displayer.getModel();
 
-		int keycode = e.getKeyCode(); 
+		int keycode = event.getKeyCode(); 
 
 		switch (keycode) {
 
@@ -285,7 +382,7 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 
 			deleteSpotSelection(model);
 			imp.updateAndDraw();
-			e.consume();
+			event.consume();
 			break;
 		}
 
@@ -294,7 +391,7 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 
 			addNewSpot(model, displayer, imp);
 			imp.updateAndDraw();
-			e.consume();
+			event.consume();
 			break;
 		}
 
@@ -303,14 +400,15 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 
 			deleteLocalSpot(model, displayer, imp);
 			imp.updateAndDraw();
-			e.consume();
+			event.consume();
 			break;
 		}
 
 		// Quick move spot under the mouse
 		case KeyEvent.VK_SPACE: {
 
-			storeLocalSpot(model, displayer, imp, e);
+			isEditedSpotMovedWithKeyboard = true;
+			storeLocalSpot(model, displayer, imp, event);
 			break;
 		}
 
@@ -318,39 +416,39 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 		case KeyEvent.VK_Q:
 		case KeyEvent.VK_E: {
 
-			changeRadiusLocalSpot(model, displayer, imp, e);
+			changeRadiusLocalSpot(model, displayer, imp, event);
 			break;
 		}
 
 		// Copy spots from previous frame
 		case KeyEvent.VK_V: {
 
-			if (e.isShiftDown()) {
+			if (event.isShiftDown()) {
 				copySpotsFromPreviousFrame(model, displayer, imp);
-				e.consume();
+				event.consume();
 			}
 			break;
 		}
 
 		case KeyEvent.VK_W: {
-			e.consume(); // consume it: we do not want IJ to close the window
+			event.consume(); // consume it: we do not want IJ to close the window
 			break;
 		}
-		
+
 		// Toggle edit mode on / off
 		case KeyEvent.VK_I: {
 			switchEditingMode();
-			e.consume(); 
+			event.consume(); 
 			break;
 		}
 
 		// Switch auto-linking mode on & off 
 		case KeyEvent.VK_L: {
 			switchLinkingMode();
-			e.consume();
+			event.consume();
 			break;
 		}
-		
+
 		// Move in time stepwise
 		case KeyEvent.VK_O:
 		case KeyEvent.VK_P: {
@@ -359,23 +457,23 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 				forward = false;
 			}
 			stepInTime(imp, forward);
-			e.consume(); 
+			event.consume(); 
 			break;
 		}
-				
+
 
 
 
 		}
 
 	}
-	
-	@Override
-	public void keyReleased(KeyEvent e) { 
-		if (DEBUG) 
-			System.out.println("[MVSpotEditTool] keyReleased: "+e.getKeyChar());
 
-		final ImagePlus imp = getImagePlus(e);
+	@Override
+	public void keyReleased(KeyEvent event) { 
+		if (DEBUG) 
+			System.out.println("[MVSpotEditTool] keyReleased: "+event.getKeyChar());
+
+		final ImagePlus imp = getImagePlus(event);
 		if (imp == null)
 			return;
 		final MultiViewDisplayer<T> displayer = displayers.get(imp);
@@ -384,7 +482,7 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 
 		TrackMateModel<T> model = displayer.getModel();
 
-		switch(e.getKeyCode()) {
+		switch(event.getKeyCode()) {
 		case KeyEvent.VK_SPACE: {
 			finishMovingLocalSpot(model);
 			break;
@@ -393,10 +491,13 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 
 	}	
 
+	
+	
+	
 	/*
 	 * PRIVATE METHODS
 	 */
-	
+
 	private void stepInTime(final ImagePlus imp, final boolean forward) {
 		int currentFrame = imp.getT();
 		// Round down to nearest multiple, plus 1 because in ImagePlus, everything is 1-based
@@ -448,11 +549,11 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 	}
 
 	private void deleteSpotSelection(final TrackMateModel<T> model) {
-		
+
 		if (!isEdtingEnabled) {
 			return;
 		}
-		
+
 		ArrayList<Spot> spotSelection = new ArrayList<Spot>(model.getSpotSelection());
 		ArrayList<DefaultWeightedEdge> edgeSelection = new ArrayList<DefaultWeightedEdge>(model.getEdgeSelection());
 		IJ.showStatus("Deleted selection (" + spotSelection.size() + " spots & " + edgeSelection.size() + " links).");
@@ -471,11 +572,11 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 	}
 
 	private void addNewSpot(final TrackMateModel<T> model, final MultiViewDisplayer<T> displayer, final ImagePlus imp) {
-		
+
 		if (!isEdtingEnabled) {
 			return;
 		}
-		
+
 		// Create and drop a new spot
 		double radius;
 		if (null != previousRadius) {
@@ -507,9 +608,9 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 		newSpot.putFeature(Spot.FRAME, frame);
 		newSpot.putFeature(Spot.RADIUS, radius);
 		// Update image
-//		SpotImageUpdater<T> spotImageUpdater = new SpotImageUpdater<T>(model);
-//		spotImageUpdater.update(newSpot);
-		
+		//		SpotImageUpdater<T> spotImageUpdater = new SpotImageUpdater<T>(model);
+		//		spotImageUpdater.update(newSpot);
+
 		// First the spot
 		model.beginUpdate();
 		try {
@@ -517,13 +618,13 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 		} finally {
 			model.endUpdate();
 		}
-		
+
 
 		// Update model
 		String message;
-		
-		
-		
+
+
+
 		// Then, possibly, the edge. We must do it in a subsequent update, otherwise the model gets confused.
 		final Set<Spot> spotSelection = model.getSpotSelection();
 		if (isLinkingMode && spotSelection.size() == 1) { // if we are in the right mode & if there is only one spot in selection
@@ -531,7 +632,7 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 			if (targetSpot.getFeature(Spot.FRAME).intValue() != newSpot.getFeature(Spot.FRAME).intValue()) { // & if they are on different frames
 				model.beginUpdate();
 				try {
-					
+
 					// Put them right in order: since we use a oriented graph,
 					// we want the source spot to precede in time.
 					Spot earlySpot = targetSpot;
@@ -540,7 +641,7 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 						earlySpot = newSpot;
 						lateSpot = targetSpot;
 					}
-					
+
 					// Create link
 					model.addEdge(earlySpot, lateSpot, -1);
 				} finally {
@@ -562,11 +663,11 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 	}
 
 	private void deleteLocalSpot(final TrackMateModel<T> model, final MultiViewDisplayer<T> displayer, final ImagePlus imp) {
-		
+
 		if (!isEdtingEnabled) {
 			return;
 		}
-		
+
 		Point mouseLocation = MouseInfo.getPointerInfo().getLocation();
 		SwingUtilities.convertPointFromScreen(mouseLocation, displayer.getCanvas(imp));
 		int frame = imp.getFrame() - 1;
@@ -585,12 +686,12 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 		IJ.showStatus("Removed spot " + target + " from frame " + frame + ".");
 	}
 
-	private void storeLocalSpot(final TrackMateModel<T> model, final MultiViewDisplayer<T> displayer, final ImagePlus imp, final KeyEvent event) {
-		
+	private void storeLocalSpot(final TrackMateModel<T> model, final MultiViewDisplayer<T> displayer, final ImagePlus imp, final InputEvent event) {
+
 		if (!isEdtingEnabled) {
 			return;
 		}
-		
+
 		Point mouseLocation = MouseInfo.getPointerInfo().getLocation();
 		SwingUtilities.convertPointFromScreen(mouseLocation, displayer.getCanvas(imp));
 		if (null == quickEditedSpot) {
@@ -603,16 +704,38 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 		}
 		event.consume();
 	}
+	
+	private void moveEditedSpotAround(MouseEvent event) {
+		if (!isEdtingEnabled || quickEditedSpot == null)
+			return;
+
+		final ImagePlus imp = getImagePlus(event);
+		final MultiViewDisplayer<T> displayer = displayers.get(imp);
+		if (null == displayer)
+			return;
+
+		final double ix = displayer.getCanvas(imp).offScreenXD(event.getX()) + 0.5;  // relative to pixel center
+		final double iy = displayer.getCanvas(imp).offScreenYD(event.getY()) + 0.5;
+		final double iz =  imp.getSlice() - 1;
+		final double[] pixelCoords = new double[] { ix, iy, iz };
+
+		final double[] physicalCoords = new double[3];
+		displayer.getTransform(imp).applyInverse(physicalCoords, pixelCoords);
+		quickEditedSpot.setPosition(physicalCoords);
+		
+		event.consume();
+		imp.updateAndDraw();
+	}
 
 	private void finishMovingLocalSpot(final TrackMateModel<T> model) {
 
 		if (!isEdtingEnabled) {
 			return;
 		}
-		
-//		SpotImageUpdater<T> spotImageUpdater = new SpotImageUpdater<T>(model);
-//		spotImageUpdater.update(quickEditedSpot);
-		
+
+		//		SpotImageUpdater<T> spotImageUpdater = new SpotImageUpdater<T>(model);
+		//		spotImageUpdater.update(quickEditedSpot);
+
 		if (null == quickEditedSpot)
 			return;
 		model.beginUpdate();
@@ -633,11 +756,11 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 	}
 
 	private void changeRadiusLocalSpot(final TrackMateModel<T> model, final MultiViewDisplayer<T> displayer, final ImagePlus imp, final KeyEvent event) {
-		
+
 		if (!isEdtingEnabled) {
 			return;
 		}
-		
+
 		Point mouseLocation = MouseInfo.getPointerInfo().getLocation();
 		SwingUtilities.convertPointFromScreen(mouseLocation, displayer.getCanvas(imp));
 		int frame = imp.getFrame() - 1;
@@ -673,9 +796,9 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 		previousRadius = radius;
 		target.putFeature(Spot.RADIUS, radius);
 		// Update image
-//		SpotImageUpdater<T> spotImageUpdater = new SpotImageUpdater<T>(model);
-//		spotImageUpdater.update(target);
-		
+		//		SpotImageUpdater<T> spotImageUpdater = new SpotImageUpdater<T>(model);
+		//		spotImageUpdater.update(target);
+
 		model.beginUpdate();
 		try {
 			model.updateFeatures(target);
@@ -691,11 +814,11 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 	}
 
 	private void copySpotsFromPreviousFrame(final TrackMateModel<T> model, final MultiViewDisplayer<T> displayer, final ImagePlus imp) {
-		
+
 		if (!isEdtingEnabled) {
 			return;
 		}
-		
+
 		int currentFrame = imp.getFrame() - 1;
 		if (currentFrame > 0) {
 
@@ -713,7 +836,7 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 
 			IJ.showStatus("Copied " + previousFrameSpots.size() + " spots from frame " + (currentFrame-1) + " to frame " + currentFrame + ".");
 
-//			SpotImageUpdater<T> spotImageUpdater = new SpotImageUpdater<T>(model);
+			//			SpotImageUpdater<T> spotImageUpdater = new SpotImageUpdater<T>(model);
 			for(Spot spot : previousFrameSpots) {
 				Spot newSpot = new SpotImp(spot, spot.getName());
 				// Deal with features
@@ -728,10 +851,10 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 				newSpot.putFeature(Spot.POSITION_T, spot.getFeature(Spot.POSITION_T) + dt);
 				newSpot.putFeature(Spot.FRAME, spot.getFeature(Spot.FRAME) + 1);
 				// Update image
-//				spotImageUpdater.update(newSpot);
+				//				spotImageUpdater.update(newSpot);
 				copiedSpots.add(newSpot);
 			}
-			
+
 
 			model.beginUpdate();
 			try {
