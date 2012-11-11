@@ -52,6 +52,10 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 
 	private MVSpotEditTool<T> editTool;
 	private Map<ImagePlus, AffineTransform3D> transforms;
+	/** The updater instance in charge of setting the views Z & T when {@link #centerViewOn(Spot)} is called. */
+	private DisplayUpdater updater = new DisplayUpdater();
+	/** The spot to center on when {@link #centerViewOn(Spot)} is called asynchronously. */
+	private Spot spotToCenterOn;
 
 	/*
 	 * CONSTRUCTORS
@@ -66,7 +70,7 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 	public MultiViewDisplayer(final Map<ImagePlus, AffineTransform3D> transforms, final TrackMateModel<T> model) {
 		this(transforms.keySet(), transforms, model);
 	}
-	
+
 	/*
 	 * DEFAULT METHODS
 	 */
@@ -83,11 +87,11 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 		double[] physicalCoords = new double[3];
 		double[] pixelCoords = new double[] { ix, iy, iz };
 		transforms.get(imp).applyInverse(physicalCoords, pixelCoords);
-		
+
 		if (DEBUG) {
 			System.out.println("[MultiViewDisplayer] Got a mouse click on "+Util.printCoordinates(pixelCoords)+". Converted it to physical coords: "+Util.printCoordinates(physicalCoords));
 		}
-		
+
 		return new SpotImp(physicalCoords);
 	}
 
@@ -119,7 +123,7 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 	/*
 	 * PUBLIC METHODS
 	 */
-	
+
 	@Override
 	public void modelChanged(TrackMateModelChangeEvent event) {
 		if (DEBUG)
@@ -167,33 +171,29 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 			redoOverlay = true;
 			break;
 		}
-		
+
 		if (DEBUG)
 			System.out.println("[MultiViewDisplayer] Do I need to refresh all views? "+redoOverlay);
-		
+
 		if (redoOverlay)
 			refresh();
 	}
 
 	@Override
-	public void centerViewOn(Spot spot) {
-		int frame = - 1;
-		for(int i : model.getFilteredSpots().keySet()) {
-			List<Spot> spotThisFrame = model.getFilteredSpots().get(i);
-			if (spotThisFrame.contains(spot)) {
-				frame = i;
-				break;
-			}
-		}
-		if (frame == -1)
-			return;
-		for(ImagePlus imp : imps) {
+	public void centerViewOn(final Spot spot) {
+		spotToCenterOn = spot;
+		updater.doUpdate();
+	}
+	
+	private final void refreshCenterViewOnSpot() {
+		for (ImagePlus imp : imps) {
 			double[] physicalCoords = new double[3];
-			spot.localize(physicalCoords);
+			spotToCenterOn.localize(physicalCoords);
 			double[] pixelCoords =  new double[3];
 			transforms.get(imp).apply(physicalCoords, pixelCoords);
 			long z = Math.round(pixelCoords[2]) + 1;
-			imp.setPosition(1, (int) z, frame+1);
+			int frame = spotToCenterOn.getFeature(Spot.FRAME).intValue();
+			imp.setPosition(1, (int) z, frame +1);
 		}
 	}
 
@@ -202,16 +202,16 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 		clear();
 
 		model.addTrackMateModelChangeListener(this);
-		
+
 		for (ImagePlus imp : imps) {
 			imp.setOpenAsHyperStack(true);
-			
+
 			TransformedSpotOverlay<T> spotOverlay = createSpotOverlay(imp, transforms.get(imp), model, displaySettings);
 			spotOverlays.put(imp, spotOverlay);
-			
+
 			TransformedTrackOverlay<T> trackOverlay = createTrackOverlay(imp, transforms.get(imp), model, displaySettings);
 			trackOverlays.put(imp, trackOverlay);
-			
+
 			OverlayedImageCanvas canvas = new OverlayedImageCanvas(imp);
 			canvases.put(imp, canvas);
 			canvas.addOverlay(spotOverlay);
@@ -220,18 +220,18 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 			StackWindow window = new StackWindow(imp, canvas);
 			window.setVisible(true);
 			windows.put(imp,  window);
-			
+
 			// Add a listener for time slider
 			Component[] cs = window.getComponents();
 			if (cs.length > 2) {
 				((ScrollbarWithLabel) cs[2]).addAdjustmentListener (this); // We assume the 2nd is for time
 			}
-			
+
 		}
-		
+
 		model.addTrackMateSelectionChangeListener(this);
 		registerEditTool();
-		
+
 	}
 
 	@Override
@@ -262,7 +262,7 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 	public String getInfoText() {
 		return INFO_TEXT;
 	}
-	
+
 	@Override
 	public String toString() {
 		return NAME;
@@ -326,10 +326,71 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 	public void adjustmentValueChanged(AdjustmentEvent event) {
 		setViewsT(event.getValue());
 	}
-	
+
 	public void setViewsT(final int frame) {
 		for (ImagePlus imp : imps) {
 			imp.setT(frame);
 		}
 	}
+
+
+
+	/*
+	 * PRIVATE CLASSES
+	 */
+
+
+	/**
+	 * This is a helper class modified after a class by Albert Cardona
+	 */
+	private class DisplayUpdater extends Thread {
+		long request = 0;
+
+		// Constructor autostarts thread
+		DisplayUpdater() {
+			super("TrackMate displayer thread");
+			setPriority(Thread.NORM_PRIORITY);
+			start();
+		}
+
+		void doUpdate() {
+			if (isInterrupted())
+				return;
+			synchronized (this) {
+				request++;
+				notify();
+			}
+		}
+
+		void quit() {
+			interrupt();
+			synchronized (this) {
+				notify();
+			}
+		}
+
+		public void run() {
+			while (!isInterrupted()) {
+				try {
+					final long r;
+					synchronized (this) {
+						r = request;
+					}
+					// Call displayer update from this thread
+					if (r > 0)
+						refreshCenterViewOnSpot(); 
+					synchronized (this) {
+						if (r == request) {
+							request = 0; // reset
+							wait();
+						}
+						// else loop through to update again
+					}
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+			}
+		}
+	}
+
 }
