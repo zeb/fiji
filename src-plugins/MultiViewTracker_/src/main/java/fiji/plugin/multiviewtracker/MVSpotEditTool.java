@@ -293,7 +293,7 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 
 	@Override
 	public void mouseWheelMoved(MouseWheelEvent event) {
-		if (!isEdtingEnabled)
+		if (!isEdtingEnabled || !event.isShiftDown())
 			return;
 
 		
@@ -324,10 +324,7 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 				transformMatrix[0],  transformMatrix[1], transformMatrix[2], 
 				transformMatrix[4],  transformMatrix[5], transformMatrix[6], 
 				transformMatrix[8],  transformMatrix[9], transformMatrix[10] } );
-		if (event.isShiftDown()) 
-			radius += event.getWheelRotation() / roughScale * COARSE_STEP;
-		else 
-			radius += event.getWheelRotation() / roughScale * FINE_STEP;
+		radius += event.getWheelRotation() / roughScale * FINE_STEP;
 
 		if (radius <= 0)
 			return;
