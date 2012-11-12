@@ -109,7 +109,9 @@ public class MultiViewTrackerConfigPanel <T extends RealType<T> & NativeType<T>>
 			if (null == file ) {
 				File folder = new File(System.getProperty("user.dir")).getParentFile().getParentFile();
 				try {
-					file = new File(folder.getPath() + File.separator + model.getSettings().imp.getShortTitle() +".xml");
+					String name =  model.getSettings().imp.getShortTitle();
+					String newName = name.replaceAll("<[0-9:-]+>", "X");
+					file = new File(folder.getPath() + File.separator + newName +".xml");
 				} catch (NullPointerException npe) {
 					file = new File(folder.getPath() + File.separator + "MultiViewTrackerData.xml");
 				}
