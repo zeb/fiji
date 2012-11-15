@@ -447,14 +447,26 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 		}
 
 		// Move in time stepwise
-		case KeyEvent.VK_O:
-		case KeyEvent.VK_P: {
+		case KeyEvent.VK_LEFT:
+		case KeyEvent.VK_RIGHT: {
 			boolean forward = true;
-			if (keycode == KeyEvent.VK_O) {
+			if (keycode == KeyEvent.VK_LEFT) {
 				forward = false;
 			}
 			stepInTime(imp, forward);
 			event.consume(); 
+			break;
+		}
+		
+		// Move in Z
+		case KeyEvent.VK_UP: 
+		case KeyEvent.VK_DOWN: {
+			boolean up = true;
+			if (keycode == KeyEvent.VK_DOWN) {
+				up = false;
+			}
+			stepInZ(imp, up);
+			event.consume();
 			break;
 		}
 
@@ -494,6 +506,20 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 	/*
 	 * PRIVATE METHODS
 	 */
+	
+	private void stepInZ(final ImagePlus imp, final boolean up) {
+		int targetZ  = imp.getZ();
+		// Compute target frame
+		if (up) {
+			targetZ += 1;
+		} else {
+			targetZ -= 1;
+		}
+		// Set target T for all views
+		if (targetZ > 0 && targetZ <= imp.getNSlices()) {
+			displayers.get(imp).setViewsZ(targetZ);
+		}
+	}
 
 	private void stepInTime(final ImagePlus imp, final boolean forward) {
 		int currentFrame = imp.getT();

@@ -332,7 +332,12 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 			imp.setT(frame);
 		}
 	}
-
+	
+	public void setViewsZ(int targetZ) {
+		for (ImagePlus imp : imps) {
+			imp.setZ(targetZ);
+		}
+	}
 
 
 	/*
@@ -392,5 +397,6 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 			}
 		}
 	}
+
 
 }
