@@ -52,10 +52,19 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 
 	private MVSpotEditTool<T> editTool;
 	private Map<ImagePlus, AffineTransform3D> transforms;
+	
 	/** The updater instance in charge of setting the views Z & T when {@link #centerViewOn(Spot)} is called. */
-	private DisplayUpdater updater = new DisplayUpdater();
+	private SetViewOnSpotUpdater spotViewUpdater = new SetViewOnSpotUpdater();
 	/** The spot to center on when {@link #centerViewOn(Spot)} is called asynchronously. */
 	private Spot spotToCenterOn;
+	/** The updater instance in charge of setting the views in T when {@link #setT(int)} is called. */
+	private TargetTUpdater targetTUpdater = new TargetTUpdater();
+	/** The frame to move to asynchronously when {@link #setT(int)} is called. */ 
+	private int targetT;
+	/** The updater instance in charge of setting the views in T when {@link #moveZOf(int, ImagePlus)} is called. */
+	private TargetZUpdater targetZUpdater = new TargetZUpdater();
+	private Map<ImagePlus, Integer> targetZMap;
+	private ImagePlus targetImpForZUpdate;
 
 	/*
 	 * CONSTRUCTORS
@@ -65,6 +74,11 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 		this.imps = imps;
 		this.transforms = transforms;
 		this.model = model;
+		this.targetZMap = new HashMap<ImagePlus, Integer>(imps.size());
+		for (ImagePlus imagePlus : imps) {
+			targetZMap.put(imagePlus, imagePlus.getZ());
+		}
+		this.targetT = imps.iterator().next().getT();
 	}
 
 	public MultiViewDisplayer(final Map<ImagePlus, AffineTransform3D> transforms, final TrackMateModel<T> model) {
@@ -182,7 +196,7 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 	@Override
 	public void centerViewOn(final Spot spot) {
 		spotToCenterOn = spot;
-		updater.doUpdate();
+		spotViewUpdater.doUpdate();
 	}
 	
 	private final void refreshCenterViewOnSpot() {
@@ -196,6 +210,23 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 			imp.setPosition(1, (int) z, frame +1);
 		}
 	}
+	
+	private final void refreshTargetT() {
+		for (ImagePlus imp : imps) {
+			imp.setT(targetT);
+		}
+	}
+	
+	private final void refreshTargetZ() {
+		if (targetZMap.containsKey(targetImpForZUpdate)) {
+			targetImpForZUpdate.setZ( targetZMap.get(targetImpForZUpdate) );
+		}
+	}
+	
+	public int getT() {
+		return targetT;
+	}
+
 
 	@Override
 	public void render() {
@@ -324,36 +355,45 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 	 */
 	@Override
 	public void adjustmentValueChanged(AdjustmentEvent event) {
-		setViewsT(event.getValue());
+		setT(event.getValue());
 	}
 
-	public void setViewsT(final int frame) {
-		for (ImagePlus imp : imps) {
-			imp.setT(frame);
-		}
+	public void setT(final int targetT) {
+		this.targetT = targetT;
+		targetTUpdater.doUpdate();
 	}
 	
-	public void setViewsZ(int targetZ) {
-		for (ImagePlus imp : imps) {
-			imp.setZ(targetZ);
+	public void moveZOf(ImagePlus targetImp, int inc) {
+		targetImpForZUpdate = targetImp;
+		if (targetZMap.containsKey(targetImpForZUpdate)) {
+			int currentZ = targetZMap.get(targetImpForZUpdate);
+			int targetZ = currentZ + inc;
+			if (targetZ >= 1 && targetZ <= targetImpForZUpdate.getNSlices()) {
+				targetZMap.put(targetImpForZUpdate, targetZ);
+				targetZUpdater.doUpdate();
+			}
 		}
 	}
+
+
 
 
 	/*
 	 * PRIVATE CLASSES
+	 * Welcome to code duplication land. 
 	 */
 
 
 	/**
-	 * This is a helper class modified after a class by Albert Cardona
+	 * Helper class that buffers request to set the view on a  particular spot.
+	 * @see MultiViewDisplayer#spotToCenterOn
 	 */
-	private class DisplayUpdater extends Thread {
+	private class SetViewOnSpotUpdater extends Thread {
 		long request = 0;
 
 		// Constructor autostarts thread
-		DisplayUpdater() {
-			super("TrackMate displayer thread");
+		SetViewOnSpotUpdater() {
+			super("TrackMate focus on spot thread");
 			setPriority(Thread.NORM_PRIORITY);
 			start();
 		}
@@ -397,6 +437,115 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 			}
 		}
 	}
+	
+	
+	
+	/**
+	 * Helper class that buffers request to set the view on a time point.
+	 * @see MultiViewDisplayer#targetT
+	 */
+	private class TargetTUpdater extends Thread {
+		long request = 0;
 
+		// Constructor autostarts thread
+		TargetTUpdater() {
+			super("TrackMate targetT thread");
+			setPriority(Thread.NORM_PRIORITY);
+			start();
+		}
+
+		void doUpdate() {
+			if (isInterrupted())
+				return;
+			synchronized (this) {
+				request++;
+				notify();
+			}
+		}
+
+		void quit() {
+			interrupt();
+			synchronized (this) {
+				notify();
+			}
+		}
+
+		public void run() {
+			while (!isInterrupted()) {
+				try {
+					final long r;
+					synchronized (this) {
+						r = request;
+					}
+					// Call displayer update from this thread
+					if (r > 0)
+						refreshTargetT(); 
+					synchronized (this) {
+						if (r == request) {
+							request = 0; // reset
+							wait();
+						}
+						// else loop through to update again
+					}
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+			}
+		}
+	}
+	
+	/**
+	 * Helper class that buffers request to set the view on a time point.
+	 * @see MultiViewDisplayer#targetT
+	 */
+	private class TargetZUpdater extends Thread {
+		long request = 0;
+
+		// Constructor autostarts thread
+		TargetZUpdater() {
+			super("TrackMate targetZ thread");
+			setPriority(Thread.NORM_PRIORITY);
+			start();
+		}
+
+		void doUpdate() {
+			if (isInterrupted())
+				return;
+			synchronized (this) {
+				request++;
+				notify();
+			}
+		}
+
+		void quit() {
+			interrupt();
+			synchronized (this) {
+				notify();
+			}
+		}
+
+		public void run() {
+			while (!isInterrupted()) {
+				try {
+					final long r;
+					synchronized (this) {
+						r = request;
+					}
+					// Call displayer update from this thread
+					if (r > 0)
+						refreshTargetZ(); 
+					synchronized (this) {
+						if (r == request) {
+							request = 0; // reset
+							wait();
+						}
+						// else loop through to update again
+					}
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+			}
+		}
+	}
 
 }

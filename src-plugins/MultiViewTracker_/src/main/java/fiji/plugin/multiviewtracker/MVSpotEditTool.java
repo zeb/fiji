@@ -508,21 +508,16 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 	 */
 	
 	private void stepInZ(final ImagePlus imp, final boolean up) {
-		int targetZ  = imp.getZ();
-		// Compute target frame
+		int inc = -1;
 		if (up) {
-			targetZ += 1;
-		} else {
-			targetZ -= 1;
+			inc = 1;
 		}
 		// Set target T for all views
-		if (targetZ > 0 && targetZ <= imp.getNSlices()) {
-			displayers.get(imp).setViewsZ(targetZ);
-		}
+		displayers.get(imp).moveZOf(imp, inc);
 	}
 
 	private void stepInTime(final ImagePlus imp, final boolean forward) {
-		int currentFrame = imp.getT();
+		int currentFrame = displayers.get(imp).getT();
 		// Round down to nearest multiple, plus 1 because in ImagePlus, everything is 1-based
 		int nearestMultiple;
 		if (steppingIncrement == 1) {
@@ -541,7 +536,7 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 		}
 		// Set target T for all views
 		if (targetFrame >0 && targetFrame <= imp.getNFrames()) {
-			displayers.get(imp).setViewsT(targetFrame);
+			displayers.get(imp).setT(targetFrame);
 		}
 	}
 
