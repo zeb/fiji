@@ -525,7 +525,7 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 		if (steppingIncrement == 1) {
 			nearestMultiple = currentFrame;
 		} else {
-			nearestMultiple = ( currentFrame / steppingIncrement ) * steppingIncrement + 1;
+			nearestMultiple = ( currentFrame / steppingIncrement ) * steppingIncrement;
 		}
 		// Compute target frame
 		int targetFrame = nearestMultiple;
