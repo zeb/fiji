@@ -156,9 +156,11 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 		displayers.put(imp, displayer);
 	}
 
-
-
-
+	public void quit() {
+		unregisterTool();
+	}
+	
+	
 	/*
 	 * MOUSE AND MOUSE MOTION
 	 */

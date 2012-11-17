@@ -66,6 +66,8 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 	private ViewRefresher targetZUpdater;
 	private Map<ImagePlus, Integer> targetZMap;
 	private ImagePlus targetImpForZUpdate;
+	private final AdjustmentListener zAdjustementListener;
+	private final AdjustmentListener timeAdjustmentListener;
 
 	/*
 	 * CONSTRUCTORS
@@ -95,7 +97,34 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 			@Override
 			public void refresh() { refreshTargetZ(); }
 		});
-
+		// Prepare Z adjustment listener - will be used in render()
+		this.zAdjustementListener = new AdjustmentListener() {
+			@Override
+			public void adjustmentValueChanged(final AdjustmentEvent event) {
+				new Thread() {
+					@Override
+					public void run() {
+						ImagePlus source = ((ImageWindow) ((ScrollbarWithLabel) event.getSource()).getParent() ).getImagePlus();
+						try {
+							Thread.sleep(500);
+							targetZMap.put(source, event.getValue());
+						} catch (InterruptedException e) { 	}
+					}
+				}.start();					
+			}
+		};
+		// Prepare T adjustment listener - will be used in render()
+		this.timeAdjustmentListener = new AdjustmentListener() {
+			@Override
+			public void adjustmentValueChanged(final AdjustmentEvent event) {
+				new Thread() {
+					@Override
+					public void run() {
+						setT(event.getValue());
+					}
+				}.start();					
+			}
+		};
 	}
 
 	public MultiViewDisplayer(final Map<ImagePlus, AffineTransform3D> transforms, final TrackMateModel<T> model) {
@@ -155,6 +184,7 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 	 * PUBLIC METHODS
 	 */
 
+	
 	@Override
 	public void modelChanged(TrackMateModelChangeEvent event) {
 		if (DEBUG)
@@ -245,6 +275,24 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 	}
 
 
+	public void quit() {
+		spotViewUpdater.quit();
+		targetTUpdater.quit();
+		targetZUpdater.quit();
+		model.removeTrackMateSelectionChangeListener(this);
+		model.removeTrackMateModelChangeListener(this);
+		for (ImagePlus imp : imps) {
+			// Remove listeners for the sliders
+			Component[] cs = imp.getWindow().getComponents();
+			((ScrollbarWithLabel) cs[1]).removeAdjustmentListener ( zAdjustementListener ); 
+			if (cs.length > 2) {
+				((ScrollbarWithLabel) cs[2]).removeAdjustmentListener ( timeAdjustmentListener );
+			}
+			editTool.quit();
+		}
+		
+	}
+	
 	@Override
 	public void render() {
 		clear();
@@ -278,37 +326,13 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 			 * too quick to avoid clashes.
 			 * 
 			 */
-			((ScrollbarWithLabel) cs[1]).addAdjustmentListener ( new AdjustmentListener() {
-				@Override
-				public void adjustmentValueChanged(final AdjustmentEvent event) {
-					new Thread() {
-						@Override
-						public void run() {
-							ImagePlus source = ((ImageWindow) ((ScrollbarWithLabel) event.getSource()).getParent() ).getImagePlus();
-							try {
-								Thread.sleep(500);
-								targetZMap.put(source, event.getValue());
-							} catch (InterruptedException e) { 	}
-						}
-					}.start();					
-				}
-			}); 
+			((ScrollbarWithLabel) cs[1]).addAdjustmentListener ( zAdjustementListener ); 
 			
 			/*
 			 * When the user chnage the T with the slider, we change the T for all other views.
 			 */
 			if (cs.length > 2) {
-				((ScrollbarWithLabel) cs[2]).addAdjustmentListener ( new AdjustmentListener() {
-					@Override
-					public void adjustmentValueChanged(final AdjustmentEvent event) {
-						new Thread() {
-							@Override
-							public void run() {
-								setT(event.getValue());
-							}
-						}.start();					
-					}
-				}); // We assume the 2nd is for time
+				((ScrollbarWithLabel) cs[2]).addAdjustmentListener ( timeAdjustmentListener ); // We assume the 2nd is for time
 			}
 
 		}
