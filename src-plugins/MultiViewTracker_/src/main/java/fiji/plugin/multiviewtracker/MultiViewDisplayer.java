@@ -1,6 +1,7 @@
 package fiji.plugin.multiviewtracker;
 
 import ij.ImagePlus;
+import ij.gui.ImageWindow;
 import ij.gui.ScrollbarWithLabel;
 import ij.gui.StackWindow;
 
@@ -30,7 +31,7 @@ import fiji.plugin.trackmate.visualization.AbstractTrackMateModelView;
 import fiji.plugin.trackmate.visualization.TrackMateModelView;
 import fiji.util.gui.OverlayedImageCanvas;
 
-public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends AbstractTrackMateModelView<T> implements AdjustmentListener  {
+public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends AbstractTrackMateModelView<T>  {
 
 	private static final boolean DEBUG = false;
 	public static final String NAME = "MultiView Displayer";
@@ -52,17 +53,17 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 
 	private MVSpotEditTool<T> editTool;
 	private Map<ImagePlus, AffineTransform3D> transforms;
-	
+
 	/** The updater instance in charge of setting the views Z & T when {@link #centerViewOn(Spot)} is called. */
-	private SetViewOnSpotUpdater spotViewUpdater = new SetViewOnSpotUpdater();
+	private ViewRefresher spotViewUpdater;
 	/** The spot to center on when {@link #centerViewOn(Spot)} is called asynchronously. */
 	private Spot spotToCenterOn;
 	/** The updater instance in charge of setting the views in T when {@link #setT(int)} is called. */
-	private TargetTUpdater targetTUpdater = new TargetTUpdater();
+	private ViewRefresher targetTUpdater;
 	/** The frame to move to asynchronously when {@link #setT(int)} is called. */ 
 	private int targetT;
 	/** The updater instance in charge of setting the views in T when {@link #moveZOf(int, ImagePlus)} is called. */
-	private TargetZUpdater targetZUpdater = new TargetZUpdater();
+	private ViewRefresher targetZUpdater;
 	private Map<ImagePlus, Integer> targetZMap;
 	private ImagePlus targetImpForZUpdate;
 
@@ -79,6 +80,22 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 			targetZMap.put(imagePlus, imagePlus.getZ());
 		}
 		this.targetT = imps.iterator().next().getT();
+		// Set up spot view refresher
+		this.spotViewUpdater = new ViewRefresher(new Refreshable() {
+			@Override
+			public void refresh() { refreshCenterViewOnSpot(); }
+		});
+		// Set up T refresher
+		this.targetTUpdater = new ViewRefresher(new Refreshable() {
+			@Override
+			public void refresh() { refreshTargetT(); }
+		});
+		// Set up Z refresher
+		this.targetZUpdater = new ViewRefresher(new Refreshable() {
+			@Override
+			public void refresh() { refreshTargetZ(); }
+		});
+
 	}
 
 	public MultiViewDisplayer(final Map<ImagePlus, AffineTransform3D> transforms, final TrackMateModel<T> model) {
@@ -198,7 +215,7 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 		spotToCenterOn = spot;
 		spotViewUpdater.doUpdate();
 	}
-	
+
 	private final void refreshCenterViewOnSpot() {
 		for (ImagePlus imp : imps) {
 			double[] physicalCoords = new double[3];
@@ -210,19 +227,19 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 			imp.setPosition(1, (int) z, frame +1);
 		}
 	}
-	
+
 	private final void refreshTargetT() {
 		for (ImagePlus imp : imps) {
 			imp.setT(targetT);
 		}
 	}
-	
+
 	private final void refreshTargetZ() {
 		if (targetZMap.containsKey(targetImpForZUpdate)) {
 			targetImpForZUpdate.setZ( targetZMap.get(targetImpForZUpdate) );
 		}
 	}
-	
+
 	public int getT() {
 		return targetT;
 	}
@@ -254,8 +271,44 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 
 			// Add a listener for time slider
 			Component[] cs = window.getComponents();
+			
+			/*
+			 * We keep a reference to each Z for each imp when the user changes it with the keyboard.
+			 * We therefore need to update it when the user changes the Z with the slider, but not 
+			 * too quick to avoid clashes.
+			 * 
+			 */
+			((ScrollbarWithLabel) cs[1]).addAdjustmentListener ( new AdjustmentListener() {
+				@Override
+				public void adjustmentValueChanged(final AdjustmentEvent event) {
+					new Thread() {
+						@Override
+						public void run() {
+							ImagePlus source = ((ImageWindow) ((ScrollbarWithLabel) event.getSource()).getParent() ).getImagePlus();
+							try {
+								Thread.sleep(500);
+								targetZMap.put(source, event.getValue());
+							} catch (InterruptedException e) { 	}
+						}
+					}.start();					
+				}
+			}); 
+			
+			/*
+			 * When the user chnage the T with the slider, we change the T for all other views.
+			 */
 			if (cs.length > 2) {
-				((ScrollbarWithLabel) cs[2]).addAdjustmentListener (this); // We assume the 2nd is for time
+				((ScrollbarWithLabel) cs[2]).addAdjustmentListener ( new AdjustmentListener() {
+					@Override
+					public void adjustmentValueChanged(final AdjustmentEvent event) {
+						new Thread() {
+							@Override
+							public void run() {
+								setT(event.getValue());
+							}
+						}.start();					
+					}
+				}); // We assume the 2nd is for time
 			}
 
 		}
@@ -350,19 +403,11 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 		return model.getSettings();
 	}
 
-	/**
-	 * Notified when any of the imps change slider.
-	 */
-	@Override
-	public void adjustmentValueChanged(AdjustmentEvent event) {
-		setT(event.getValue());
-	}
-
 	public void setT(final int targetT) {
 		this.targetT = targetT;
 		targetTUpdater.doUpdate();
 	}
-	
+
 	public void moveZOf(ImagePlus targetImp, int inc) {
 		targetImpForZUpdate = targetImp;
 		if (targetZMap.containsKey(targetImpForZUpdate)) {
@@ -388,12 +433,14 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 	 * Helper class that buffers request to set the view on a  particular spot.
 	 * @see MultiViewDisplayer#spotToCenterOn
 	 */
-	private class SetViewOnSpotUpdater extends Thread {
+	private class ViewRefresher extends Thread {
 		long request = 0;
+		private final Refreshable refreshable;
 
 		// Constructor autostarts thread
-		SetViewOnSpotUpdater() {
+		ViewRefresher(final Refreshable refreshable) {
 			super("TrackMate focus on spot thread");
+			this.refreshable = refreshable;
 			setPriority(Thread.NORM_PRIORITY);
 			start();
 		}
@@ -423,7 +470,7 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 					}
 					// Call displayer update from this thread
 					if (r > 0)
-						refreshCenterViewOnSpot(); 
+						refreshable.refresh(); 
 					synchronized (this) {
 						if (r == request) {
 							request = 0; // reset
@@ -437,115 +484,9 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 			}
 		}
 	}
-	
-	
-	
-	/**
-	 * Helper class that buffers request to set the view on a time point.
-	 * @see MultiViewDisplayer#targetT
-	 */
-	private class TargetTUpdater extends Thread {
-		long request = 0;
 
-		// Constructor autostarts thread
-		TargetTUpdater() {
-			super("TrackMate targetT thread");
-			setPriority(Thread.NORM_PRIORITY);
-			start();
-		}
-
-		void doUpdate() {
-			if (isInterrupted())
-				return;
-			synchronized (this) {
-				request++;
-				notify();
-			}
-		}
-
-		void quit() {
-			interrupt();
-			synchronized (this) {
-				notify();
-			}
-		}
-
-		public void run() {
-			while (!isInterrupted()) {
-				try {
-					final long r;
-					synchronized (this) {
-						r = request;
-					}
-					// Call displayer update from this thread
-					if (r > 0)
-						refreshTargetT(); 
-					synchronized (this) {
-						if (r == request) {
-							request = 0; // reset
-							wait();
-						}
-						// else loop through to update again
-					}
-				} catch (Exception e) {
-					e.printStackTrace();
-				}
-			}
-		}
-	}
-	
-	/**
-	 * Helper class that buffers request to set the view on a time point.
-	 * @see MultiViewDisplayer#targetT
-	 */
-	private class TargetZUpdater extends Thread {
-		long request = 0;
-
-		// Constructor autostarts thread
-		TargetZUpdater() {
-			super("TrackMate targetZ thread");
-			setPriority(Thread.NORM_PRIORITY);
-			start();
-		}
-
-		void doUpdate() {
-			if (isInterrupted())
-				return;
-			synchronized (this) {
-				request++;
-				notify();
-			}
-		}
-
-		void quit() {
-			interrupt();
-			synchronized (this) {
-				notify();
-			}
-		}
-
-		public void run() {
-			while (!isInterrupted()) {
-				try {
-					final long r;
-					synchronized (this) {
-						r = request;
-					}
-					// Call displayer update from this thread
-					if (r > 0)
-						refreshTargetZ(); 
-					synchronized (this) {
-						if (r == request) {
-							request = 0; // reset
-							wait();
-						}
-						// else loop through to update again
-					}
-				} catch (Exception e) {
-					e.printStackTrace();
-				}
-			}
-		}
+	private interface Refreshable {
+		void refresh();
 	}
 
 }
