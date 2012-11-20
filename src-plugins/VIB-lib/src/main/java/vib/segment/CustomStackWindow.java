@@ -16,7 +16,7 @@ import ij.process.ByteProcessor;
 import ij.process.ImageProcessor;
 import ij.plugin.filter.ThresholdToSelection;
 
-public class CustomStackWindow extends StackWindow
+public class CustomStackWindow 
 				 implements AdjustmentListener, 
 						KeyListener, 
 						ActionListener, 
@@ -31,7 +31,6 @@ public class CustomStackWindow extends StackWindow
 	private ActionListener al;
 
 	private Sidebar sidebar;
-	private CustomCanvas cc;
 	private Button ok;
 
 	
