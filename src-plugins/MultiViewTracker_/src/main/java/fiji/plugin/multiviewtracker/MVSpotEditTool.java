@@ -267,7 +267,7 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 			// Edit spot
 
 			// Empty current selection
-			model.clearSelection();
+//			model.clearSelection();
 			if (null == target) {
 				// Create a new spot at mouse location
 				addNewSpot(model, displayer, imp);
