@@ -1,6 +1,7 @@
 package fiji.plugin.multiviewtracker;
 
 import fiji.plugin.multiviewtracker.util.TransformUtils;
+import fiji.plugin.multiviewtracker.util.Utils;
 import fiji.plugin.trackmate.DetectorProvider;
 import fiji.plugin.trackmate.Logger;
 import fiji.plugin.trackmate.Settings;
@@ -51,6 +52,7 @@ public class MVLauncher <T extends RealType<T> & NativeType<T>> implements PlugI
 		}
 		
 		Logger logger = Logger.IJ_LOGGER;
+		logger.log("Launching a new annotation with MultiViewTracker v" + Utils.getAPIVersion());
 		
 		File file = askForFile(folder, null, logger);
 		Map<ImagePlus, AffineTransform3D> impMap;
