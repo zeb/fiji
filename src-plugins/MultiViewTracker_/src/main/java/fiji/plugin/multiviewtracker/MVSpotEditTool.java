@@ -45,22 +45,22 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 	private static final double COARSE_STEP = 2;
 	private static final double FINE_STEP = 0.2f;
 	private static final String TOOL_NAME = "Spot edit tool";
-	private static final String TOOL_ICON = "CfffL0050CdddD60CdccD70CeeeD80CfffL90d0"
-			+ "L0131CeddD41Ca87D51C764D61C754L7181Ca99D91CfffLa1d1"
-			+ "L0222CccbD32C875D42Ca75L5262C965D72C854D82C643D92C987Da2CfffLb2d2"
-			+ "L0313CfeeD23Ca86D33Cb86D43Cc87D53Cb86D63Cb76D73Ca75D83C964D93C643Da3CbaaDb3CfffLc3d3"
-			+ "L0414CdccD24Cb86D34Cd98D44Cc97D54Cc87D64Cb86D74Cb76D84Ca75D94C864Da4C766Db4CfffLc4d4"
-			+ "L0515CddcD25Cb97D35Cc87D45Cb86D55Cc87D65Cb86D75Ca75L8595C965Da5C876Db5CfffLc5d5"
-			+ "L0616CedcD26Cb97D36Ca86D46C854D56C965D66C854D76C864D86C965D96C964Da6C987Db6CfffLc6d6"
-			+ "L0717CdcbD27Cc97D37Cb97D47Ca76L5767C964D77C965D87Ca75D97C965Da7Ca87Db7CfffLc7d7"
-			+ "L0818CedcD28Cc97L3848Cc87D58Cb76D68Ca75L7888Cb76D98Ca75Da8Cc98Db8CfffLc8d8"
-			+ "L0929Cda8D39Cc97D49Cc87D59Cb86D69Ca75D79Cb76D89Cb75D99Cb76Da9CeccDb9CfffLc9d9"
-			+ "L0a2aCedcD3aCc97D4aCb86D5aCb76D6aCa75L7a9aCdcbDaaCfffLbada"
-			+ "CeefD0bCccdD1bCbbcD2bCbbbD3bCc97L4b5bCc86D6bCb86D7bCa86D8bCa75D9bCbaaDabCeeeDbbCfffLcbdb"
-			+ "C99bL0c1cCaacD2cCaabD3cCb98D4cCb87D5cCa76L6c9cC989DacC89aDbcC99aDccCccdDdc"
-			+ "C88aD0dC9abD1dCaacL2d3dCb98D4dCb87D5dCa76L6d8dCa77D9dC99aDadC88aDbdC779DcdC88aDdd"
-			+ "D0eCaacD1eCbbdL2e3eCa9aD4eCb97D5eCa87L6e8eC988D9eC99bDaeC88aLbede"
-			+ "D0fCbbdL1f2fCabdD3fCaabD4fCa99D5fCb98L6f7fCa87D8fC99aD9fC99bDafC89aLbfdf";
+	// The MAMUT, as designed by Vincent Poujade-Leroy
+	private static final String TOOL_ICON = "CfbaD31Cfb9D41"
+			+ "CfeeD32Ceb9D42CfdcD52"
+			+ "CfddD33CfeeD43CfbaD63Cea9D73CfccD83CfedD93CffeDa3"
+			+ "C900D34CffeD44CfeeDa4CfbaDb4CebaDc4"
+			+ "CfedD35CfcbDd5"
+			+ "Cea9L0616CfddD26CfcbDd6"
+			+ "CfccD07CebbD17Cea9L2737Cc54D47Cd99D57CfeeD67De7"
+			+ "Cc00D18Cc54D28Cd65D38CfeeL4858CeccDe8"
+			+ "Cea9L0919Cd88D29Cc43D39CfeeD49CdaaD79CeddD89Cc98D99CfeeDa9Cd99Dd9Cc43De9CfeeDf9"
+			+ "Cea9L2a3aCfeeD5aCfddD6aCeccD8aCfddD9aCecdDaaCcaaDbaCea9DcaCfccDdaCd42Dfa"
+			+ "CeaaD2bCfeeD5bCebbD6bCfddD8bCfeeD9bCeddDabCeccDbbCffeDcbCea9DdbDfb"
+			+ "CfaaD2cCfeeD5cCfddD8cCeccDacCfddDbcCfcbDdc"
+			+ "Cea9D2dCfeeD5dD8dCfdcDadCfeeDbdCfcbDdd"
+			+ "CfbaD2eCd54D3eCea9D5eCfddD8eCfeeDaeCfdcDbeCfddDde"
+			+ "CfccD2fCe98D3fCd76Dbf";
 
 	/** Fall back default radius when the settings does not give a default radius to use. */
 	private static final double FALL_BACK_RADIUS = 5;
