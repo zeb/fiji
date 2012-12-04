@@ -17,7 +17,9 @@ import java.awt.FileDialog;
 import java.awt.Frame;
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import javax.swing.JFileChooser;
@@ -37,6 +39,7 @@ import net.imglib2.type.numeric.RealType;
 public class MVLauncher <T extends RealType<T> & NativeType<T>> implements PlugIn {
 
 	private static final String ANGLE_STRING = "Angle";
+	private static final String TIMEPOINT_STRING = "TL";
 	private static final String REGISTRATION_SUBFOLDER = "registration";
 	private static final String REGISTRATION_FILE_SUFFIX = ".registration";
 
@@ -45,29 +48,29 @@ public class MVLauncher <T extends RealType<T> & NativeType<T>> implements PlugI
 
 	@Override
 	public void run(String arg) {
-		
+
 		File folder = null;
 		if (null != arg ) {
 			folder = new File(arg);
 		}
-		
+
 		Logger logger = Logger.IJ_LOGGER;
 		logger.log("Launching a new annotation with MultiViewTracker v" + Utils.getAPIVersion());
-		
+
 		File file = askForFile(folder, null, logger);
-		Map<ImagePlus, AffineTransform3D> impMap;
+		Map<ImagePlus, List<AffineTransform3D>> impMap;
 
 		try {
-			
+
 			// Load all the data
 			impMap = openSPIM(file, true, Logger.IJ_LOGGER);
-			
+
 			// Instantiate model & setup settings
 			ImagePlus imp1 = impMap.keySet().iterator().next();
 			Settings<T> settings = new Settings<T>(imp1);
 			settings.imageFileName = file.getName();
 			settings.imageFolder = file.getParent();
-			
+
 			DetectorProvider<T> provider = new DetectorProvider<T>();
 			provider.select(ManualDetectorFactory.DETECTOR_KEY);
 			settings.detectorFactory = provider.getDetectorFactory();
@@ -76,21 +79,21 @@ public class MVLauncher <T extends RealType<T> & NativeType<T>> implements PlugI
 			TrackMate_<T> tm = new TrackMate_<T>(settings);
 			TrackMateModel<T> model = tm.getModel();
 			model.setLogger(logger);
-			
+
 			// Strip feature model
 			model.getFeatureModel().setSpotFeatureFactory(null);
 
-			// Initialize viewer
-			logger.log("Instantiating viewer.\n");
-			MultiViewDisplayer<T> viewer = new MultiViewDisplayer<T>(impMap.keySet(), impMap, model);
-			logger.log("Rendering viewer.\n");
-			viewer.render();
-			logger.log("Done.\n");
-			
-			// Show controller
-			MultiViewTrackerConfigPanel<T> mtvc = new MultiViewTrackerConfigPanel<T>(model, viewer);
-			mtvc.setVisible(true);
-			
+//			// Initialize viewer
+//			logger.log("Instantiating viewer.\n");
+//			MultiViewDisplayer<T> viewer = new MultiViewDisplayer<T>(impMap.keySet(), impMap, model);
+//			logger.log("Rendering viewer.\n");
+//			viewer.render();
+//			logger.log("Done.\n");
+//
+//			// Show controller
+//			MultiViewTrackerConfigPanel<T> mtvc = new MultiViewTrackerConfigPanel<T>(model, viewer);
+//			mtvc.setVisible(true);
+
 		} catch (IOException e) {
 			e.printStackTrace();
 		} catch (FormatException e) {
@@ -99,38 +102,38 @@ public class MVLauncher <T extends RealType<T> & NativeType<T>> implements PlugI
 
 	}
 
-	
-	
+
+
 	/*
 	 * STATIC METHODS
 	 */
-	
-	private static Map<ImagePlus, AffineTransform3D> openSPIM(File path, boolean useVirtual, final Logger logger) throws IOException, FormatException {
+
+	static Map<ImagePlus, List<AffineTransform3D>> openSPIM(File path, boolean useVirtual, final Logger logger) throws IOException, FormatException {
 		LociImporter plugin = new LociImporter();
 		Importer importer = new Importer(plugin);
 		ImporterOptions  options = importer.parseOptions("");
-		
+
 		options.setId(path.getAbsolutePath());
 		options.setGroupFiles(true);
 		options.setVirtual(useVirtual);
 		options.setSplitChannels(true);
 		options.setQuiet(true);
-		
+
 		ImportProcess process = new ImportProcess(options);
 		ImagePlusReader reader = new ImagePlusReader(process);
 		DisplayHandler displayHandler = new DisplayHandler(process);
 
 		process.execute();
-		
+
 		// Get the ImagePluses - 1 per channel (or angle)
 		ImagePlus[] imps = importer.readPixels(reader, options, displayHandler);
 		int nImps = imps.length;
 		// Get the file names used to build these imps
 		String[] fileNames = process.getVirtualReader().getUsedFiles();
 		int nFileNames = fileNames.length;
-		
+
 		logger.log("Found "+nFileNames+" files grouped in "+nImps+" views.\n");
-		
+
 		final FilePattern fp 		= process.getFileStitcher().getFilePattern();
 		final String[][] elements 	= fp.getElements();
 		final String[] blocks 		= fp.getBlocks();
@@ -142,17 +145,23 @@ public class MVLauncher <T extends RealType<T> & NativeType<T>> implements PlugI
 
 		// Try to identify the angle block
 		int angleBlockIndex = -1;
+		int timepointBlockIndex = -1;
 		for (int i = 0; i < blocks.length; i++) {
 			if (prefixes[i].contains(ANGLE_STRING)) {
 				angleBlockIndex = i;
-				break;
+			} else if (prefixes[i].contains(TIMEPOINT_STRING)) {
+				timepointBlockIndex = i;
 			}
 		}
 		if (angleBlockIndex < 0) {
 			logger.error("Cound not identify the angle string in filenames.\n");
 			return null;
 		}
-		
+		if (timepointBlockIndex < 0) {
+			logger.error("Cound not identify the time-point string in filenames.\n");
+			return null;
+		}
+
 		int nAngles = elements[angleBlockIndex].length;
 		logger.log("Found " + nAngles + " views from the filenames.\n");
 		if (nAngles == nImps) {
@@ -162,7 +171,10 @@ public class MVLauncher <T extends RealType<T> & NativeType<T>> implements PlugI
 			imps[0].show();
 			return null;
 		}
-		
+
+		int nTimepoints = elements[timepointBlockIndex].length;
+		logger.log("Found " + nTimepoints + " timepoints from the filenames.\n");
+
 		logger.log("Owing to the fact that the file pattern is " + fp.getPattern() + ", the views will be split according to:\n");
 		for (int i = 0; i < imps.length; i++) {
 			logger.log(" - view " + i + ": Angle "+elements[angleBlockIndex][i]+"\n");
@@ -171,47 +183,61 @@ public class MVLauncher <T extends RealType<T> & NativeType<T>> implements PlugI
 		/*
 		 *  Retrieve registration file
 		 */
-		
+
 		// Build the first file names for every view.
-		logger.log("Identified the following files as first file for each view:\n");
-		String[] viewFirstFiles = new String[nAngles];
+		logger.log("Identified the following files as part of the pattern:\n");
+		String[][] registrationFiles = new String[nAngles][nTimepoints];
+
 		for (int i = 0; i < nAngles; i++) {
-			StringBuilder str = new StringBuilder();
-			for (int j = 0; j < prefixes.length; j++) {
-				str.append(prefixes[j]);
-				if (j == angleBlockIndex) {
-					str.append(elements[angleBlockIndex][i]);
-				} else {
-					str.append(elements[j][0]);
+
+			for (int j = 0; j < nTimepoints; j++) {
+
+				StringBuilder str = new StringBuilder();
+				for (int k = 0; k < prefixes.length; k++) {
+					str.append(prefixes[k]);
+					if (k == angleBlockIndex) {
+						str.append(elements[angleBlockIndex][i]);
+					} else if (k == timepointBlockIndex) {
+						str.append(elements[timepointBlockIndex][j]);
+					} else {
+						str.append(elements[j][0]);
+					}
 				}
+				str.append(suffix);
+				registrationFiles[i][j] = str.toString();
+				logger.log(" - "+str.toString());
 			}
-			str.append(suffix);
-			viewFirstFiles[i] = str.toString();
-			logger.log(" - "+str.toString());
 		}
-		
+
 		// Load transforms
-		AffineTransform3D[] transforms = new AffineTransform3D[nAngles];
+		AffineTransform3D[][] viewsTransforms = new AffineTransform3D[nAngles][nTimepoints];
 		logger.log("Locating registration files:\n");
 		File registrationFolder = new File(path.getParent(), REGISTRATION_SUBFOLDER);
 		int identityTransformIndex = - 1;
-		for (int i = 0; i < viewFirstFiles.length; i++) {
-			File registrationFile = new File(registrationFolder, viewFirstFiles[i] + REGISTRATION_FILE_SUFFIX);
-			String str = " - for view " + i + ", registration file is: " + registrationFile.getName();
-			AffineTransform3D transform = TransformUtils.getTransformFromFile(registrationFile);
-			// Try to identify the identity transform
-			if (TransformUtils.isIdentity(transform)) {
-				str += " - is the identity transform.\n";
-				identityTransformIndex= i;
-			} else {
-				str += ".\n";
-			}
-			logger.log(str);
-			AffineTransform3D zscaling = TransformUtils.getZScalingFromFile(registrationFile);
-			transform.concatenate(zscaling);
-			transforms[i] = transform;
-		}
 		
+		for (int i = 0; i < registrationFiles.length; i++) {
+			
+			for (int j = 0; j < registrationFiles[i].length; j++) {
+
+				File registrationFile = new File(registrationFolder, registrationFiles[i][j] + REGISTRATION_FILE_SUFFIX);
+				String str = " - for view " + i + ", registration file is: " + registrationFile.getName();
+				AffineTransform3D transform = TransformUtils.getTransformFromFile(registrationFile);
+				// Try to identify the identity transform
+				if (TransformUtils.isIdentity(transform)) {
+					str += " - is the identity transform.\n";
+					identityTransformIndex= i;
+				} else {
+					str += ".\n";
+				}
+				logger.log(str);
+				AffineTransform3D zscaling = TransformUtils.getZScalingFromFile(registrationFile);
+				transform.concatenate(zscaling);
+				viewsTransforms[i][j] = transform;
+				
+			}
+			
+		}
+
 		// Modify transforms to match views between themselves
 		/* We will bring back everything to pixel coords in the main imp.
 		 * Then we need to take these pixel coords to physical coords. So we need
@@ -221,23 +247,32 @@ public class MVLauncher <T extends RealType<T> & NativeType<T>> implements PlugI
 		 * need to apply it twice. Since the SPIM transform deals with isotropic pixel 
 		 * calibration, we need our physical coords transform be isotropic too. */
 		calib1.set(calib1.get(0, 0), 2, 2);
-		
-		for (int i = 0; i < transforms.length; i++) {
-			AffineTransform3D transform = transforms[i];
-			transform .preConcatenate(calib1.inverse()); // To have real physical coordinates in 1st referential
-			transform = transform.inverse();
-			transforms[i] = transform;
+
+		for (int i = 0; i < viewsTransforms.length; i++) {
+			
+			for (int j = 0; j < viewsTransforms[i].length; j++) {
+				
+				AffineTransform3D transform = viewsTransforms[i][j];
+				transform .preConcatenate(calib1.inverse()); // To have real physical coordinates in 1st referential
+				transform = transform.inverse();
+				viewsTransforms[i][j] = transform;
+				
+			}
 		}
 
 		// Store in a map
-		Map<ImagePlus, AffineTransform3D> impMap = new HashMap<ImagePlus, AffineTransform3D>(nAngles);
+		Map<ImagePlus, List<AffineTransform3D>> impMap = new HashMap<ImagePlus, List<AffineTransform3D>>(nAngles);
 		for (int i = 0; i < nAngles; i++) {
-			impMap.put(imps[i], transforms[i]);
+			List<AffineTransform3D> transformList = new ArrayList<AffineTransform3D>(nTimepoints);
+			for (int j = 0; j < nTimepoints; j++) {
+				transformList.add(viewsTransforms[i][j]);
+			}
+			impMap.put(imps[i], transformList);
 		}
 		return impMap;
 	}
-	
-	private static final File askForFile(File file, Frame parent, Logger logger) {
+
+	static final File askForFile(File file, Frame parent, Logger logger) {
 
 		if(IJ.isMacintosh()) {
 			// use the native file dialog on the mac
@@ -273,11 +308,11 @@ public class MVLauncher <T extends RealType<T> & NativeType<T>> implements PlugI
 		return file;
 	}
 
-	
+
 	/*
 	 * MAIN
 	 */
-	
+
 	public static <T extends RealType<T> & NativeType<T>> void main(String[] args) {
 		ImageJ.main(args);
 		String rootFolder = "E:/Users/JeanYves/Documents/Projects/PTomancak/Data";
