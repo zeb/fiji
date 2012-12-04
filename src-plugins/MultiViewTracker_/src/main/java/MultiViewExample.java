@@ -62,16 +62,22 @@ public class MultiViewExample {
 		imps.add(imp3);
 
 		// Transforms
-		Map<ImagePlus, AffineTransform3D> transforms = new HashMap<ImagePlus, AffineTransform3D>();
+		Map<ImagePlus, List<AffineTransform3D>> transforms = new HashMap<ImagePlus, List<AffineTransform3D>>();
 
 		AffineTransform3D identity = TransformUtils.getTransformFromCalibration(imp1);
-		transforms.put(imp1, identity);
+		List<AffineTransform3D> identityList = new ArrayList<AffineTransform3D>(1);
+		identityList.add(identity);
+		transforms.put(imp1, identityList );
 
 		AffineTransform3D projXZ = TransformUtils.makeXZProjection(imp2);
-		transforms.put(imp2, projXZ);
+		List<AffineTransform3D> projXZList = new ArrayList<AffineTransform3D>(1);
+		projXZList.add(projXZ);
+		transforms.put(imp2, projXZList );
 
 		AffineTransform3D projYZ = TransformUtils.makeYZProjection(imp3);
-		transforms.put(imp3, projYZ);
+		List<AffineTransform3D> projYZList = new ArrayList<AffineTransform3D>(1);
+		projYZList.add(projYZ);
+		transforms.put(imp3, projYZList );
 
 		// Instantiate model
 		Settings<T> settings = new Settings<T>(imp1);

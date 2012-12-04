@@ -52,7 +52,7 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 	Map<ImagePlus, TransformedTrackOverlay<T>> trackOverlays = new HashMap<ImagePlus, TransformedTrackOverlay<T>>();
 
 	private MVSpotEditTool<T> editTool;
-	private Map<ImagePlus, AffineTransform3D> transforms;
+	private Map<ImagePlus, List<AffineTransform3D>> transforms;
 
 	/** The updater instance in charge of setting the views Z & T when {@link #centerViewOn(Spot)} is called. */
 	private ViewRefresher spotViewUpdater;
@@ -73,9 +73,9 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 	 * CONSTRUCTORS
 	 */
 
-	public MultiViewDisplayer(final Collection<ImagePlus> imps, final Map<ImagePlus, AffineTransform3D> transforms, final TrackMateModel<T> model) {
+	public MultiViewDisplayer(final Collection<ImagePlus> imps, final Map<ImagePlus, List<AffineTransform3D>> impMap, final TrackMateModel<T> model) {
 		this.imps = imps;
-		this.transforms = transforms;
+		this.transforms = impMap;
 		this.model = model;
 		this.targetZMap = new HashMap<ImagePlus, Integer>(imps.size());
 		for (ImagePlus imagePlus : imps) {
@@ -127,7 +127,7 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 		};
 	}
 
-	public MultiViewDisplayer(final Map<ImagePlus, AffineTransform3D> transforms, final TrackMateModel<T> model) {
+	public MultiViewDisplayer(final Map<ImagePlus, List<AffineTransform3D>> transforms, final TrackMateModel<T> model) {
 		this(transforms.keySet(), transforms, model);
 	}
 
@@ -141,12 +141,13 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 			System.err.println("ImagePlus "+imp+" is unknown to this displayer "+this);
 			return null;
 		}
+		final int frame = imp.getT() - 1;
 		final double ix = canvas.offScreenXD(point.x) + 0.5;
 		final double iy = canvas.offScreenYD(point.y) + 0.5;
 		final double iz = imp.getSlice()-1;
 		double[] physicalCoords = new double[3];
 		double[] pixelCoords = new double[] { ix, iy, iz };
-		transforms.get(imp).applyInverse(physicalCoords, pixelCoords);
+		transforms.get(imp).get(frame).applyInverse(physicalCoords, pixelCoords);
 
 		if (DEBUG) {
 			System.out.println("[MultiViewDisplayer] Got a mouse click on "+Util.printCoordinates(pixelCoords)+". Converted it to physical coords: "+Util.printCoordinates(physicalCoords));
@@ -163,16 +164,16 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 	 * Hook for subclassers. Instantiate here the overlay you want to use for the spots. 
 	 * @return
 	 */
-	protected static <T extends RealType<T> & NativeType<T>> TransformedSpotOverlay<T> createSpotOverlay(final ImagePlus imp, final AffineTransform3D transform, final TrackMateModel<T> model, final Map<String, Object> displaySettings) {
-		return new TransformedSpotOverlay<T>(model, imp, transform, displaySettings);
+	protected static <T extends RealType<T> & NativeType<T>> TransformedSpotOverlay<T> createSpotOverlay(final ImagePlus imp, final List<AffineTransform3D> list, final TrackMateModel<T> model, final Map<String, Object> displaySettings) {
+		return new TransformedSpotOverlay<T>(model, imp, list, displaySettings);
 	}
 
 	/**
 	 * Hook for subclassers. Instantiate here the overlay you want to use for the spots. 
 	 * @return
 	 */
-	protected static <T extends RealType<T> & NativeType<T>> TransformedTrackOverlay<T> createTrackOverlay(final ImagePlus imp, final AffineTransform3D transform, final TrackMateModel<T> model, final Map<String, Object> displaySettings) {
-		return new TransformedTrackOverlay<T>(model, imp, transform, displaySettings);
+	protected static <T extends RealType<T> & NativeType<T>> TransformedTrackOverlay<T> createTrackOverlay(final ImagePlus imp, final List<AffineTransform3D> list, final TrackMateModel<T> model, final Map<String, Object> displaySettings) {
+		return new TransformedTrackOverlay<T>(model, imp, list, displaySettings);
 	}
 
 	@Override
@@ -251,10 +252,10 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 			double[] physicalCoords = new double[3];
 			spotToCenterOn.localize(physicalCoords);
 			double[] pixelCoords =  new double[3];
-			transforms.get(imp).apply(physicalCoords, pixelCoords);
-			long z = Math.round(pixelCoords[2]) + 1;
 			int frame = spotToCenterOn.getFeature(Spot.FRAME).intValue();
-			imp.setPosition(1, (int) z, frame +1);
+			transforms.get(imp).get(frame).apply(physicalCoords, pixelCoords);
+			long z = Math.round(pixelCoords[2]) + 1;
+			imp.setPosition(1, (int) z, frame + 1);
 		}
 	}
 
@@ -419,8 +420,8 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 		return canvases.get(imp);
 	}
 
-	public  AffineTransform3D getTransform(final ImagePlus imp) {
-		return transforms.get(imp);
+	public  AffineTransform3D getTransform(final ImagePlus imp, final int frame) {
+		return transforms.get(imp).get(frame);
 	}
 
 	public Settings<T> getSttings() {

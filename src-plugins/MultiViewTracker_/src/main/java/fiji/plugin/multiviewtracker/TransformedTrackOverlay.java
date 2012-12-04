@@ -39,16 +39,16 @@ public class TransformedTrackOverlay <T extends RealType<T> & NativeType<T>> imp
 	protected Map<Integer, Color> edgeColors;
 	protected Map<String, Object> displaySettings;
 	protected final TrackMateModel<T> model;
-	protected final AffineTransform3D transform;
+	protected final List<AffineTransform3D> transforms;
 
 	/*
 	 * CONSTRUCTOR
 	 */
 
-	public TransformedTrackOverlay(final TrackMateModel<T> model, final ImagePlus imp, final AffineTransform3D transform, final Map<String, Object> displaySettings) {
+	public TransformedTrackOverlay(final TrackMateModel<T> model, final ImagePlus imp, final List<AffineTransform3D> transformList, final Map<String, Object> displaySettings) {
 		this.model = model;
 		this.imp = imp;
-		this.transform = transform;
+		this.transforms = transformList;
 		this.displaySettings = displaySettings;
 		computeTrackColors();
 	}
@@ -260,12 +260,16 @@ public class TransformedTrackOverlay <T extends RealType<T> & NativeType<T>> imp
 
 		final double[] physicalPositionTarget = new double[3];
 		target.localize(physicalPositionTarget);
+		
+		// Find frame
+		int sourceFrame = source.getFeature(Spot.FRAME).intValue();
+		int targetFrame = target.getFeature(Spot.FRAME).intValue();
 
 		// In pixel units
 		final double[] pixelPositionSource = new double[3];
-		transform.apply(physicalPositionSource, pixelPositionSource);
+		transforms.get(sourceFrame).apply(physicalPositionSource, pixelPositionSource);
 		final double[] pixelPositionTarget = new double[3];
-		transform.apply(physicalPositionTarget, pixelPositionTarget);
+		transforms.get(targetFrame).apply(physicalPositionTarget, pixelPositionTarget);
 
 		// Scale to image zoom
 		final double x0s = (pixelPositionSource[0] - xcorner) * magnification ;
@@ -293,11 +297,15 @@ public class TransformedTrackOverlay <T extends RealType<T> & NativeType<T>> imp
 		final double[] physicalPositionTarget = new double[3];
 		target.localize(physicalPositionTarget);
 
+		// Find frame
+		int sourceFrame = source.getFeature(Spot.FRAME).intValue();
+		int targetFrame = target.getFeature(Spot.FRAME).intValue();
+				
 		// In pixel units
 		final double[] pixelPositionSource = new double[3];
-		transform.apply(physicalPositionSource, pixelPositionSource);
+		transforms.get(sourceFrame).apply(physicalPositionSource, pixelPositionSource);
 		final double[] pixelPositionTarget = new double[3];
-		transform.apply(physicalPositionTarget, pixelPositionTarget);
+		transforms.get(targetFrame).apply(physicalPositionTarget, pixelPositionTarget);
 
 		// Scale to image zoom
 		final double x0s = (pixelPositionSource[0] - xcorner) * magnification ;

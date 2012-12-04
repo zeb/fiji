@@ -49,7 +49,7 @@ public class TransformedSpotOverlay<T extends RealType<T> & NativeType<T>> imple
 	protected FontMetrics fm;
 	protected Map<String, Object> displaySettings;
 	protected final TrackMateModel<T> model;
-	protected final AffineTransform3D transform;
+	protected final List<AffineTransform3D> transforms;
 	private final double scalingY;
 	private final double scalingX;
 
@@ -57,10 +57,10 @@ public class TransformedSpotOverlay<T extends RealType<T> & NativeType<T>> imple
 	 * CONSTRUCTOR
 	 */
 
-	public TransformedSpotOverlay(final TrackMateModel<T> model, final ImagePlus imp, final AffineTransform3D transform, final Map<String, Object> displaySettings) {
+	public TransformedSpotOverlay(final TrackMateModel<T> model, final ImagePlus imp, final List<AffineTransform3D> transformList, final Map<String, Object> displaySettings) {
 		this.model = model;
 		this.imp = imp;
-		this.transform = transform;
+		this.transforms = transformList;
 		this.displaySettings = displaySettings;
 		// Here we cheat: to get the scaling of the curcke radius, we sue the imp physical calibration, and
 		// not the transform
@@ -105,7 +105,7 @@ public class TransformedSpotOverlay<T extends RealType<T> & NativeType<T>> imple
 		g2d.setStroke(new BasicStroke(1.0f));
 		Color color;
 		final SpotCollection target = model.getFilteredSpots();
-		List<Spot> spots = target .get(frame);
+		List<Spot> spots = target.get(frame);
 		if (null != spots) { 
 			for (Spot spot : spots) {
 
@@ -116,7 +116,7 @@ public class TransformedSpotOverlay<T extends RealType<T> & NativeType<T>> imple
 				if (null == color)
 					color = AbstractTrackMateModelView.DEFAULT_COLOR;
 				g2d.setColor(color);
-				drawSpot(g2d, spot, pixelCoordsZ, xcorner, ycorner, mag);
+				drawSpot(g2d, spot, pixelCoordsZ, xcorner, ycorner, mag, frame);
 
 			}
 		}
@@ -132,7 +132,7 @@ public class TransformedSpotOverlay<T extends RealType<T> & NativeType<T>> imple
 					System.out.println("[TransformedSpotOverlay] For spot "+spot+" in selection, found frame "+sFrame);
 				if (null == sFrame || sFrame != frame)
 					continue;
-				drawSpot(g2d, spot, pixelCoordsZ, xcorner, ycorner, mag);
+				drawSpot(g2d, spot, pixelCoordsZ, xcorner, ycorner, mag, frame);
 			}
 		}
 
@@ -184,7 +184,7 @@ public class TransformedSpotOverlay<T extends RealType<T> & NativeType<T>> imple
 		this.composite = composite;
 	}
 
-	protected void drawSpot(final Graphics2D g2d, final Spot spot, final int pixelZSlice, final int xcorner, final int ycorner, final double magnification) {
+	protected void drawSpot(final Graphics2D g2d, final Spot spot, final int pixelZSlice, final int xcorner, final int ycorner, final double magnification, final int frame) {
 		
 		// Absolute location
 		final double[] physicalCoords = new double[3];
@@ -192,13 +192,13 @@ public class TransformedSpotOverlay<T extends RealType<T> & NativeType<T>> imple
 		
 		// Transform location
 		final double[] pixelCoords = new double[3];
-		transform.apply(physicalCoords, pixelCoords);
+		transforms.get(frame).apply(physicalCoords, pixelCoords);
 		final double x = pixelCoords[0];
 		final double y = pixelCoords[1];
 		
 		// Transform current view
 		final double[] physicalViewCoords = new double[3];
-		transform.applyInverse(physicalViewCoords, new double[] { x, y, pixelZSlice });
+		transforms.get(frame).applyInverse(physicalViewCoords, new double[] { x, y, pixelZSlice });
 		Spot viewSpot = new SpotImp(physicalViewCoords);
 		final double physicalDz2 = viewSpot.squareDistanceTo(spot);
 

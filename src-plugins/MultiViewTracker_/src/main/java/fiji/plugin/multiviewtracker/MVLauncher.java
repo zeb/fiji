@@ -57,7 +57,7 @@ public class MVLauncher <T extends RealType<T> & NativeType<T>> implements PlugI
 		Logger logger = Logger.IJ_LOGGER;
 		logger.log("Launching a new annotation with MultiViewTracker v" + Utils.getAPIVersion());
 
-		File file = askForFile(folder, null, logger);
+		File file = askForFile(folder, null, logger, "Open a SPIM series");
 		Map<ImagePlus, List<AffineTransform3D>> impMap;
 
 		try {
@@ -83,16 +83,16 @@ public class MVLauncher <T extends RealType<T> & NativeType<T>> implements PlugI
 			// Strip feature model
 			model.getFeatureModel().setSpotFeatureFactory(null);
 
-//			// Initialize viewer
-//			logger.log("Instantiating viewer.\n");
-//			MultiViewDisplayer<T> viewer = new MultiViewDisplayer<T>(impMap.keySet(), impMap, model);
-//			logger.log("Rendering viewer.\n");
-//			viewer.render();
-//			logger.log("Done.\n");
-//
-//			// Show controller
-//			MultiViewTrackerConfigPanel<T> mtvc = new MultiViewTrackerConfigPanel<T>(model, viewer);
-//			mtvc.setVisible(true);
+			// Initialize viewer
+			logger.log("Instantiating viewer.\n");
+			MultiViewDisplayer<T> viewer = new MultiViewDisplayer<T>(impMap.keySet(), impMap, model);
+			logger.log("Rendering viewer.\n");
+			viewer.render();
+			logger.log("Done.\n");
+
+			// Show controller
+			MultiViewTrackerConfigPanel<T> mtvc = new MultiViewTrackerConfigPanel<T>(model, viewer);
+			mtvc.setVisible(true);
 
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -272,11 +272,11 @@ public class MVLauncher <T extends RealType<T> & NativeType<T>> implements PlugI
 		return impMap;
 	}
 
-	static final File askForFile(File file, Frame parent, Logger logger) {
+	static final File askForFile(File file, Frame parent, Logger logger, String string) {
 
 		if(IJ.isMacintosh()) {
 			// use the native file dialog on the mac
-			FileDialog dialog =	new FileDialog(parent, "Open a SPIM series", FileDialog.LOAD);
+			FileDialog dialog =	new FileDialog(parent, string, FileDialog.LOAD);
 			if (null != file) {
 				dialog.setDirectory(file.getParent());
 				dialog.setFile(file.getName());

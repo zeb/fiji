@@ -69,9 +69,13 @@ public class MultiViewExample2 {
 		transform1 = transform1.inverse();
 		transform2 = transform2.inverse();
 		
-		Map<ImagePlus, AffineTransform3D> transforms = new HashMap<ImagePlus, AffineTransform3D>();
-		transforms.put(imp1, transform1);
-		transforms.put(imp2, transform2);
+		Map<ImagePlus, List<AffineTransform3D>> transforms = new HashMap<ImagePlus, List<AffineTransform3D>>();
+		List<AffineTransform3D> transform1List = new ArrayList<AffineTransform3D>(1);
+		transform1List.add(transform1);
+		List<AffineTransform3D> transform2List = new ArrayList<AffineTransform3D>(1);
+		transform2List.add(transform2);
+		transforms.put(imp1, transform1List );
+		transforms.put(imp2, transform2List);
 
 		List<ImagePlus> imps = new ArrayList<ImagePlus>();
 		imps.add(imp1);

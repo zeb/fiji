@@ -1,5 +1,6 @@
 package fiji.plugin.multiviewtracker;
 
+import fiji.plugin.multiviewtracker.util.Utils;
 import fiji.plugin.trackmate.Logger;
 import fiji.plugin.trackmate.Settings;
 import fiji.plugin.trackmate.Spot;
@@ -37,7 +38,9 @@ public class MVLoader <T extends RealType<T> & NativeType<T>> implements PlugIn 
 		}
 		
 		Logger logger = Logger.IJ_LOGGER;
-		File file = MVLauncher.askForFile(folder, null, logger);
+		logger.log("Loading a saved annotation file with MultiViewTracker v" + Utils.getAPIVersion());
+		
+		File file = MVLauncher.askForFile(folder, null, logger, "Locate a MVT xml file.");
 		if (null == file) {
 			return;
 		}
@@ -93,16 +96,16 @@ public class MVLoader <T extends RealType<T> & NativeType<T>> implements PlugIn 
 			// Strip feature model
 			model.getFeatureModel().setSpotFeatureFactory(null);
 			
-//			// Initialize viewer
-//			logger.log("Instantiating viewer.\n");
-//			MultiViewDisplayer<T> viewer = new MultiViewDisplayer<T>(impMap.keySet(), impMap, model);
-//			logger.log("Rendering viewer.\n");
-//			viewer.render();
-//			logger.log("Done.\n");
-//			
-//			// Show controller
-//			MultiViewTrackerConfigPanel<T> mtvc = new MultiViewTrackerConfigPanel<T>(model, viewer);
-//			mtvc.setVisible(true);
+			// Initialize viewer
+			logger.log("Instantiating viewer.\n");
+			MultiViewDisplayer<T> viewer = new MultiViewDisplayer<T>(impMap.keySet(), impMap, model);
+			logger.log("Rendering viewer.\n");
+			viewer.render();
+			logger.log("Done.\n");
+			
+			// Show controller
+			MultiViewTrackerConfigPanel<T> mtvc = new MultiViewTrackerConfigPanel<T>(model, viewer);
+			mtvc.setVisible(true);
 			
 		} catch (IOException e) {
 			e.printStackTrace();

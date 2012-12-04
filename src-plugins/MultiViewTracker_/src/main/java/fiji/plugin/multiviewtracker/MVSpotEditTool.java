@@ -321,7 +321,7 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 		double radius = target.getFeature(Spot.RADIUS);
 		// We need to get some idea of the current pixel scale, so that our increment is not
 		// out of range for all possible calibration.
-		final double[] transformMatrix = displayer.getTransform(imp).getRowPackedCopy();
+		final double[] transformMatrix = displayer.getTransform(imp, frame).getRowPackedCopy();
 		final double roughScale = Util.computeAverage(new double[] { 
 				transformMatrix[0],  transformMatrix[1], transformMatrix[2], 
 				transformMatrix[4],  transformMatrix[5], transformMatrix[6], 
@@ -737,10 +737,11 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 		final double ix = displayer.getCanvas(imp).offScreenXD(event.getX()) + 0.5;  // relative to pixel center
 		final double iy = displayer.getCanvas(imp).offScreenYD(event.getY()) + 0.5;
 		final double iz =  imp.getSlice() - 1;
+		final int frame = imp.getT() - 1;
 		final double[] pixelCoords = new double[] { ix, iy, iz };
 
 		final double[] physicalCoords = new double[3];
-		displayer.getTransform(imp).applyInverse(physicalCoords, pixelCoords);
+		displayer.getTransform(imp, frame).applyInverse(physicalCoords, pixelCoords);
 		quickEditedSpot.setPosition(physicalCoords);
 		
 		event.consume();
@@ -800,7 +801,7 @@ public class MVSpotEditTool<T extends RealType<T> & NativeType<T>> extends Abstr
 		double radius = target.getFeature(Spot.RADIUS);
 		// We need to get some idea of the current pixel scale, so that our increment is not
 		// out of range for all possible calibration.
-		final double[] transformMatrix = displayer.getTransform(imp).getRowPackedCopy();
+		final double[] transformMatrix = displayer.getTransform(imp, frame).getRowPackedCopy();
 		final double roughScale = Util.computeAverage(new double[] { 
 				transformMatrix[0],  transformMatrix[1], transformMatrix[2], 
 				transformMatrix[4],  transformMatrix[5], transformMatrix[6], 
