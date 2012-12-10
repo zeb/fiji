@@ -1,0 +1,130 @@
+import ij.IJ;
+import ij.io.SaveDialog;
+
+import imagej.util.LineOutputStream;
+import imagej.util.ReadInto;
+
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.WindowEvent;
+import java.awt.event.WindowListener;
+
+import java.io.File;
+import java.io.PrintStream;
+
+import javax.swing.JButton;
+import javax.swing.JFrame;
+import javax.swing.JPanel;
+
+discoverVLC() {
+	if (System.getProperty("os.name").startsWith("Windows")) {
+		vlc = "C:\\Program Files\\VideoLAN\\VLC\\vlc.exe";
+		if (new File(vlc).exists())
+			return vlc;
+		vlc = "C:\\Program Files (x86)\\VideoLAN\\VLC\\vlc.exe";
+		if (new File(vlc).exists())
+			return vlc;
+	}
+	else
+		for (String dir : System.getenv("PATH").split(":")) {
+			file = new File(dir, "vlc");
+			if (file.exists())
+				return file.getAbsolutePath();
+		}
+	return null;
+}
+
+getOutputFile() {
+	if (IJ.getInstance() != null) {
+		SaveDialog od = new SaveDialog("Open Text File", null, ".ogv");
+		directory = od.getDirectory();
+		if (directory == null)
+			return null;
+		return new File(directory, od.getFileName());
+	}
+	else if (bsh.args.length > 0)
+		return new File(bsh.args[0]);
+	return null;
+}
+
+class IJLogOutputStream extends LineOutputStream {
+	void println(String line) {
+		IJ.log(line);
+	}
+}
+
+startScreencast(vlc, outputFile) {
+	if (outputFile.exists() && outputFile.length() != 0 &&
+			!IJ.showMessageWithCancel("Overwrite?", "The file '" + outputFile + "' appears to exist already. Overwrite?"))
+		return;
+	outputPath = outputFile.getAbsolutePath();
+	IJ.showStatus("Screencasting to '" + fileName + "'");
+	Process process = Runtime.getRuntime().exec(new String[] {
+		vlc,
+		"-I", "dummy",
+		//"-vvv",
+		"screen://:screen-fps=15:screen-mouse-image=/usr/local/MATLAB/R2011b/toolbox/matlab/icons/tool_pointer.png",
+		"--sout=#transcode{"
+			+ "vcodec=theo,"
+			+ "vb=800,"
+			+ "width=640,"
+			+ "acodec=vorb,"
+			+ "ab=128,"
+			+ "channels=2,"
+			+ "samplerate=22050"
+		+ "}:standard{"
+			+ "access=file,"
+			+ "mux=ogg,"
+			+ "dst='" + outputPath + "'"
+		+ "}",
+		"vlc://quit"
+	}, null, null);
+	process.getOutputStream().close();
+	out = new PrintStream(new IJLogOutputStream());
+	err = new ReadInto(process.getErrorStream(), out);
+	out = new ReadInto(process.getInputStream(), out);
+
+	button = new JButton("Stop screencast");
+	panel = new JPanel();
+	panel.add(button);
+	frame = new JFrame("Screencast");
+	frame.getContentPane().add(panel);
+	frame.pack();
+
+	actionListener = new ActionListener() {
+		public void actionPerformed(ActionEvent e) {
+			process.destroy();
+			err.interrupt();
+			err.join();
+			out.interrupt();
+			out.join();
+			frame.dispose();
+			if (IJ.getInstance() == null)
+				System.exit(0);
+		}
+	};
+	button.addActionListener(actionListener);
+
+	frame.addWindowListener(new WindowAdapter() {
+		public void windowClosed(WindowEvent e) {
+			if (err.isAlive())
+				actionListener.actionPerformed(null);
+		}
+	});
+	frame.setVisible(true);
+}
+
+run() {
+	vlc = discoverVLC();
+	if (vlc == null) {
+		IJ.error("Could not find VLC, please install");
+		IJ.runPlugin("ij.plugin.BrowserLauncher", "http://www.videolan.org/index.html");
+		return;
+	}
+	outputFile = getOutputFile();
+	if (outputFile == null)
+		return; // canceled
+	startScreencast(vlc, outputFile);
+}
+
+run();
