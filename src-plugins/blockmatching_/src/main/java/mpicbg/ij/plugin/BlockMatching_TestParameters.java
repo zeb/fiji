@@ -11,7 +11,6 @@ import ij.process.FloatProcessor;
 
 import java.awt.Color;
 import java.util.ArrayList;
-import java.util.Set;
 import java.util.concurrent.ExecutionException;
 
 import mpicbg.ij.blockmatching.BlockMatching;
@@ -19,6 +18,7 @@ import mpicbg.models.ErrorStatistic;
 import mpicbg.models.IllDefinedDataPointsException;
 import mpicbg.models.Model;
 import mpicbg.models.NotEnoughDataPointsException;
+import mpicbg.models.Point;
 import mpicbg.models.PointMatch;
 import mpicbg.models.SpringMesh;
 import mpicbg.models.TranslationModel2D;
@@ -82,7 +82,7 @@ public class BlockMatching_TestParameters extends AbstractBlockMatching
 		
 		final ArrayList< PointMatch > pm12 = new ArrayList< PointMatch >();
 
-		final Set< Vertex > v1 = mesh.getVertices();
+		final ArrayList< Vertex > v1 = mesh.getVertices();
 
 		final TranslationModel2D ct = new TranslationModel2D();
 
@@ -137,6 +137,131 @@ public class BlockMatching_TestParameters extends AbstractBlockMatching
 			pm12.clear();
 		}
 	}
+	
+	protected void filterAndVisualize( final ArrayList< PointMatch > pm12,  final RealPointSampleList< ARGBType > maskSamples )
+	{
+		final Model< ? > model = mpicbg.trakem2.align.Util.createModel( localModelIndex );
+		
+		final double var2 = 2 * localRegionSigma * localRegionSigma;
+		
+		/* unshift an extra weight into candidates */
+		for ( final PointMatch match : pm12 )
+			match.unshiftWeight( 1.0f );
+		
+		/* initialize halucinated points */
+		final ArrayList< PointMatch > halu = new ArrayList< PointMatch >();
+				
+		boolean hasChanged = false;
+		
+		int p = 0;
+		System.out.print( "Smoothness filter pass  1:   0%" );
+		do
+		{
+			halu.clear();
+			
+			System.out.print( ( char )13 + "Smoothness filter pass " + String.format( "%2d", ++p ) + ":   0%" );
+			hasChanged = false;
+			
+			final ArrayList< PointMatch > toBeRemoved = new ArrayList< PointMatch >();
+			final ArrayList< PointMatch > localInliers = new ArrayList< PointMatch >();
+			
+			int i = 0;
+			
+			for ( final PointMatch candidate : pm12 )
+			{
+				System.out.print( ( char )13 + "Smoothness filter pass " + String.format( "%2d", p ) + ": " + String.format( "%3d", ( ++i * 100 / pm12.size() ) ) + "%" );
+				
+				/* calculate weights by square distance to reference in local space */
+				for ( final PointMatch match : pm12 )
+				{
+					final float w = ( float )Math.exp( -Point.squareLocalDistance( candidate.getP1(), match.getP1() ) / var2 );
+					match.setWeight( 0, w );
+				}
+				
+				candidate.setWeight( 0, 0 );
+
+				boolean filteredLocalModelFound;
+				try
+				{
+					filteredLocalModelFound = model.filter( pm12, localInliers, maxLocalTrust );
+				}
+				catch ( final NotEnoughDataPointsException e )
+				{
+					filteredLocalModelFound = false;
+				}
+				
+				if ( !filteredLocalModelFound )
+				{
+					/* no inliers */
+					pm12.clear();
+					break;
+				}
+				
+				candidate.apply( model );
+				final double candidateDistance = Point.distance( candidate.getP1(), candidate.getP2() );
+				if ( candidateDistance <= maxLocalEpsilon )
+				{
+					PointMatch.apply( pm12, model );
+					
+					/* weighed mean Euclidean distances */
+					double meanDistance = 0, ws = 0;
+					for ( final PointMatch match : pm12 )
+					{
+						final float w = match.getWeight();
+						ws += w;
+						meanDistance += Point.distance( match.getP1(), match.getP2() ) * w;
+					}
+					meanDistance /= ws;
+					
+					if ( candidateDistance > maxLocalTrust * meanDistance )
+					{
+						hasChanged = true;
+						toBeRemoved.add( candidate );
+					}
+				}
+				else
+				{
+					hasChanged = true;
+					toBeRemoved.add( candidate );
+				}
+				
+				halu.add( new PointMatch( new Point( candidate.getP1().getL().clone() ), new Point( candidate.getP1().getW().clone() ) ) );
+			}
+			pm12.removeAll( toBeRemoved );
+			
+			/* paint an image */
+			final ImagePlusImgFactory< ARGBType > factory = new ImagePlusImgFactory< ARGBType >();
+			
+			final KDTree< ARGBType > kdtreeMatches = new KDTree< ARGBType >( matches2ColorSamples( halu ) );
+			final KDTree< ARGBType > kdtreeMask = new KDTree< ARGBType >( maskSamples );
+			
+			/* nearest neighbor */
+			final ImagePlusImg< ARGBType, ? > img = factory.create( new long[]{ imp1.getWidth(), imp1.getHeight() }, new ARGBType() );
+			drawNearestNeighbor(
+					img,
+					new NearestNeighborSearchOnKDTree< ARGBType >( kdtreeMatches ),
+					new NearestNeighborSearchOnKDTree< ARGBType >( kdtreeMask ) );
+			
+			try
+			{
+				final ImagePlus imp = img.getImagePlus();
+				imp.setTitle( "smooth field " + p );
+				imp.show();
+			}
+			catch ( final ImgLibException e )
+			{
+				IJ.log( "no smooth field image could be generated" );
+			}
+			
+			System.out.println();
+		}
+		while ( hasChanged );
+		
+		/* clean up extra weight from candidates */
+		for ( final PointMatch match : pm12 )
+			match.shiftWeight();
+	}
+	
 	
 	protected void display( final ArrayList< PointMatch > pm12, final RealPointSampleList< ARGBType > maskSamples, final ImagePlus impTable, final ColorProcessor ipTable, final int w, final int h, final int i, final int j )
 	{
@@ -230,7 +355,7 @@ public class BlockMatching_TestParameters extends AbstractBlockMatching
 		}
 		
 		final SpringMesh mesh = new SpringMesh( meshResolution, imp1.getWidth(), imp1.getHeight(), 1, 1000, 0.9f );
-		final Set< Vertex > vertices = mesh.getVertices();
+		final ArrayList< Vertex > vertices = mesh.getVertices();
 		final RealPointSampleList< ARGBType > maskSamples = new RealPointSampleList< ARGBType >( 2 );
 		for ( final Vertex vertex : vertices )
 			maskSamples.add( new RealPoint( vertex.getL() ), new ARGBType( 0xffffffff ) );
@@ -249,7 +374,8 @@ public class BlockMatching_TestParameters extends AbstractBlockMatching
 				
 				if ( useLocalSmoothnessFilter )		
 				{
-					filter( pm12 );
+//					filter( pm12 );
+					filterAndVisualize( pm12, maskSamples );
 					IJ.log( pm12.size() + " blockmatch candidates passed local smoothness filter." );
 				}
 				if ( exportDisplacementVectors )
@@ -261,7 +387,8 @@ public class BlockMatching_TestParameters extends AbstractBlockMatching
 				
 				if ( useLocalSmoothnessFilter )		
 				{
-					filter( pm21 );
+//					filter( pm21 );
+					filterAndVisualize( pm21, maskSamples );
 					IJ.log( pm21.size() + " blockmatch candidates passed local smoothness filter." );
 				}
 				if ( exportDisplacementVectors )
