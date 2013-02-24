@@ -4,9 +4,11 @@
 # Register time frames (stacks) to each other using Stitching_3D library
 # to compute translations only, in all 3 spatial axes.
 # Operates on a virtual stack.
+# 23/1/13 -
+# update to copy image info and calibration to saved file slices and returned image stack
+# added user dialog to make use of virtual stack an option
 
-
-from ij import VirtualStack, IJ, CompositeImage
+from ij import VirtualStack, IJ, CompositeImage, ImageStack
 from ij.process import ColorProcessor
 from ij.io import DirectoryChooser
 from ij.gui import YesNoCancelDialog
@@ -14,6 +16,7 @@ from mpicbg.imglib.image import ImagePlusAdapter
 from mpicbg.imglib.algorithm.fft import PhaseCorrelation
 from javax.vecmath import Point3i
 from java.io import File, FilenameFilter
+from java.awt.image import ColorModel
 
 # imp stands for ij.ImagePlus instance
 
@@ -34,6 +37,7 @@ def extract_frame(imp, frame, channel):
     i = imp.getStackIndex(channel, s, frame)
     vs.addSlice(str(s), stack.getProcessor(i))
   return vs
+
 
 def compute_frame_translations(imp, channel):
   """ imp contains a hyper virtual stack, and we want to compute
@@ -56,6 +60,7 @@ def compute_frame_translations(imp, channel):
   IJ.showProgress(1)
   return shifts
 
+
 def concatenate_shifts(shifts):
   """ Take the shifts, which are relative to the previous shift,
   and sum them up so that all of them are relative to the first."""
@@ -67,6 +72,7 @@ def concatenate_shifts(shifts):
     s1.y += s0.y
     s1.z += s0.z
   return shifts
+
 
 def compute_min_max(shifts):
   """ Find out the top left up corner, and the right bottom down corner,
@@ -88,6 +94,7 @@ def compute_min_max(shifts):
   
   return minx, miny, minz, maxx, maxy, maxz
 
+
 def zero_pad(num, digits):
   """ for 34, 4 --> '0034' """
   str_num = str(num)
@@ -96,7 +103,101 @@ def zero_pad(num, digits):
   return str_num
 
 
-def create_registered_hyperstack(imp, target_folder, channel):
+def create_registered_hyperstack(imp, channel):
+  """ Takes the imp, determines the x,y,z drift for each pair of time points,
+  using the preferred given channel,
+  and outputs as a hyperstack."""
+  shifts = compute_frame_translations(imp, channel)
+  # Make shifts relative to 0,0,0 of the original imp:
+  shifts = concatenate_shifts(shifts)
+  #print "shifts concatenated:"
+  #for s in shifts:
+    #print s.x, s.y, s.z
+  # Compute bounds of the new volume,
+  # which accounts for all translations:
+  minx, miny, minz, maxx, maxy, maxz = compute_min_max(shifts)
+  # Make shifts relative to new canvas dimensions
+  # so that the min values become 0,0,0
+  for shift in shifts:
+    shift.x -= minx
+    shift.y -= miny
+    shift.z -= minz
+  #print "shifts relative to new dimensions:"
+  #for s in shifts:
+    #print s.x, s.y, s.z
+  # new canvas dimensions:
+  width = imp.width + maxx - minx
+  height = maxy - miny + imp.height
+  slices = maxz - minz + imp.getNSlices()
+
+  #print "New dimensions:", width, height, slices
+  # Count number of digits of each dimension, to output zero-padded numbers:
+  slice_digits = len(str(slices))
+  frame_digits = len(str(imp.getNFrames()))
+  channel_digits = len(str(imp.getNChannels()))
+  # List to accumulate all created names:
+  names = []
+  # Prepare empty slice to pad in Z when necessary
+  empty = imp.getProcessor().createProcessor(width, height)
+
+  # if it's RGB, fill the empty slice with blackness
+  if isinstance(empty, ColorProcessor):
+    empty.setValue(0)
+    empty.fill()
+  # Write all slices to files:
+  stack = imp.getStack()
+  registeredstack = ImageStack(width, height, imp.getProcessor().getColorModel())
+  
+  
+  for frame in range(1, imp.getNFrames()+1):
+    shift = shifts[frame-1]
+    fr = "t" + zero_pad(frame, frame_digits)
+    # Pad with empty slices before reaching the first slice
+    for s in range(shift.z):
+      ss = "_z" + zero_pad(s + 1, slice_digits) # slices start at 1
+      for ch in range(1, imp.getNChannels()+1):
+        name = fr + ss + "_c" + zero_pad(ch, channel_digits) +".tif"
+        names.append(name)
+        empty = imp.getProcessor().createProcessor(width, height)
+        registeredstack.addSlice(str(name), empty)
+    # Add all proper slices
+    for s in range(1, imp.getNSlices()+1):
+      ss = "_z" + zero_pad(s + shift.z, slice_digits)
+      for ch in range(1, imp.getNChannels()+1):
+         ip = stack.getProcessor(imp.getStackIndex(ch, s, frame))
+         ip2 = ip.createProcessor(width, height) # potentially larger
+         ip2.insert(ip, shift.x, shift.y)
+         name = fr + ss + "_c" + zero_pad(ch, channel_digits) +".tif"
+         names.append(name)
+         registeredstack.addSlice(str(name), ip2)
+                
+    # Pad the end
+    for s in range(shift.z + imp.getNSlices(), slices):
+      ss = "_z" + zero_pad(s + 1, slice_digits)
+      for ch in range(1, imp.getNChannels()+1):
+        name = fr + ss + "_c" + zero_pad(ch, channel_digits) +".tif"
+        names.append(name)
+        registeredstack.addSlice(str(name), empty)
+      
+  registeredstack_imp = ImagePlus("registered time points", registeredstack)
+  registeredstack_imp.setCalibration(imp.getCalibration().copy())
+  registeredstack_imp.setProperty("Info", imp.getProperty("Info"));
+  registeredstack_imp.setDimensions(imp.getNChannels(), len(names) / (imp.getNChannels() * imp.getNFrames()), imp.getNFrames())
+  registeredstack_imp.setOpenAsHyperStack(True)
+
+  IJ.log("\nHyperstack dimensions: time frames:" + str(registeredstack_imp.getNFrames()) + ", slices: " + str(registeredstack_imp.getNSlices()) + ", channels: " + str(registeredstack_imp.getNChannels()))
+  if 1 == registeredstack_imp.getNSlices():
+    return registeredstack_imp
+  # Else, as composite
+  mode = CompositeImage.COLOR;
+  if isinstance(imp, CompositeImage):
+    mode = imp.getMode()
+  else:
+    return registeredstack_imp
+  return CompositeImage(registeredstack_imp, mode)
+
+
+def create_registered_virtual_hyperstack(imp, target_folder, channel):
   """ Takes the imp, which contains a virtual hyper stack,
   and determines the x,y,z drift for each pair of time points,
   using the preferred given channel,
@@ -133,22 +234,27 @@ def create_registered_hyperstack(imp, target_folder, channel):
   names = []
   # Prepare empty slice to pad in Z when necessary
   empty = imp.getProcessor().createProcessor(width, height)
+  
   # if it's RGB, fill the empty slice with blackness
   if isinstance(empty, ColorProcessor):
     empty.setValue(0)
     empty.fill()
   # Write all slices to files:
   stack = imp.getStack()
+  
   for frame in range(1, imp.getNFrames()+1):
     shift = shifts[frame-1]
     fr = "t" + zero_pad(frame, frame_digits)
-    # Pad with mpty slices before reaching the first slice
+    # Pad with empty slices before reaching the first slice
     for s in range(shift.z):
       ss = "_z" + zero_pad(s + 1, slice_digits) # slices start at 1
       for ch in range(1, imp.getNChannels()+1):
         name = fr + ss + "_c" + zero_pad(ch, channel_digits) +".tif"
         names.append(name)
-        FileSaver(ImagePlus("", empty)).saveAsTiff(target_folder + "/" + name)
+        currentslice = ImagePlus("", empty)
+        currentslice.setCalibration(imp.getCalibration().copy())
+        currentslice.setProperty("Info", imp.getProperty("Info"));
+        FileSaver(currentslice).saveAsTiff(target_folder + "/" + name)
     # Add all proper slices
     for s in range(1, imp.getNSlices()+1):
       ss = "_z" + zero_pad(s + shift.z, slice_digits)
@@ -158,14 +264,22 @@ def create_registered_hyperstack(imp, target_folder, channel):
          ip2.insert(ip, shift.x, shift.y)
          name = fr + ss + "_c" + zero_pad(ch, channel_digits) +".tif"
          names.append(name)
-         FileSaver(ImagePlus("", ip2)).saveAsTiff(target_folder + "/" + name)
+         currentslice = ImagePlus("", ip2)
+         currentslice.setCalibration(imp.getCalibration().copy())
+         currentslice.setProperty("Info", imp.getProperty("Info"));
+         FileSaver(currentslice).saveAsTiff(target_folder + "/" + name)
+    
     # Pad the end
     for s in range(shift.z + imp.getNSlices(), slices):
       ss = "_z" + zero_pad(s + 1, slice_digits)
       for ch in range(1, imp.getNChannels()+1):
         name = fr + ss + "_c" + zero_pad(ch, channel_digits) +".tif"
         names.append(name)
-        FileSaver(ImagePlus("", empty)).saveAsTiff(target_folder + "/" + name)
+        currentslice = ImagePlus("", empty)
+        currentslice.setCalibration(imp.getCalibration().copy())
+        currentslice.setProperty("Info", imp.getProperty("Info"));
+        FileSaver(currentslice).saveAsTiff(target_folder + "/" + name)
+  currentslice.flush()
   
   # Create virtual hyper stack with the result
   vs = VirtualStack(width, height, None, target_folder)
@@ -173,11 +287,11 @@ def create_registered_hyperstack(imp, target_folder, channel):
     vs.addSlice(name)
   vs_imp = ImagePlus("registered time points", vs)
   vs_imp.setDimensions(imp.getNChannels(), len(names) / (imp.getNChannels() * imp.getNFrames()), imp.getNFrames())
+  vs_imp.setCalibration(imp.getCalibration().copy())
   vs_imp.setOpenAsHyperStack(True)
   IJ.log("\nHyperstack dimensions: time frames:" + str(vs_imp.getNFrames()) + ", slices: " + str(vs_imp.getNSlices()) + ", channels: " + str(vs_imp.getNChannels()))
   if 1 == vs_imp.getNSlices():
     return vs_imp
-  # Else, as composite
   mode = CompositeImage.COLOR;
   if isinstance(imp, CompositeImage):
     mode = imp.getMode()
@@ -189,6 +303,7 @@ class Filter(FilenameFilter):
   def accept(self, folder, name):
     return not File(folder.getAbsolutePath() + "/" + name).isHidden()
 
+
 def validate(target_folder):
   f = File(target_folder)
   if len(File(target_folder).list(Filter())) > 0:
@@ -199,8 +314,27 @@ def validate(target_folder):
       return False
   return True
 
+
+def getOptions(imp):
+  gd = GenericDialog("Correct 3D Drift Options")
+  channels = []
+  for ch in range(1, imp.getNChannels()+1 ):
+    channels.append(str(ch))
+  gd.addMessage("Select a channel to be used for the registration.") 
+  gd.addChoice("     channel:", channels, channels[0])
+  gd.addCheckbox("Use virtualstack?", False) 
+  gd.addMessage("This will store the registered hyperstack as an image sequence and\nshould be used if free RAM is less than 2X the size of the hyperstack. ") 
+  gd.showDialog()
+  if gd.wasCanceled():
+    return
+  channel = gd.getNextChoiceIndex() + 1  # zero-based
+  virtual = gd.getNextBoolean() 
+  return channel, virtual
+
+  
 def run():
   imp = IJ.getImage()
+
   if imp is None:
     return
   if not imp.isHyperStack():
@@ -212,23 +346,37 @@ def run():
   if 1 == imp.getNSlices():
     print "To register slices of a stack, use 'Register Virtual Stack Slices'"
     return
-  dc = DirectoryChooser("Choose target folder")
-  target_folder = dc.getDirectory()
-  if target_folder is None:
-    return # user canceled the dialog
-  if not validate(target_folder):
-    return
-  gd = GenericDialog("Options")
-  channels = []
-  for ch in range(1, imp.getNChannels()+1 ):
-    channels.append(str(ch))
-  gd.addChoice("channel:", channels, channels[0])
-  gd.showDialog()
-  if gd.wasCanceled():
-    return
-  channel = gd.getNextChoiceIndex() + 1  # zero-based
-  vs_imp = create_registered_hyperstack(imp, target_folder, channel)
-  vs_imp.show()
+  
+  options = getOptions(imp)
+  
+  if options is not None:
+    channel, virtual = options
+    #print "channel="+str(channel)+" virtual="+str(virtual)
+  if virtual is True:
+    dc = DirectoryChooser("Choose target folder to save image sequence")
+    target_folder = dc.getDirectory()
+    if target_folder is None:
+      return # user canceled the dialog
+    if not validate(target_folder):
+      return
+  
+    registered_imp= create_registered_virtual_hyperstack(imp, target_folder, channel)
+    if 1 == imp.getNChannels():
+    	ip=imp.getProcessor()
+    	ip2=registered_imp.getProcessor()
+    	ip2.setColorModel(ip.getCurrentColorModel())
+    	registered_imp.show()
+    else:
+    	registered_imp.copyLuts(imp)
+    	registered_imp.show()
+  else:
+    registered_imp = create_registered_hyperstack(imp, channel)
+    if 1 ==imp.getNChannels():
+    	registered_imp.show()
+    else:
+    	registered_imp.copyLuts(imp)
+    	registered_imp.show()
+
+
 
 run()
-
