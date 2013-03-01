@@ -159,6 +159,7 @@ hs_err*.log
 /plugins/MTrack2_-[0-9]*.jar
 /plugins/MTrackJ_-[0-9]*.jar
 /plugins/M_I_P-[0-9]*.jar
+/plugins/MaMuT_-[0-9]*.jar
 /plugins/Manual_Tracking-[0-9]*.jar
 /plugins/MosaicJ_-[0-9]*.jar
 /plugins/Multi_Kymograph-[0-9]*.jar
