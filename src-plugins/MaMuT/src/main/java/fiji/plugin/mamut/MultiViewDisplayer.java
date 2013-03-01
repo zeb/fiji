@@ -1,4 +1,4 @@
-package fiji.plugin.multiviewtracker;
+package fiji.plugin.mamut;
 
 import ij.ImagePlus;
 import ij.gui.ImageWindow;
@@ -23,15 +23,12 @@ import org.jgrapht.graph.DefaultWeightedEdge;
 
 import fiji.plugin.trackmate.Settings;
 import fiji.plugin.trackmate.Spot;
-import fiji.plugin.trackmate.SpotImp;
 import fiji.plugin.trackmate.TrackMateModel;
-import fiji.plugin.trackmate.TrackMateModelChangeEvent;
-import fiji.plugin.trackmate.TrackMateSelectionChangeEvent;
 import fiji.plugin.trackmate.visualization.AbstractTrackMateModelView;
 import fiji.plugin.trackmate.visualization.TrackMateModelView;
 import fiji.util.gui.OverlayedImageCanvas;
 
-public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends AbstractTrackMateModelView<T>  {
+public class MultiViewDisplayer extends AbstractTrackMateModelView  {
 
 	private static final boolean DEBUG = false;
 	public static final String NAME = "MultiView Displayer";
@@ -48,10 +45,10 @@ public class MultiViewDisplayer <T extends RealType<T> & NativeType<T>> extends 
 	private Collection<ImagePlus> imps;
 	Map<ImagePlus, StackWindow> windows = new HashMap<ImagePlus, StackWindow>();
 	Map<ImagePlus, OverlayedImageCanvas> canvases = new HashMap<ImagePlus, OverlayedImageCanvas>();
-	Map<ImagePlus, TransformedSpotOverlay<T>> spotOverlays = new HashMap<ImagePlus, TransformedSpotOverlay<T>>();
-	Map<ImagePlus, TransformedTrackOverlay<T>> trackOverlays = new HashMap<ImagePlus, TransformedTrackOverlay<T>>();
+	Map<ImagePlus, TransformedSpotOverlay> spotOverlays = new HashMap<ImagePlus, TransformedSpotOverlay>();
+	Map<ImagePlus, TransformedTrackOverlay> trackOverlays = new HashMap<ImagePlus, TransformedTrackOverlay>();
 
-	private MVSpotEditTool<T> editTool;
+	private MVSpotEditTool editTool;
 	private Map<ImagePlus, List<AffineTransform3D>> transforms;
 
 	/** The updater instance in charge of setting the views Z & T when {@link #centerViewOn(Spot)} is called. */

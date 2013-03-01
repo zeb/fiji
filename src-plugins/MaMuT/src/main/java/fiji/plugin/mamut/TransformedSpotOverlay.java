@@ -1,4 +1,4 @@
-package fiji.plugin.multiviewtracker;
+package fiji.plugin.mamut;
 
 import ij.ImagePlus;
 
@@ -19,15 +19,12 @@ import java.util.Map;
 import java.util.Set;
 
 import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.type.NativeType;
-import net.imglib2.type.numeric.RealType;
 import net.imglib2.util.Util;
 
 import org.jfree.chart.renderer.InterpolatePaintScale;
 
 import fiji.plugin.trackmate.Spot;
 import fiji.plugin.trackmate.SpotCollection;
-import fiji.plugin.trackmate.SpotImp;
 import fiji.plugin.trackmate.TrackMateModel;
 import fiji.plugin.trackmate.visualization.AbstractTrackMateModelView;
 import fiji.plugin.trackmate.visualization.TrackMateModelView;
@@ -37,7 +34,7 @@ import fiji.util.gui.OverlayedImageCanvas.Overlay;
  * The overlay class in charge of drawing the spot images on the hyperstack window.
  * @author Jean-Yves Tinevez <jeanyves.tinevez@gmail.com> 2010 - 2011
  */
-public class TransformedSpotOverlay<T extends RealType<T> & NativeType<T>> implements Overlay {
+public class TransformedSpotOverlay implements Overlay {
 
 	private static final Font LABEL_FONT = new Font("Arial", Font.BOLD, 12);
 	private static final boolean DEBUG = false;
@@ -48,7 +45,7 @@ public class TransformedSpotOverlay<T extends RealType<T> & NativeType<T>> imple
 	protected Composite composite = AlphaComposite.getInstance(AlphaComposite.SRC_OVER);
 	protected FontMetrics fm;
 	protected Map<String, Object> displaySettings;
-	protected final TrackMateModel<T> model;
+	protected final TrackMateModel model;
 	protected final List<AffineTransform3D> transforms;
 	private final double scalingY;
 	private final double scalingX;
@@ -57,7 +54,7 @@ public class TransformedSpotOverlay<T extends RealType<T> & NativeType<T>> imple
 	 * CONSTRUCTOR
 	 */
 
-	public TransformedSpotOverlay(final TrackMateModel<T> model, final ImagePlus imp, final List<AffineTransform3D> transformList, final Map<String, Object> displaySettings) {
+	public TransformedSpotOverlay(final TrackMateModel model, final ImagePlus imp, final List<AffineTransform3D> transformList, final Map<String, Object> displaySettings) {
 		this.model = model;
 		this.imp = imp;
 		this.transforms = transformList;
@@ -96,7 +93,7 @@ public class TransformedSpotOverlay<T extends RealType<T> & NativeType<T>> imple
 		
 		final int frame = imp.getFrame()-1;
 		final double mag = (double) magnification;
-		final Set<Spot> spotSelection = model.getSpotSelection();
+		final Set<Spot> spotSelection = model.getSelectionModel().getSpotSelection();
 		
 		// Transform back to get physical coordinates of the currently viewed z-slice
 		final int pixelCoordsZ = imp.getSlice()-1;
@@ -187,19 +184,21 @@ public class TransformedSpotOverlay<T extends RealType<T> & NativeType<T>> imple
 	protected void drawSpot(final Graphics2D g2d, final Spot spot, final int pixelZSlice, final int xcorner, final int ycorner, final double magnification, final int frame) {
 		
 		// Absolute location
-		final double[] physicalCoords = new double[3];
-		spot.localize(physicalCoords);
+		final double xp = spot.getFeature(Spot.POSITION_X);
+		final double yp = spot.getFeature(Spot.POSITION_Y);
+		final double zp = spot.getFeature(Spot.POSITION_Z);
+		final double[] physicalCoords = new double[] { xp, yp, zp };
 		
 		// Transform location
 		final double[] pixelCoords = new double[3];
-		transforms.get(frame).apply(physicalCoords, pixelCoords);
+		transforms.get(frame).apply(physicalCoords , pixelCoords);
 		final double x = pixelCoords[0];
 		final double y = pixelCoords[1];
 		
 		// Transform current view
 		final double[] physicalViewCoords = new double[3];
 		transforms.get(frame).applyInverse(physicalViewCoords, new double[] { x, y, pixelZSlice });
-		Spot viewSpot = new SpotImp(physicalViewCoords);
+		Spot viewSpot = new Spot(physicalViewCoords);
 		final double physicalDz2 = viewSpot.squareDistanceTo(spot);
 
 		// Physical radius, stretched according to display settings

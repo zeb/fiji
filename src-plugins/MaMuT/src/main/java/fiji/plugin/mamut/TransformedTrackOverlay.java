@@ -1,4 +1,4 @@
-package fiji.plugin.multiviewtracker;
+package fiji.plugin.mamut;
 
 import ij.ImagePlus;
 
@@ -11,20 +11,17 @@ import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.Stroke;
 import java.awt.geom.AffineTransform;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.type.NativeType;
-import net.imglib2.type.numeric.RealType;
 
-import org.jfree.chart.renderer.InterpolatePaintScale;
 import org.jgrapht.graph.DefaultWeightedEdge;
 
 import fiji.plugin.trackmate.Spot;
 import fiji.plugin.trackmate.TrackMateModel;
+import fiji.plugin.trackmate.visualization.TrackColorGenerator;
 import fiji.plugin.trackmate.visualization.TrackMateModelView;
 import fiji.util.gui.OverlayedImageCanvas.Overlay;
 
@@ -32,82 +29,37 @@ import fiji.util.gui.OverlayedImageCanvas.Overlay;
  * The overlay class in charge of drawing the tracks on the hyperstack window.
  * @author Jean-Yves Tinevez <jeanyves.tinevez@gmail.com> 2010 - 2011
  */
-public class TransformedTrackOverlay <T extends RealType<T> & NativeType<T>> implements Overlay {
+public class TransformedTrackOverlay implements Overlay {
 
 	private final static boolean DEBUG = false;
 	protected final ImagePlus imp;
-	protected Map<Integer, Color> edgeColors;
 	protected Map<String, Object> displaySettings;
-	protected final TrackMateModel<T> model;
+	protected final TrackMateModel model;
 	protected final List<AffineTransform3D> transforms;
-
+	private TrackColorGenerator colorGenerator;
+	
 	/*
 	 * CONSTRUCTOR
 	 */
 
-	public TransformedTrackOverlay(final TrackMateModel<T> model, final ImagePlus imp, final List<AffineTransform3D> transformList, final Map<String, Object> displaySettings) {
+	public TransformedTrackOverlay(final TrackMateModel model, final ImagePlus imp, final List<AffineTransform3D> transformList, final Map<String, Object> displaySettings) {
 		this.model = model;
 		this.imp = imp;
 		this.transforms = transformList;
 		this.displaySettings = displaySettings;
-		computeTrackColors();
 	}
 
 	/*
 	 * PUBLIC METHODS
 	 */
 
-	/**
-	 * Provide default coloring.
-	 */
-	public void computeTrackColors() {
-		int ntracks = model.getNFilteredTracks();
-		if (ntracks == 0)
-			return;
-
-		if (DEBUG)
-			System.out.println("[TransformedTrackOverlay] Recomputing track colors. Found " + ntracks + " visible tracks.");
-
-		InterpolatePaintScale colorMap = (InterpolatePaintScale) displaySettings.get(TrackMateModelView.KEY_COLORMAP);
-		Color defaultColor = (Color) displaySettings.get(TrackMateModelView.KEY_COLOR);
-		edgeColors = new HashMap<Integer, Color>(ntracks);
-
-		final String feature = (String) displaySettings.get(TrackMateModelView.KEY_TRACK_COLOR_FEATURE);
-		if (feature != null) {
-
-			// Get min & max
-			double min = Double.POSITIVE_INFINITY;
-			double max = Double.NEGATIVE_INFINITY;
-			for (double val : model.getFeatureModel().getTrackFeatureValues().get(feature)) {
-				if (val > max) max = val;
-				if (val < min) min = val;
-			}
-
-			for(int i : model.getVisibleTrackIndices()) {
-				Double val = model.getFeatureModel().getTrackFeature(i, feature);
-				if (null == val) {
-					edgeColors.put(i, defaultColor); // if feature is not calculated
-				} else {
-					edgeColors.put(i, colorMap.getPaint((double) (val-min) / (max-min)));
-				}
-			}
-
-		} else {
-			int index = 0;
-			for(int i : model.getVisibleTrackIndices()) {
-				edgeColors.put(i, colorMap.getPaint((double) index / (ntracks-1)));
-				index ++;
-			}
-		}
-	}
-
 	@Override
 	public final void paint(final Graphics g, final int xcorner, final int ycorner, final double magnification) {
 		boolean tracksVisible = (Boolean) displaySettings.get(TrackMateModelView.KEY_TRACKS_VISIBLE);
-		if (!tracksVisible  || model.getNFilteredTracks() == 0)
+		if (!tracksVisible  || model.getTrackModel().getNFilteredTracks() == 0)
 			return;
 
-		final Set<DefaultWeightedEdge> highlight = model.getEdgeSelection();
+		final Set<DefaultWeightedEdge> highlight = model.getSelectionModel().getEdgeSelection();
 
 		final Graphics2D g2d = (Graphics2D)g;
 		// Save graphic device original settings
@@ -123,8 +75,8 @@ public class TransformedTrackOverlay <T extends RealType<T> & NativeType<T>> imp
 		g2d.setStroke(new BasicStroke(4.0f,  BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
 		g2d.setColor(TrackMateModelView.DEFAULT_HIGHLIGHT_COLOR);
 		for (DefaultWeightedEdge edge : highlight) {
-			source = model.getEdgeSource(edge);
-			target = model.getEdgeTarget(edge);
+			source = model.getTrackModel().getEdgeSource(edge);
+			target = model.getTrackModel().getEdgeTarget(edge);
 			drawEdge(g2d, source, target, xcorner, ycorner, mag);
 		}
 
@@ -132,8 +84,8 @@ public class TransformedTrackOverlay <T extends RealType<T> & NativeType<T>> imp
 		final int currentFrame = imp.getFrame() - 1;
 		final int trackDisplayMode = (Integer) displaySettings.get(TrackMateModelView.KEY_TRACK_DISPLAY_MODE);
 		final int trackDisplayDepth = (Integer) displaySettings.get(TrackMateModelView.KEY_TRACK_DISPLAY_DEPTH);
-		final List<Set<DefaultWeightedEdge>> trackEdges = model.getTrackEdges(); 
-		final Set<Integer> filteredTrackIndices = model.getVisibleTrackIndices();
+		final Map<Integer, Set<DefaultWeightedEdge>> trackEdges = model.getTrackModel().getTrackEdges(); 
+		final Set<Integer> filteredTrackIDs = model.getTrackModel().getFilteredTrackIDs();
 
 		g2d.setStroke(new BasicStroke(2.0f,  BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
 		if (trackDisplayMode == TrackMateModelView.TRACK_DISPLAY_MODE_LOCAL || trackDisplayMode == TrackMateModelView.TRACK_DISPLAY_MODE_LOCAL_QUICK) 
@@ -165,16 +117,17 @@ public class TransformedTrackOverlay <T extends RealType<T> & NativeType<T>> imp
 		switch (trackDisplayMode) {
 
 		case TrackMateModelView.TRACK_DISPLAY_MODE_WHOLE: {
-			for (int i : filteredTrackIndices) {
-				g2d.setColor(edgeColors.get(i));
-				final Set<DefaultWeightedEdge> track = trackEdges.get(i);
+			for (Integer trackID : filteredTrackIDs) {
+				colorGenerator.setCurrentTrackID(trackID);
+				final Set<DefaultWeightedEdge> track = trackEdges.get(trackID);
 
 				for (DefaultWeightedEdge edge : track) {
 					if (highlight.contains(edge))
 						continue;
 
-					source = model.getEdgeSource(edge);
-					target = model.getEdgeTarget(edge);
+					source = model.getTrackModel().getEdgeSource(edge);
+					target = model.getTrackModel().getEdgeTarget(edge);
+					g2d.setColor(colorGenerator.color(edge));
 					drawEdge(g2d, source, target, xcorner, ycorner, mag);
 				}
 			}
@@ -187,20 +140,20 @@ public class TransformedTrackOverlay <T extends RealType<T> & NativeType<T>> imp
 
 			g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
 
-			for (int i : filteredTrackIndices) {
-				g2d.setColor(edgeColors.get(i));
-				final Set<DefaultWeightedEdge> track= trackEdges.get(i);
+			for (int trackID : filteredTrackIDs) {
+				final Set<DefaultWeightedEdge> track= trackEdges.get(trackID);
 
 				for (DefaultWeightedEdge edge : track) {
 					if (highlight.contains(edge))
 						continue;
 
-					source = model.getEdgeSource(edge);
+					source = model.getTrackModel().getEdgeSource(edge);
 					sourceFrame = source.getFeature(Spot.POSITION_T) / dt;
 					if (sourceFrame < minT || sourceFrame >= maxT)
 						continue;
 
-					target = model.getEdgeTarget(edge);
+					target = model.getTrackModel().getEdgeTarget(edge);
+					g2d.setColor(colorGenerator.color(edge));
 					drawEdge(g2d, source, target, xcorner, ycorner, mag);
 				}
 			}
@@ -213,21 +166,21 @@ public class TransformedTrackOverlay <T extends RealType<T> & NativeType<T>> imp
 
 			g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-			for (int i : filteredTrackIndices) {
-				g2d.setColor(edgeColors.get(i));
+			for (int i : filteredTrackIDs) {
+//				g2d.setColor(edgeColors.get(i));
 				final Set<DefaultWeightedEdge> track= trackEdges.get(i);
 
 				for (DefaultWeightedEdge edge : track) {
 					if (highlight.contains(edge))
 						continue;
 
-					source = model.getEdgeSource(edge);
+					source = model.getTrackModel().getEdgeSource(edge);
 					sourceFrame = source.getFeature(Spot.POSITION_T) / dt;
 					if (sourceFrame < minT || sourceFrame >= maxT)
 						continue;
 
 					transparency = (float) (1 - Math.abs(sourceFrame-currentFrame) / trackDisplayDepth);
-					target = model.getEdgeTarget(edge);
+					target = model.getTrackModel().getEdgeTarget(edge);
 					drawEdge(g2d, source, target, xcorner, ycorner, mag, transparency);
 				}
 			}
@@ -254,12 +207,16 @@ public class TransformedTrackOverlay <T extends RealType<T> & NativeType<T>> imp
 	protected void drawEdge(final Graphics2D g2d, final Spot source, final Spot target,
 			final int xcorner, final int ycorner, final double magnification, final float transparency) {
 
-		// Find x & y in physical coordinates
-		final double[] physicalPositionSource = new double[3];
-		source.localize(physicalPositionSource);
-
-		final double[] physicalPositionTarget = new double[3];
-		target.localize(physicalPositionTarget);
+		// Find x & y & z in physical coordinates
+		final double x0i = source.getFeature(Spot.POSITION_X);
+		final double y0i = source.getFeature(Spot.POSITION_Y);
+		final double z0i = source.getFeature(Spot.POSITION_Z);
+		final double[] physicalPositionSource = new double[] { x0i, y0i, z0i };
+		
+		final double x1i = target.getFeature(Spot.POSITION_X);
+		final double y1i = target.getFeature(Spot.POSITION_Y);
+		final double z1i = target.getFeature(Spot.POSITION_Z);
+		final double[] physicalPositionTarget = new double[] { x1i, y1i, z1i };
 		
 		// Find frame
 		int sourceFrame = source.getFeature(Spot.FRAME).intValue();
@@ -290,12 +247,16 @@ public class TransformedTrackOverlay <T extends RealType<T> & NativeType<T>> imp
 	protected void drawEdge(final Graphics2D g2d, final Spot source, final Spot target,
 			final int xcorner, final int ycorner, final float magnification) {
 
-		// Find x & y in physical coordinates
-		final double[] physicalPositionSource = new double[3];
-		source.localize(physicalPositionSource);
-
-		final double[] physicalPositionTarget = new double[3];
-		target.localize(physicalPositionTarget);
+		// Find x & y & z in physical coordinates
+		final double x0i = source.getFeature(Spot.POSITION_X);
+		final double y0i = source.getFeature(Spot.POSITION_Y);
+		final double z0i = source.getFeature(Spot.POSITION_Z);
+		final double[] physicalPositionSource = new double[] { x0i, y0i, z0i };
+		
+		final double x1i = target.getFeature(Spot.POSITION_X);
+		final double y1i = target.getFeature(Spot.POSITION_Y);
+		final double z1i = target.getFeature(Spot.POSITION_Z);
+		final double[] physicalPositionTarget = new double[] { x1i, y1i, z1i };
 
 		// Find frame
 		int sourceFrame = source.getFeature(Spot.FRAME).intValue();
@@ -322,6 +283,10 @@ public class TransformedTrackOverlay <T extends RealType<T> & NativeType<T>> imp
 		g2d.drawLine(x0, y0, x1, y1);
 	}
 
+	public void setTrackColorGenerator(TrackColorGenerator colorGenerator) {
+		this.colorGenerator = colorGenerator;
+	}
+	
 	/**
 	 * Ignored.
 	 */
