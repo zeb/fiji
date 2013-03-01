@@ -1,5 +1,8 @@
 package fiji.plugin.trackmate.tracking;
 
+import static fiji.plugin.trackmate.tracking.TrackerKeys.KEY_ALLOW_GAP_CLOSING;
+import static fiji.plugin.trackmate.tracking.TrackerKeys.KEY_LINKING_FEATURE_PENALTIES;
+import static fiji.plugin.trackmate.tracking.TrackerKeys.KEY_LINKING_MAX_DISTANCE;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -17,11 +20,10 @@ import org.junit.Test;
 import fiji.plugin.trackmate.Logger;
 import fiji.plugin.trackmate.Spot;
 import fiji.plugin.trackmate.SpotCollection;
-import fiji.plugin.trackmate.SpotImp;
 import fiji.plugin.trackmate.features.spot.SpotIntensityAnalyzerFactory;
 
 
-public class LAPTrackerTest implements TrackerKeys {
+public class LAPTrackerTest {
 
 	/**
 	 * Standard tracking
@@ -39,8 +41,8 @@ public class LAPTrackerTest implements TrackerKeys {
 			double[] coords1 = new double[] { 1d, 1d * i, 0 } ;
 			double[] coords2 = new double[] { 2d, 1d * i, 0 } ;
 
-			Spot spot1 = new SpotImp(coords1);
-			Spot spot2 = new SpotImp(coords2);
+			Spot spot1 = new Spot(coords1);
+			Spot spot2 = new Spot(coords2);
 			spot1.putFeature(Spot.POSITION_T, i);
 			spot2.putFeature(Spot.POSITION_T, i);
 			spot1.setName("G1T"+i);
@@ -95,8 +97,8 @@ public class LAPTrackerTest implements TrackerKeys {
 			double[] coords1 = new double[] {  (i % 2), 1d * i, 0 } ;
 			double[] coords2 = new double[] { ( (i+1) % 2), 1d * i, 0 } ;
 
-			Spot spot1 = new SpotImp(coords1);
-			Spot spot2 = new SpotImp(coords2);
+			Spot spot1 = new Spot(coords1);
+			Spot spot2 = new Spot(coords2);
 			spot1.putFeature(Spot.POSITION_T, i);
 			spot2.putFeature(Spot.POSITION_T, i);
 			spot1.setName("G1T"+i);

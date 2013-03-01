@@ -3,9 +3,6 @@ package fiji.plugin.trackmate.visualization.trackscheme;
 import java.util.HashMap;
 import java.util.Set;
 
-import net.imglib2.type.NativeType;
-import net.imglib2.type.numeric.RealType;
-
 import org.jgrapht.event.GraphEdgeChangeEvent;
 import org.jgrapht.event.GraphListener;
 import org.jgrapht.event.GraphVertexChangeEvent;
@@ -19,19 +16,19 @@ import com.mxgraph.view.mxGraph;
 import fiji.plugin.trackmate.Spot;
 import fiji.plugin.trackmate.TrackMateModel;
 
-public class JGraphXAdapter  <T extends RealType<T> & NativeType<T>> extends mxGraph implements GraphListener<Spot, DefaultWeightedEdge> {
+public class JGraphXAdapter extends mxGraph implements GraphListener<Spot, DefaultWeightedEdge> {
 
 	private HashMap<Spot, mxCell> 					vertexToCellMap 	= new HashMap<Spot, mxCell>();
 	private HashMap<DefaultWeightedEdge, mxCell> 	edgeToCellMap 		= new HashMap<DefaultWeightedEdge, mxCell>();
 	private HashMap<mxCell, Spot>					cellToVertexMap		= new HashMap<mxCell, Spot>();
 	private HashMap<mxCell, DefaultWeightedEdge>	cellToEdgeMap		= new HashMap<mxCell, DefaultWeightedEdge>();
-	private TrackMateModel<T> tmm;
+	private TrackMateModel tmm;
 
 	/*
 	 * CONSTRUCTOR
 	 */
 
-	public JGraphXAdapter(final TrackMateModel<T> tmm) {
+	public JGraphXAdapter(final TrackMateModel tmm) {
 		super();
 		this.tmm = tmm;
 		insertTrackCollection(tmm);
@@ -92,12 +89,12 @@ public class JGraphXAdapter  <T extends RealType<T> & NativeType<T>> extends mxG
 		mxCell cell = null;
 		getModel().beginUpdate();
 		try {
-			Spot source = tmm.getEdgeSource(edge);
-			Spot target = tmm.getEdgeTarget(edge);				
+			Spot source = tmm.getTrackModel().getEdgeSource(edge);
+			Spot target = tmm.getTrackModel().getEdgeTarget(edge);				
 			cell = new mxCell(edge);
 			cell.setEdge(true);
 			cell.setId(null);
-			cell.setValue(String.format("%.1f", tmm.getEdgeWeight(edge)));
+			cell.setValue(String.format("%.1f", tmm.getTrackModel().getEdgeWeight(edge)));
 			cell.setGeometry(new mxGeometry());
 			cell.getGeometry().setRelative(true);
 			addEdge(cell, defaultParent, vertexToCellMap.get(source),  vertexToCellMap.get(target), null);
@@ -132,6 +129,10 @@ public class JGraphXAdapter  <T extends RealType<T> & NativeType<T>> extends mxG
 	
 	public Set<mxCell> getVertexCells() {
 		return cellToVertexMap.keySet();
+	}
+	
+	public Set<mxCell> getEdgeCells() {
+		return cellToEdgeMap.keySet();
 	}
 	
 	public void removeMapping(Spot spot) {
@@ -184,16 +185,16 @@ public class JGraphXAdapter  <T extends RealType<T> & NativeType<T>> extends mxG
 	 * Any other spot or edges will be ignored by the whole trackscheme
 	 * framework, and if they are needed, they will have to be imported "by hand".
 	 */
-	private void insertTrackCollection(final TrackMateModel<T> tmm) {		
+	private void insertTrackCollection(final TrackMateModel tmm) {
 		model.beginUpdate();
 		try {
-			for (int i : tmm.getVisibleTrackIndices()) {
+			for (Integer trackID : tmm.getTrackModel().getFilteredTrackIDs()) {
 				
-				for (Spot vertex : tmm.getTrackSpots(i)) {
+				for (Spot vertex : tmm.getTrackModel().getTrackSpots(trackID)) {
 					addJGraphTVertex(vertex);
 				}
 
-				for (DefaultWeightedEdge edge : tmm.getTrackEdges(i)) {
+				for (DefaultWeightedEdge edge : tmm.getTrackModel().getTrackEdges(trackID)) {
 					addJGraphTEdge(edge);
 				}
 			
@@ -201,6 +202,7 @@ public class JGraphXAdapter  <T extends RealType<T> & NativeType<T>> extends mxG
 		} finally {
 			model.endUpdate();
 		}
+		
 	}
 
 

@@ -14,17 +14,13 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
-import java.util.Stack;
 import java.util.TreeMap;
 
 import javax.swing.ImageIcon;
 import javax.swing.JViewport;
-
-import net.imglib2.type.NativeType;
-import net.imglib2.type.numeric.RealType;
+import javax.swing.SwingUtilities;
 
 import org.jgrapht.graph.DefaultWeightedEdge;
-import org.jgrapht.traverse.DepthFirstIterator;
 
 import com.mxgraph.model.mxCell;
 import com.mxgraph.model.mxGeometry;
@@ -35,21 +31,20 @@ import com.mxgraph.util.mxConstants;
 import com.mxgraph.util.mxEvent;
 import com.mxgraph.util.mxEventObject;
 import com.mxgraph.util.mxEventSource.mxIEventListener;
+import com.mxgraph.util.mxRectangle;
 import com.mxgraph.util.mxStyleUtils;
 import com.mxgraph.view.mxGraphSelectionModel;
-import com.mxgraph.view.mxPerimeter;
-import com.mxgraph.view.mxStylesheet;
 
+import fiji.plugin.trackmate.ModelChangeEvent;
+import fiji.plugin.trackmate.SelectionChangeEvent;
+import fiji.plugin.trackmate.SelectionModel;
 import fiji.plugin.trackmate.Spot;
 import fiji.plugin.trackmate.TrackMateModel;
-import fiji.plugin.trackmate.TrackMateModelChangeEvent;
-import fiji.plugin.trackmate.TrackMateModelChangeListener;
-import fiji.plugin.trackmate.TrackMateSelectionChangeEvent;
-import fiji.plugin.trackmate.TrackMateSelectionChangeListener;
 import fiji.plugin.trackmate.visualization.AbstractTrackMateModelView;
+import fiji.plugin.trackmate.visualization.TrackColorGenerator;
 import fiji.plugin.trackmate.visualization.TrackMateModelView;
 
-public class TrackScheme <T extends RealType<T> & NativeType<T>> implements TrackMateModelChangeListener, TrackMateSelectionChangeListener, TrackMateModelView<T>{
+public class TrackScheme extends AbstractTrackMateModelView {
 
 	/*
 	 * CONSTANTS
@@ -60,12 +55,11 @@ public class TrackScheme <T extends RealType<T> & NativeType<T>> implements Trac
 	static final int X_COLUMN_SIZE = 160;
 
 	static final int DEFAULT_CELL_WIDTH = 128;
-	static final int DEFAULT_CELL_HEIGHT = 80;
+	static final int DEFAULT_CELL_HEIGHT = 40;
 
 	public static final ImageIcon 	TRACK_SCHEME_ICON = new ImageIcon(TrackSchemeFrame.class.getResource("resources/track_scheme.png"));
 	public static final String 		DEFAULT_COLOR = "#FF00FF";
 	private static final Dimension 	DEFAULT_SIZE = new Dimension(800, 600);
-	static final String 			DEFAULT_STYLE_NAME = "Full"; 
 	static final int 				TABLE_CELL_WIDTH 		= 40;
 	static final Color 				GRID_COLOR = Color.GRAY;
 	/** Are linking costs displayed by default? Can be changed in the toolbar. */
@@ -73,60 +67,18 @@ public class TrackScheme <T extends RealType<T> & NativeType<T>> implements Trac
 	/** Do we display the background decorations by default? */
 	static final boolean 			DEFAULT_DO_PAINT_DECORATIONS = true;
 	/** Do we toggle linking mode by default? */
-	static final boolean DEFAULT_LINKING_ENABLED = false;
-
-	private static final Map<String, Map<String, Object>> VERTEX_STYLES;
-	private static final HashMap<String, Object> BASIC_VERTEX_STYLE = new HashMap<String, Object>();
-	private static final HashMap<String, Object> SIMPLE_VERTEX_STYLE = new HashMap<String, Object>();
-	private static final HashMap<String, Object> BASIC_EDGE_STYLE = new HashMap<String, Object>();
-	static {
-		BASIC_VERTEX_STYLE.put(mxConstants.STYLE_FILLCOLOR, "white");
-		BASIC_VERTEX_STYLE.put(mxConstants.STYLE_FONTCOLOR, "black");
-		BASIC_VERTEX_STYLE.put(mxConstants.STYLE_ALIGN, mxConstants.ALIGN_RIGHT);
-		BASIC_VERTEX_STYLE.put(mxConstants.STYLE_SHAPE, mxScaledLabelShape.SHAPE_NAME);
-		BASIC_VERTEX_STYLE.put(mxConstants.STYLE_IMAGE_ALIGN, mxConstants.ALIGN_LEFT);
-		BASIC_VERTEX_STYLE.put(mxConstants.STYLE_ROUNDED, true);
-		BASIC_VERTEX_STYLE.put(mxConstants.STYLE_PERIMETER, mxPerimeter.RectanglePerimeter);
-		BASIC_VERTEX_STYLE.put(mxConstants.STYLE_STROKECOLOR, DEFAULT_COLOR);
-
-		SIMPLE_VERTEX_STYLE.put(mxConstants.STYLE_FILLCOLOR, "white");
-		SIMPLE_VERTEX_STYLE.put(mxConstants.STYLE_FONTCOLOR, "black");
-		SIMPLE_VERTEX_STYLE.put(mxConstants.STYLE_ALIGN, mxConstants.ALIGN_RIGHT);
-		SIMPLE_VERTEX_STYLE.put(mxConstants.STYLE_SHAPE, mxConstants.SHAPE_ELLIPSE);
-		SIMPLE_VERTEX_STYLE.put(mxConstants.STYLE_IMAGE_ALIGN, mxConstants.ALIGN_LEFT);
-		SIMPLE_VERTEX_STYLE.put(mxConstants.STYLE_ROUNDED, true);
-		SIMPLE_VERTEX_STYLE.put(mxConstants.STYLE_PERIMETER, mxPerimeter.EllipsePerimeter);
-		SIMPLE_VERTEX_STYLE.put(mxConstants.STYLE_STROKECOLOR, DEFAULT_COLOR);
-		SIMPLE_VERTEX_STYLE.put(mxConstants.STYLE_NOLABEL, true);
-
-		BASIC_EDGE_STYLE.put(mxConstants.STYLE_SHAPE, mxConstants.SHAPE_CONNECTOR);
-		BASIC_EDGE_STYLE.put(mxConstants.STYLE_ALIGN, mxConstants.ALIGN_CENTER);
-		BASIC_EDGE_STYLE.put(mxConstants.STYLE_VERTICAL_ALIGN, mxConstants.ALIGN_MIDDLE);
-		BASIC_EDGE_STYLE.put(mxConstants.STYLE_STARTARROW, mxConstants.NONE);
-		BASIC_EDGE_STYLE.put(mxConstants.STYLE_ENDARROW, mxConstants.NONE);
-		BASIC_EDGE_STYLE.put(mxConstants.STYLE_STROKEWIDTH, 2.0f);
-		BASIC_EDGE_STYLE.put(mxConstants.STYLE_STROKECOLOR, DEFAULT_COLOR);
-
-		VERTEX_STYLES = new HashMap<String, Map<String, Object> >(2);
-		VERTEX_STYLES.put(DEFAULT_STYLE_NAME, BASIC_VERTEX_STYLE);
-		VERTEX_STYLES.put("Simple", SIMPLE_VERTEX_STYLE);
-
-	}
+	static final boolean 			DEFAULT_LINKING_ENABLED = false;
 
 	/*
 	 * FIELDS
 	 */
 
-	/** The model this instance is a view of (Yoda I speak like). */
-	private TrackMateModel<T> model;
 	/** The frame in which we display the TrackScheme GUI. */
-	private TrackSchemeFrame<T> gui;
-	/** The display settings map. */
-	private Map<String, Object> displaySettings = new HashMap<String, Object>();
+	private TrackSchemeFrame gui;
 	/** The JGraphX object that displays the graph. */
-	private JGraphXAdapter<T> graph;
+	private JGraphXAdapter graph;
 	/** The graph layout in charge of re-aligning the cells. */
-	private mxTrackGraphLayout<T> graphLayout;
+	private TrackSchemeGraphLayout graphLayout;
 	/** A flag used to prevent double event firing when setting the selection programmatically. */
 	private boolean doFireSelectionChangeEvent = true;
 	/** A flag used to prevent double event firing when setting the selection programmatically. */
@@ -143,14 +95,23 @@ public class TrackScheme <T extends RealType<T> & NativeType<T>> implements Trac
 	 * This field is regenerated after each call to {@link #execute(Object)}.
 	 */
 	private int unlaidSpotColumn = 3;
+	/**
+	 * The instance in charge of generating the string image representation 
+	 * of spots imported in this view.
+	 */
+	private final SpotImageUpdater spotImageUpdater;
+
+	TrackSchemeStylist stylist;
 
 	/*
 	 * CONSTRUCTORS
 	 */
 
-	public TrackScheme(final TrackMateModel<T> model)  {
-		setModel(model);
+	public TrackScheme(final TrackMateModel model)  {
+		super(model);
+		spotImageUpdater = new SpotImageUpdater(model);
 		initDisplaySettings();
+		initGUI();
 	}
 
 
@@ -180,21 +141,21 @@ public class TrackScheme <T extends RealType<T> & NativeType<T>> implements Trac
 	/**
 	 * @return the GUI frame controlled by this class.
 	 */
-	public TrackSchemeFrame<T> getGUI() {
+	public TrackSchemeFrame getGUI() {
 		return gui;
 	}
 
 	/**
 	 * @return the {@link JGraphXAdapter} that serves as a model for the graph displayed in this frame.
 	 */
-	public JGraphXAdapter<T> getGraph() {
+	public JGraphXAdapter getGraph() {
 		return graph;
 	}
 
 	/**
 	 * @return the graph layout in charge of arranging the cells on the graph.
 	 */
-	public mxTrackGraphLayout<T> getGraphLayout() {
+	public TrackSchemeGraphLayout getGraphLayout() {
 		return graphLayout;	
 	}
 
@@ -202,8 +163,11 @@ public class TrackScheme <T extends RealType<T> & NativeType<T>> implements Trac
 	 * Used to instantiate and configure the {@link JGraphXAdapter} that will be used for display.
 	 * Hook for subclassers.
 	 */
-	private JGraphXAdapter<T> createGraph() {
-		final JGraphXAdapter<T> graph = new JGraphXAdapter<T>(model);
+	private JGraphXAdapter createGraph() {
+
+		gui.logger.setStatus("Creating graph adapter.");
+
+		final JGraphXAdapter graph = new JGraphXAdapter(model);
 		graph.setAllowLoops(false);
 		graph.setAllowDanglingEdges(false);
 		graph.setCellsCloneable(false);
@@ -214,21 +178,40 @@ public class TrackScheme <T extends RealType<T> & NativeType<T>> implements Trac
 		graph.setLabelsVisible(true);
 		graph.setDropEnabled(false);
 
-		mxStylesheet styleSheet = graph.getStylesheet();
-		styleSheet.setDefaultEdgeStyle(BASIC_EDGE_STYLE);
-		styleSheet.setDefaultVertexStyle(BASIC_VERTEX_STYLE);
-		styleSheet.putCellStyle(DEFAULT_STYLE_NAME, BASIC_VERTEX_STYLE);
-		styleSheet.putCellStyle("Simple", SIMPLE_VERTEX_STYLE);
-
+		// Group spots per frame
+		Set<Integer> frames = model.getFilteredSpots().keySet();
+		final HashMap<Integer, HashSet<Spot>> spotPerFrame = new HashMap<Integer, HashSet<Spot>>(frames.size());
+		for (Integer frame : frames) {
+			spotPerFrame.put(frame, new HashSet<Spot>(model.getFilteredSpots().getNSpots(frame))); // max size
+		}
+		for (Integer trackID : model.getTrackModel().getFilteredTrackIDs()) {
+			for (Spot spot : model.getTrackModel().getTrackSpots(trackID)) {
+				int frame = spot.getFeature(Spot.FRAME).intValue();
+				spotPerFrame.get(frame).add(spot);
+			}
+		}
+		
 		// Set spot image to cell style
+		gui.logger.setStatus("Collecting spot thumbnails.");
+		int index = 0;
 		try {
 			graph.getModel().beginUpdate();
-			for(mxICell cell : graph.getVertexCells()) {
-				Spot spot = graph.getSpotFor(cell);
-				graph.getModel().setStyle(cell, mxConstants.STYLE_IMAGE+"="+"data:image/base64,"+spot.getImageString());
+			
+			// Iterate per frame
+			for (Integer frame : frames) {
+				for (Spot spot : spotPerFrame.get(frame)) {
+
+					mxICell cell = graph.getCellFor(spot);
+					String imageStr = spotImageUpdater.getImageString(spot);
+					graph.getModel().setStyle(cell, mxConstants.STYLE_IMAGE+"="+"data:image/base64," + imageStr);
+					
+				}
+				gui.logger.setProgress( (double) index++ / frames.size() );
 			}
 		} finally {
 			graph.getModel().endUpdate();
+			gui.logger.setProgress(0d);
+			gui.logger.setStatus("");
 		}
 
 		// Cells removed from JGraphX
@@ -262,8 +245,9 @@ public class TrackScheme <T extends RealType<T> & NativeType<T>> implements Trac
 		}
 
 		// Update cell look
+		String imageStr = spotImageUpdater.getImageString(spot);
 		String style = cell.getStyle();
-		style = mxStyleUtils.setStyle(style, mxConstants.STYLE_IMAGE, "data:image/base64,"+spot.getImageString());
+		style = mxStyleUtils.setStyle(style, mxConstants.STYLE_IMAGE, "data:image/base64," + imageStr);
 		graph.getModel().setStyle(cell, style);
 		final double dx = model.getSettings().dx;
 		long height = Math.min(DEFAULT_CELL_WIDTH, Math.round(2 * spot.getFeature(Spot.RADIUS) / dx ));
@@ -293,7 +277,8 @@ public class TrackScheme <T extends RealType<T> & NativeType<T>> implements Trac
 		mxGeometry geometry = new mxGeometry(x, y, DEFAULT_CELL_WIDTH, height);
 		cellAdded.setGeometry(geometry);
 		// Set its style
-		graph.getModel().setStyle(cellAdded, mxConstants.STYLE_IMAGE+"="+"data:image/base64,"+spot.getImageString());
+		String imageStr = spotImageUpdater.getImageString(spot);
+		graph.getModel().setStyle(cellAdded, mxConstants.STYLE_IMAGE+"="+"data:image/base64," + imageStr);
 		return cellAdded;
 	}
 
@@ -307,18 +292,18 @@ public class TrackScheme <T extends RealType<T> & NativeType<T>> implements Trac
 		graph.getModel().beginUpdate();
 		try {
 			// Flag original track as visible
-			model.addTrackToVisibleList(trackIndex);
+			model.getTrackModel().setFilteredTrackID(trackIndex, true, false);
 			// Find adequate column
 			int targetColumn = getUnlaidSpotColumn();
 			// Create cells for track
-			Set<Spot> trackSpots = model.getTrackSpots(trackIndex);
+			Set<Spot> trackSpots = model.getTrackModel().getTrackSpots(trackIndex);
 			for (Spot trackSpot : trackSpots) {
 				int frame = trackSpot.getFeature(Spot.FRAME).intValue();
 				int column = Math.max(targetColumn, getNextFreeColumn(frame));
 				insertSpotInGraph(trackSpot, column);
 				rowLengths.put(frame , column);
 			}
-			Set<DefaultWeightedEdge> trackEdges = model.getTrackEdges(trackIndex);
+			Set<DefaultWeightedEdge> trackEdges = model.getTrackModel().getTrackEdges(trackIndex);
 			for (DefaultWeightedEdge trackEdge : trackEdges) {
 				graph.addJGraphTEdge(trackEdge);
 			}
@@ -345,6 +330,13 @@ public class TrackScheme <T extends RealType<T> & NativeType<T>> implements Trac
 				Spot source = graph.getSpotFor(cell.getSource());
 				Spot target = graph.getSpotFor(cell.getTarget());
 
+				if (DEBUG) {
+					System.out.println("[TrackScheme] #addEdgeManually: edge is between 2 spots belonging to the same frame. Removing it.");
+					System.out.println("[TrackScheme] #addEdgeManually: adding edge between source " + source + 
+							" at frame " + source.getFeature(Spot.FRAME).intValue() + 
+							" and target " + target + " at frame " + target.getFeature(Spot.FRAME).intValue());
+				}
+
 				if (Spot.frameComparator.compare(source, target) == 0) {
 					// Prevent adding edges between spots that belong to the same frame
 
@@ -359,41 +351,44 @@ public class TrackScheme <T extends RealType<T> & NativeType<T>> implements Trac
 					// Put them right in order: since we use a oriented graph,
 					// we want the source spot to precede in time.
 					if (Spot.frameComparator.compare(source, target) > 0) {
-						
+
 						if (DEBUG) {
-							System.out.println("[TrackScheme] souce " + source + " succeed target " + target + ". Inverting edge direction.");
+							System.out.println("[TrackScheme] #addEdgeManually: Source " + source + " succeed target " + target + ". Inverting edge direction.");
 						}
-						
+
 						Spot tmp = source;
 						source = target;
 						target = tmp;
 					}
 					// We add a new jGraphT edge to the underlying model, if it does not exist yet.
-					DefaultWeightedEdge edge = model.getEdge(source, target); 
+					DefaultWeightedEdge edge = model.getTrackModel().getEdge(source, target); 
 					if (null == edge) {
 						edge = model.addEdge(source, target, -1);
+						if (DEBUG) {
+							System.out.println("[TrackScheme] #addEdgeManually: Creating new edge: " + edge + ".");
+						}
 					} else {
 						// Ah. There was an existing edge in the model we were trying to re-add there, from the graph.
 						// We remove the graph edge we have added,
 						if (DEBUG) {
-							System.out.println("[TrackScheme] addEdgeManually: edge pre-existed. Retrieve it.");
+							System.out.println("[TrackScheme] #addEdgeManually: Edge pre-existed. Retrieve it.");
 						}
 						graph.removeCells(new Object[] { cell } );
 						// And re-create a graph edge from the model edge.
 						cell = graph.addJGraphTEdge(edge);
-						cell.setValue(String.format("%.1f", model.getEdgeWeight(edge)));
+						cell.setValue(String.format("%.1f", model.getTrackModel().getEdgeWeight(edge)));
 						// We also need now to check if the edge belonged to a visible track. If not,
 						// we make it visible.
-						int index = model.getTrackIndexOf(edge); 
+						int index = model.getTrackModel().getTrackIDOf(edge); 
 						// This will work, because track indices will be reprocessed only after the graphModel.endUpdate() 
 						// reaches 0. So now, it's like we are dealing with the track indices priori to modification.
-						if (model.isTrackVisible(index)) {
+						if (model.getTrackModel().isTrackFiltered(index)) {
 							if (DEBUG) {
-								System.out.println("[TrackScheme] addEdgeManually: track was visible. Do nothing.");
+								System.out.println("[TrackScheme] #addEdgeManually: Track was visible. Do nothing.");
 							}
 						} else {
 							if (DEBUG) {
-								System.out.println("[TrackScheme] addEdgeManually: track was invisible. Make it visible.");
+								System.out.println("[TrackScheme] #addEdgeManually: Track was invisible. Make it visible.");
 							}
 							importTrack(index);
 						}
@@ -402,9 +397,9 @@ public class TrackScheme <T extends RealType<T> & NativeType<T>> implements Trac
 				}
 
 			} finally {
-				model.endUpdate();
-				model.clearEdgeSelection();
 				graphModel.endUpdate();
+				model.endUpdate();
+				model.getSelectionModel().clearEdgeSelection();
 			}
 		}
 	}
@@ -417,7 +412,7 @@ public class TrackScheme <T extends RealType<T> & NativeType<T>> implements Trac
 	 */
 
 	@Override
-	public void selectionChanged(TrackMateSelectionChangeEvent event) {
+	public void selectionChanged(SelectionChangeEvent event) {
 		if (DEBUG_SELECTION) 
 			System.out.println("[TrackSchemeFrame] selectionChanged: received event "+event.hashCode()+" from "+event.getSource()+". Fire flag is "+doFireSelectionChangeEvent);
 		if (!doFireSelectionChangeEvent)
@@ -426,15 +421,16 @@ public class TrackScheme <T extends RealType<T> & NativeType<T>> implements Trac
 
 		/* Performance issue: we do our highlighting here, in batch, bypassing highlight* methods		 */
 		{
-			ArrayList<Object> newSelection = new ArrayList<Object>(model.getSpotSelection().size() + model.getEdgeSelection().size());
-			Iterator<DefaultWeightedEdge> edgeIt = model.getEdgeSelection().iterator();
+			SelectionModel selectionModel = model.getSelectionModel();
+			ArrayList<Object> newSelection = new ArrayList<Object>(selectionModel.getSpotSelection().size() + selectionModel.getEdgeSelection().size());
+			Iterator<DefaultWeightedEdge> edgeIt = selectionModel.getEdgeSelection().iterator();
 			while(edgeIt.hasNext()) {
 				mxICell cell = graph.getCellFor(edgeIt.next());
 				if (null != cell) {
 					newSelection.add(cell);
 				}
 			}
-			Iterator<Spot> spotIt = model.getSpotSelection().iterator();
+			Iterator<Spot> spotIt = selectionModel.getSpotSelection().iterator();
 			while(spotIt.hasNext()) {
 				mxICell cell = graph.getCellFor(spotIt.next());
 				if (null != cell) {
@@ -471,10 +467,10 @@ public class TrackScheme <T extends RealType<T> & NativeType<T>> implements Trac
 	 * on the graph here.
 	 */
 	@Override
-	public void modelChanged(final TrackMateModelChangeEvent event) {
+	public void modelChanged(final ModelChangeEvent event) {
 
 		// Only catch model changes
-		if (event.getEventID() != TrackMateModelChangeEvent.MODEL_MODIFIED)
+		if (event.getEventID() != ModelChangeEvent.MODEL_MODIFIED)
 			return;
 
 		graph.getModel().beginUpdate();
@@ -487,7 +483,7 @@ public class TrackScheme <T extends RealType<T> & NativeType<T>> implements Trac
 			if (event.getSpots() != null) {
 				for (Spot spot : event.getSpots() ) {
 
-					if (event.getSpotFlag(spot) == TrackMateModelChangeEvent.FLAG_SPOT_ADDED) {
+					if (event.getSpotFlag(spot) == ModelChangeEvent.FLAG_SPOT_ADDED) {
 
 						int frame = spot.getFeature(Spot.FRAME).intValue();
 						// Put in the graph
@@ -495,12 +491,12 @@ public class TrackScheme <T extends RealType<T> & NativeType<T>> implements Trac
 						insertSpotInGraph(spot, column); // move in right+1 free column
 						rowLengths.put(frame, column);
 
-					} else if (event.getSpotFlag(spot) == TrackMateModelChangeEvent.FLAG_SPOT_MODIFIED) {
+					} else if (event.getSpotFlag(spot) == ModelChangeEvent.FLAG_SPOT_MODIFIED) {
 
 						// Change the look of the cell
 						updateCellOf(spot);
 
-					}  else if (event.getSpotFlag(spot) == TrackMateModelChangeEvent.FLAG_SPOT_REMOVED) {
+					}  else if (event.getSpotFlag(spot) == ModelChangeEvent.FLAG_SPOT_REMOVED) {
 
 						mxICell cell = graph.getCellFor(spot);
 						cellsToRemove.add(cell);
@@ -519,49 +515,81 @@ public class TrackScheme <T extends RealType<T> & NativeType<T>> implements Trac
 
 			graph.getModel().beginUpdate();
 			try {
-				for (DefaultWeightedEdge edge : event.getEdges()) {
-					if (event.getEdgeFlag(edge) == TrackMateModelChangeEvent.FLAG_EDGE_ADDED) {
 
-						mxICell edgeCell = graph.getCellFor(edge);
-						if (null == edgeCell) {
-							
-							// Make sure target & source cells exist
-							
-							Spot source = model.getEdgeSource(edge);
-							mxCell sourceCell = graph.getCellFor(source);
-							if (sourceCell == null) {
-								int frame = source.getFeature(Spot.FRAME).intValue();
-								// Put in the graph
-								int targetColumn = getUnlaidSpotColumn();
-								int column = Math.max(targetColumn, getNextFreeColumn(frame));
-								insertSpotInGraph(source, column); // move in right+1 free column
-								rowLengths.put(frame, column);
+				if (event.getEdges().size() > 0) {
+
+					Map<Integer, Set<mxCell>> edgesToUpdate = new HashMap<Integer, Set<mxCell>>();
+
+					for (DefaultWeightedEdge edge : event.getEdges()) {
+
+						if (event.getEdgeFlag(edge) == ModelChangeEvent.FLAG_EDGE_ADDED) {
+
+							mxCell edgeCell = graph.getCellFor(edge);
+							if (null == edgeCell) {
+
+								// Make sure target & source cells exist
+
+								Spot source = model.getTrackModel().getEdgeSource(edge);
+								mxCell sourceCell = graph.getCellFor(source);
+								if (sourceCell == null) {
+									int frame = source.getFeature(Spot.FRAME).intValue();
+									// Put in the graph
+									int targetColumn = getUnlaidSpotColumn();
+									int column = Math.max(targetColumn, getNextFreeColumn(frame));
+									insertSpotInGraph(source, column); // move in right+1 free column
+									rowLengths.put(frame, column);
+								}
+
+								Spot target = model.getTrackModel().getEdgeTarget(edge);
+								mxCell targetCell = graph.getCellFor(target);
+								if (targetCell == null) {
+									int frame = target.getFeature(Spot.FRAME).intValue();
+									// Put in the graph
+									int targetColumn = getUnlaidSpotColumn();
+									int column = Math.max(targetColumn, getNextFreeColumn(frame));
+									insertSpotInGraph(target, column); // move in right+1 free column
+									rowLengths.put(frame, column);
+								}
+
+
+								// And finally create the edge cell
+								edgeCell = graph.addJGraphTEdge(edge);
+
+
 							}
-							
-							Spot target = model.getEdgeTarget(edge);
-							mxCell targetCell = graph.getCellFor(target);
-							if (targetCell == null) {
-								int frame = target.getFeature(Spot.FRAME).intValue();
-								// Put in the graph
-								int targetColumn = getUnlaidSpotColumn();
-								int column = Math.max(targetColumn, getNextFreeColumn(frame));
-								insertSpotInGraph(target, column); // move in right+1 free column
-								rowLengths.put(frame, column);
+
+							graph.getModel().add(graph.getDefaultParent(), edgeCell, 0);
+
+							// Add it to the map of cells to recolor
+							Integer trackID = model.getTrackModel().getTrackIDOf(edge);
+							Set<mxCell> edgeSet = edgesToUpdate.get(trackID);
+							if (edgesToUpdate.get(trackID) == null) {
+								edgeSet = new HashSet<mxCell>();
+								edgesToUpdate.put(trackID, edgeSet);
 							}
+							edgeSet.add(edgeCell);
 
-							
-							// And finally create the edge cell
-							edgeCell = graph.addJGraphTEdge(edge);
-
-							
+						} else if (event.getEdgeFlag(edge) == ModelChangeEvent.FLAG_EDGE_MODIFIED) {
+							// Add it to the map of cells to recolor
+							Integer trackID = model.getTrackModel().getTrackIDOf(edge);
+							Set<mxCell> edgeSet = edgesToUpdate.get(trackID);
+							if (edgesToUpdate.get(trackID) == null) {
+								edgeSet = new HashSet<mxCell>();
+								edgesToUpdate.put(trackID, edgeSet);
+							}
+							edgeSet.add(graph.getCellFor(edge));
 						}
-
-						graph.getModel().add(graph.getDefaultParent(), edgeCell, 0);
-						String edgeStyle = edgeCell.getStyle();
-						edgeStyle = mxStyleUtils.setStyle(edgeStyle, mxSideTextShape.STYLE_DISPLAY_COST, ""+graphLayout.isDoDisplayCosts());
-						graph.getModel().setStyle(edgeCell, edgeStyle);
-
 					}
+
+					stylist.execute(edgesToUpdate);
+					SwingUtilities.invokeLater(new Runnable(){
+						public void run() {
+							gui.graphComponent.refresh();
+							gui.graphComponent.repaint();
+						}
+					});
+
+
 				}
 			} finally {
 				graph.getModel().endUpdate();
@@ -570,25 +598,26 @@ public class TrackScheme <T extends RealType<T> & NativeType<T>> implements Trac
 	}
 
 	@Override
-	public void setModel(TrackMateModel<T> model) {
-		// Model listeners
-		if (null != this.model) {
-			this.model.removeTrackMateModelChangeListener(this);
-			this.model.removeTrackMateSelectionChangeListener(this);
-		}
-		this.model = model;
-		this.model.addTrackMateModelChangeListener(this);
-		this.model.addTrackMateSelectionChangeListener(this);
-	}
-
-
-	@Override
 	public Map<String, Object> getDisplaySettings() {
 		return displaySettings;
 	}
 
 	@Override
 	public void setDisplaySettings(String key, Object value) {
+
+		if (key == TrackMateModelView.KEY_TRACK_COLORING) {
+			if (null != stylist) {
+				// unregister the old one
+				TrackColorGenerator oldColorGenerator = (TrackColorGenerator) displaySettings.get(KEY_TRACK_COLORING);
+				oldColorGenerator.terminate();
+				// pass the new one to the track overlay - we ignore its spot coloring and keep the spot coloring
+				TrackColorGenerator colorGenerator = (TrackColorGenerator) value;
+				stylist.setColorGenerator(colorGenerator);
+				doTrackStyle();
+				refresh();
+			}
+		}
+
 		displaySettings.put(key, value);
 	}
 
@@ -599,13 +628,48 @@ public class TrackScheme <T extends RealType<T> & NativeType<T>> implements Trac
 
 	@Override
 	public void render() {
-		initGUI();
-		doTrackLayout();
+		final long start = System.currentTimeMillis();
+		// Graph to mirror model
+		this.graph = createGraph();
+		gui.logger.setStatus("Generating GUI components.");
+		SwingUtilities.invokeLater(new Runnable(){
+			public void run()	{
+				// Pass graph to GUI
+				gui.init(graph);
+				// Init functions that set look and position
+				gui.logger.setStatus("Creating style manager.");
+				TrackScheme.this.stylist = new TrackSchemeStylist(graph, (TrackColorGenerator) displaySettings.get(KEY_TRACK_COLORING));
+				gui.logger.setStatus("Creating layout manager.");
+				TrackScheme.this.graphLayout = new TrackSchemeGraphLayout(graph, model, gui.graphComponent);
+				// Execute style and layout
+				doTrackStyle();
+				gui.logger.setStatus("Executing layout.");
+				doTrackLayout();
+				refresh();
+				long end = System.currentTimeMillis();
+				gui.logger.log(String.format("Rendering done in %.1f s.", (end-start)/1000d));
+			}
+		});
 	}
 
 	@Override
 	public void refresh() {
-		System.out.println("[TrackScheme] refresh() called");
+		SwingUtilities.invokeLater(new Runnable(){
+			public void run() {
+				gui.logger.setStatus("Refreshing display.");
+				gui.graphComponent.refresh();
+				mxRectangle bounds = graph.getView().validatePoints(null, graph.getDefaultParent());
+				if (null == bounds) { // This happens when there is not track to display
+					return;
+				}
+				Dimension dim = new Dimension();
+				dim.setSize(
+						bounds.getRectangle().width + bounds.getRectangle().x, 
+						bounds.getRectangle().height + bounds.getRectangle().y );
+				gui.graphComponent.getGraphControl().setPreferredSize(dim);
+				gui.logger.setStatus("");
+			}
+		});
 	}
 
 	@Override
@@ -619,7 +683,7 @@ public class TrackScheme <T extends RealType<T> & NativeType<T>> implements Trac
 	}
 
 	@Override
-	public TrackMateModel<T> getModel() {
+	public TrackMateModel getModel() {
 		return model;
 	}
 
@@ -645,7 +709,7 @@ public class TrackScheme <T extends RealType<T> & NativeType<T>> implements Trac
 
 	/**
 	 * Called when the user makes a selection change in the graph. Used to forward this event 
-	 * to the {@link InfoPane} and to other {@link TrackMateSelectionChangeListener}s.
+	 * to the {@link InfoPane} and to other {@link SelectionChangeListener}s.
 	 * @param model the selection model 
 	 * @param added  the cells  <b>removed</b> from selection (careful, inverted)
 	 * @param removed  the cells <b>added</b> to selection (careful, inverted)
@@ -720,22 +784,20 @@ public class TrackScheme <T extends RealType<T> & NativeType<T>> implements Trac
 		if (DEBUG_SELECTION)
 			System.out.println("[TrackScheme] userChangeSelection: sending selection change to model.");
 		doFireSelectionChangeEvent = false;
+		SelectionModel selectionModel = model.getSelectionModel();
 		if (!edgesToAdd.isEmpty())
-			model.addEdgeToSelection(edgesToAdd);
+			selectionModel.addEdgeToSelection(edgesToAdd);
 		if (!spotsToAdd.isEmpty())
-			model.addSpotToSelection(spotsToAdd);
+			selectionModel.addSpotToSelection(spotsToAdd);
 		if (!edgesToRemove.isEmpty())
-			model.removeEdgeFromSelection(edgesToRemove);
+			selectionModel.removeEdgeFromSelection(edgesToRemove);
 		if (!spotsToRemove.isEmpty())
-			model.removeSpotFromSelection(spotsToRemove);
+			selectionModel.removeSpotFromSelection(spotsToRemove);
 		doFireSelectionChangeEvent = true;
 	}
 
 	private void initGUI() {
-		// Graph to mirror model
-		this.graph = createGraph();
-		this.gui = new TrackSchemeFrame<T>(graph, model, this);
-		this.graphLayout = new mxTrackGraphLayout<T>(graph, model);
+		this.gui = new TrackSchemeFrame(this);
 		String title = "TrackScheme";
 		if (null != model.getSettings().imp)
 			title += ": "+model.getSettings().imp.getTitle();
@@ -799,7 +861,7 @@ public class TrackScheme <T extends RealType<T> & NativeType<T>> implements Trac
 			doFireModelChangeEvent = false;
 			model.beginUpdate();
 			try {
-				model.clearSelection();
+				model.getSelectionModel().clearSelection();
 				// We remove edges first so that we ensure we do not end having orphan edges.
 				// Normally JGraphT handles that well, but we enforce things here. To be sure.
 				for (DefaultWeightedEdge edge : edgesToRemove) {
@@ -860,14 +922,36 @@ public class TrackScheme <T extends RealType<T> & NativeType<T>> implements Trac
 		gui.graphComponent.zoomTo(1.0, false);
 	}
 
+	public void doTrackStyle() {
+		if (null == stylist) {
+			return;
+		}
+		gui.logger.setStatus("Setting style.");
+
+		// Collect edges 
+		Set<Integer> trackIDs = model.getTrackModel().getFilteredTrackIDs();
+		HashMap<Integer, Set<mxCell>> edgeMap = new HashMap<Integer, Set<mxCell>>(trackIDs.size());
+		for (Integer trackID : trackIDs) {
+			Set<DefaultWeightedEdge> edges = model.getTrackModel().getTrackEdges(trackID);
+			HashSet<mxCell> set = new HashSet<mxCell>(edges.size());
+			for (DefaultWeightedEdge edge : edges) {
+				set.add(graph.getCellFor(edge));
+			}
+			edgeMap.put(trackID, set);
+		}
+
+		// Give them style
+		Set<mxICell> verticesUpdated = stylist.execute(edgeMap);
+
+		// Take care of vertices
+		HashSet<mxCell> missedVertices = new HashSet<mxCell>(graph.getVertexCells());
+		missedVertices.removeAll(verticesUpdated);
+		stylist.updateVertexStyle(missedVertices);
+	}
+
 	public void doTrackLayout() {
 		// Position cells
-		graphLayout.execute(graph.getDefaultParent());
-		// We need to pass the column size to the graph component, so that it can paint the borders
-		gui.graphComponent.setColumnColor(graphLayout.getTrackColors());
-		gui.graphComponent.setColumnWidths(graphLayout.getTrackColumnWidths());
-		gui.graphComponent.repaint();
-		// 
+		graphLayout.execute(null);
 		rowLengths = graphLayout.getRowLengths();
 		int maxLength = 2;
 		for (int rowLength : rowLengths.values()) {
@@ -875,7 +959,7 @@ public class TrackScheme <T extends RealType<T> & NativeType<T>> implements Trac
 				maxLength = rowLength;
 			}
 		}
-		unlaidSpotColumn = maxLength + 1;
+		unlaidSpotColumn = maxLength;
 	}
 
 	public void captureUndecorated() {
@@ -898,12 +982,6 @@ public class TrackScheme <T extends RealType<T> & NativeType<T>> implements Trac
 		imp.show();	
 	}
 
-	public boolean toggleDisplayCosts() {
-		boolean enabled = graphLayout.isDoDisplayCosts();
-		graphLayout.setDoDisplayCosts(!enabled);
-		return !enabled;
-	}
-
 	public boolean toggleDisplayDecoration() {
 		boolean enabled = gui.graphComponent.isDoPaintDecorations();
 		gui.graphComponent.setDoPaintDecorations(!enabled);
@@ -911,107 +989,6 @@ public class TrackScheme <T extends RealType<T> & NativeType<T>> implements Trac
 		return !enabled;
 	}
 
-	/**
-	 * Search and add all spots and links belonging to the same track(s) that of given <code>vertices</code> and 
-	 * <code>edges</code> to current selection. A <code>direction</code> parameter allow specifying
-	 * whether we should include only parts upwards in time, downwards in time or all the way through. 
-	 * @param vertices  the spots to include in search
-	 * @param edges  the edges to include in search
-	 * @param direction  the direction to go when searching. Positive integers will result in searching
-	 * upwards in time, negative integers downwards in time and 0 all the way through.
-	 */
-	public void selectTrack(final ArrayList<mxCell> vertices, final ArrayList<mxCell> edges, final int direction) {
-
-		// Look for spot and edges matching given mxCells
-		HashSet<Spot> inspectionSpots = new HashSet<Spot>();
-		for(mxCell cell : vertices) {
-			Spot spot = graph .getSpotFor(cell);
-			if (null == spot) {
-				if (DEBUG) {
-					System.out.println("[TrackScheme] selectWholeTrack: tried to retrieve cell "+cell+", unknown to spot map.");
-				}
-				continue;
-			}
-			inspectionSpots.add(spot);
-		}
-		for(mxCell cell : edges) {
-			DefaultWeightedEdge dwe = graph.getEdgeFor(cell);
-			if (null == dwe) {
-				if (DEBUG) {
-					System.out.println("[TrackScheme] select whole track: tried to retrieve cell "+cell+", unknown to edge map.");
-				}
-				continue;
-			}
-			// We add connected spots to the list of spots to inspect
-			inspectionSpots.add(model.getEdgeSource(dwe));
-			inspectionSpots.add(model.getEdgeTarget(dwe));
-		}
-
-		// Walk across tracks to build selection
-		final HashSet<Spot> spotSelection 				= new HashSet<Spot>();
-		final HashSet<DefaultWeightedEdge> edgeSelection 	= new HashSet<DefaultWeightedEdge>();
-
-		if (direction == 0) { // Unconditionally
-			for (Spot spot : inspectionSpots) {
-				spotSelection.add(spot);
-				DepthFirstIterator<Spot, DefaultWeightedEdge> walker = model.getDepthFirstIterator(spot);
-				while (walker.hasNext()) { 
-					Spot target = walker.next();
-					spotSelection.add(target); 
-					// Deal with edges
-					Set<DefaultWeightedEdge> targetEdges = model.edgesOf(target);
-					for(DefaultWeightedEdge targetEdge : targetEdges) {
-						edgeSelection.add(targetEdge);
-					}
-				}
-			}
-
-		} else { // Only upward or backward in time 
-			for (Spot spot : inspectionSpots) {
-				spotSelection.add(spot);
-
-				// A bit more complicated: we want to walk in only one direction,
-				// when branching is occurring, we do not want to get back in time.
-				Stack<Spot> stack = new Stack<Spot>();
-				stack.add(spot);
-				while (!stack.isEmpty()) { 
-					Spot inspected = stack.pop();
-					Set<DefaultWeightedEdge> targetEdges = model.edgesOf(inspected);
-					for(DefaultWeightedEdge targetEdge : targetEdges) {
-						Spot other;
-						if (direction > 0) {
-							// Upward in time: we just have to search through edges using their source spots
-							other = model.getEdgeSource(targetEdge);
-						} else {
-							other = model.getEdgeTarget(targetEdge);
-						}
-
-						if (other != inspected) {
-							spotSelection.add(other);
-							edgeSelection.add(targetEdge);
-							stack.add(other);
-						}
-					}
-				}
-			}
-		}
-
-		// Cut "tail": remove the first an last edges in time, so that the selection only has conencted 
-		// edges in it.
-		ArrayList<DefaultWeightedEdge> edgesToRemove = new ArrayList<DefaultWeightedEdge>();
-		for(DefaultWeightedEdge edge : edgeSelection) {
-			Spot source = model.getEdgeSource(edge);
-			Spot target = model.getEdgeTarget(edge);
-			if ( !(spotSelection.contains(source) && spotSelection.contains(target)) ) {
-				edgesToRemove.add(edge);
-			}
-		}
-		edgeSelection.removeAll(edgesToRemove);
-
-		// Set selection
-		model.addSpotToSelection(spotSelection);
-		model.addEdgeToSelection(edgeSelection);
-	}
 
 
 	/**
@@ -1023,7 +1000,7 @@ public class TrackScheme <T extends RealType<T> & NativeType<T>> implements Trac
 
 		// Sort spots by time
 		TreeMap<Integer, Spot> spotsInTime = new TreeMap<Integer, Spot>();
-		for (Spot spot : model.getSpotSelection()) {
+		for (Spot spot : model.getSelectionModel().getSpotSelection()) {
 			spotsInTime.put(spot.getFeature(Spot.FRAME).intValue(), spot);
 		}
 
@@ -1038,8 +1015,8 @@ public class TrackScheme <T extends RealType<T> & NativeType<T>> implements Trac
 			Integer previousTime = it.next();
 			Spot previousSpot = spotsInTime.get(previousTime);
 			// If this spot belong to an invisible track, we make it visible
-			Integer index = model.getTrackIndexOf(previousSpot);
-			if (index != null && !model.isTrackVisible(index)) {
+			Integer index = model.getTrackModel().getTrackIDOf(previousSpot);
+			if (index != null && !model.getTrackModel().isTrackFiltered(index)) {
 				importTrack(index);
 			}
 
@@ -1047,8 +1024,8 @@ public class TrackScheme <T extends RealType<T> & NativeType<T>> implements Trac
 				Integer currentTime = it.next();
 				Spot currentSpot = spotsInTime.get(currentTime);
 				// If this spot belong to an invisible track, we make it visible
-				index = model.getTrackIndexOf(currentSpot);
-				if (index != null && !model.isTrackVisible(index)) {
+				index = model.getTrackModel().getTrackIDOf(currentSpot);
+				if (index != null && !model.getTrackModel().isTrackFiltered(index)) {
 					importTrack(index);
 				}
 				// Check that the cells matching the 2 spots exist in the graph
@@ -1072,7 +1049,7 @@ public class TrackScheme <T extends RealType<T> & NativeType<T>> implements Trac
 				// Check if the model does not have already a edge for these 2 spots (that is 
 				// the case if the 2 spot are in an invisible track, which track scheme does not
 				// know of).
-				DefaultWeightedEdge edge = model.getEdge(previousSpot, currentSpot); 
+				DefaultWeightedEdge edge = model.getTrackModel().getEdge(previousSpot, currentSpot); 
 				if (null == edge) {
 					// We create a new edge between 2 spots, and pair it with a new cell edge.
 					edge = model.addEdge(previousSpot, currentSpot, -1);
@@ -1081,10 +1058,10 @@ public class TrackScheme <T extends RealType<T> & NativeType<T>> implements Trac
 				} else {
 					// We retrieve the edge, and pair it with a new cell edge.
 					mxCell cell = (mxCell) graph.addJGraphTEdge(edge);
-					cell.setValue(String.format("%.1f", model.getEdgeWeight(edge)));
+					cell.setValue(String.format("%.1f", model.getTrackModel().getEdgeWeight(edge)));
 					// Also, if the existing edge belonged to an existing invisible track, we make it visible.
-					index = model.getTrackIndexOf(edge);
-					if (index != null && !model.isTrackVisible(index)) {
+					index = model.getTrackModel().getTrackIDOf(edge);
+					if (index != null && !model.getTrackModel().isTrackFiltered(index)) {
 						importTrack(index);
 					}
 				}
@@ -1107,6 +1084,35 @@ public class TrackScheme <T extends RealType<T> & NativeType<T>> implements Trac
 		} finally {
 			graph.getModel().endUpdate();
 		}
+	}
+
+	public void selectTrack(final Collection<mxCell> vertices, final Collection<mxCell> edges, final int direction) {
+
+		// Look for spot and edges matching given mxCells
+		HashSet<Spot> inspectionSpots = new HashSet<Spot>(vertices.size());
+		for(mxCell cell : vertices) {
+			Spot spot = graph.getSpotFor(cell);
+			if (null == spot) {
+				if (DEBUG) {
+					System.out.println("[TrackScheme] selectWholeTrack: tried to retrieve cell "+cell+", unknown to spot map.");
+				}
+				continue;
+			}
+			inspectionSpots.add(spot);
+		}
+		HashSet<DefaultWeightedEdge> inspectionEdges = new HashSet<DefaultWeightedEdge>(edges.size());
+		for(mxCell cell : edges) {
+			DefaultWeightedEdge dwe = graph.getEdgeFor(cell);
+			if (null == dwe) {
+				if (DEBUG) {
+					System.out.println("[TrackScheme] select whole track: tried to retrieve cell "+cell+", unknown to edge map.");
+				}
+				continue;
+			}
+			inspectionEdges.add(dwe);
+		}
+		// Forward to selection model
+		model.getSelectionModel().selectTrack(inspectionSpots, inspectionEdges, direction);
 	}
 
 }

@@ -65,6 +65,11 @@ public class CollectionStitchingImgLib
 	                			final Roi roi2 = getROI( pair.getTile2().getElement(), pair.getTile1().getElement() );
 	                			
 	            				final PairWiseStitchingResult result = PairWiseStitchingImgLib.stitchPairwise( pair.getImagePlus1(), pair.getImagePlus2(), roi1, roi2, pair.getTimePoint1(), pair.getTimePoint2(), params );			
+	            				if ( result == null )
+	            				{
+	            					IJ.log( "Collection stitching failed" );
+	            					return;
+	            				}
 	
 	            				if ( params.dimensionality == 2 )
 	            					pair.setRelativeShift( new float[]{ result.getOffset( 0 ), result.getOffset( 1 ) } );
@@ -163,6 +168,24 @@ public class CollectionStitchingImgLib
 	
 		// get the connecting tiles
 		final Vector< ComparePair > overlappingTiles = new Vector< ComparePair >();
+		
+		// Added by John Lapage: if the sequential option has been chosen, pair up each image 
+		// with the images within the specified range, and return.
+		if ( params.sequential )
+		{
+			for ( int i = 0; i < elements.size(); i++ )
+			{
+				for ( int j = 1 ; j <= params.seqRange ; j++ )
+				{
+					if ( ( i + j ) >= elements.size() ) 
+						break;
+					
+					overlappingTiles.add( new ComparePair( listImp.get( i ), listImp.get( i+j ) ) );
+				}
+			}
+			return overlappingTiles;
+		}
+		// end of addition
 
 		for ( int i = 0; i < elements.size() - 1; i++ )
 			for ( int j = i + 1; j < elements.size(); j++ )

@@ -12,21 +12,16 @@ import java.awt.RenderingHints;
 import java.awt.Stroke;
 import java.awt.geom.AffineTransform;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import net.imglib2.type.NativeType;
-import net.imglib2.type.numeric.RealType;
-
-import org.jfree.chart.renderer.InterpolatePaintScale;
 import org.jgrapht.graph.DefaultWeightedEdge;
 
 import fiji.plugin.trackmate.Spot;
 import fiji.plugin.trackmate.TrackMateModel;
 import fiji.plugin.trackmate.util.TMUtils;
+import fiji.plugin.trackmate.visualization.TrackColorGenerator;
 import fiji.plugin.trackmate.visualization.TrackMateModelView;
 import fiji.util.gui.OverlayedImageCanvas.Overlay;
 
@@ -34,78 +29,39 @@ import fiji.util.gui.OverlayedImageCanvas.Overlay;
  * The overlay class in charge of drawing the tracks on the hyperstack window.
  * @author Jean-Yves Tinevez <jeanyves.tinevez@gmail.com> 2010 - 2011
  */
-public class TrackOverlay <T extends RealType<T> & NativeType<T>> implements Overlay {
+public class TrackOverlay implements Overlay {
 	protected final double[] calibration;
 	protected final ImagePlus imp;
-	protected Map<Integer, Color> edgeColors;
+	/** Map of color vs track key. */
+//	protected Map<Integer, Color> edgeColors;
 	protected Collection<DefaultWeightedEdge> highlight = new HashSet<DefaultWeightedEdge>();
 	protected Map<String, Object> displaySettings;
-	protected final TrackMateModel<T> model;
+	protected final TrackMateModel model;
+	private TrackColorGenerator colorGenerator;
 
 	/*
 	 * CONSTRUCTOR
 	 */
 
-	public TrackOverlay(final TrackMateModel<T> model, final ImagePlus imp, final Map<String, Object> displaySettings) {
+	public TrackOverlay(final TrackMateModel model, final ImagePlus imp, final Map<String, Object> displaySettings) {
 		this.model = model;
 		this.calibration = TMUtils.getSpatialCalibration(model.getSettings().imp);
 		this.imp = imp;
 		this.displaySettings = displaySettings;
-		computeTrackColors();
 	}
 
 	/*
 	 * PUBLIC METHODS
 	 */
 
-	/**
-	 * Provide default coloring.
-	 */
-	public void computeTrackColors() {
-		int ntracks = model.getNFilteredTracks();
-		if (ntracks == 0)
-			return;
-		InterpolatePaintScale colorMap = (InterpolatePaintScale) displaySettings.get(TrackMateModelView.KEY_COLORMAP);
-		Color defaultColor = (Color) displaySettings.get(TrackMateModelView.KEY_COLOR);
-		edgeColors = new HashMap<Integer, Color>(ntracks);
-
-		final String feature = (String) displaySettings.get(TrackMateModelView.KEY_TRACK_COLOR_FEATURE);
-		if (feature != null) {
-
-			// Get min & max
-			double min = Double.POSITIVE_INFINITY;
-			double max = Double.NEGATIVE_INFINITY;
-			for (double val : model.getFeatureModel().getTrackFeatureValues().get(feature)) {
-				if (val > max) max = val;
-				if (val < min) min = val;
-			}
-
-			for(int i : model.getVisibleTrackIndices()) {
-				Double val = model.getFeatureModel().getTrackFeature(i, feature);
-				if (null == val) {
-					edgeColors.put(i, defaultColor); // if feature is not calculated
-				} else {
-					edgeColors.put(i, colorMap.getPaint((double) (val-min) / (max-min)));
-				}
-			}
-
-		} else {
-			int index = 0;
-			for(int i : model.getVisibleTrackIndices()) {
-				edgeColors.put(i, colorMap.getPaint((double) index / (ntracks-1)));
-				index ++;
-			}
-		}
-	}
-
 	public void setHighlight(Collection<DefaultWeightedEdge> edges) {
 		this.highlight = edges;
 	}
 
 	@Override
-	public final void paint(final Graphics g, final int xcorner, final int ycorner, final double magnification) {
+	public final synchronized void paint(final Graphics g, final int xcorner, final int ycorner, final double magnification) {
 		boolean tracksVisible = (Boolean) displaySettings.get(TrackMateModelView.KEY_TRACKS_VISIBLE);
-		if (!tracksVisible  || model.getNFilteredTracks() == 0)
+		if (!tracksVisible  || model.getTrackModel().getNFilteredTracks() == 0)
 			return;
 
 		final Graphics2D g2d = (Graphics2D)g;
@@ -122,8 +78,8 @@ public class TrackOverlay <T extends RealType<T> & NativeType<T>> implements Ove
 		g2d.setStroke(new BasicStroke(4.0f,  BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
 		g2d.setColor(TrackMateModelView.DEFAULT_HIGHLIGHT_COLOR);
 		for (DefaultWeightedEdge edge : highlight) {
-			source = model.getEdgeSource(edge);
-			target = model.getEdgeTarget(edge);
+			source = model.getTrackModel().getEdgeSource(edge);
+			target = model.getTrackModel().getEdgeTarget(edge);
 			drawEdge(g2d, source, target, xcorner, ycorner, mag);
 		}
 
@@ -131,9 +87,9 @@ public class TrackOverlay <T extends RealType<T> & NativeType<T>> implements Ove
 		final int currentFrame = imp.getFrame() - 1;
 		final int trackDisplayMode = (Integer) displaySettings.get(TrackMateModelView.KEY_TRACK_DISPLAY_MODE);
 		final int trackDisplayDepth = (Integer) displaySettings.get(TrackMateModelView.KEY_TRACK_DISPLAY_DEPTH);
-		final List<Set<DefaultWeightedEdge>> trackEdges = model.getTrackEdges(); 
-		final Set<Integer> filteredTrackIndices = model.getVisibleTrackIndices();
-
+		final Map<Integer,Set<DefaultWeightedEdge>> trackEdges = model.getTrackModel().getTrackEdges(); 
+		final Set<Integer> filteredTrackKeys = model.getTrackModel().getFilteredTrackIDs();
+		
 		g2d.setStroke(new BasicStroke(2.0f,  BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
 		if (trackDisplayMode == TrackMateModelView.TRACK_DISPLAY_MODE_LOCAL || trackDisplayMode == TrackMateModelView.TRACK_DISPLAY_MODE_LOCAL_QUICK) 
 			g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER));
@@ -164,16 +120,16 @@ public class TrackOverlay <T extends RealType<T> & NativeType<T>> implements Ove
 		switch (trackDisplayMode) {
 
 		case TrackMateModelView.TRACK_DISPLAY_MODE_WHOLE: {
-			for (int i : filteredTrackIndices) {
-				g2d.setColor(edgeColors.get(i));
-				final Set<DefaultWeightedEdge> track = trackEdges.get(i);
-
+			for (Integer trackID : filteredTrackKeys) {
+				final Set<DefaultWeightedEdge> track = trackEdges.get(trackID);
+				colorGenerator.setCurrentTrackID(trackID);
 				for (DefaultWeightedEdge edge : track) {
 					if (highlight.contains(edge))
 						continue;
 
-					source = model.getEdgeSource(edge);
-					target = model.getEdgeTarget(edge);
+					source = model.getTrackModel().getEdgeSource(edge);
+					target = model.getTrackModel().getEdgeTarget(edge);
+					g2d.setColor(colorGenerator.color(edge));
 					drawEdge(g2d, source, target, xcorner, ycorner, mag);
 				}
 			}
@@ -186,20 +142,21 @@ public class TrackOverlay <T extends RealType<T> & NativeType<T>> implements Ove
 
 			g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
 
-			for (int i : filteredTrackIndices) {
-				g2d.setColor(edgeColors.get(i));
-				final Set<DefaultWeightedEdge> track= trackEdges.get(i);
+			for (Integer trackID : filteredTrackKeys) {
+				colorGenerator.setCurrentTrackID(trackID);
+				final Set<DefaultWeightedEdge> track= trackEdges.get(trackID);
 
 				for (DefaultWeightedEdge edge : track) {
 					if (highlight.contains(edge))
 						continue;
 
-					source = model.getEdgeSource(edge);
+					source = model.getTrackModel().getEdgeSource(edge);
 					sourceFrame = source.getFeature(Spot.POSITION_T) / dt;
 					if (sourceFrame < minT || sourceFrame >= maxT)
 						continue;
 
-					target = model.getEdgeTarget(edge);
+					target = model.getTrackModel().getEdgeTarget(edge);
+					g2d.setColor(colorGenerator.color(edge));
 					drawEdge(g2d, source, target, xcorner, ycorner, mag);
 				}
 			}
@@ -212,21 +169,22 @@ public class TrackOverlay <T extends RealType<T> & NativeType<T>> implements Ove
 
 			g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-			for (int i : filteredTrackIndices) {
-				g2d.setColor(edgeColors.get(i));
-				final Set<DefaultWeightedEdge> track= trackEdges.get(i);
+			for (Integer trackID : filteredTrackKeys) {
+				colorGenerator.setCurrentTrackID(trackID);
+				final Set<DefaultWeightedEdge> track= trackEdges.get(trackID);
 
 				for (DefaultWeightedEdge edge : track) {
 					if (highlight.contains(edge))
 						continue;
 
-					source = model.getEdgeSource(edge);
+					source = model.getTrackModel().getEdgeSource(edge);
 					sourceFrame = source.getFeature(Spot.POSITION_T) / dt;
 					if (sourceFrame < minT || sourceFrame >= maxT)
 						continue;
 
 					transparency = (float) (1 - Math.abs(sourceFrame-currentFrame) / trackDisplayDepth);
-					target = model.getEdgeTarget(edge);
+					target = model.getTrackModel().getEdgeTarget(edge);
+					g2d.setColor(colorGenerator.color(edge));
 					drawEdge(g2d, source, target, xcorner, ycorner, mag, transparency);
 				}
 			}
@@ -310,5 +268,9 @@ public class TrackOverlay <T extends RealType<T> & NativeType<T>> implements Ove
 	 */
 	@Override
 	public void setComposite(Composite composite) {	}
+
+	public void setTrackColorGenerator(TrackColorGenerator colorGenerator) {
+		this.colorGenerator = colorGenerator;
+	}
 
 }

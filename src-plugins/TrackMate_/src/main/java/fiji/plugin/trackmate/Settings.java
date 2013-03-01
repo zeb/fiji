@@ -10,8 +10,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import net.imglib2.type.NativeType;
-import net.imglib2.type.numeric.RealType;
 import fiji.plugin.trackmate.detection.SpotDetector;
 import fiji.plugin.trackmate.detection.SpotDetectorFactory;
 import fiji.plugin.trackmate.tracking.SpotTracker;
@@ -21,7 +19,7 @@ import fiji.plugin.trackmate.visualization.TrackMateModelView;
  * This class is used to store user settings for the {@link TrackMate_} plugin.
  * It is simply made of public fields 
  */
-public class Settings <T extends RealType<T> & NativeType<T>> {
+public class Settings {
 	
 	/** The ImagePlus to operate on. Will also be used by some {@link TrackMateModelView} 
 	 * as a GUI target. */
@@ -65,7 +63,7 @@ public class Settings <T extends RealType<T> & NativeType<T>> {
 	
 	/** The name of the detector factory to use. It will be used to generate {@link SpotDetector}
 	 * for each target frame. */
-	public SpotDetectorFactory<T> detectorFactory;
+	public SpotDetectorFactory<?> detectorFactory;
 	/** The the tracker to use. */
 	public SpotTracker tracker;
 	
@@ -158,8 +156,10 @@ public class Settings <T extends RealType<T> & NativeType<T>> {
 	 * METHODS
 	 */
 	
-	@Override
-	public String toString() {
+	/**
+	 * @return a string description of the target image.
+	 */
+	public String toStringImageInfo() {
 		StringBuilder str = new StringBuilder(); 
 		
 		str.append("Image data:\n");
@@ -179,12 +179,21 @@ public class Settings <T extends RealType<T> & NativeType<T>> {
 			}
 		}
 		
-		str.append('\n');
 		str.append("Geometry:\n");
 		str.append(String.format("  X = %4d - %4d, dx = %g %s\n", xstart, xend, dx, spaceUnits));
 		str.append(String.format("  Y = %4d - %4d, dy = %g %s\n", ystart, yend, dy, spaceUnits));
 		str.append(String.format("  Z = %4d - %4d, dz = %g %s\n", zstart, zend, dz, spaceUnits));
 		str.append(String.format("  T = %4d - %4d, dt = %g %s\n", tstart, tend, dt, timeUnits));
+
+		return str.toString();
+	}
+	
+	
+	@Override
+	public String toString() {
+		StringBuilder str = new StringBuilder(); 
+		
+		str.append(toStringImageInfo());
 		
 		str.append('\n');
 		str.append("Spot detection:\n");

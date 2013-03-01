@@ -5,12 +5,9 @@ import ij.IJ;
 
 import java.io.File;
 
-import net.imglib2.type.NativeType;
-import net.imglib2.type.numeric.RealType;
-
 public class TrackMate_TestDrive {
 	
-	public static <T extends RealType<T> & NativeType<T>> void main(String[] args) {
+	public static void main(String[] args) {
 		
 		File file;
 		if (IJ.isWindows()) {
@@ -23,8 +20,19 @@ public class TrackMate_TestDrive {
 		ij.ImagePlus imp = IJ.openImage(file.getAbsolutePath());
 		imp.show();
 		
-		TrackMate_<T> st = new TrackMate_<T>();
+		final TrackMate_ st = new TrackMate_();
 		System.out.println("Running the plugin...");
+//		new Thread() {
+//			public void run() {
+//				try {
+//					Thread.sleep(1000);
+//				} catch (InterruptedException e) {
+//					e.printStackTrace();
+//				}
+//				st.getModel().setLogger(fiji.plugin.trackmate.Logger.DEFAULT_LOGGER);
+//			};
+//		}.start();
 		st.run(null); // launch the GUI;
+		
 	}
 }

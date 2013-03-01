@@ -1,5 +1,40 @@
 package trainableSegmentation;
 
+/** 
+ * This class is intended for the Trainable Segmentation library. It creates and holds
+ * different feature images for the classification. Possible 3D filters include:
+ * - Gaussian blur
+ * - Hessian
+ * - High order derivative 
+ * - Laplacian 
+ * - Structure tensor 
+ * - Edge detector 
+ * - Difference of Gaussian  
+ * - Minimum
+ * - Maximum
+ * - Mean
+ * - Median
+ * - Variance
+ * 
+ * License: GPL
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License 2
+ * as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ *
+ * Authors: Verena Kaynig (verena.kaynig@inf.ethz.ch), Ignacio Arganda-Carreras (iarganda@mit.edu)
+ *          Albert Cardona (acardona@ini.phys.ethz.ch)
+ */
+
 import java.util.ArrayList;
 import java.util.Vector;
 import java.util.concurrent.Callable;
@@ -7,20 +42,11 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
-import net.imglib2.img.display.imagej.ImageJFunctions;
-import net.imglib2.Cursor;
-import net.imglib2.ExtendedRandomAccessibleInterval;
-import net.imglib2.algorithm.region.hypersphere.HyperSphere;
-import net.imglib2.algorithm.region.hypersphere.HyperSphereCursor;
-import net.imglib2.img.ImagePlusAdapter;
-import net.imglib2.img.Img;
-import net.imglib2.type.numeric.real.FloatType;
-import net.imglib2.view.Views;
-
 import ij.IJ;
 import ij.ImagePlus;
 import ij.ImageStack;
 import ij.Prefs;
+import ij.plugin.Filters3D;
 import ij.plugin.ImageCalculator;
 import ij.process.ByteProcessor;
 import ij.process.ColorProcessor;
@@ -71,12 +97,16 @@ public class FeatureStack3D
 	public static final int MAXIMUM					=  8;
 	/** Mean flag index */
 	public static final int MEAN					=  9;
+	/** Median flag index */
+	public static final int MEDIAN					=  10;
+	/** Variance flag index */
+	public static final int VARIANCE				=  11;
 	
 	/** names of available filters */
 	public static final String[] availableFeatures 
 		= new String[]{	"Gaussian_blur", "Hessian", "Derivatives", "Laplacian", 
 						"Structure", "Edges", "Difference_of_Gaussian", "Minimum",
-						"Maximum", "Mean"};
+						"Maximum", "Mean", "Median", "Variance"};
 	
 	/** flags of filters to be used */	
 	private boolean[] enableFeatures = new boolean[]{
@@ -90,6 +120,8 @@ public class FeatureStack3D
 			true,	/* Minimum */
 			true,	/* Maximum */
 			true,	/* Mean */
+			true,	/* Median */
+			true	/* Variance */
 	};
 	
 	
@@ -132,7 +164,7 @@ public class FeatureStack3D
 	 * Get derivatives features (to be submitted in an ExecutorService)
 	 *
 	 * @param originalImage input image
-	 * @param sigma smoothing scale
+	 * @param sigma isotropic smoothing scale
 	 * @param xOrder x-order of differentiation
 	 * @param yOrder y-order of differentiation
 	 * @param zOrder z-order of differentiation
@@ -172,7 +204,7 @@ public class FeatureStack3D
 
 					imagescience.image.Image newimg = new FloatImage(img);
 					Differentiator diff = new Differentiator();
-
+					
 					diff.run(newimg, sigma , xOrder, yOrder, zOrder);
 					newimg.aspects(aspects);
 
@@ -270,7 +302,7 @@ public class FeatureStack3D
 	 * Get Hessian features (to be submitted in an ExecutorService)
 	 *
 	 * @param originalImage input image
-	 * @param sigma smoothing scale	
+	 * @param sigma isotropic smoothing scale	
 	 * @return filter Hessian filter images
 	 */
 	public Callable< ArrayList<ImagePlus> >getHessian(
@@ -339,7 +371,7 @@ public class FeatureStack3D
 	 * Get Laplacian features (to be submitted in an ExecutorService)
 	 *
 	 * @param originalImage input image
-	 * @param sigma smoothing scale	
+	 * @param sigma isotropic smoothing scale	
 	 * @return filter Laplacian filter image
 	 */
 	public Callable<ArrayList< ImagePlus >> getLaplacian(
@@ -400,7 +432,7 @@ public class FeatureStack3D
 	 * Get Edges features (to be submitted in an ExecutorService)
 	 *
 	 * @param originalImage input image
-	 * @param sigma smoothing scale	
+	 * @param sigma isotropic smoothing scale	
 	 * @return filter Edges filter image
 	 */
 	public Callable<ArrayList< ImagePlus >> getEdges(
@@ -475,64 +507,20 @@ public class FeatureStack3D
 		{
 			public ArrayList< ImagePlus > call()
 			{
-				
-				// Get channel(s) to process
-				ImagePlus[] channels = extractChannels(originalImage);
-				
-				ArrayList<ImagePlus>[] results = new ArrayList[ channels.length ];
-				
-				for(int ch=0; ch < channels.length; ch++)
+				ImagePlus im = originalImage;
+				if( originalImage.getImageStack().isRGB() == false )
 				{
-					results[ ch ] = new ArrayList<ImagePlus>();
-					
-					
-					// wrap it into an ImgLib image (no copying)
-					Img<FloatType> image = ImagePlusAdapter.wrap( channels [ ch ] );
-					
-					// create a new Image with the same properties
-					Img<FloatType> output = image.factory().create( image, image.firstElement() );
-					
-					// get mirror view
-					ExtendedRandomAccessibleInterval<FloatType, Img<FloatType>> infinite = Views.extendMirrorSingle( image ); 
-
-					Cursor<FloatType> cursorInput = image.cursor();
-					Cursor<FloatType> cursorOutput = output.cursor();
-
-					FloatType min = image.firstElement().createVariable();
-					
-					// iterate over the input
-					while ( cursorInput.hasNext())
-					{
-						cursorInput.fwd();
-						cursorOutput.fwd();
-
-						// define a hypersphere (n-dimensional sphere)
-						HyperSphere<FloatType> hyperSphere = new HyperSphere<FloatType>( infinite, cursorInput, (long)sigma );
-
-						// create a cursor on the hypersphere
-						HyperSphereCursor<FloatType> cursor2 = hyperSphere.cursor();
-
-						cursor2.fwd();
-						min.set( cursor2.get() );
-
-						while ( cursor2.hasNext() )
-						{
-							cursor2.fwd();
-							if( cursor2.get().compareTo( min ) <= 0 )
-								min.set( cursor2.get() );
-						}
-
-						// set the value of this pixel of the output image to the minimum value of the sphere
-						cursorOutput.get().set( min );
-
-					}
-					
-					
-					final ImagePlus ip = ImageJFunctions.wrap( output, availableFeatures[ MINIMUM ] +"_" + sigma );										
-					results[ch].add( ip );					
+					im = originalImage.duplicate();
+					IJ.run( im, "32-bit", "");
 				}
-											
-				return mergeResultChannels(results);
+				
+				ArrayList<ImagePlus> result = new ArrayList();
+				
+				final ImageStack is = Filters3D.filter(im.getImageStack(),Filters3D.MIN, (float)sigma, (float)sigma, (float)sigma);
+				final ImagePlus ip = new ImagePlus( availableFeatures[ MINIMUM ] +"_" + sigma, is );							
+				
+				result.add( ip );
+				return result;
 			}
 		};
 	}
@@ -556,64 +544,20 @@ public class FeatureStack3D
 		{
 			public ArrayList< ImagePlus > call()
 			{
-				
-				// Get channel(s) to process
-				ImagePlus[] channels = extractChannels(originalImage);
-				
-				ArrayList<ImagePlus>[] results = new ArrayList[ channels.length ];
-				
-				for(int ch=0; ch < channels.length; ch++)
+				ImagePlus im = originalImage;
+				if( originalImage.getImageStack().isRGB() == false )
 				{
-					results[ ch ] = new ArrayList<ImagePlus>();
-					
-					
-					// wrap it into an ImgLib image (no copying)
-					Img<FloatType> image = ImagePlusAdapter.wrap( channels [ ch ] );
-					
-					// create a new Image with the same properties
-					Img<FloatType> output = image.factory().create( image, image.firstElement() );
-					
-					// get mirror view
-					ExtendedRandomAccessibleInterval<FloatType, Img<FloatType>> infinite = Views.extendMirrorSingle( image ); 
-
-					Cursor<FloatType> cursorInput = image.cursor();
-					Cursor<FloatType> cursorOutput = output.cursor();
-
-					FloatType max = image.firstElement().createVariable();
-					
-					// iterate over the input
-					while ( cursorInput.hasNext())
-					{
-						cursorInput.fwd();
-						cursorOutput.fwd();
-
-						// define a hypersphere (n-dimensional sphere)
-						HyperSphere<FloatType> hyperSphere = new HyperSphere<FloatType>( infinite, cursorInput, (long)sigma );
-
-						// create a cursor on the hypersphere
-						HyperSphereCursor<FloatType> cursor2 = hyperSphere.cursor();
-
-						cursor2.fwd();
-						max.set( cursor2.get() );
-
-						while ( cursor2.hasNext() )
-						{
-							cursor2.fwd();
-							if( cursor2.get().compareTo( max ) >= 0 )
-								max.set( cursor2.get() );
-						}
-
-						// set the value of this pixel of the output image to the maximum value of the sphere
-						cursorOutput.get().set( max );
-
-					}
-					
-					
-					final ImagePlus ip = ImageJFunctions.wrap( output, availableFeatures[ MAXIMUM ] +"_" + sigma );										
-					results[ch].add( ip );					
+					im = originalImage.duplicate();
+					IJ.run( im, "32-bit", "");
 				}
-											
-				return mergeResultChannels(results);
+				
+				ArrayList<ImagePlus> result = new ArrayList();
+				
+				final ImageStack is = Filters3D.filter(im.getImageStack(), Filters3D.MAX, (float)sigma, (float)sigma, (float)sigma);
+				final ImagePlus ip = new ImagePlus( availableFeatures[ MAXIMUM ] +"_" + sigma, is );
+				
+				result.add( ip );
+				return result;
 			}
 		};
 	}
@@ -637,78 +581,103 @@ public class FeatureStack3D
 		{
 			public ArrayList< ImagePlus > call()
 			{
-				
-				// Get channel(s) to process
-				ImagePlus[] channels = extractChannels(originalImage);
-				
-				ArrayList<ImagePlus>[] results = new ArrayList[ channels.length ];
-				
-				for(int ch=0; ch < channels.length; ch++)
+				ImagePlus im = originalImage;
+				if( originalImage.getImageStack().isRGB() == false )
 				{
-					results[ ch ] = new ArrayList<ImagePlus>();
-					
-					
-					// wrap it into an ImgLib image (no copying)
-					Img<FloatType> image = ImagePlusAdapter.wrap( channels [ ch ] );
-					
-					// create a new Image with the same properties
-					Img<FloatType> output = image.factory().create( image, image.firstElement() );
-					
-					// get mirror view
-					ExtendedRandomAccessibleInterval<FloatType, Img<FloatType>> infinite = Views.extendMirrorSingle( image ); 
-
-					Cursor<FloatType> cursorInput = image.cursor();
-					Cursor<FloatType> cursorOutput = output.cursor();
-
-					FloatType mean = image.firstElement().createVariable();
-					
-					// iterate over the input
-					while ( cursorInput.hasNext())
-					{
-						cursorInput.fwd();
-						cursorOutput.fwd();
-
-						// define a hypersphere (n-dimensional sphere)
-						HyperSphere<FloatType> hyperSphere = new HyperSphere<FloatType>( infinite, cursorInput, (long)sigma );
-
-						// create a cursor on the hypersphere
-						HyperSphereCursor<FloatType> cursor2 = hyperSphere.cursor();
-
-						cursor2.fwd();
-						mean.set( cursor2.get() );
-						int n = 1;
-
-						while ( cursor2.hasNext() )
-						{
-							cursor2.fwd();
-							n++;
-							
-							mean.add( cursor2.get() );
-						}
-
-						mean.div( new FloatType( n ));
-						
-						// set the value of this pixel of the output image to the mean value of the sphere
-						cursorOutput.get().set( mean );
-
-					}
-					
-					
-					final ImagePlus ip = ImageJFunctions.wrap( output, availableFeatures[ MEAN ] +"_" + sigma );										
-					results[ch].add( ip );					
+					im = originalImage.duplicate();
+					IJ.run( im, "32-bit", "");
 				}
-											
-				return mergeResultChannels(results);
+				
+				ArrayList<ImagePlus> result = new ArrayList();
+				
+				final ImageStack is = Filters3D.filter(im.getImageStack(), Filters3D.MEAN, (float)sigma, (float)sigma, (float)sigma);
+				final ImagePlus ip = new ImagePlus( availableFeatures[ MEAN ] +"_" + sigma, is );
+								
+				result.add( ip );
+				return result;
 			}
 		};
 	}
+	
+	/**
+	 * Get Median features (to be submitted to an ExecutorService)
+	 *
+	 * @param originalImage input image
+	 * @param sigma filter radius	
+	 * @return filter Median filter image
+	 */
+	public Callable<ArrayList< ImagePlus >> getMedian(
+			final ImagePlus originalImage,
+			final double sigma)
+	{
+		if (Thread.currentThread().isInterrupted()) 
+			return null;
+		
+		return new Callable<ArrayList< ImagePlus >>()
+		{
+			public ArrayList< ImagePlus > call()
+			{
+				ImagePlus im = originalImage;
+				if( originalImage.getImageStack().isRGB() == false )
+				{
+					im = originalImage.duplicate();
+					IJ.run( im, "32-bit", "");
+				}
+				
+				ArrayList<ImagePlus> result = new ArrayList();
+				
+				final ImageStack is = Filters3D.filter(im.getImageStack(), Filters3D.MEDIAN, (float)sigma, (float)sigma, (float)sigma);
+				final ImagePlus ip = new ImagePlus( availableFeatures[ MEDIAN ] +"_" + sigma, is );
+								
+				result.add( ip );
+				return result;
+			}
+		};
+	}
+	
+	/**
+	 * Get Variance features (to be submitted to an ExecutorService)
+	 *
+	 * @param originalImage input image
+	 * @param sigma filter radius	
+	 * @return filter Variance filter image
+	 */
+	public Callable<ArrayList< ImagePlus >> getVariance(
+			final ImagePlus originalImage,
+			final double sigma)
+	{
+		if (Thread.currentThread().isInterrupted()) 
+			return null;
+		
+		return new Callable<ArrayList< ImagePlus >>()
+		{
+			public ArrayList< ImagePlus > call()
+			{
+				ImagePlus im = originalImage;
+				if( originalImage.getImageStack().isRGB() == false )
+				{
+					im = originalImage.duplicate();
+					IJ.run( im, "32-bit", "");
+				}
+				
+				ArrayList<ImagePlus> result = new ArrayList();
+				
+				final ImageStack is = Filters3D.filter(im.getImageStack(), Filters3D.VAR, (float)sigma, (float)sigma, (float)sigma);
+				final ImagePlus ip = new ImagePlus( availableFeatures[ VARIANCE ] +"_" + sigma, is );								
+				
+				result.add( ip );
+				return result;
+			}
+		};
+	}
+	
 	
 	/**
 	 * Get structure tensor features (to be submitted in an ExecutorService).
 	 * It computes, for all pixels in the input image, the eigenvalues of the so-called structure tensor.
 	 *
 	 * @param originalImage input image
-	 * @param sigma smoothing scale	
+	 * @param sigma isotropic smoothing scale	
 	 * @param integrationScale integration scale (standard deviation of the Gaussian 
 	 * 		kernel used for smoothing the elements of the structure tensor, must be larger than zero)
 	 * @return filter structure tensor filter image
@@ -873,6 +842,10 @@ public class FeatureStack3D
 				is.addSlice("original-slice-" + i, originalImage.getImageStack().getProcessor(i).convertToFloat() );
 			channels[0] = new ImagePlus(originalImage.getTitle(), is );
 		}
+		
+		for(int i=0; i<channels.length; i++)
+			channels[i].setCalibration(originalImage.getCalibration());
+		
 		return channels;
 	}
 
@@ -889,6 +862,8 @@ public class FeatureStack3D
 		ExecutorService exe = Executors.newFixedThreadPool( Prefs.getThreads() );
 		
 		wholeStack = new ArrayList<ImagePlus>();
+		
+		final double pixelWidth = originalImage.getCalibration().pixelWidth;
 		
 		ImageStack is = new ImageStack ( width, height );
 		
@@ -919,12 +894,13 @@ public class FeatureStack3D
 		int currentIndex = 0;
 		IJ.showStatus("Updating features...");
 		try{
-			
-			
-		
+								
 			
 			for (float i=minimumSigma; i<= maximumSigma; i *=2)
 			{		
+				
+				double scaledSigma = i * pixelWidth;
+				
 				if (Thread.currentThread().isInterrupted()) 
 					return false;
 				
@@ -932,7 +908,7 @@ public class FeatureStack3D
 				if(enableFeatures[GAUSSIAN])
 				{
 					//IJ.log( n++ +": Calculating Gaussian filter ("+ i + ")");
-					futures.add(exe.submit( getDerivatives(originalImage, i, 0, 0, 0)) );
+					futures.add(exe.submit( getDerivatives(originalImage, scaledSigma, 0, 0, 0)) );
 				}
 				
 				// Difference of Gaussian
@@ -941,7 +917,7 @@ public class FeatureStack3D
 					for (float j=minimumSigma; j<i; j*=2)
 					{
 						//IJ.log( n++ +": Calculating DoG filter ("+ i + ", " + j + ")");
-						futures.add(exe.submit( getDoG( originalImage, i, j ) ) );
+						futures.add(exe.submit( getDoG( originalImage, scaledSigma, j * pixelWidth) ) );
 					}
 				}
 			
@@ -949,33 +925,33 @@ public class FeatureStack3D
 				if(enableFeatures[HESSIAN])
 				{
 					//IJ.log("Calculating Hessian filter ("+ i + ")");
-					futures.add(exe.submit( getHessian(originalImage, i, true)) );
+					futures.add(exe.submit( getHessian(originalImage, scaledSigma, true)) );
 				}
 							
 				// Derivatives
 				if(enableFeatures[DERIVATIVES])
 				{					
 					for(int order = minDerivativeOrder; order<=maxDerivativeOrder; order++)
-						futures.add(exe.submit( getDerivatives(originalImage, i, order, order, order)) );
+						futures.add(exe.submit( getDerivatives(originalImage, scaledSigma, order, order, order)) );
 				}
 				
 				// Laplacian
 				if(enableFeatures[LAPLACIAN])
 				{
-					futures.add(exe.submit( getLaplacian(originalImage, i)) );
+					futures.add(exe.submit( getLaplacian(originalImage, scaledSigma)) );
 				}
 				
 				// Edges
 				if(enableFeatures[ EDGES ])
 				{
-					futures.add(exe.submit( getEdges(originalImage, i)) );
+					futures.add(exe.submit( getEdges(originalImage, scaledSigma)) );
 				}
 				
 				// Structure tensor
 				if(enableFeatures[ STRUCTURE ])
 				{					
 					for(int integrationScale = 1; integrationScale <= 3; integrationScale+=2)
-						futures.add(exe.submit( getStructure(originalImage, i, integrationScale )) );
+						futures.add(exe.submit( getStructure(originalImage, scaledSigma, integrationScale )) );
 				}
 				
 				// Maximum
@@ -994,6 +970,18 @@ public class FeatureStack3D
 				if(enableFeatures[ MEAN ])
 				{
 					futures.add(exe.submit( getMean(originalImage, i)) );
+				}
+				
+				// Median
+				if(enableFeatures[ MEDIAN ])
+				{
+					futures.add(exe.submit( getMedian(originalImage, i)) );
+				}
+					
+				// Variance
+				if(enableFeatures[ VARIANCE ])
+				{
+					futures.add(exe.submit( getVariance(originalImage, i)) );
 				}
 					
 							

@@ -12,12 +12,9 @@ import java.util.TreeSet;
 
 import javax.swing.ImageIcon;
 
-import net.imglib2.img.ImagePlusAdapter;
 import net.imglib2.img.Img;
 import net.imglib2.img.ImgPlus;
 import net.imglib2.img.display.imagej.ImageJFunctions;
-import net.imglib2.type.NativeType;
-import net.imglib2.type.numeric.RealType;
 import net.imglib2.view.HyperSliceImgPlus;
 
 import org.jgrapht.graph.DefaultWeightedEdge;
@@ -26,11 +23,11 @@ import fiji.plugin.trackmate.Settings;
 import fiji.plugin.trackmate.Spot;
 import fiji.plugin.trackmate.TrackMateModel;
 import fiji.plugin.trackmate.TrackMate_;
-import fiji.plugin.trackmate.features.spot.SpotIconGrabber;
 import fiji.plugin.trackmate.gui.TrackMateWizard;
 import fiji.plugin.trackmate.util.TMUtils;
+import fiji.plugin.trackmate.visualization.trackscheme.SpotIconGrabber;
 
-public class ExtractTrackStackAction<T extends RealType<T> & NativeType<T>> extends AbstractTMAction<T> {
+public class ExtractTrackStackAction extends AbstractTMAction {
 
 	public static final String NAME = "Extract track stack";
 	public static final String INFO_TEXT =  "<html> " +
@@ -65,12 +62,13 @@ public class ExtractTrackStackAction<T extends RealType<T> & NativeType<T>> exte
 	 * METHODS
 	 */
 	
+	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Override
-	public void execute(TrackMate_<T> plugin) {
+	public void execute(TrackMate_ plugin) {
 		logger.log("Capturing track stack.\n");
 		
-		TrackMateModel<T> model = plugin.getModel();
-		Set<Spot> selection = model.getSpotSelection();
+		TrackMateModel model = plugin.getModel();
+		Set<Spot> selection = model.getSelectionModel().getSpotSelection();
 		int nspots = selection.size();
 		if (nspots != 2) {
 			logger.error("Expected 2 spots in the selection, got "+nspots+".\nAborting.\n");
@@ -91,7 +89,7 @@ public class ExtractTrackStackAction<T extends RealType<T> & NativeType<T>> exte
 		}
 		
 		// Find path
-		List<DefaultWeightedEdge> edges = model.dijkstraShortestPath(start, end);
+		List<DefaultWeightedEdge> edges = model.getTrackModel().dijkstraShortestPath(start, end);
 		if (null == edges) {
 			logger.error("The 2 spots are not connected.\nAborting\n");
 			return;
@@ -106,9 +104,9 @@ public class ExtractTrackStackAction<T extends RealType<T> & NativeType<T>> exte
 		double radius = Math.abs(start.getFeature(Spot.RADIUS));
 		for (DefaultWeightedEdge edge : edges) {
 			
-			current = model.getEdgeSource(edge);
+			current = model.getTrackModel().getEdgeSource(edge);
 			if (current == previous) {
-				current = model.getEdgeTarget(edge); // We have to check both in case of bad oriented edges
+				current = model.getTrackModel().getEdgeTarget(edge); // We have to check both in case of bad oriented edges
 			}
 			path.add(current);
 			double ct = Math.abs(current.getFeature(Spot.RADIUS));
@@ -125,15 +123,15 @@ public class ExtractTrackStackAction<T extends RealType<T> & NativeType<T>> exte
 		nspots = sortedSpots.size();
 
 		// Common coordinates
-		Settings<T> settings = model.getSettings();
+		Settings settings = model.getSettings();
 		double[] calibration = TMUtils.getSpatialCalibration(settings.imp);
 		int targetChannel = settings.imp.getC() - 1; // From current selection
 		final int width 	= (int) Math.ceil(2 * radius * RESIZE_FACTOR / calibration[0]);
 		final int height 	= (int) Math.ceil(2 * radius * RESIZE_FACTOR / calibration[1]);
 		
 		// Extract target channel
-		ImgPlus<T> img = ImagePlusAdapter.wrapImgPlus(settings.imp);
-		final ImgPlus<T> imgC = HyperSliceImgPlus.fixChannelAxis(img, targetChannel);
+		ImgPlus img = TMUtils.rawWraps(settings.imp);
+		final ImgPlus<?> imgC = HyperSliceImgPlus.fixChannelAxis(img, targetChannel);
 		
 		// Prepare new image holder:
 		ImageStack stack = new ImageStack(width, height);
@@ -146,7 +144,7 @@ public class ExtractTrackStackAction<T extends RealType<T> & NativeType<T>> exte
 			int frame = model.getSpots().getFrame(spot);
 			
 			
-			ImgPlus<T> imgCT = HyperSliceImgPlus.fixTimeAxis(imgC, frame);
+			ImgPlus<?> imgCT = HyperSliceImgPlus.fixTimeAxis(imgC, frame);
 			
 			// Compute target coordinates for current spot
 			int x = (int) (Math.round((spot.getFeature(Spot.POSITION_X)) / calibration[0]) - width/2); 
@@ -162,8 +160,8 @@ public class ExtractTrackStackAction<T extends RealType<T> & NativeType<T>> exte
 				}
 			}
 			
-			SpotIconGrabber<T> grabber = new SpotIconGrabber<T>(imgCT, null);
-			Img<T> crop = grabber.grabImage(x, y, slice, width, height);
+			SpotIconGrabber<?> grabber = new SpotIconGrabber(imgCT);
+			Img crop = grabber.grabImage(x, y, slice, width, height);
 			
 			// Copy to central holder
 			stack.addSlice(spot.toString(), ImageJFunctions.wrap(crop, crop.toString()).getProcessor());

@@ -1,6 +1,6 @@
 package trainableSegmentation;
 /** 
- * This class is intended for the Trainable_Segmentation plugin. It creates and holds
+ * This class is intended for the Trainable Segmentation library. It creates and holds
  * different feature images for the classification. Possible filters include:
  * - Gaussian blur
  * - Gradient magnitude
@@ -11,6 +11,7 @@ package trainableSegmentation;
  * - Variance
  * - Minimum
  * - Maximum
+ * - Median
  * - Anisotropic diffusion
  * - Bilateral filter
  * - Lipschitz filter
@@ -138,7 +139,7 @@ public class FeatureStack
 	public static final int MEDIAN					=  9;
 	/** Anisotropic diffusion filter flag index */
 	public static final int ANISOTROPIC_DIFFUSION 	= 10;
-	/** Anisotropic diffusion filter flag index */
+	/** Bilateral flag index */
 	public static final int BILATERAL 				= 11;
 	/** Lipschitz filter flag index */
 	public static final int LIPSCHITZ 				= 12;
@@ -3384,12 +3385,8 @@ public class FeatureStack
 		
 		double[] values = new double[ getSize() + 1 + extra ];
 		int n = 0;
-		if( colorFeatures  == false )
-			for (int z=1; z<=getSize(); z++, n++)		
-				values[z-1] = getProcessor(z).getPixelValue(x, y);
-		else
-			for (int z=1; z<=getSize(); z++, n++)		
-				values[z-1] = getProcessor(z).getPixel(x, y);
+		for (int z=1; z<=getSize(); z++, n++)		
+			values[z-1] = getProcessor(z).getPixelValue(x, y);
 		
 		
 		// Test: add neighbors of original image
@@ -3428,10 +3425,7 @@ public class FeatureStack
 		if(y2 >= ip.getHeight())
 			y2 = 2 * (ip.getHeight() - 1) - y2;
 		
-		if( colorFeatures  == false )
-			return ip.getPixelValue(x2, y2);
-		else 
-			return ip.getPixel(x2, y2);
+		return ip.getPixelValue(x2, y2);
 	}
 
 	/**

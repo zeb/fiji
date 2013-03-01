@@ -9,29 +9,28 @@ import javax.swing.SwingUtilities;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 
-import net.imglib2.type.NativeType;
-import net.imglib2.type.numeric.RealType;
-
 import fiji.plugin.trackmate.FeatureFilter;
 import fiji.plugin.trackmate.Logger;
 import fiji.plugin.trackmate.TrackMateModel;
 import fiji.plugin.trackmate.TrackMate_;
+import fiji.plugin.trackmate.features.track.TrackIndexAnalyzer;
+import fiji.plugin.trackmate.visualization.PerTrackFeatureColorGenerator;
 import fiji.plugin.trackmate.visualization.TrackMateModelView;
 
-public class TrackFilterDescriptor <T extends RealType<T> & NativeType<T>> implements WizardPanelDescriptor<T> {
+public class TrackFilterDescriptor implements WizardPanelDescriptor {
 	
 	public static final String DESCRIPTOR = "TrackFilter";
-	private TrackMateWizard<T> wizard;
+	private TrackMateWizard wizard;
 	private FilterGuiPanel component = new FilterGuiPanel();
-	private TrackMate_<T> plugin;
+	private TrackMate_ plugin;
 
 	@Override
-	public void setWizard(TrackMateWizard<T> wizard) {
+	public void setWizard(TrackMateWizard wizard) {
 		this.wizard = wizard;
 	}
 
 	@Override
-	public void setPlugin(TrackMate_<T> plugin) {
+	public void setPlugin(TrackMate_ plugin) {
 		this.plugin = plugin;
 	}
 
@@ -62,10 +61,16 @@ public class TrackFilterDescriptor <T extends RealType<T> & NativeType<T>> imple
 
 	@Override
 	public void aboutToDisplayPanel() {
-		TrackMateModel<T> model = plugin.getModel();
+		TrackMateModel model = plugin.getModel();
 		component.setTarget(model.getFeatureModel().getTrackFeatures(), model.getSettings().getTrackFilters(),  
 				model.getFeatureModel().getTrackFeatureNames(), model.getFeatureModel().getTrackFeatureValues(), "tracks");
 		linkGuiToView();
+		component.jPanelColorByFeatureGUI.setColorByFeature(TrackIndexAnalyzer.TRACK_INDEX);
+		
+		PerTrackFeatureColorGenerator generator = new PerTrackFeatureColorGenerator(plugin.getModel(), TrackIndexAnalyzer.TRACK_INDEX);
+		generator.setFeature(component.getColorByFeature());
+		wizard.getDisplayer().setDisplaySettings(TrackMateModelView.KEY_TRACK_COLORING, generator);
+		wizard.getDisplayer().refresh();
 	}
 
 	@Override
@@ -81,7 +86,9 @@ public class TrackFilterDescriptor <T extends RealType<T> & NativeType<T>> imple
 				component.addActionListener(new ActionListener() {
 					@Override
 					public void actionPerformed(ActionEvent event) {
-						wizard.getDisplayer().setDisplaySettings(TrackMateModelView.KEY_TRACK_COLOR_FEATURE, component.getColorByFeature());
+						PerTrackFeatureColorGenerator generator = new PerTrackFeatureColorGenerator(plugin.getModel(), TrackIndexAnalyzer.TRACK_INDEX);
+						generator.setFeature(component.getColorByFeature());
+						wizard.getDisplayer().setDisplaySettings(TrackMateModelView.KEY_TRACK_COLORING, generator);
 						wizard.getDisplayer().refresh();
 					}
 				});
@@ -91,7 +98,7 @@ public class TrackFilterDescriptor <T extends RealType<T> & NativeType<T>> imple
 					public void stateChanged(ChangeEvent event) {
 						// We set the thresholds field of the model but do not touch its selected spot field yet.
 						plugin.getModel().getSettings().setTrackFilters(component.getFeatureFilters());
-						plugin.execTrackFiltering();
+						plugin.execTrackFiltering(false);
 					}
 				});
 				
@@ -105,12 +112,12 @@ public class TrackFilterDescriptor <T extends RealType<T> & NativeType<T>> imple
 		final Logger logger = wizard.getLogger();
 		logger.log("Performing track filtering on the following features:\n", Logger.BLUE_COLOR);
 		List<FeatureFilter> featureFilters = component.getFeatureFilters();
-		final TrackMateModel<T> model = plugin.getModel();
+		final TrackMateModel model = plugin.getModel();
 		model.getSettings().setTrackFilters(featureFilters);
-		plugin.execTrackFiltering();
+		plugin.execTrackFiltering(true);
 
 		if (featureFilters == null || featureFilters.isEmpty()) {
-			logger.log("No feature threshold set, kept the " + model.getNTracks() + " tracks.\n");
+			logger.log("No feature threshold set, kept the " + model.getTrackModel().getNTracks() + " tracks.\n");
 		} else {
 			for (FeatureFilter ft : featureFilters) {
 				String str = "  - on "+model.getFeatureModel().getTrackFeatureNames().get(ft.feature);
@@ -122,7 +129,9 @@ public class TrackFilterDescriptor <T extends RealType<T> & NativeType<T>> imple
 				str += '\n';
 				logger.log(str);
 			}
-			logger.log("Kept "+model.getNFilteredTracks()+" tracks out of "+model.getNTracks()+".\n");
-		}		
+			logger.log("Kept "+model.getTrackModel().getNFilteredTracks()+" tracks out of "+model.getTrackModel().getNTracks()+".\n");
+		}
+
+		plugin.computeEdgeFeatures(true);
 	}
 }

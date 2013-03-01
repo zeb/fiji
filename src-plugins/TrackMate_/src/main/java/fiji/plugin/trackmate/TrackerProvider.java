@@ -1,14 +1,29 @@
 package fiji.plugin.trackmate;
 
+import static fiji.plugin.trackmate.tracking.TrackerKeys.DEFAULT_LINKING_MAX_DISTANCE;
+import static fiji.plugin.trackmate.tracking.TrackerKeys.KEY_ALLOW_GAP_CLOSING;
+import static fiji.plugin.trackmate.tracking.TrackerKeys.KEY_ALLOW_TRACK_MERGING;
+import static fiji.plugin.trackmate.tracking.TrackerKeys.KEY_ALLOW_TRACK_SPLITTING;
+import static fiji.plugin.trackmate.tracking.TrackerKeys.KEY_ALTERNATIVE_LINKING_COST_FACTOR;
+import static fiji.plugin.trackmate.tracking.TrackerKeys.KEY_BLOCKING_VALUE;
+import static fiji.plugin.trackmate.tracking.TrackerKeys.KEY_CUTOFF_PERCENTILE;
+import static fiji.plugin.trackmate.tracking.TrackerKeys.KEY_GAP_CLOSING_FEATURE_PENALTIES;
+import static fiji.plugin.trackmate.tracking.TrackerKeys.KEY_GAP_CLOSING_MAX_DISTANCE;
+import static fiji.plugin.trackmate.tracking.TrackerKeys.KEY_GAP_CLOSING_MAX_FRAME_GAP;
+import static fiji.plugin.trackmate.tracking.TrackerKeys.KEY_LINKING_FEATURE_PENALTIES;
+import static fiji.plugin.trackmate.tracking.TrackerKeys.KEY_LINKING_MAX_DISTANCE;
+import static fiji.plugin.trackmate.tracking.TrackerKeys.KEY_MERGING_FEATURE_PENALTIES;
+import static fiji.plugin.trackmate.tracking.TrackerKeys.KEY_MERGING_MAX_DISTANCE;
+import static fiji.plugin.trackmate.tracking.TrackerKeys.KEY_SPLITTING_FEATURE_PENALTIES;
+import static fiji.plugin.trackmate.tracking.TrackerKeys.KEY_SPLITTING_MAX_DISTANCE;
+import static fiji.plugin.trackmate.tracking.TrackerKeys.XML_ATTRIBUTE_TRACKER_NAME;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import net.imglib2.type.NativeType;
-import net.imglib2.type.numeric.RealType;
-
-import org.jdom.Element;
+import org.jdom2.Element;
 
 import fiji.plugin.trackmate.detection.SpotDetector;
 import fiji.plugin.trackmate.gui.ConfigurationPanel;
@@ -22,7 +37,7 @@ import fiji.plugin.trackmate.tracking.SpotTracker;
 import fiji.plugin.trackmate.tracking.TrackerKeys;
 import fiji.plugin.trackmate.tracking.kdtree.NearestNeighborTracker;
 
-public class TrackerProvider <T extends RealType<T> & NativeType<T>> extends AbstractProvider implements TrackerKeys {
+public class TrackerProvider extends AbstractProvider  {
 
 
 	protected static final String XML_ELEMENT_NAME_LINKING = "Linking";
@@ -31,7 +46,7 @@ public class TrackerProvider <T extends RealType<T> & NativeType<T>> extends Abs
 	protected static final String XML_ELEMENT_NAME_SPLITTING = "TrackSplitting";
 	protected static final String XML_ELEMENT_NAME_FEATURE_PENALTIES = "FeaturePenalties";
 
-	protected final TrackMateModel<T> model;
+	protected final TrackMateModel model;
 
 	/*
 	 * CONSTRUCTOR
@@ -51,7 +66,7 @@ public class TrackerProvider <T extends RealType<T> & NativeType<T>> extends Abs
 	 * factory so that it is registered with the custom trackers and pass this 
 	 * extended provider to the {@link TrackMate_} plugin.
 	 */
-	public TrackerProvider(TrackMateModel<T> model) {
+	public TrackerProvider(TrackMateModel model) {
 		this.model = model;
 		this.currentKey = SimpleFastLAPTracker.TRACKER_KEY;
 		registerTrackers();

@@ -1,12 +1,5 @@
 package fiji.plugin.trackmate.tests;
 
-import ij.IJ;
-
-import java.io.File;
-
-import net.imglib2.type.NativeType;
-import net.imglib2.type.numeric.RealType;
-
 import fiji.plugin.trackmate.Logger;
 import fiji.plugin.trackmate.TrackMate_;
 import fiji.plugin.trackmate.gui.DisplayerPanel;
@@ -14,11 +7,14 @@ import fiji.plugin.trackmate.gui.GuiReader;
 import fiji.plugin.trackmate.gui.LoadDescriptor;
 import fiji.plugin.trackmate.gui.TrackMateWizard;
 import fiji.plugin.trackmate.gui.WizardController;
+import ij.IJ;
+
+import java.io.File;
 
 public class GUIReader_TestDrive {
 	
 	
-	public static <T extends RealType<T> & NativeType<T>> void main(String args[]) {
+	public static void main(String args[]) {
 
 		File file;
 		if (IJ.isWindows()) {
@@ -29,24 +25,37 @@ public class GUIReader_TestDrive {
 		
 		ij.ImageJ.main(args);
 		
-		TrackMate_<T> plugin = new TrackMate_<T>();
+		TrackMate_ plugin = new TrackMate_();
 		plugin.setLogger(Logger.DEFAULT_LOGGER);
 
 		plugin.initModules();
 		
-		WizardController<T> controller = new WizardController<T>(plugin);
-		TrackMateWizard<T> wizard = controller.getWizard();
+		WizardController controller = new WizardController(plugin) {
+			@Override
+			public TrackMateWizard getWizard() {
+				logger = Logger.DEFAULT_LOGGER;
+				return super.getWizard();
+			}
+		};
+		TrackMateWizard wizard = controller.getWizard();
 		
 		wizard.showDescriptorPanelFor(LoadDescriptor.DESCRIPTOR);
 		
+		plugin.setLogger(Logger.DEFAULT_LOGGER);
 		
-		GuiReader<T> greader = new GuiReader<T>(wizard);
+		GuiReader greader = new GuiReader(wizard) {
+			@Override
+			public void loadFile(File file) {
+				logger = Logger.DEFAULT_LOGGER;
+				super.loadFile(file);
+			}
+		};
 		file = greader.askForFile(file);
 
 		System.out.println("Opening file: "+file.getAbsolutePath());		
 		
-		plugin = greader.getPlugin();
 		greader.loadFile(file);
+		plugin = greader.getPlugin();
 		
 		wizard.showDescriptorPanelFor(DisplayerPanel.DESCRIPTOR);
 		

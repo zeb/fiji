@@ -1,15 +1,13 @@
 package fiji.plugin.trackmate.tests;
 
 import fiji.plugin.trackmate.FeatureFilter;
-import fiji.plugin.trackmate.Logger;
 import fiji.plugin.trackmate.Settings;
 import fiji.plugin.trackmate.TrackMateModel;
 import fiji.plugin.trackmate.TrackMate_;
-import fiji.plugin.trackmate.action.GrabSpotImageAction;
 import fiji.plugin.trackmate.features.track.TrackBranchingAnalyzer;
 import fiji.plugin.trackmate.gui.DisplayerPanel;
+import fiji.plugin.trackmate.gui.GrapherPanel;
 import fiji.plugin.trackmate.io.TmXmlReader;
-import fiji.plugin.trackmate.visualization.TrackMateModelView;
 import fiji.plugin.trackmate.visualization.hyperstack.HyperStackDisplayer;
 import fiji.plugin.trackmate.visualization.trackscheme.TrackScheme;
 import ij.IJ;
@@ -20,15 +18,11 @@ import java.io.IOException;
 
 import javax.swing.JFrame;
 
-import net.imglib2.type.NativeType;
-import net.imglib2.type.numeric.RealType;
-
-import org.jdom.JDOMException;
+import org.jdom2.JDOMException;
 
 public class TrackVisualizerTestDrive {
-
 	
-	public static <T extends RealType<T> & NativeType<T>>  void main(String[] args) throws JDOMException, IOException {
+	public static void main(String[] args) throws JDOMException, IOException {
 	
 		File file;
 		if (!IJ.isWindows()) {
@@ -38,33 +32,37 @@ public class TrackVisualizerTestDrive {
 		}
 		ij.ImageJ.main(args);
 		
-		TrackMate_<T> plugin = new TrackMate_<T>();
+		TrackMate_ plugin = new TrackMate_();
 		plugin.initModules();
-		TmXmlReader<T> reader = new TmXmlReader<T>(file, plugin , Logger.DEFAULT_LOGGER);
-		reader.parse();
-		
-		// Load objects 
-		final TrackMateModel<T> model = reader.getModel();
+		TmXmlReader reader = new TmXmlReader(file, plugin);
+		if (!reader.checkInput() || !reader.process()) {
+			System.err.println("Problem loading the file:");
+			System.err.println(reader.getErrorMessage());
+		}
+		TrackMateModel model = plugin.getModel();
 		
 		System.out.println("From the XML file:");
-		System.out.println("Found "+model.getNTracks()+" tracks in total.");
+		System.out.println("Found "+model.getTrackModel().getNTracks()+" tracks in total.");
 		System.out.println("There were "+model.getSettings().getTrackFilters().size() + " track filter(s) applied on this list,");
-		System.out.println("resulting in having only "+model.getNFilteredTracks()+" visible tracks after filtering.");
-		for(int i : model.getVisibleTrackIndices()) {
-			System.out.println(" - "+model.trackToString(i));
+		System.out.println("resulting in having only "+model.getTrackModel().getNFilteredTracks()+" visible tracks after filtering.");
+		plugin.computeTrackFeatures(true);
+		for(int i : model.getTrackModel().getFilteredTrackIDs()) {
+			System.out.println(" - "+model.getTrackModel().trackToString(i));
 		}
-		
-		FeatureFilter filter = new FeatureFilter(TrackBranchingAnalyzer.NUMBER_SPOTS, 50d, true);
-		model.getSettings().addTrackFilter(filter);
-		plugin.execTrackFiltering();
+		System.out.println("Filtered tracks at this stage:");
+		System.out.println(model.getTrackModel().getFilteredTrackIDs());
 		System.out.println();
+		
+		FeatureFilter filter = new FeatureFilter(TrackBranchingAnalyzer.NUMBER_SPOTS, 5d, true);
 		System.out.println("We add an extra track filter: "+filter);
-		System.out.println("After filtering, retaining "+model.getNFilteredTracks()+" tracks.");
+		model.getSettings().addTrackFilter(filter);
+		plugin.execTrackFiltering(true);
+		System.out.println("After filtering, retaining "+model.getTrackModel().getNFilteredTracks()+" tracks, which are:");
+		System.out.println(model.getTrackModel().getFilteredTrackIDs());
+		System.out.println();
 			
-		ImagePlus imp = reader.getImage();
-		Settings<T> settings = reader.getSettings();
-		reader.getDetectorSettings(settings);
-		settings.imp = imp;
+		Settings settings = model.getSettings();
+		ImagePlus imp = settings.imp;
 		
 		// Launch ImageJ and display
 		if (null != imp) {
@@ -72,27 +70,34 @@ public class TrackVisualizerTestDrive {
 			imp.show();
 		}
 		
-		GrabSpotImageAction<T> grabber = new GrabSpotImageAction<T>();
-		grabber.execute(plugin);
-		
+		plugin.computeEdgeFeatures(true);
 		
 		// Instantiate displayer
-		final TrackMateModelView<T> displayer = new HyperStackDisplayer<T>();
-		displayer.setModel(model);
+		final HyperStackDisplayer displayer = new HyperStackDisplayer(model);
 		displayer.render();
 		displayer.refresh();
 		
+		
 		// Display Track scheme
-		final TrackScheme<T> trackScheme = new TrackScheme<T>(model);
+		final TrackScheme trackScheme = new TrackScheme(model);
 		trackScheme.render();
 		
 		// Show control panel
-		DisplayerPanel<T> panel = new DisplayerPanel<T>();
+		DisplayerPanel panel = new DisplayerPanel();
 		panel.setPlugin(plugin);
 		panel.register(trackScheme);
 		panel.register(displayer);
 		JFrame frame = new JFrame();
 		frame.getContentPane().add(panel);
+		frame.setSize(300, 500);
 		frame.setVisible(true);
+		
+		// Show plot panel
+		GrapherPanel plotPanel = new GrapherPanel();
+		plotPanel.setPlugin(plugin);
+		JFrame graphFrame = new JFrame();
+		graphFrame.getContentPane().add(plotPanel);
+		graphFrame.setSize(300, 500);
+		graphFrame.setVisible(true);
 	}
 }

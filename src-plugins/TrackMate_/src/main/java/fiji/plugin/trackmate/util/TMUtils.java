@@ -1,54 +1,42 @@
 package fiji.plugin.trackmate.util;
 
-import ij.IJ;
 import ij.ImagePlus;
 import ij.ImageStack;
 import ij.plugin.Duplicator;
 import ij.process.ColorProcessor;
 import ij.process.StackConverter;
 
-import java.awt.FileDialog;
-import java.awt.Frame;
-import java.io.File;
-import java.io.FilenameFilter;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
+import java.util.Date;
+import java.util.LinkedHashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
-import javax.swing.JFileChooser;
-import javax.swing.filechooser.FileNameExtensionFilter;
 
 import net.imglib2.exception.ImgLibException;
+import net.imglib2.img.ImagePlusAdapter;
+import net.imglib2.img.ImgPlus;
 import net.imglib2.meta.Axes;
 import net.imglib2.meta.AxisType;
 import net.imglib2.meta.Metadata;
 import net.imglib2.multithreading.SimpleMultiThreading;
-import net.imglib2.type.NativeType;
-import net.imglib2.type.numeric.RealType;
+import net.imglib2.type.numeric.real.DoubleType;
 import net.imglib2.util.Util;
-
-import org.jdom.Attribute;
-import org.jdom.DataConversionException;
-import org.jdom.Element;
-
 import fiji.plugin.trackmate.Dimension;
 import fiji.plugin.trackmate.FeatureFilter;
 import fiji.plugin.trackmate.Logger;
 import fiji.plugin.trackmate.Settings;
 import fiji.plugin.trackmate.Spot;
 import fiji.plugin.trackmate.SpotCollection;
-import fiji.plugin.trackmate.SpotImp;
 import fiji.plugin.trackmate.TrackMate_;
 
 /**
@@ -57,77 +45,32 @@ import fiji.plugin.trackmate.TrackMate_;
 public class TMUtils {
 
 
-
-	/*
-	 * STATIC CONSTANTS
-	 */
-
-	/** The name of the spot quality feature. */
-	public static final String QUALITY = "QUALITY";
-	/** The name of the radius spot feature. */
-	public static final String RADIUS = "RADIUS";
-	/** The name of the spot X position feature. */
-	public static final String POSITION_X = "POSITION_X";
-	/** The name of the spot Y position feature. */
-	public static final String POSITION_Y = "POSITION_Y";
-	/** The name of the spot Z position feature. */
-	public static final String POSITION_Z = "POSITION_Z";
-	/** The name of the spot T position feature. */
-	public static final String POSITION_T = "POSITION_T";
-	/** The name of the frame feature. */
-	public static final String FRAME = "FRAME";
-
-	/** The position features. */
-	public final static String[] POSITION_FEATURES = new String[] { POSITION_X, POSITION_Y, POSITION_Z };
-	/** The 6 privileged spot features that must be set by a spot detector. */
-	public final static Collection<String> FEATURES = new ArrayList<String>(6);
-	/** The 6 privileged spot feature names. */
-	public final static Map<String, String> FEATURE_NAMES = new HashMap<String, String>(6);
-	/** The 6 privileged spot feature short names. */
-	public final static Map<String, String> FEATURE_SHORT_NAMES = new HashMap<String, String>(6);
-	/** The 6 privileged spot feature dimensions. */
-	public final static Map<String, Dimension> FEATURE_DIMENSIONS = new HashMap<String, Dimension>(6);
-
-	static {
-		FEATURES.add(QUALITY);
-		FEATURES.add(POSITION_X);
-		FEATURES.add(POSITION_Y);
-		FEATURES.add(POSITION_Z);
-		FEATURES.add(POSITION_T);
-		FEATURES.add(FRAME);
-		FEATURES.add(RADIUS);
-
-		FEATURE_NAMES.put(POSITION_X, "X");
-		FEATURE_NAMES.put(POSITION_Y, "Y");
-		FEATURE_NAMES.put(POSITION_Z, "Z");
-		FEATURE_NAMES.put(POSITION_T, "T");
-		FEATURE_NAMES.put(FRAME, "Frame");
-		FEATURE_NAMES.put(RADIUS, "Radius");
-		FEATURE_NAMES.put(QUALITY, "Quality");
-
-		FEATURE_SHORT_NAMES.put(POSITION_X, "X");
-		FEATURE_SHORT_NAMES.put(POSITION_Y, "Y");
-		FEATURE_SHORT_NAMES.put(POSITION_Z, "Z");
-		FEATURE_SHORT_NAMES.put(POSITION_T, "T");
-		FEATURE_SHORT_NAMES.put(FRAME, "Frame");
-		FEATURE_SHORT_NAMES.put(RADIUS, "R");
-		FEATURE_SHORT_NAMES.put(QUALITY, "Quality");
-
-		FEATURE_DIMENSIONS.put(POSITION_X, Dimension.POSITION);
-		FEATURE_DIMENSIONS.put(POSITION_Y, Dimension.POSITION);
-		FEATURE_DIMENSIONS.put(POSITION_Z, Dimension.POSITION);
-		FEATURE_DIMENSIONS.put(POSITION_T, Dimension.TIME);
-		FEATURE_DIMENSIONS.put(FRAME, Dimension.NONE);
-		FEATURE_DIMENSIONS.put(RADIUS, Dimension.LENGTH);
-		FEATURE_DIMENSIONS.put(QUALITY, Dimension.QUALITY);
-	}
-
-
-
+	private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("EEE, d MMM yyyy HH:mm:ss");
+	
 	/*
 	 * STATIC METHODS
 	 */
-	
+
+	/**
+	 * @return a new map sorted by its values.
+	 * Taken from http://stackoverflow.com/questions/109383/how-to-sort-a-mapkey-value-on-the-values-in-java
+	 */
+	public static <K, V extends Comparable<? super V>> Map<K, V> sortByValue( Map<K, V> map) {
+		List<Map.Entry<K, V>> list = new LinkedList<Map.Entry<K, V>>( map.entrySet() );
+		Collections.sort( list, new Comparator<Map.Entry<K, V>>() {
+			public int compare( Map.Entry<K, V> o1, Map.Entry<K, V> o2 )			{
+				return (o1.getValue()).compareTo( o2.getValue() );
+			}
+		} );
+
+		LinkedHashMap<K, V> result = new LinkedHashMap<K, V>();
+		for (Map.Entry<K, V> entry : list) {
+			result.put( entry.getKey(), entry.getValue() );
+		}
+		return result;
+	}
+
+
 	/**
 	 * Generate a string representation of a map, typically a settings map.
 	 */
@@ -154,8 +97,18 @@ public class TMUtils {
 		}
 		return builder.toString();
 	}
-	
-	
+
+	/** 
+	 * Wraps an IJ {@link ImagePlus} in an imglib2 {@link ImgPlus}, without parameterized types.
+	 * The only way I have found to beat javac constraints on bounded multiple wildcard.
+	 */
+	@SuppressWarnings("rawtypes")
+	public static final ImgPlus rawWraps(final ImagePlus imp)	 {
+		ImgPlus<DoubleType> img = ImagePlusAdapter.wrapImgPlus(imp);
+		ImgPlus raw = img;
+		return raw;
+	}
+
 
 
 	/**
@@ -182,7 +135,7 @@ public class TMUtils {
 				errorHolder.append("Map contains unexpected key: "+key+".\n");
 			}
 		}
-		
+
 		for(T key : mandatoryKeys) {
 			if (!keySet.contains(key)) {
 				ok = false;
@@ -190,10 +143,10 @@ public class TMUtils {
 			}
 		}
 		return ok;
-		
+
 	}
-	
-	
+
+
 	/**
 	 * Check the presence and the validity of a key in a map, and test it is of the desired class.
 	 * @param map the map to inspect.
@@ -213,127 +166,6 @@ public class TMUtils {
 			return false;
 		}
 		return true;
-	}
-	
-	
-	
-	/**
-	 * Prompt the user for a target xml file.
-	 *  
-	 * @param file  a default file, will be used to display a default choice in the file chooser
-	 * @param parent  the {@link Frame} to lock on this dialog
-	 * @param logger  a {@link Logger} to report what is happening
-	 * @return  the selected file
-	 */
-	public static File askForFile(File file, Frame parent, Logger logger) {
-
-		if(IJ.isMacintosh()) {
-			// use the native file dialog on the mac
-			FileDialog dialog =	new FileDialog(parent, "Save to a XML file", FileDialog.SAVE);
-			dialog.setDirectory(file.getParent());
-			dialog.setFile(file.getName());
-			FilenameFilter filter = new FilenameFilter() {
-				@Override
-				public boolean accept(File dir, String name) {
-					return name.endsWith(".xml");
-				}
-			};
-			dialog.setFilenameFilter(filter);
-			dialog.setVisible(true);
-			String selectedFile = dialog.getFile();
-			if (null == selectedFile) {
-				logger.log("Save data aborted.\n");
-				return null;
-			}
-			if (!selectedFile.endsWith(".xml"))
-				selectedFile += ".xml";
-			file = new File(dialog.getDirectory(), selectedFile);
-		} else {
-			JFileChooser fileChooser = new JFileChooser(file.getParent());
-			fileChooser.setSelectedFile(file);
-			FileNameExtensionFilter filter = new FileNameExtensionFilter("XML files", "xml");
-			fileChooser.setFileFilter(filter);
-
-			int returnVal = fileChooser.showSaveDialog(parent);
-			if(returnVal == JFileChooser.APPROVE_OPTION) {
-				file = fileChooser.getSelectedFile();
-			} else {
-				logger.log("Save data aborted.\n");
-				return null;  	    		
-			}
-		}
-		return file;
-	}
-
-
-
-
-	/** 
-	 * Read and return an integer attribute from a JDom {@link Element}, and substitute a default value of 0
-	 * if the attribute is not found or of the wrong type.
-	 */
-	public static final int readIntAttribute(Element element, String name, Logger logger) {
-		return readIntAttribute(element, name, logger, 0);
-	}
-
-	public static final int readIntAttribute(Element element, String name, Logger logger, int defaultValue) {
-		int val = defaultValue;
-		Attribute att = element.getAttribute(name);
-		if (null == att) {
-			logger.error("Could not find attribute "+name+" for element "+element.getName()+", substituting default value: "+defaultValue+".\n");
-			return val;
-		}
-		try {
-			val = att.getIntValue();
-		} catch (DataConversionException e) {	
-			logger.error("Cannot read the attribute "+name+" of the element "+element.getName()+", substituting default value: "+defaultValue+".\n");
-		}
-		return val;
-	}
-
-	public static final double readFloatAttribute(Element element, String name, Logger logger) {
-		double val = 0;
-		Attribute att = element.getAttribute(name);
-		if (null == att) {
-			logger.error("Could not find attribute "+name+" for element "+element.getName()+", substituting default value.\n");
-			return val;
-		}
-		try {
-			val = att.getFloatValue();
-		} catch (DataConversionException e) {	
-			logger.error("Cannot read the attribute "+name+" of the element "+element.getName()+", substituting default value.\n"); 
-		}
-		return val;
-	}
-
-	public static final double readDoubleAttribute(Element element, String name, Logger logger) {
-		double val = 0;
-		Attribute att = element.getAttribute(name);
-		if (null == att) {
-			logger.error("Could not find attribute "+name+" for element "+element.getName()+", substituting default value.\n");
-			return val;
-		}
-		try {
-			val = att.getDoubleValue();
-		} catch (DataConversionException e) {	
-			logger.error("Cannot read the attribute "+name+" of the element "+element.getName()+", substituting default value.\n"); 
-		}
-		return val;
-	}
-
-	public static final boolean readBooleanAttribute(Element element, String name, Logger logger) {
-		boolean val = false;
-		Attribute att = element.getAttribute(name);
-		if (null == att) {
-			logger.error("Could not find attribute "+name+" for element "+element.getName()+", substituting default value.\n");
-			return val;
-		}
-		try {
-			val = att.getBooleanValue();
-		} catch (DataConversionException e) {	
-			logger.error("Cannot read the attribute "+name+" of the element "+element.getName()+", substituting default value.\n"); 
-		}
-		return val;
 	}
 
 
@@ -367,38 +199,6 @@ public class TMUtils {
 					spot.putFeature(features[i], val+dval[i]);
 			}
 		}
-	}
-
-
-
-
-	/**
-	 * http://www.rgagnon.com/javadetails/java-0541.html
-	 */
-	public static String renameFileExtension (String source, String newExtension) {
-		String target;
-		String currentExtension = getFileExtension(source);
-
-		if (currentExtension.equals("")) {
-			target = source + "." + newExtension;
-		}
-		else {
-			target = source.replaceFirst(Pattern.quote("." + currentExtension) 
-					+ "$", Matcher.quoteReplacement("." + newExtension));
-		}
-		return target;
-	}
-
-	/**
-	 * http://www.rgagnon.com/javadetails/java-0541.html
-	 */
-	public static String getFileExtension(String f) {
-		String ext = "";
-		int i = f.lastIndexOf('.');
-		if (i > 0 &&  i < f.length() - 1) {
-			ext = f.substring(i + 1);
-		}
-		return ext;
 	}
 
 	/**
@@ -450,71 +250,6 @@ public class TMUtils {
 			}
 		};
 	}
-
-	/**
-	 * Return a copy 3D stack or a 2D slice as an {@link Img} corresponding to the frame number <code>iFrame</code>
-	 * in the given 4D or 3D {@link ImagePlus}. The resulting image will be cropped according the cropping
-	 * cube set in the {@link Settings} object given.
-	 * @param imp  the 4D or 3D source ImagePlus
-	 * @param iFrame  the frame number to extract, 0-based
-	 * @param iChannel  the channel number to extract, careful: <b>1-based</b>
-	 * @param settings  the settings object that will be used to compute the crop rectangle
-	 * @return  a 3D or 2D {@link Img} with the single time-point required 
-	 */
-	//	@SuppressWarnings({ "rawtypes", "unchecked" })
-	//	public static Img<? extends RealType<?>> getCroppedSingleFrameAsImage(ImagePlus imp, int iFrame, int iChannel, Settings settings) {
-	//		ImageStack stack = imp.getImageStack();
-	//		ImageStack frame = new ImageStack(settings.xend-settings.xstart, settings.yend-settings.ystart, stack.getColorModel());
-	//		int numSlices = imp.getNSlices();
-	//
-	//		// ...create the slice by combining the ImageProcessors, one for each Z in the stack.
-	//		ImageProcessor ip, croppedIp;
-	//		Roi cropRoi = new Roi(settings.xstart, settings.ystart, settings.xend-settings.xstart, settings.yend-settings.ystart);
-	//		for (int j = settings.zstart; j <= settings.zend; j++) {
-	//			int stackIndex = imp.getStackIndex(iChannel, j, iFrame+1);
-	//			ip = stack.getProcessor(stackIndex);
-	//			ip .setRoi(cropRoi);
-	//			croppedIp = ip.crop();
-	//			frame.addSlice(Integer.toString(j + (iFrame * numSlices)), croppedIp);
-	//		}
-	//
-	//		ImagePlus ipSingleFrame = new ImagePlus(imp.getShortTitle()+"-Frame_" + Integer.toString(iFrame + 1), frame);
-	//		ipSingleFrame.setCalibration(imp.getCalibration());
-	//		Img<? extends RealType> obj =  ImagePlusAdapter.wrap(ipSingleFrame);
-	//		Img<? extends RealType<?>> img = (Img<? extends RealType<?>>) obj;
-	//		return img;
-	//	}
-
-	/**
-	 * Return a copy 3D stack or a 2D slice as an {@link Img} corresponding to the frame number <code>iFrame</code>
-	 * in the given 4D or 3D {@link ImagePlus}. The resulting image will <u>not</u> be cropped and will have the 
-	 * same size in X, Y and Z that of the source {@link ImagePlus}. 
-	 * @param imp  the 4D or 3D source ImagePlus
-	 * @param iFrame  the frame number to extract, 0-based
-	 * @param iChannel  the channel number to extract, careful: <b>1-based</b>
-	 * @return  a 3D or 2D {@link Img} with the single time-point required 
-	 */
-	//	@SuppressWarnings({ "rawtypes", "unchecked" })
-	//	public static Img<? extends RealType<?>> getUncroppedSingleFrameAsImage(ImagePlus imp, int iFrame, int iChannel) {
-	//		ImageStack stack = imp.getImageStack();
-	//		ImageStack frame = new ImageStack(imp.getWidth(), imp.getHeight(), stack.getColorModel());
-	//		int numSlices = imp.getNSlices();
-	//
-	//		// ...create the slice by combining the ImageProcessors, one for each Z in the stack.
-	//		ImageProcessor ip;
-	//		for (int j = 1; j <= numSlices; j++) {
-	//			int stackIndex = imp.getStackIndex(iChannel, j, iFrame+1);
-	//			ip = stack.getProcessor(stackIndex);
-	//			frame.addSlice(Integer.toString(j + (iFrame * numSlices)), ip.duplicate());
-	//		}
-	//
-	//		ImagePlus ipSingleFrame = new ImagePlus(imp.getShortTitle()+"-Frame_" + Integer.toString(iFrame + 1), frame);
-	//		ipSingleFrame.setCalibration(imp.getCalibration());
-	//		Img obj =  ImagePlusAdapter.wrap(ipSingleFrame);
-	//		Img img = (Img<? extends RealType<?>>) obj;
-	//		return img;
-	//	}
-
 
 	/**
 	 * Convenience static method that executes the thresholding part.
@@ -614,11 +349,11 @@ public class TMUtils {
 		return selectedSpots;
 	}
 
-	
+
 	/*
 	 * ImgPlus & calibration & axes 
 	 */
-	
+
 	/**
 	 * @return the index of the target axisd in the given metadata. Return -1 if 
 	 * the azis was not found.
@@ -641,7 +376,7 @@ public class TMUtils {
 	public static final int findZAxisIndex(final Metadata img) {
 		return findAxisIndex(img, Axes.Z);
 	}
-	
+
 	public static final int findTAxisIndex(final Metadata img) {
 		return findAxisIndex(img, Axes.TIME);
 	}
@@ -732,18 +467,29 @@ public class TMUtils {
 	}
 
 	/**
-	 * Return the feature values of this Spot collection as a new double array.
+	 * @return the feature values of this Spot collection as a new double array.
 	 */
-	public static final double[] getFeature(final Collection<SpotImp> spots, final String feature) {
+	public static final double[] getFeature(final Collection<Spot> spots, final String feature) {
 		final double[] values = new double[spots.size()];
 		int index = 0;
-		for(SpotImp spot : spots) {
+		for(Spot spot : spots) {
 			values[index] = spot.getFeature(feature);
 			index++;
 		}
 		return values;
 	}
 
+	
+	/**
+	 * Store the x, y, z coordinates of the specified spot 
+	 * in the first 3 elements of the specified double array.
+	 */
+	public static final void localize(final Spot spot, final double[] coords) {
+		coords[0] = spot.getFeature(Spot.POSITION_X).doubleValue();
+		coords[1] = spot.getFeature(Spot.POSITION_Y).doubleValue();
+		coords[2] = spot.getFeature(Spot.POSITION_Z).doubleValue();
+	}
+	
 	/**
 	 * Build and return a map of {@link SpotFeature} values for the spot collection given.
 	 * Each feature maps a double array, with 1 element per {@link Spot}, all pooled
@@ -799,7 +545,7 @@ public class TMUtils {
 
 		}
 
-		logger.setStatus("Collecting feature values");
+		logger.setStatus("Collecting spot feature values");
 		SimpleMultiThreading.startAndJoin(threads);
 		logger.setProgress(0);
 		logger.setStatus("");
@@ -961,7 +707,7 @@ public class TMUtils {
 	 * Ensure an 8-bit gray image is sent to the 3D viewer.
 	 * @throws ImgLibException 
 	 */
-	public static final <T extends RealType<T> & NativeType<T>> ImagePlus[] makeImageForViewer(final Settings<T> settings) throws ImgLibException {
+	public static final ImagePlus[] makeImageForViewer(final Settings settings) throws ImgLibException {
 
 		final ImagePlus origImp = settings.imp;
 		origImp.killRoi();
@@ -1008,7 +754,7 @@ public class TMUtils {
 	 * Return a String unit for the given dimension. When suitable, the unit is taken from the settings
 	 * field, which contains the spatial and time units. Otherwise, default units are used.
 	 */
-	public static final <T extends RealType<T> & NativeType<T>> String getUnitsFor(final Dimension dimension, final Settings<T> settings) {
+	public static final String getUnitsFor(final Dimension dimension, final Settings settings) {
 		String units = "no unit";
 		switch (dimension) {
 		case ANGLE:
@@ -1035,13 +781,18 @@ public class TMUtils {
 			break;
 		case VELOCITY:
 			units = settings.spaceUnits + "/" + settings.timeUnits;
+			break;
 		default:
 			break;
+		case STRING:
+			return null;
 		}
 		return units;
 	}
 
 
-
-
+	public static final String getCurrentTimeString() {
+		return DATE_FORMAT.format(new Date());
+	}
+	
 }

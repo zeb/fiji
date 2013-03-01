@@ -3,16 +3,13 @@ package fiji.plugin.trackmate.visualization;
 import java.awt.Color;
 import java.util.Map;
 
-import net.imglib2.type.NativeType;
-import net.imglib2.type.numeric.RealType;
-
 import org.jfree.chart.renderer.InterpolatePaintScale;
 
 import fiji.plugin.trackmate.InfoTextable;
 import fiji.plugin.trackmate.Spot;
 import fiji.plugin.trackmate.TrackMateModel;
 
-public interface TrackMateModelView<T extends RealType<T> & NativeType<T>> extends InfoTextable {
+public interface TrackMateModelView extends InfoTextable {
 
 
 
@@ -54,6 +51,12 @@ public interface TrackMateModelView<T extends RealType<T> & NativeType<T>> exten
 	 * tracks are not visible.
 	 */
 	public static final String KEY_TRACKS_VISIBLE = "TracksVisible";
+	
+	/**
+	 * Defines the key for the track coloring method. Values are concrete implementations
+	 * of {@link TrackColorGenerator}.
+	 */
+	public static final String KEY_TRACK_COLORING = "TrackColoring";
 
 	/**
 	 * Defines the key for the spot visibility. Values are boolean. If <code>false</code>,
@@ -88,7 +91,7 @@ public interface TrackMateModelView<T extends RealType<T> & NativeType<T>> exten
 	 * color #DEFAULT_COLOR is used for all spots. Otherwise, each track color 
 	 * is set according to the selected feature value.
 	 */
-	public static final String KEY_TRACK_COLOR_FEATURE = "TrackColorFeature";
+//	public static final String KEY_TRACK_COLOR_FEATURE = "TrackColorFeature";
 
 	/**
 	 * Defines the key for the color map to use for painting overlay. Acceptable
@@ -223,16 +226,6 @@ public interface TrackMateModelView<T extends RealType<T> & NativeType<T>> exten
 	public void centerViewOn(final Spot spot);
 
 	/**
-	 * @return the {@link TrackMateModel} currently displayed in this view.
-	 */
-	public TrackMateModel<T> getModel();
-
-	/**
-	 * Set the target {@link TrackMateModel} that should be displayed in this view.
-	 */
-	public void setModel(TrackMateModel<T> model);
-
-	/**
 	 * @return the current display settings map.
 	 */
 	public Map<String, Object> getDisplaySettings();
@@ -248,4 +241,9 @@ public interface TrackMateModelView<T extends RealType<T> & NativeType<T>> exten
 	 * @return the value of a specific display parameter. 
 	 */
 	public Object getDisplaySettings(final String key);
+	
+	/**
+	 * @return the model displayed in this view.
+	 */
+	public TrackMateModel getModel();
 }

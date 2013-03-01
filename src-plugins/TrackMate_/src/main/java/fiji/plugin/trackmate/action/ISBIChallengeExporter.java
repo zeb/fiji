@@ -1,6 +1,5 @@
 package fiji.plugin.trackmate.action;
 
-
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
@@ -13,22 +12,19 @@ import java.util.regex.Pattern;
 
 import javax.swing.ImageIcon;
 
-import net.imglib2.type.NativeType;
-import net.imglib2.type.numeric.RealType;
-
-import org.jdom.Document;
-import org.jdom.Element;
-import org.jdom.output.Format;
-import org.jdom.output.XMLOutputter;
+import org.jdom2.Document;
+import org.jdom2.Element;
+import org.jdom2.output.Format;
+import org.jdom2.output.XMLOutputter;
 
 import fiji.plugin.trackmate.Logger;
 import fiji.plugin.trackmate.Spot;
 import fiji.plugin.trackmate.TrackMateModel;
 import fiji.plugin.trackmate.TrackMate_;
 import fiji.plugin.trackmate.gui.TrackMateWizard;
-import fiji.plugin.trackmate.util.TMUtils;
+import fiji.plugin.trackmate.io.IOUtils;
 
-public class ISBIChallengeExporter<T extends RealType<T> & NativeType<T>> extends AbstractTMAction<T> {
+public class ISBIChallengeExporter extends AbstractTMAction {
 
 	public static final ImageIcon ICON = new ImageIcon(TrackMateWizard.class.getResource("images/ISBIlogo.png"));
 	public static final String NAME = "Export to ISBI challenge format";
@@ -55,8 +51,8 @@ public class ISBIChallengeExporter<T extends RealType<T> & NativeType<T>> extend
 	 */
 
 	@Override
-	public void execute(TrackMate_<T> plugin) {
-		final TrackMateModel<T> model = plugin.getModel();
+	public void execute(TrackMate_ plugin) {
+		final TrackMateModel model = plugin.getModel();
 		File file;
 		File folder = new File(System.getProperty("user.dir")).getParentFile().getParentFile();
 		try {
@@ -66,15 +62,15 @@ public class ISBIChallengeExporter<T extends RealType<T> & NativeType<T>> extend
 		} catch (NullPointerException npe) {
 			file = new File(folder.getPath() + File.separator + "ISBIChallenge2012Result.xml");
 		}
-		file = TMUtils.askForFile(file, wizard, logger);
+		file = IOUtils.askForFile(file, wizard, logger);
 
 		exportToFile(model, file);
 	}
 	
-	public static <T extends RealType<T> & NativeType<T>> void exportToFile(final TrackMateModel<T> model, final File file) {
+	public static void exportToFile(final TrackMateModel model, final File file) {
 		final Logger logger = model.getLogger();
 		logger.log("Exporting to ISBI 2012 particle tracking challenge format.\n");
-		int ntracks = model.getNFilteredTracks();
+		int ntracks = model.getTrackModel().getNFilteredTracks();
 		if (ntracks == 0) {
 			logger.log("No visible track found. Aborting.\n");
 			return;
@@ -107,7 +103,7 @@ public class ISBIChallengeExporter<T extends RealType<T> & NativeType<T>> extend
 		return NAME;
 	}
 
-	private static final <T extends RealType<T> & NativeType<T>> Element marshall(TrackMateModel<T> model) {
+	private static final Element marshall(TrackMateModel model) {
 		final Logger logger = model.getLogger();
 		
 		Element root = new Element("root");
@@ -136,12 +132,12 @@ public class ISBIChallengeExporter<T extends RealType<T> & NativeType<T>> extend
 		content.setAttribute(DATE_ATT, new Date().toString());
 
 		logger.setStatus("Marshalling...");
-		Integer[] visibleTracks = model.getVisibleTrackIndices().toArray(new Integer[] {});
-		for (int i = 0 ; i < model.getNFilteredTracks() ; i++) {
+		Integer[] visibleTracks = model.getTrackModel().getFilteredTrackIDs().toArray(new Integer[] {});
+		for (int i = 0 ; i < model.getTrackModel().getNFilteredTracks() ; i++) {
 
 			Element trackElement = new Element(TRACK_KEY);
 			int trackindex = visibleTracks[i];
-			Set<Spot> track = model.getTrackSpots(trackindex);
+			Set<Spot> track = model.getTrackModel().getTrackSpots(trackindex);
 			// Sort them by time 
 			TreeSet<Spot> sortedTrack = new TreeSet<Spot>(Spot.timeComparator);
 			sortedTrack.addAll(track);
@@ -160,7 +156,7 @@ public class ISBIChallengeExporter<T extends RealType<T> & NativeType<T>> extend
 				trackElement.addContent(spotElement);
 			}
 			content.addContent(trackElement);
-			logger.setProgress(i / (0f + model.getNFilteredTracks()));
+			logger.setProgress(i / (0d + model.getTrackModel().getNFilteredTracks()));
 		}
 
 		logger.setStatus("");

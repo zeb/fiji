@@ -17,8 +17,6 @@ import javax.vecmath.Color3f;
 import javax.vecmath.Point4d;
 
 import net.imglib2.exception.ImgLibException;
-import net.imglib2.type.NativeType;
-import net.imglib2.type.numeric.RealType;
 
 import org.jfree.chart.renderer.InterpolatePaintScale;
 import org.jgrapht.graph.DefaultWeightedEdge;
@@ -27,13 +25,13 @@ import fiji.plugin.trackmate.Settings;
 import fiji.plugin.trackmate.Spot;
 import fiji.plugin.trackmate.SpotCollection;
 import fiji.plugin.trackmate.TrackMateModel;
-import fiji.plugin.trackmate.TrackMateModelChangeEvent;
-import fiji.plugin.trackmate.TrackMateSelectionChangeEvent;
+import fiji.plugin.trackmate.ModelChangeEvent;
+import fiji.plugin.trackmate.SelectionChangeEvent;
 import fiji.plugin.trackmate.util.TMUtils;
 import fiji.plugin.trackmate.visualization.AbstractTrackMateModelView;
-import fiji.plugin.trackmate.visualization.TrackMateModelView;
+import fiji.plugin.trackmate.visualization.TrackColorGenerator;
 
-public class SpotDisplayer3D <T extends RealType<T> & NativeType<T>> extends AbstractTrackMateModelView<T> {
+public class SpotDisplayer3D extends AbstractTrackMateModelView {
 
 	public static final String NAME = "3D Viewer";
 	public static final String INFO_TEXT = "<html>" +
@@ -56,7 +54,7 @@ public class SpotDisplayer3D <T extends RealType<T> & NativeType<T>> extends Abs
 	private static final String SPOT_CONTENT_NAME = "Spots";
 
 	private TreeMap<Integer, SpotGroupNode<Spot>> blobs;	
-	private TrackDisplayNode<T> trackNode;
+	private TrackDisplayNode trackNode;
 	private Content spotContent;
 	private Content trackContent;
 	private final Image3DUniverse universe;
@@ -65,12 +63,14 @@ public class SpotDisplayer3D <T extends RealType<T> & NativeType<T>> extends Abs
 	private HashMap<Spot, Color3f> previousColorHighlight;
 	private HashMap<Spot, Integer> previousFrameHighlight;
 	private HashMap<DefaultWeightedEdge, Color> previousEdgeHighlight;
-	private Settings<T> settings;
+	private Settings settings;
 	/**  the flag specifying whether to render image data or not. By default, it is true. */
 	private boolean doRenderImage = true;
 
-	public SpotDisplayer3D() {
+	public SpotDisplayer3D(TrackMateModel model) {
+		super(model);
 		universe = new Image3DUniverse();
+		setModel(model);
 	}
 
 	/*
@@ -79,54 +79,38 @@ public class SpotDisplayer3D <T extends RealType<T> & NativeType<T>> extends Abs
 
 
 	@Override
-	public void setModel(TrackMateModel<T> model) {
-		this.settings = model.getSettings();
-		super.setModel(model);
-		if (model.getSpots() != null) {
-			spotContent = makeSpotContent();
-			universe.removeContent(SPOT_CONTENT_NAME);
-			universe.addContent(spotContent);
-		}
-		if (model.getNFilteredTracks() > 0) {
-			trackContent = makeTrackContent();
-			universe.removeContent(TRACK_CONTENT_NAME);
-			universe.addContent(trackContent);
-		}
-	}
-
-	@Override
-	public void modelChanged(TrackMateModelChangeEvent event) {
+	public void modelChanged(ModelChangeEvent event) {
 		if (DEBUG) {
 			System.out.println("[SpotDisplayer3D: modelChanged() called with event ID: "+event.getEventID());
 		}
 		switch (event.getEventID()) {
-		case TrackMateModelChangeEvent.SPOTS_COMPUTED: 
+		case ModelChangeEvent.SPOTS_COMPUTED: 
 			spotContent = makeSpotContent();
 			universe.removeContent(SPOT_CONTENT_NAME);
 			universe.addContent(spotContent);
 			break;
-		case TrackMateModelChangeEvent.SPOTS_FILTERED:
+		case ModelChangeEvent.SPOTS_FILTERED:
 			for(int key : model.getFilteredSpots().keySet())
 				blobs.get(key).setVisible(model.getFilteredSpots().get(key));
 			break;
-		case TrackMateModelChangeEvent.TRACKS_COMPUTED: 
+		case ModelChangeEvent.TRACKS_COMPUTED: 
 			trackContent = makeTrackContent();
 			universe.removeContent(TRACK_CONTENT_NAME);
 			universe.addContent(trackContent);
 			break;
-		case TrackMateModelChangeEvent.TRACKS_VISIBILITY_CHANGED:
-			trackNode.computeTrackColors();
-			trackNode.setTrackVisible(model.getVisibleTrackIndices());
+		case ModelChangeEvent.TRACKS_VISIBILITY_CHANGED:
+			updateTrackColors();
+			trackNode.setTrackVisible(model.getTrackModel().getFilteredTrackIDs());
 			break;
 
 		}
 	}
 
 	@Override
-	public void selectionChanged(TrackMateSelectionChangeEvent event) {
+	public void selectionChanged(SelectionChangeEvent event) {
 		// Highlight
-		highlightEdges(model.getEdgeSelection());
-		highlightSpots(model.getSpotSelection());
+		highlightEdges(model.getSelectionModel().getEdgeSelection());
+		highlightSpots(model.getSelectionModel().getSpotSelection());
 		// Center on last spot
 		super.selectionChanged(event);
 	}
@@ -169,6 +153,7 @@ public class SpotDisplayer3D <T extends RealType<T> & NativeType<T>> extends Abs
 			trackContent.setVisible((Boolean) displaySettings.get(KEY_TRACKS_VISIBLE));
 			trackNode.setTrackDisplayMode((Integer) displaySettings.get(KEY_TRACK_DISPLAY_MODE));
 			trackNode.setTrackDisplayDepth((Integer) displaySettings.get(KEY_TRACK_DISPLAY_DEPTH));
+			updateTrackColors();
 			trackNode.refresh();
 		}
 
@@ -205,7 +190,7 @@ public class SpotDisplayer3D <T extends RealType<T> & NativeType<T>> extends Abs
 			updateRadiuses();
 		} else if (key == KEY_SPOT_COLOR_FEATURE) {
 			updateSpotColors();
-		} else if (key == KEY_TRACK_COLOR_FEATURE) {
+		} else if (key == KEY_TRACK_COLORING) {
 			updateTrackColors();
 		} else if (key == KEY_DISPLAY_SPOT_NAMES) {
 			for(int frame : blobs.keySet()) {
@@ -255,10 +240,24 @@ public class SpotDisplayer3D <T extends RealType<T> & NativeType<T>> extends Abs
 	/*
 	 * PRIVATE METHODS
 	 */
+	
+	private void setModel(TrackMateModel model) {
+		this.settings = model.getSettings();
+		if (model.getSpots() != null) {
+			spotContent = makeSpotContent();
+			universe.removeContent(SPOT_CONTENT_NAME);
+			universe.addContent(spotContent);
+		}
+		if (model.getTrackModel().getNFilteredTracks() > 0) {
+			trackContent = makeTrackContent();
+			universe.removeContent(TRACK_CONTENT_NAME);
+			universe.addContent(trackContent);
+		}
+	}
 
 	private Content makeTrackContent() {
 		// Prepare tracks instant
-		trackNode = new TrackDisplayNode<T>(model, displaySettings);
+		trackNode = new TrackDisplayNode(model);
 		universe.addTimelapseListener(trackNode);
 
 		// Pass tracks instant to all instants
@@ -290,7 +289,7 @@ public class SpotDisplayer3D <T extends RealType<T> & NativeType<T>> extends Abs
 			double radius;
 			double[] coords = new double[3];
 			for(Spot spot : spotsThisFrame) {
-				spot.localize(coords);
+				TMUtils.localize(spot, coords);
 				radius = spot.getFeature(Spot.RADIUS);
 				pos = new double[] {coords[0], coords[1], coords[2], radius*radiusRatio};
 				centers.put(spot, new Point4d(pos));
@@ -368,26 +367,14 @@ public class SpotDisplayer3D <T extends RealType<T> & NativeType<T>> extends Abs
 	}
 
 	private void updateTrackColors() {
-		final String feature = (String) displaySettings.get(KEY_TRACK_COLOR_FEATURE);
-		if (null == feature) {
-			trackNode.computeTrackColors();
+		final TrackColorGenerator colorGenerator = (TrackColorGenerator) displaySettings.get(KEY_TRACK_COLORING);
 
-		} else {
-			InterpolatePaintScale colorMap = (InterpolatePaintScale) displaySettings.get(TrackMateModelView.KEY_COLORMAP);
-			// Get min & max
-			double min = Float.POSITIVE_INFINITY;
-			double max = Float.NEGATIVE_INFINITY;
-			for (double val : model.getFeatureModel().getTrackFeatureValues().get(feature)) {
-				if (val > max) max = val;
-				if (val < min) min = val;
+		for(Integer trackID : model.getTrackModel().getFilteredTrackIDs()) {
+			colorGenerator.setCurrentTrackID(trackID);
+			for (DefaultWeightedEdge edge : model.getTrackModel().getTrackEdges(trackID)) {
+				Color color =  colorGenerator.color(edge);
+				trackNode.setColor(edge, color);
 			}
-
-			for(int i : model.getVisibleTrackIndices()) {
-				double val = model.getFeatureModel().getTrackFeature(i, feature);
-				Color color =  colorMap.getPaint((float) (val-min) / (max-min));
-				trackNode.setColor(model.getTrackSpots(i), color);
-			}
-
 		}
 	}
 

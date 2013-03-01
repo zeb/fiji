@@ -3,7 +3,7 @@ package fiji.plugin.trackmate;
 import fiji.plugin.trackmate.action.TrackMateAction;
 import fiji.plugin.trackmate.detection.SpotDetector;
 import fiji.plugin.trackmate.detection.SpotDetectorFactory;
-import fiji.plugin.trackmate.features.track.TrackFeatureAnalyzer;
+import fiji.plugin.trackmate.features.track.TrackAnalyzer;
 import fiji.plugin.trackmate.gui.TrackMateWizard;
 import fiji.plugin.trackmate.gui.WizardController;
 import fiji.plugin.trackmate.tracking.SpotTracker;
@@ -23,11 +23,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import net.imglib2.algorithm.Algorithm;
 import net.imglib2.algorithm.Benchmark;
 import net.imglib2.algorithm.MultiThreaded;
-import net.imglib2.img.ImagePlusAdapter;
 import net.imglib2.img.ImgPlus;
 import net.imglib2.multithreading.SimpleMultiThreading;
-import net.imglib2.type.NativeType;
-import net.imglib2.type.numeric.RealType;
 
 import org.jgrapht.graph.SimpleWeightedGraph;
 
@@ -38,30 +35,31 @@ import org.jgrapht.graph.SimpleWeightedGraph;
  * 
  * <p><b>Required input:</b> A 2D or 3D time-lapse image with bright blobs.</p>
  *
- * @author Nicholas Perry, Jean-Yves Tinevez - Institut Pasteur - July 2010 - 2011 - 2012
+ * @author Nicholas Perry, Jean-Yves Tinevez - Institut Pasteur - July 2010 - 2011 - 2012 - 2013
  *
  */
-public class TrackMate_<T extends RealType<T> & NativeType<T>>  implements PlugIn, Benchmark, MultiThreaded, Algorithm {
+public class TrackMate_ implements PlugIn, Benchmark, MultiThreaded, Algorithm {
 
 	public static final String PLUGIN_NAME_STR = "TrackMate";
-	public static final String PLUGIN_NAME_VERSION = "1.3.0";
+	public static final String PLUGIN_NAME_VERSION = "2.0.0";
 	public static final boolean DEFAULT_USE_MULTITHREADING = true;
 
 	/** 
 	 * The model this plugin will shape.
 	 */
-	protected TrackMateModel<T> model;
+	protected TrackMateModel model;
 
-	protected SpotFeatureAnalyzerProvider<T> spotFeatureFactory;
-	protected TrackFeatureAnalyzerFactory<T> trackFeatureFactory;
+	protected SpotAnalyzerProvider spotFeatureAnalyzerProvider;
+	protected EdgeAnalyzerProvider edgeFeatureAnalyzerProvider;
+	protected TrackAnalyzerProvider trackFeatureProvider;
 	/** The factory that provides this plugin with available {@link TrackMateModelView}s. */
-	protected ViewFactory<T> viewFactory;
+	protected ViewProvider viewProvider;
 	/** The factory that provides this plugin with available {@link TrackMateAction}s. */
-	protected ActionFactory<T> actionFactory;
+	protected ActionProvider actionProvider;
 	/** The list of {@link SpotTracker} that will be offered to choose amongst to the user. */
-	protected TrackerProvider<T> trackerFactory;
+	protected TrackerProvider trackerProvider;
 	/** The {@link DetectorProvider} that provides the GUI with the list of available detectors. */
-	protected DetectorProvider<T> detectorProvider;
+	protected DetectorProvider detectorProvider;
 	protected long processingTime;
 	protected String errorMessage;
 	protected int numThreads = Runtime.getRuntime().availableProcessors();
@@ -70,16 +68,16 @@ public class TrackMate_<T extends RealType<T> & NativeType<T>>  implements PlugI
 	 * CONSTRUCTORS
 	 */
 
-	public TrackMate_(Settings<T> settings) {
+	public TrackMate_(Settings settings) {
 		this();
 		model.setSettings(settings);
 	}
 
 	public TrackMate_() {
-		this(new TrackMateModel<T>());
+		this(new TrackMateModel());
 	}
 
-	public TrackMate_(TrackMateModel<T> model) {
+	public TrackMate_(TrackMateModel model) {
 		this.model = model;
 	}
 
@@ -93,7 +91,7 @@ public class TrackMate_<T extends RealType<T> & NativeType<T>>  implements PlugI
 	 */
 	public void run(String arg) {
 		ImagePlus imp = WindowManager.getCurrentImage();
-		Settings<T> settings = new Settings<T>(imp);
+		Settings settings = new Settings(imp);
 		model.setSettings(settings);
 		initModules();
 		launchGUI();
@@ -111,29 +109,31 @@ public class TrackMate_<T extends RealType<T> & NativeType<T>>  implements PlugI
 	 * <p>
 	 * More precisely, the modules and fields instantiated by this method are:
 	 * <ul>
-	 * 	<li> {@link #spotFeatureFactory}: the list of Spot feature analyzers that will
+	 * 	<li> {@link #spotFeatureAnalyzerProvider}: the list of Spot feature analyzers that will
 	 * be used when calling {@link #computeSpotFeatures()};
-	 * 	<li> {@link #trackFeatureFactory}: the list of track feature analyzers that will
+	 * 	<li> {@link #trackFeatureProvider}: the list of track feature analyzers that will
 	 * be used when calling {@link #computeTrackFeatures()};
 	 * 	<li> {@link #spotDetectors}: the list of {@link SpotDetector}s that will be offered 
 	 * to the user to choose from;
-	 * 	<li> {@link #trackerFactory}: the list of {@link SpotTracker}s that will be offered 
+	 * 	<li> {@link #trackerProvider}: the list of {@link SpotTracker}s that will be offered 
 	 * to the user to choose from;
-	 * 	<li> {@link #viewFactory}: the list of {@link TrackMateModelView}s (the "displayers")
+	 * 	<li> {@link #viewProvider}: the list of {@link TrackMateModelView}s (the "displayers")
 	 * that will be offered to the user to choose from;
-	 * 	<li> {@link #actionFactory}:  the list of {@link TrackMateAction}s that will be 
+	 * 	<li> {@link #actionProvider}:  the list of {@link TrackMateAction}s that will be 
 	 * offered to the user to choose from.
 	 * </ul>
 	 */
 	public void initModules() {
-		this.spotFeatureFactory 	= createSpotFeatureAnalyzerFactory();
-		this.trackFeatureFactory 	= createTrackFeatureAnalyzerFactory();
-		this.detectorProvider		= createDetectorFactory();
-		this.trackerFactory 		= createTrackerFactory();
-		this.viewFactory 			= createViewFactory();
-		this.actionFactory 			= createActionFactory();
-		model.getFeatureModel().setSpotFeatureFactory(spotFeatureFactory);
-		model.getFeatureModel().setTrackFeatureFactory(trackFeatureFactory);
+		this.spotFeatureAnalyzerProvider 	= createSpotAnalyzerProvider();
+		this.trackFeatureProvider 	= createTrackAnalyzerProvider();
+		this.edgeFeatureAnalyzerProvider = createEdgeAnalyzerProvider();
+		this.detectorProvider		= createDetectorProvider();
+		this.trackerProvider 		= createTrackerProvider();
+		this.viewProvider 			= createViewProvider();
+		this.actionProvider 			= createActionProvider();
+		model.getFeatureModel().setSpotFeatureFactory(spotFeatureAnalyzerProvider);
+		model.getFeatureModel().setTrackAnalyzerProvider(trackFeatureProvider);
+		model.getFeatureModel().setEdgeAnalyzerProvider(edgeFeatureAnalyzerProvider);
 	}
 
 	/*
@@ -156,7 +156,7 @@ public class TrackMate_<T extends RealType<T> & NativeType<T>>  implements PlugI
 	 * @return  a list of spot. Depending on the presence of a polygon ROI, it might be a new, 
 	 * pruned list. Or not.
 	 */
-	protected List<Spot> translateAndPruneSpots(final List<Spot> spotsThisFrame, final Settings<T> settings) {
+	protected List<Spot> translateAndPruneSpots(final List<Spot> spotsThisFrame, final Settings settings) {
 
 		// Put them back in the right referential 
 		final double[] calibration = TMUtils.getSpatialCalibration(settings.imp);
@@ -187,26 +187,29 @@ public class TrackMate_<T extends RealType<T> & NativeType<T>>  implements PlugI
 	 * to suit your needs.
 	 */
 	protected void launchGUI() {
-		new WizardController<T>(this);
+		new WizardController(this);
 	}
 
+	/*
+	 * PROVIDERS
+	 */
+	
 	/**
 	 * Hook for subclassers.
 	 * <p>
 	 *  Create view factory containing available spot {@link TrackMateSelectionView}s.
 	 */
-	protected ViewFactory<T> createViewFactory() {
-		return new ViewFactory<T>();
+	protected ViewProvider createViewProvider() {
+		return new ViewProvider(model);
 	}
-
 
 	/**
 	 * Hook for subclassers.
 	 * <p>
 	 * Create detector provider that manages available {@link SpotDetectorFactory}.
 	 */
-	protected DetectorProvider<T> createDetectorFactory() {
-		return new DetectorProvider<T>();
+	protected DetectorProvider createDetectorProvider() {
+		return new DetectorProvider();
 	}
 
 	/**
@@ -214,8 +217,26 @@ public class TrackMate_<T extends RealType<T> & NativeType<T>>  implements PlugI
 	 * <p>
 	 * Create the spot feature analyzer provider.
 	 */
-	protected SpotFeatureAnalyzerProvider<T> createSpotFeatureAnalyzerFactory() {
-		return new SpotFeatureAnalyzerProvider<T>(model);
+	protected SpotAnalyzerProvider createSpotAnalyzerProvider() {
+		return new SpotAnalyzerProvider(model);
+	}
+	
+	/**
+	 * Hook for subclassers.
+	 * <p>
+	 * Create the edge feature analyzer provider.
+	 */
+	protected EdgeAnalyzerProvider createEdgeAnalyzerProvider() {
+		return new EdgeAnalyzerProvider(model);
+	}
+
+	/**
+	 * Hook for subclassers.
+	 * <p>
+	 * Create detector factory containing available spot {@link TrackAnalyzer}s.
+	 */
+	protected TrackAnalyzerProvider createTrackAnalyzerProvider() {
+		return new TrackAnalyzerProvider(model);
 	}
 
 	/**
@@ -223,17 +244,8 @@ public class TrackMate_<T extends RealType<T> & NativeType<T>>  implements PlugI
 	 * <p>
 	 * Create detector factory containing available spot {@link SpotTracker}s.
 	 */
-	protected TrackerProvider<T> createTrackerFactory() {
-		return new TrackerProvider<T>(model);
-	}
-
-	/**
-	 * Hook for subclassers.
-	 * <p>
-	 * Create detector factory containing available spot {@link TrackFeatureAnalyzer}s.
-	 */
-	protected TrackFeatureAnalyzerFactory<T> createTrackFeatureAnalyzerFactory() {
-		return new TrackFeatureAnalyzerFactory<T>();
+	protected TrackerProvider createTrackerProvider() {
+		return new TrackerProvider(model);
 	}
 
 	/**
@@ -241,15 +253,15 @@ public class TrackMate_<T extends RealType<T> & NativeType<T>>  implements PlugI
 	 * <p>
 	 * Create action factory containing available spot {@link TrackMateAction}s.
 	 */
-	protected ActionFactory<T> createActionFactory() {
-		return new ActionFactory<T>();
+	protected ActionProvider createActionProvider() {
+		return new ActionProvider();
 	}
 
 	/*
 	 * METHODS
 	 */
 
-	public TrackMateModel<T> getModel() {
+	public TrackMateModel getModel() {
 		return model;
 	}
 
@@ -258,40 +270,54 @@ public class TrackMate_<T extends RealType<T> & NativeType<T>>  implements PlugI
 	}
 
 	/**
-	 * @return the {@link SpotFeatureAnalyzerProvider} currently registered in this plugin.
-	 * @see #createSpotFeatureAnalyzerFactory()
+	 * @return the {@link SpotAnalyzerProvider} currently set.
+	 * @see #createSpotAnalyzerProvider()
 	 */
-	public SpotFeatureAnalyzerProvider<T> getAvailableSpotFeatureAnalyzers() {
-		return spotFeatureFactory;
+	public SpotAnalyzerProvider getSpotFeatureAnalyzerProvider() {
+		return spotFeatureAnalyzerProvider;
 	}
 
 	/**
-	 * Return a list of the {@link SpotDetector} that are currently registered in this plugin.
+	 * @return the {@link TrackAnalyzerProvider} currently set.
 	 */
-	public DetectorProvider<T> getDetectorProvider() {
+	public TrackAnalyzerProvider getTrackFeatureProvider() {
+		return trackFeatureProvider;
+	}
+	
+	/**
+	 * @return the {@link EdgeAnalyzerProvider} currently set.
+	 */
+	public EdgeAnalyzerProvider getEdgeFeatureAnalyzerProvider() {
+		return edgeFeatureAnalyzerProvider;
+	}
+	
+	/**
+	 * @return the {@link DetectorProvider} currently set.
+	 */
+	public DetectorProvider getDetectorProvider() {
 		return detectorProvider;
 	}
 
 	/**
-	 * Return a list of the {@link SpotTracker} that are currently registered in this plugin.
+	 * @return the {@link TrackerProvider} currently set.
 	 */
-	public TrackerProvider<T> getTrackerProvider() {
-		return trackerFactory;
+	public TrackerProvider getTrackerProvider() {
+		return trackerProvider;
 	}
 
 
 	/**
-	 * Return a list of the {@link TrackMateModelView} that are currently registered in this plugin.
+	 * @return the {@link ViewProvider} currently set.
 	 */
-	public ViewFactory<T> getViewFactory() {
-		return viewFactory;
+	public ViewProvider getViewProvider() {
+		return viewProvider;
 	}
 
 	/**
-	 * Return a list of the {@link TrackMateAction} that are currently registered in this plugin.
+	 * @return a list of the {@link TrackMateAction} that are currently registered in this plugin.
 	 */
-	public ActionFactory<T> getActionFactory() {
-		return actionFactory;
+	public ActionProvider getActionProvider() {
+		return actionProvider;
 	}
 
 
@@ -304,19 +330,21 @@ public class TrackMate_<T extends RealType<T> & NativeType<T>>  implements PlugI
 	 * <p>
 	 * Features are calculated for each spot, using their location, and the raw image. 
 	 */
-	public void computeSpotFeatures() {
+	public void computeSpotFeatures(boolean doLogIt) {
 		final Logger logger = model.getLogger();
 		logger.log("Computing spot features.\n");
-		model.getFeatureModel().computeSpotFeatures(model.getSpots());
+		model.getFeatureModel().computeSpotFeatures(model.getSpots(), doLogIt);
 	}
 
+	public void computeEdgeFeatures(boolean doLogIt) {
+		model.getFeatureModel().computeEdgeFeatures(model.getTrackModel().edgeSet(), doLogIt);
+	}
+	
 	/**
 	 * Calculate all features for all tracks.
 	 */
-	public void computeTrackFeatures() {
-		final Logger logger = model.getLogger();
-		logger.log("Computing track features.\n");
-		model.computeTrackFeatures();
+	public void computeTrackFeatures(boolean doLogIt) {
+		model.getFeatureModel().computeTrackFeatures(model.getTrackModel().getTrackIDs(), doLogIt);
 	}
 
 	/**
@@ -326,7 +354,7 @@ public class TrackMate_<T extends RealType<T> & NativeType<T>>  implements PlugI
 	 * This tracking process will generate a graph (more precisely a {@link SimpleWeightedGraph}) made of the spot 
 	 * election for its vertices, and edges representing the links.
 	 * <p>
-	 * The {@link TrackMateModelChangeListener}s of this model will be notified when the successful process is over.
+	 * The {@link ModelChangeListener}s of this model will be notified when the successful process is over.
 	 * @see #getTrackGraph()
 	 */ 
 	public boolean execTracking() {
@@ -335,7 +363,7 @@ public class TrackMate_<T extends RealType<T> & NativeType<T>>  implements PlugI
 		SpotTracker tracker =  model.getSettings().tracker;
 		tracker.setSettings(model.getSettings().trackerSettings);
 		if (tracker.checkInput() && tracker.process()) {
-			model.setGraph(tracker.getResult());
+			model.getTrackModel().setGraph(tracker.getResult());
 			return false;
 		} else {
 			errorMessage = "Tracking process failed:\n"+tracker.getErrorMessage();
@@ -351,12 +379,13 @@ public class TrackMate_<T extends RealType<T> & NativeType<T>>  implements PlugI
 	 * in the {@link Settings} object of the target model.
 	 * @return true if the whole detection step has exectued correctly.
 	 */
+	@SuppressWarnings({ "rawtypes", "unchecked" })
 	public boolean execDetection() {
 		final Logger logger = model.getLogger();
 		logger.log("Starting detection process.\n");
 		
-		final Settings<T> settings = model.getSettings();
-		final SpotDetectorFactory<T> factory = settings.detectorFactory;
+		final Settings settings = model.getSettings();
+		final SpotDetectorFactory<?> factory = settings.detectorFactory;
 		if (null == factory) {
 			errorMessage = "Detector factory is null.\n";
 			return false;
@@ -369,8 +398,8 @@ public class TrackMate_<T extends RealType<T> & NativeType<T>>  implements PlugI
 		/*
 		 *  Prepare cropped image
 		 */
-		ImgPlus<T> rawImg = ImagePlusAdapter.wrapImgPlus(settings.imp);
-		ImgPlus<T> img;
+		ImgPlus rawImg = TMUtils.rawWraps(settings.imp);
+		ImgPlus img;
 
 		// Check if we indeed wish to crop the source image. To this, we check
 		// the crop cube settings
@@ -420,9 +449,9 @@ public class TrackMate_<T extends RealType<T> & NativeType<T>>  implements PlugI
 				max[tindex] = settings.imp.getNFrames();
 			}
 			// crop: we now have a cropped view of the source image
-			CropImgView<T> cropView = new CropImgView<T>(rawImg, min, max);
+			CropImgView cropView = new CropImgView(rawImg, min, max);
 			// Put back metadata in a new ImgPlus 
-			img = new ImgPlus<T>(cropView, rawImg);
+			img = new ImgPlus(cropView, rawImg);
 			
 		} else {
 			img = rawImg;
@@ -457,7 +486,7 @@ public class TrackMate_<T extends RealType<T> & NativeType<T>>  implements PlugI
 					for (int frame = ai.getAndIncrement(); frame <= settings.tend; frame = ai.getAndIncrement()) {
 
 						// Yield detector for target frame
-						SpotDetector<T> detector = factory.getDetector(frame);
+						SpotDetector<?> detector = factory.getDetector(frame);
 
 						// Execute detection
 						if (ok.get() && detector.checkInput() && detector.process()) {
@@ -480,8 +509,7 @@ public class TrackMate_<T extends RealType<T> & NativeType<T>>  implements PlugI
 							}
 							// Add detection feature other than position
 							for (Spot spot : prunedSpots) {
-								spot.putFeature(Spot.POSITION_T, frame * settings.dt);
-								spot.putFeature(Spot.FRAME, frame);
+								spot.putFeature(Spot.POSITION_T, frame * settings.dt); // FRAME will be set upon adding to SpotCollection
 							}
 							// Store final results for this frame
 							spots.put(frame, prunedSpots);
@@ -530,7 +558,7 @@ public class TrackMate_<T extends RealType<T> & NativeType<T>>  implements PlugI
 	 * This method simply takes all the detected spots, and discard those whose quality value is below the threshold set 
 	 * by {@link #setInitialSpotFilter(Float)}. The spot field is overwritten, and discarded spots can't be recalled.
 	 * <p>
-	 * The {@link TrackMateModelChangeListener}s of this model will be notified with a {@link TrackMateModelChangeEvent#SPOTS_COMPUTED}
+	 * The {@link ModelChangeListener}s of this model will be notified with a {@link ModelChangeEvent#SPOTS_COMPUTED}
 	 * event.
 	 * 
 	 * @see #getSpots()
@@ -555,7 +583,7 @@ public class TrackMate_<T extends RealType<T> & NativeType<T>>  implements PlugI
 	 * This method simply takes all the detected spots, and store in the field {@link #filteredSpots}
 	 * the spots whose features satisfy all of the filters entered with the method {@link #addFilter(SpotFilter)}.
 	 * <p>
-	 * The {@link TrackMateModelChangeListener}s of this model will be notified with a {@link TrackMateModelChangeEvent#SPOTS_FILTERED}
+	 * The {@link ModelChangeListener}s of this model will be notified with a {@link ModelChangeEvent#SPOTS_FILTERED}
 	 * event.
 	 * @param doLogIt  if true, will send a message to the {@link TrackMateModel#logger}.
 	 * @see #getFilteredSpots()
@@ -569,16 +597,18 @@ public class TrackMate_<T extends RealType<T> & NativeType<T>>  implements PlugI
 		return true;
 	}
 
-	public boolean execTrackFiltering() {
-		final Logger logger = model.getLogger();
-		logger.log("Starting track filtering process.\n");
+	public boolean execTrackFiltering(boolean doLogIt) {
+		if (doLogIt) {
+			Logger logger = model.getLogger();
+			logger.log("Starting track filtering process.\n");
+		}
 		HashSet<Integer> filteredTrackIndices = new HashSet<Integer>(); // will work, for the hash of Integer is its int
 
-		for (int trackIndex = 0; trackIndex < model.getNTracks(); trackIndex++) {
+		for (Integer trackID : model.getTrackModel().getTrackIDs()) {
 			boolean trackIsOk = true;
 			for(FeatureFilter filter : model.getSettings().getTrackFilters()) {
 				Double tval = filter.value;
-				Double val = model.getFeatureModel().getTrackFeature(trackIndex, filter.feature);
+				Double val = model.getFeatureModel().getTrackFeature(trackID, filter.feature);
 				if (null == val)
 					continue;
 
@@ -595,9 +625,9 @@ public class TrackMate_<T extends RealType<T> & NativeType<T>>  implements PlugI
 				}
 			}
 			if (trackIsOk)
-				filteredTrackIndices.add(trackIndex);
+				filteredTrackIndices.add(trackID);
 		}
-		model.setVisibleTrackIndices(filteredTrackIndices, true);
+		model.getTrackModel().setFilteredTrackIDs(filteredTrackIndices, true);
 		return true;
 	}
 
@@ -616,7 +646,7 @@ public class TrackMate_<T extends RealType<T> & NativeType<T>>  implements PlugI
 			errorMessage = "The model is null.\n";
 			return false;
 		}
-		Settings<T> settings = model.getSettings();
+		Settings settings = model.getSettings();
 		if (null == settings) {
 			errorMessage = "Settings in the model are null";
 			return false;
@@ -641,15 +671,15 @@ public class TrackMate_<T extends RealType<T> & NativeType<T>>  implements PlugI
 		if (!execInitialSpotFiltering()) {
 			return false;
 		}
-		computeSpotFeatures();
+		computeSpotFeatures(true);
 		if (!execSpotFiltering(true)) {
 			return false;
 		}
 		if (!execTracking()) {
 			return false;
 		}
-		computeTrackFeatures();
-		if (!execTrackFiltering()) {
+		computeTrackFeatures(true);
+		if (!execTrackFiltering(true)) {
 			return false;
 		}
 		return true;
@@ -675,4 +705,7 @@ public class TrackMate_<T extends RealType<T> & NativeType<T>>  implements PlugI
 	public long getProcessingTime() {
 		return processingTime;
 	};
+	
 }
+
+

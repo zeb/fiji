@@ -2,32 +2,29 @@ package fiji.plugin.trackmate.gui;
 
 import java.awt.Component;
 
-import net.imglib2.type.NativeType;
-import net.imglib2.type.numeric.RealType;
+import mpicbg.imglib.multithreading.SimpleMultiThreading;
 
 import fiji.plugin.trackmate.Logger;
 import fiji.plugin.trackmate.TrackMate_;
 import fiji.plugin.trackmate.visualization.TrackMateModelView;
 
-public class LaunchDisplayerDescriptor <T extends RealType<T> & NativeType<T>> implements WizardPanelDescriptor<T> {
+public class LaunchDisplayerDescriptor implements WizardPanelDescriptor {
 
 	public static final String DESCRIPTOR = "LaunchDisplayer";
-	private TrackMateWizard<T> wizard;
+	private TrackMateWizard wizard;
 	private LogPanel logPanel;
 	private Logger logger;
-	private TrackMate_<T> plugin;
-	private boolean renderingDone;
-	private boolean calculateFeaturesDone;
+	private TrackMate_ plugin;
 
 	@Override
-	public void setWizard(TrackMateWizard<T> wizard) { 
+	public void setWizard(TrackMateWizard wizard) { 
 		this.wizard = wizard;
 		this.logPanel = wizard.getLogPanel();
 		this.logger = wizard.getLogger();
 	}
 
 	@Override
-	public void setPlugin(TrackMate_<T> plugin) {
+	public void setPlugin(TrackMate_ plugin) {
 		this.plugin = plugin;
 	}
 
@@ -35,7 +32,7 @@ public class LaunchDisplayerDescriptor <T extends RealType<T> & NativeType<T>> i
 	public Component getComponent() {
 		return logPanel;
 	}
-	
+
 	@Override
 	public String getComponentID() {
 		return LogPanel.DESCRIPTOR;
@@ -63,56 +60,57 @@ public class LaunchDisplayerDescriptor <T extends RealType<T> & NativeType<T>> i
 	public void displayingPanel() {
 		// Launch renderer
 		logger.log("Rendering results...\n",Logger.BLUE_COLOR);
-		renderingDone = false;
-		calculateFeaturesDone = false;
 		wizard.setNextButtonEnabled(false);
-		final TrackMateModelView<T> displayer = wizard.getDisplayer();
-		
-		if (plugin.getModel().getSpots().getNSpots() > 0) {
-			logger.log("Calculating features...\n",Logger.BLUE_COLOR);
-			// Calculate features
-			new Thread("TrackMate spot feature calculating mother thread") {
-				public void run() {
-					try {
-						long start = System.currentTimeMillis();
-						plugin.computeSpotFeatures();		
-						long end  = System.currentTimeMillis();
-						logger.log(String.format("Calculating features done in %.1f s.\n", (end-start)/1e3f), Logger.BLUE_COLOR);
-					} finally {
-						calculateFeaturesDone = true;
-						if (renderingDone) {
-							wizard.setNextButtonEnabled(true);
-						}
-					}
-				}
-			}.start();
-			
-		} else {
-			calculateFeaturesDone = true;
-		}
+		final TrackMateModelView displayer = wizard.getDisplayer();
 
 		// Thread for rendering
-		new Thread("TrackMate rendering thread") {
-			
+		Thread renderingThread = new Thread("TrackMate rendering thread") {
+
 			public void run() {
 				// Instantiate displayer
-				if (null != displayer) {
-					displayer.clear();
-				}
-				try {
-					displayer.setModel(plugin.getModel());
-					displayer.render();
-				} finally {
-					// Re-enable the GUI
-					renderingDone = true;
-					logger.log("Rendering done.\n", Logger.BLUE_COLOR);
-					if (calculateFeaturesDone) {
-						wizard.setNextButtonEnabled(true);
-					}
-				}
+				displayer.render();
+				logger.log("Rendering done.\n", Logger.BLUE_COLOR);
 			}
-		}.start();
+		};
 		
+		if (plugin.getModel().getSpots().getNSpots() > 0) {
+
+			/*
+			 * We have some spots so we need to compute spot features will we render them.
+			 */
+			logger.log("Calculating spot features...\n",Logger.BLUE_COLOR);
+			// Calculate features
+			Thread featureCalculationThread = new Thread("TrackMate spot feature calculating mother thread") {
+				public void run() {
+					long start = System.currentTimeMillis();
+					plugin.computeSpotFeatures(true);		
+					long end  = System.currentTimeMillis();
+					logger.log(String.format("Calculating features done in %.1f s.\n", (end-start)/1e3f), Logger.BLUE_COLOR);
+				}
+			};
+			// Launch threads
+			Thread[] threads = new Thread[] { featureCalculationThread, renderingThread };
+			SimpleMultiThreading.startAndJoin(threads);
+			
+		} else {
+			
+			/*
+			 * We don't have any spot. Let's just render the view.
+			 */
+			renderingThread.start();
+			try {
+				renderingThread.join();
+			} catch (InterruptedException e) {
+				logger.error("Error rendering the view:\n" + e.getLocalizedMessage());
+				e.printStackTrace();
+			}
+			
+		}
+
+		// Re-enable the GUI
+		wizard.setVisible(true);
+		wizard.setNextButtonEnabled(true);
+
 	}
 
 	@Override

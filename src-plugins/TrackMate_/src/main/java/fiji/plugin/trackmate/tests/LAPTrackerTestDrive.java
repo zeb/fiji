@@ -1,22 +1,26 @@
 package fiji.plugin.trackmate.tests;
 
-import java.io.File;
-import java.util.HashMap;
-import java.util.Map;
+import static fiji.plugin.trackmate.tracking.TrackerKeys.KEY_ALLOW_GAP_CLOSING;
+import static fiji.plugin.trackmate.tracking.TrackerKeys.KEY_ALLOW_TRACK_MERGING;
+import static fiji.plugin.trackmate.tracking.TrackerKeys.KEY_ALLOW_TRACK_SPLITTING;
+import static fiji.plugin.trackmate.tracking.TrackerKeys.KEY_GAP_CLOSING_MAX_DISTANCE;
+import static fiji.plugin.trackmate.tracking.TrackerKeys.KEY_LINKING_MAX_DISTANCE;
+import static fiji.plugin.trackmate.tracking.TrackerKeys.KEY_MERGING_MAX_DISTANCE;
+import static fiji.plugin.trackmate.tracking.TrackerKeys.KEY_SPLITTING_MAX_DISTANCE;
 
-import net.imglib2.type.NativeType;
-import net.imglib2.type.numeric.RealType;
+import java.io.File;
+import java.util.Map;
 
 import fiji.plugin.trackmate.Logger;
 import fiji.plugin.trackmate.TrackMateModel;
 import fiji.plugin.trackmate.TrackMate_;
 import fiji.plugin.trackmate.io.TmXmlReader;
 import fiji.plugin.trackmate.tracking.LAPTracker;
-import fiji.plugin.trackmate.tracking.TrackerKeys;
+import fiji.plugin.trackmate.tracking.LAPUtils;
 import fiji.plugin.trackmate.visualization.TrackMateModelView;
 import fiji.plugin.trackmate.visualization.hyperstack.HyperStackDisplayer;
 
-public class LAPTrackerTestDrive implements TrackerKeys {
+public class LAPTrackerTestDrive {
 	
 	private static final File SPLITTING_CASE_3 = new File("/Users/tinevez/Desktop/Data/FakeTracks.xml");
 //	private static final File SPLITTING_CASE_3 = new File("E:/Users/JeanYves/Desktop/Data/FakeTracks.xml");
@@ -25,36 +29,39 @@ public class LAPTrackerTestDrive implements TrackerKeys {
 	 * MAIN METHOD
 	 */
 	
-	public static <T extends RealType<T> & NativeType<T>> void main(String args[]) {
+	public static void main(String args[]) {
 		
 		File file = SPLITTING_CASE_3;
 		
 		// 1 - Load test spots
 		System.out.println("Opening file: "+file.getAbsolutePath());		
-		TrackMate_<T> plugin = new TrackMate_<T>();
+		TrackMate_ plugin = new TrackMate_();
 		plugin.initModules();
-		TmXmlReader<T> reader = new TmXmlReader<T>(file, plugin , Logger.DEFAULT_LOGGER);
-		TrackMateModel<T> model = null;
-		// Parse
-		reader.parse();
-		model = reader.getModel();
+		TmXmlReader reader = new TmXmlReader(file, plugin);
+		if (!reader.checkInput() || !reader.process()) {
+			System.err.println("Problem loading the file:");
+			System.err.println(reader.getErrorMessage());
+			return;
+		}
+		TrackMateModel model = plugin.getModel();
 		
 		System.out.println("All spots: "+ model.getSpots());
 		System.out.println("Filtered spots: "+ model.getFilteredSpots());
-		System.out.println("Found "+model.getNTracks()+" tracks in the file:");
-		for(int i=0; i<model.getNTracks(); i++)
-			System.out.println('\t'+model.trackToString(i));
+		plugin.computeTrackFeatures(true);
+		System.out.println("Found "+model.getTrackModel().getNTracks()+" tracks in the file:");
+		for (Integer trackID : model.getTrackModel().getTrackEdges().keySet())
+			System.out.println('\t'+model.getTrackModel().trackToString(trackID));
 		System.out.println();
 		
 		// 1.5 - Set the tracking settings
-		Map<String, Object> settings = new HashMap<String, Object>();
+		Map<String, Object> settings = LAPUtils.getDefaultLAPSettingsMap();
 		settings.put(KEY_LINKING_MAX_DISTANCE, 10d);
 		settings.put(KEY_ALLOW_GAP_CLOSING, false);
-		settings.put(KEY_GAP_CLOSING_MAX_DISTANCE, 15);
+		settings.put(KEY_GAP_CLOSING_MAX_DISTANCE, 15d);
 		settings.put(KEY_ALLOW_TRACK_MERGING, false);
-		settings.put(KEY_MERGING_MAX_DISTANCE, 10);
+		settings.put(KEY_MERGING_MAX_DISTANCE, 10d);
 		settings.put(KEY_ALLOW_TRACK_SPLITTING, false);
-		settings.put(KEY_SPLITTING_MAX_DISTANCE, 10);
+		settings.put(KEY_SPLITTING_MAX_DISTANCE, 10d);
 		System.out.println("Tracker settings:");
 		model.getSettings().trackerSettings = settings;
 		
@@ -68,13 +75,36 @@ public class LAPTrackerTestDrive implements TrackerKeys {
 		if (!lap.process())
 			System.err.println("Error in process: "+lap.getErrorMessage());
 		long end = System.currentTimeMillis();
-		model.setGraph(lap.getResult());
+		
+		
+		// 2.5 check the track visibility prior and after
+		System.out.println("Track visibility before new graph allocation:");
+		System.out.println("On the following tracks ID:");
+		for (Integer trackID : model.getTrackModel().getTrackIDs()) 
+			System.out.print(trackID + ", ");
+		System.out.println("\nthe following were filtered:");
+		for (Integer trackID : model.getTrackModel().getFilteredTrackIDs()) 
+			System.out.print(trackID + ", ");
+		System.out.println();
+		
+		// Pass the new graph
+		model.getTrackModel().setGraph(lap.getResult());
+
+		System.out.println("Track visibility after new graph allocation:");
+		System.out.println("On the following tracks ID:");
+		for (Integer trackID : model.getTrackModel().getTrackIDs()) 
+			System.out.print(trackID + ", ");
+		System.out.println("\nthe following were filtered:");
+		for (Integer trackID : model.getTrackModel().getFilteredTrackIDs()) 
+			System.out.print(trackID + ", ");
+		System.out.println();
+
 		
 		// 3 - Print out results for testing		
 		System.out.println();
 		System.out.println();
 		System.out.println();
-		System.out.println("Found " + model.getNTracks() + " final tracks.");
+		System.out.println("Found " + model.getTrackModel().getNTracks() + " final tracks.");
 		System.out.println("Whole tracking done in "+(end-start)+" ms.");
 		System.out.println();
 
@@ -84,8 +114,9 @@ public class LAPTrackerTestDrive implements TrackerKeys {
 //		LAPUtils.echoMatrix(lap.getSegmentCosts());
 		
 		System.out.println("Track features: ");
-		for (int i = 0; i < model.getNTracks(); i++) {
-			System.out.println(model.trackToString(i));
+		plugin.computeTrackFeatures(true);
+		for (Integer trackID : model.getTrackModel().getTrackEdges().keySet()) {
+			System.out.println(model.getTrackModel().trackToString(trackID));
 		}
 		
 		
@@ -93,8 +124,7 @@ public class LAPTrackerTestDrive implements TrackerKeys {
 		// Load Image
 		ij.ImageJ.main(args);
 		
-		TrackMateModelView<T> sd2d = new HyperStackDisplayer<T>();
-		sd2d.setModel(model);
+		TrackMateModelView sd2d = new HyperStackDisplayer(model);
 		sd2d.render();
 		sd2d.setDisplaySettings(TrackMateModelView.KEY_TRACK_DISPLAY_MODE, TrackMateModelView.TRACK_DISPLAY_MODE_WHOLE);
 	}

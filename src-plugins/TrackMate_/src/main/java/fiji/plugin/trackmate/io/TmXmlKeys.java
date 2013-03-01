@@ -5,7 +5,7 @@ package fiji.plugin.trackmate.io;
  * Contains the key string used for xml marshaling.
  * @author Jean-Yves Tinevez <jeanyves.tinevez@gmail.com>  2010-2011
   */
-public interface TmXmlKeys {
+class TmXmlKeys {
 	
 	/*
 	 * GENERIC ATTRIBUTES
@@ -22,6 +22,11 @@ public interface TmXmlKeys {
 	public static final String ROOT_ELEMENT_KEY 					= "TrackMate";
 	public static final String PLUGIN_VERSION_ATTRIBUTE_NAME		= "version";
 	
+	/*
+	 * LOG
+	 */
+	
+	public static final String LOG_ELEMENT_KEY 						= "Log";
 	
 	/*
 	 * SETTINGS elements
@@ -110,12 +115,13 @@ public interface TmXmlKeys {
 	
 	public static final String TRACK_COLLECTION_ELEMENT_KEY			= "AllTracks";
 	public static final String TRACK_ELEMENT_KEY 					= "Track";
-	public static final String TRACK_ID_ATTRIBUTE_NAME 				= "trackID";
+//	public static final String TRACK_ID_ATTRIBUTE_NAME 				= "trackID";
+	public static final String TRACK_NAME_ATTRIBUTE_NAME 			= "name";
 
 	public static final String TRACK_EDGE_ELEMENT_KEY				= "Edge";
-	public static final String TRACK_EDGE_SOURCE_ATTRIBUTE_NAME	 	= "sourceID";
-	public static final String TRACK_EDGE_TARGET_ATTRIBUTE_NAME	 	= "targetID";
-	public static final String TRACK_EDGE_WEIGHT_ATTRIBUTE_NAME	 	= "weight";
+//	public static final String TRACK_EDGE_SOURCE_ATTRIBUTE_NAME	 	= "sourceID";
+//	public static final String TRACK_EDGE_TARGET_ATTRIBUTE_NAME	 	= "targetID";
+//	public static final String TRACK_EDGE_WEIGHT_ATTRIBUTE_NAME	 	= "weight";
 
 	
 	/*

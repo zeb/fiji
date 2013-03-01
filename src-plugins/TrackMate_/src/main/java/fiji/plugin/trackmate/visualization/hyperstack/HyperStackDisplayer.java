@@ -6,24 +6,22 @@ import ij.gui.StackWindow;
 
 import java.awt.Point;
 import java.util.List;
-
-import net.imglib2.type.NativeType;
-import net.imglib2.type.numeric.RealType;
+import java.util.Set;
 
 import org.jgrapht.graph.DefaultWeightedEdge;
 
+import fiji.plugin.trackmate.ModelChangeEvent;
+import fiji.plugin.trackmate.SelectionChangeEvent;
 import fiji.plugin.trackmate.Settings;
 import fiji.plugin.trackmate.Spot;
-import fiji.plugin.trackmate.SpotImp;
 import fiji.plugin.trackmate.TrackMateModel;
-import fiji.plugin.trackmate.TrackMateModelChangeEvent;
-import fiji.plugin.trackmate.TrackMateSelectionChangeEvent;
 import fiji.plugin.trackmate.util.TMUtils;
 import fiji.plugin.trackmate.visualization.AbstractTrackMateModelView;
+import fiji.plugin.trackmate.visualization.TrackColorGenerator;
 import fiji.plugin.trackmate.visualization.TrackMateModelView;
 import fiji.util.gui.OverlayedImageCanvas;
 
-public class HyperStackDisplayer <T extends RealType<T> & NativeType<T>> extends AbstractTrackMateModelView<T>  {
+public class HyperStackDisplayer extends AbstractTrackMateModelView  {
 
 	private static final boolean DEBUG = false;
 	public static final String NAME = "HyperStack Displayer";
@@ -53,30 +51,33 @@ public class HyperStackDisplayer <T extends RealType<T> & NativeType<T>> extends
 	protected ImagePlus imp;
 	OverlayedImageCanvas canvas;
 	double[] calibration;
-	Settings<T> settings;
+	Settings settings;
 	private StackWindow window;
-	SpotOverlay<T> spotOverlay;
-	private TrackOverlay<T> trackOverlay;
+	SpotOverlay spotOverlay;
+	private TrackOverlay trackOverlay;
 
-	private SpotEditTool<T> editTool;
+	private SpotEditTool editTool;
 
 	/*
 	 * CONSTRUCTORS
 	 */
 
-	public HyperStackDisplayer() {	}
+	public HyperStackDisplayer(TrackMateModel model) {	
+		super(model);
+		this.settings = model.getSettings();
+	}
 
 	/*
 	 * DEFAULT METHODS
 	 */
 
 	final Spot getCLickLocation(final Point point) {
-		final double ix = canvas.offScreenXD(point.x) + 0.5f;
-		final double iy =  canvas.offScreenYD(point.y) + 0.5f;
+		final double ix = canvas.offScreenXD(point.x) - 0.5d;
+		final double iy =  canvas.offScreenYD(point.y) - 0.5d;
 		final double x = ix * calibration[0];
 		final double y = iy * calibration[1];
 		final double z = (imp.getSlice()-1) * calibration[2];
-		return new SpotImp(new double[] {x, y, z});
+		return new Spot(new double[] {x, y, z});
 	}
 
 	/*
@@ -87,66 +88,50 @@ public class HyperStackDisplayer <T extends RealType<T> & NativeType<T>> extends
 	 * Hook for subclassers. Instantiate here the overlay you want to use for the spots. 
 	 * @return
 	 */
-	protected SpotOverlay<T> createSpotOverlay() {
-		return new SpotOverlay<T>(model, imp, displaySettings);
+	protected SpotOverlay createSpotOverlay() {
+		return new SpotOverlay(model, imp, displaySettings);
 	}
 
 	/**
 	 * Hook for subclassers. Instantiate here the overlay you want to use for the spots. 
 	 * @return
 	 */
-	protected TrackOverlay<T> createTrackOverlay() {
-		return new TrackOverlay<T>(model, imp, displaySettings);
+	protected TrackOverlay createTrackOverlay() {
+		TrackOverlay to = new TrackOverlay(model, imp, displaySettings);
+		TrackColorGenerator colorGenerator = (TrackColorGenerator) displaySettings.get(KEY_TRACK_COLORING);
+		to.setTrackColorGenerator(colorGenerator);
+		return to;
 	}
 
-	@Override
-	public void setModel(TrackMateModel<T> model) {
-		super.setModel(model);
-		this.settings = model.getSettings();
-		this.imp = settings.imp;
-		this.calibration = TMUtils.getSpatialCalibration(settings.imp);
-	}
 
 	/*
 	 * PUBLIC METHODS
 	 */
 
 	@Override
-	public void modelChanged(TrackMateModelChangeEvent event) {
+	public void modelChanged(ModelChangeEvent event) {
 		if (DEBUG)
-			System.out.println("[HyperStackDisplayer] Received model changed event ID: "+event.getEventID()+" from "+event.getSource());
+			System.out.println("[HyperStackDisplayer] Received model changed event ID: " 
+					 + event.getEventID() +" from "+event.getSource());
 		boolean redoOverlay = false;
 
 		switch (event.getEventID()) {
 
-		case TrackMateModelChangeEvent.MODEL_MODIFIED:
+		case ModelChangeEvent.MODEL_MODIFIED:
 			// Rebuild track overlay only if edges were added or removed, or if at least one spot was removed. 
-			final List<DefaultWeightedEdge> edges = event.getEdges();
+			final Set<DefaultWeightedEdge> edges = event.getEdges();
 			if (edges != null && edges.size() > 0) {
-				trackOverlay.computeTrackColors();
 				redoOverlay = true;				
-			} else {
-				final List<Spot> spots = event.getSpots();
-				if ( spots != null && spots.size() > 0) {
-					for (Spot spot : event.getSpots()) {
-						if (event.getSpotFlag(spot) == TrackMateModelChangeEvent.FLAG_SPOT_REMOVED) {
-							trackOverlay.computeTrackColors();
-							redoOverlay = true;
-							break;
-						}
-					}
-				}
 			}
 			break;
 
-		case TrackMateModelChangeEvent.SPOTS_COMPUTED:
+		case ModelChangeEvent.SPOTS_COMPUTED:
 			spotOverlay.computeSpotColors();
 			redoOverlay = true;
 			break;
 
-		case TrackMateModelChangeEvent.TRACKS_VISIBILITY_CHANGED:
-		case TrackMateModelChangeEvent.TRACKS_COMPUTED:
-			trackOverlay.computeTrackColors();
+		case ModelChangeEvent.TRACKS_VISIBILITY_CHANGED:
+		case ModelChangeEvent.TRACKS_COMPUTED:
 			redoOverlay = true;
 			break;
 		}
@@ -156,10 +141,10 @@ public class HyperStackDisplayer <T extends RealType<T> & NativeType<T>> extends
 	}
 
 	@Override
-	public void selectionChanged(TrackMateSelectionChangeEvent event) {
+	public void selectionChanged(SelectionChangeEvent event) {
 		// Highlight selection
-		trackOverlay.setHighlight(model.getEdgeSelection());
-		spotOverlay.setSpotSelection(model.getSpotSelection());
+		trackOverlay.setHighlight(model.getSelectionModel().getEdgeSelection());
+		spotOverlay.setSpotSelection(model.getSelectionModel().getSpotSelection());
 		// Center on last spot
 		super.selectionChanged(event);
 		// Redraw
@@ -184,10 +169,13 @@ public class HyperStackDisplayer <T extends RealType<T> & NativeType<T>> extends
 
 	@Override
 	public void render() {
+		this.imp = settings.imp;
 		if (null == imp) {
 			this.imp = NewImage.createByteImage("Empty", settings.width, settings.height, settings.nframes*settings.nslices, NewImage.FILL_BLACK);
 			this.imp.setDimensions(1, settings.nslices, settings.nframes);
 		}
+		this.calibration = TMUtils.getSpatialCalibration(imp);
+
 		clear();
 		imp.setOpenAsHyperStack(true);
 		//
@@ -207,7 +195,9 @@ public class HyperStackDisplayer <T extends RealType<T> & NativeType<T>> extends
 
 	@Override
 	public void refresh() { 
-		imp.updateAndDraw();
+		if (null != imp) {
+			imp.updateAndDraw();
+		}
 	}
 
 	@Override
@@ -248,8 +238,13 @@ public class HyperStackDisplayer <T extends RealType<T> & NativeType<T>> extends
 		if (key == TrackMateModelView.KEY_SPOT_COLOR_FEATURE) {
 			spotOverlay.computeSpotColors();
 		}
-		if (key == TrackMateModelView.KEY_TRACK_COLOR_FEATURE) {
-			trackOverlay.computeTrackColors();
+		if (key == TrackMateModelView.KEY_TRACK_COLORING) {
+			// unregister the old one
+			TrackColorGenerator oldColorGenerator = (TrackColorGenerator) displaySettings.get(KEY_TRACK_COLORING);
+			oldColorGenerator.terminate();
+			// pass the new one to the track overlay - we ignore its spot coloring and keep the spot coloring
+			TrackColorGenerator colorGenerator = (TrackColorGenerator) value;
+			trackOverlay.setTrackColorGenerator(colorGenerator);
 		}
 	}
 }

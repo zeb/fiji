@@ -16,8 +16,9 @@ import fiji.util.gui.GenericDialogPlus;
 public class GridType 
 {
 	final private String paperURL = "http://bioinformatics.oxfordjournals.org/cgi/content/abstract/btp184";
-	
-	final public static String[] choose1 = new String[]{ "Grid: row-by-row", "Grid: column-by-column", "Grid: snake by rows", "Grid: snake by columns", "Filename defined position", "Unknown position", "Positions from file" };
+
+	// Modified by John Lapage: added the 'Sequential Images' option. 	
+	final public static String[] choose1 = new String[]{ "Grid: row-by-row", "Grid: column-by-column", "Grid: snake by rows", "Grid: snake by columns", "Filename defined position", "Unknown position", "Positions from file" , "Sequential Images" };
 	final public static String[][] choose2 = new String[ choose1.length ][];
 	final public static String[] allChoices;
 	
@@ -60,6 +61,10 @@ public class GridType
 		images[ 6 ] = new ImageIcon[ 2 ];
 		images[ 6 ][ 0 ] = GenericDialogPlus.createImageIcon( getClass().getResource( "/images/fromFile.png" ) );
 		images[ 6 ][ 1 ] = GenericDialogPlus.createImageIcon( getClass().getResource( "/images/fromFile.png" ) );
+		
+		// John Lapage added this: use the correct image if sequential images is selected
+		images[ 7 ] = new ImageIcon[ 1 ];
+		images[ 7 ][ 0 ] = GenericDialogPlus.createImageIcon( getClass().getResource( "/images/sequential.png" ) );
 
 		final GenericDialogPlus gd = new GenericDialogPlus( "Grid/Collection stitching" );
 		gd.addChoice( "Type", choose1, choose1[ Stitching_Grid.defaultGridChoice1 ] );
@@ -137,6 +142,8 @@ public class GridType
 		choose2[ 4 ] = new String[]{ "Defined by filename         " };
 		choose2[ 5 ] = new String[]{ "All files in directory" };
 		choose2[ 6 ] = new String[]{ "Defined by TileConfiguration", "Defined by image metadata" };
+		// Added by John Lapage: same option as with Unknown Positions
+		choose2[ 7 ] = new String[]{ "All files in directory" };
 
 		// the interactive changing is not compatible with the macro language, 
 		// thats why we show all possible options and figure out what was meant

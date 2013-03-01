@@ -1,15 +1,25 @@
 package fiji.plugin.trackmate;
 
+import static fiji.plugin.trackmate.detection.DetectorKeys.DEFAULT_DOWNSAMPLE_FACTOR;
+import static fiji.plugin.trackmate.detection.DetectorKeys.DEFAULT_DO_MEDIAN_FILTERING;
+import static fiji.plugin.trackmate.detection.DetectorKeys.DEFAULT_DO_SUBPIXEL_LOCALIZATION;
+import static fiji.plugin.trackmate.detection.DetectorKeys.DEFAULT_RADIUS;
+import static fiji.plugin.trackmate.detection.DetectorKeys.DEFAULT_TARGET_CHANNEL;
+import static fiji.plugin.trackmate.detection.DetectorKeys.DEFAULT_THRESHOLD;
+import static fiji.plugin.trackmate.detection.DetectorKeys.KEY_DOWNSAMPLE_FACTOR;
+import static fiji.plugin.trackmate.detection.DetectorKeys.KEY_DO_MEDIAN_FILTERING;
+import static fiji.plugin.trackmate.detection.DetectorKeys.KEY_DO_SUBPIXEL_LOCALIZATION;
+import static fiji.plugin.trackmate.detection.DetectorKeys.KEY_RADIUS;
+import static fiji.plugin.trackmate.detection.DetectorKeys.KEY_TARGET_CHANNEL;
+import static fiji.plugin.trackmate.detection.DetectorKeys.KEY_THRESHOLD;
+import static fiji.plugin.trackmate.detection.DetectorKeys.XML_ATTRIBUTE_DETECTOR_NAME;
 import ij.ImagePlus;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
-import net.imglib2.type.NativeType;
-import net.imglib2.type.numeric.RealType;
-
-import org.jdom.Element;
+import org.jdom2.Element;
 
 import fiji.plugin.trackmate.detection.DetectorKeys;
 import fiji.plugin.trackmate.detection.DogDetectorFactory;
@@ -24,7 +34,7 @@ import fiji.plugin.trackmate.gui.DownSampleLogDetectorConfigurationPanel;
 import fiji.plugin.trackmate.gui.LogDetectorConfigurationPanel;
 import fiji.plugin.trackmate.gui.WizardController;
 
-public class DetectorProvider <T extends RealType<T> & NativeType<T>> extends AbstractProvider implements DetectorKeys {
+public class DetectorProvider extends AbstractProvider {
 
 	/*
 	 * BLANK CONSTRUCTOR
@@ -189,19 +199,20 @@ public class DetectorProvider <T extends RealType<T> & NativeType<T>> extends Ab
 	 * @return a new instance of the target detector identified by the key parameter. If 
 	 * the key is unknown to this provider, return <code>null</code>.
 	 */
-	public SpotDetectorFactory<T> getDetectorFactory() {
+	@SuppressWarnings("rawtypes")
+	public SpotDetectorFactory getDetectorFactory() {
 
 		if (currentKey.equals(LogDetectorFactory.DETECTOR_KEY)) {
-			return new LogDetectorFactory<T>();
+			return new LogDetectorFactory();
 
 		} else if (currentKey.equals(DogDetectorFactory.DETECTOR_KEY)){
-			return new DogDetectorFactory<T>();
+			return new DogDetectorFactory();
 
 		} else if (currentKey.equals(DownsampleLogDetectorFactory.DETECTOR_KEY)) {
-			return new DownsampleLogDetectorFactory<T>();
+			return new DownsampleLogDetectorFactory();
 
 		} else if (currentKey.equals(ManualDetectorFactory.DETECTOR_KEY)) {
-			return new ManualDetectorFactory<T>();
+			return new ManualDetectorFactory();
 
 		} else {
 			return null;
@@ -271,22 +282,22 @@ public class DetectorProvider <T extends RealType<T> & NativeType<T>> extends Ab
 	 * panels. 
 	 */
 
-	public ConfigurationPanel getDetectorConfigurationPanel(final WizardController<T> controller) 	{
+	public ConfigurationPanel getDetectorConfigurationPanel(final WizardController controller) 	{
 		
 		ImagePlus imp = controller.getPlugin().getModel().getSettings().imp;
 		String spaceUnits = controller.getPlugin().getModel().getSettings().spaceUnits;
-
+		
 		if (currentKey.equals(LogDetectorFactory.DETECTOR_KEY)) {
-			return new LogDetectorConfigurationPanel<T>(imp, LogDetectorFactory.INFO_TEXT, LogDetectorFactory.NAME, spaceUnits);
+			return new LogDetectorConfigurationPanel(imp, LogDetectorFactory.INFO_TEXT, LogDetectorFactory.NAME, spaceUnits);
 
 		} else if (currentKey.equals(DogDetectorFactory.DETECTOR_KEY)){
-			return new LogDetectorConfigurationPanel<T>(imp, DogDetectorFactory.INFO_TEXT, DogDetectorFactory.NAME, spaceUnits);
+			return new LogDetectorConfigurationPanel(imp, DogDetectorFactory.INFO_TEXT, DogDetectorFactory.NAME, spaceUnits);
 
 		} else if (currentKey.equals(DownsampleLogDetectorFactory.DETECTOR_KEY)) {
-			return new DownSampleLogDetectorConfigurationPanel<T>(imp, spaceUnits);
+			return new DownSampleLogDetectorConfigurationPanel(imp, spaceUnits);
 
 		} else if (currentKey.equals(ManualDetectorFactory.DETECTOR_KEY)) {
-			return new BasicDetectorConfigurationPanel<T>(imp, ManualDetectorFactory.INFO_TEXT, ManualDetectorFactory.NAME, spaceUnits);
+			return new BasicDetectorConfigurationPanel(imp, ManualDetectorFactory.INFO_TEXT, ManualDetectorFactory.NAME, spaceUnits);
 
 		} else {
 			return null;

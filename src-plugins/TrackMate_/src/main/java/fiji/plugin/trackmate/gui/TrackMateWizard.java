@@ -22,9 +22,6 @@ import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
 import javax.swing.WindowConstants;
 
-import net.imglib2.type.NativeType;
-import net.imglib2.type.numeric.RealType;
-
 import fiji.plugin.trackmate.Logger;
 import fiji.plugin.trackmate.visualization.TrackMateModelView;
 
@@ -34,7 +31,7 @@ import fiji.plugin.trackmate.visualization.TrackMateModelView;
  * 
  * @author Jean-Yves Tinevez <tinevez@pasteur.fr> - September 2010 - 2011
  */
-public class TrackMateWizard <T extends RealType<T> & NativeType<T>> extends javax.swing.JFrame implements ActionListener {
+public class TrackMateWizard extends javax.swing.JFrame implements ActionListener {
 
 	JButton jButtonSave;
 	JButton jButtonLoad;
@@ -59,7 +56,8 @@ public class TrackMateWizard <T extends RealType<T> & NativeType<T>> extends jav
 	private static final Icon PREVIOUS_ICON = new ImageIcon(TrackMateWizard.class.getResource("images/arrow_left.png"));
 	private static final Icon LOAD_ICON = new ImageIcon(TrackMateWizard.class.getResource("images/page_go.png"));
 	private static final Icon SAVE_ICON = new ImageIcon(TrackMateWizard.class.getResource("images/page_save.png"));
-	private static final ImageIcon TRACKMATE_ICON = new ImageIcon(TrackMateWizard.class.getResource("images/trackmate-icon.png"));
+	private static final ImageIcon TRACKMATE_ICON = new ImageIcon(TrackMateWizard.class.getResource("images/TrackIcon_small.png"));
+	private static final Icon LOG_ICON = new ImageIcon(TrackMateWizard.class.getResource("images/information.png"));;
 
 	/*
 	 * DEFAULT VISIBILITY FIELDS
@@ -73,29 +71,34 @@ public class TrackMateWizard <T extends RealType<T> & NativeType<T>> extends jav
 	final ActionEvent LOAD_BUTTON_PRESSED = new ActionEvent(this, 2, "LoadButtonPressed");
 	/** This {@link ActionEvent} is fired when the 'save' button is pressed. */
 	final ActionEvent SAVE_BUTTON_PRESSED = new ActionEvent(this, 3, "SaveButtonPressed");
+	/** This {@link ActionEvent} is fired when the 'log' button is pressed. */
+	final ActionEvent LOG_BUTTON_PRESSED = new ActionEvent(this, 4, "LogButtonPressed");
 
 	/*
 	 * FIELDS
 	 */
 
-	private WizardPanelDescriptor<T> currentDescriptor;
-	private HashMap<String, WizardPanelDescriptor<T>> descriptorHashmap = new HashMap<String, WizardPanelDescriptor<T>>();
+	private WizardPanelDescriptor currentDescriptor;
+	private HashMap<String, WizardPanelDescriptor> descriptorHashmap = new HashMap<String, WizardPanelDescriptor>();
 	private ArrayList<ActionListener> listeners = new ArrayList<ActionListener>();
 
 	private JPanel jPanelButtons;
 	private JPanel jPanelMain;
 	private LogPanel logPanel;
 	private CardLayout cardLayout;
-	private TrackMateModelView<T> displayer;
+	private TrackMateModelView displayer;
 	private Component component;
-	private final WizardController<T> controller;
+	private final WizardController controller;
+	/** The stored 4 button states. It has default visibility so that states can be tweaked by the controller. */ 
+	boolean[] storedButtonState;
+	private JButton jButtonLog;
 
 
 	/*
 	 * CONSTRUCTOR
 	 */
 
-	public TrackMateWizard(Component component, WizardController<T> controller) {
+	public TrackMateWizard(Component component, WizardController controller) {
 		this.component = component;
 		this.controller = controller;
 		initGUI();
@@ -105,9 +108,9 @@ public class TrackMateWizard <T extends RealType<T> & NativeType<T>> extends jav
 	/*
 	 * PUBLIC METHODS
 	 */
-	
+
 	/** Expose the controller managing this GUI. */
-	public WizardController<T> getController() {
+	public WizardController getController() {
 		return controller;
 	}
 
@@ -133,7 +136,7 @@ public class TrackMateWizard <T extends RealType<T> & NativeType<T>> extends jav
 	public Logger getLogger() {
 		return logPanel.getLogger();
 	}
-	
+
 
 	public LogPanel getLogPanel() {
 		return logPanel;
@@ -142,17 +145,17 @@ public class TrackMateWizard <T extends RealType<T> & NativeType<T>> extends jav
 	/**
 	 * @return a reference to the {@link TrackMateModelView} linked to this wizard.
 	 */
-	public TrackMateModelView<T> getDisplayer() {
+	public TrackMateModelView getDisplayer() {
 		return displayer;
 	}
 
 	/**
 	 * Set the {@link TrackMateModelView} to be linked to this wizard.
 	 */
-	public void setDisplayer(TrackMateModelView<T> displayer) {
+	public void setDisplayer(TrackMateModelView displayer) {
 		this.displayer = displayer;
 	}
-	
+
 	/** 
 	 * Simply forward the caught event to listeners of this main frame.
 	 */
@@ -165,12 +168,12 @@ public class TrackMateWizard <T extends RealType<T> & NativeType<T>> extends jav
 	 * 
 	 * WIZARD MODEL METHODS
 	 */
-	
+
 	/**
 	 * @return the collection of {@link WizardPanelDescriptor} currently
 	 * registered in this wizard.
 	 */
-	public Collection<WizardPanelDescriptor<T>> getWizardPanelDescriptors() {
+	public Collection<WizardPanelDescriptor> getWizardPanelDescriptors() {
 		return descriptorHashmap.values();
 	}
 
@@ -179,41 +182,81 @@ public class TrackMateWizard <T extends RealType<T> & NativeType<T>> extends jav
 	 * @param id String-based identifier
 	 * @param descriptor WizardPanelDescriptor that describes the panel
 	 */    
-	public void registerWizardDescriptor(String id, WizardPanelDescriptor<T> descriptor) {
+	public void registerWizardDescriptor(String id, WizardPanelDescriptor descriptor) {
 		descriptorHashmap.put(id, descriptor);
 	}
-	
+
 	/**
 	 * Sets the current panel to that identified by the String passed in.
-	 * @param id String-based panel identifier
+	 * It must be the {@link WizardPanelDescriptor} string ID, not the component string ID.
+	 * @param descriptorID String-based panel identifier
 	 */    
-	public void showDescriptorPanelFor(String id) {
-		currentDescriptor = descriptorHashmap.get(id);
-		
-		// Register component instance with the layout on the fly
-		String componentID = currentDescriptor.getComponentID();
-		cardLayout.addLayoutComponent(currentDescriptor.getComponent(), componentID);
-		jPanelMain.add(currentDescriptor.getComponent(), componentID);
+	public void showDescriptorPanelFor(final String descriptorID) {
 
-		// Display it
-		cardLayout.show(jPanelMain, componentID);
+		SwingUtilities.invokeLater(new Runnable() {
+
+			@Override
+			public void run() {
+				currentDescriptor = descriptorHashmap.get(descriptorID);
+
+				// Register component instance with the layout on the fly
+				String componentID = currentDescriptor.getComponentID();
+				cardLayout.addLayoutComponent(currentDescriptor.getComponent(), componentID);
+				jPanelMain.add(currentDescriptor.getComponent(), componentID);
+
+				// Display it
+				cardLayout.show(jPanelMain, componentID);
+			}
+		});
 	}
-	
+
 	/**
-	 * Returns the currently displayed WizardPanelDescriptor.
 	 * @return The currently displayed WizardPanelDescriptor
 	 */    
-	public WizardPanelDescriptor<T> getCurrentPanelDescriptor() {
+	public WizardPanelDescriptor getCurrentPanelDescriptor() {
 		return currentDescriptor;
 	}
 
-	public WizardPanelDescriptor<T> getPanelDescriptorFor(Object id) {
+	public WizardPanelDescriptor getPanelDescriptorFor(Object id) {
 		return descriptorHashmap.get(id);
+	}
+
+	/**
+	 * Disable the 4 bottom buttons and memorize their state to that they
+	 * can be restored when calling {@link #restoreButtonsState()}. 
+	 */
+	public void disableButtonsAndStoreState() {
+		storedButtonState = new boolean[4];
+		storedButtonState[0] = jButtonLoad.isEnabled();
+		storedButtonState[1] = jButtonSave.isEnabled();
+		storedButtonState[2] = jButtonPrevious.isEnabled();
+		storedButtonState[3] = jButtonNext.isEnabled();
+		setLoadButtonEnabled(false);
+		setSaveButtonEnabled(false);
+		setPreviousButtonEnabled(false);
+		setNextButtonEnabled(false);
+	}
+
+	/**
+	 * Restore the button state saved when calling {@link #disableButtonsAndStoreState()}.
+	 * Do nothing if {@link #disableButtonsAndStoreState()} was not called before. 
+	 */
+	public void restoreButtonsState() {
+		if (storedButtonState == null) {
+			return;
+		}
+		setLoadButtonEnabled(storedButtonState[0]);
+		setSaveButtonEnabled(storedButtonState[1]);
+		setPreviousButtonEnabled(storedButtonState[2]);
+		setNextButtonEnabled(storedButtonState[3]);
 	}
 
 	public void setNextButtonEnabled(final boolean b) {
 		SwingUtilities.invokeLater(new Runnable() {
-			public void run() { jButtonNext.setEnabled(b); }
+			public void run() { 
+				jButtonNext.setEnabled(b);
+				if (b) jButtonNext.requestFocusInWindow();
+			}
 		});
 	}
 
@@ -244,8 +287,8 @@ public class TrackMateWizard <T extends RealType<T> & NativeType<T>> extends jav
 	 * try to position the GUI cleverly with respect to it.
 	 */
 	private void positionWindow() {
-		
-		
+
+
 		if (null != component) {
 
 			// Get total size of all screens
@@ -313,7 +356,7 @@ public class TrackMateWizard <T extends RealType<T> & NativeType<T>> extends jav
 					jButtonNext.setText("Next");
 					jButtonNext.setIcon(NEXT_ICON);
 					jButtonNext.setFont(FONT);
-					jButtonNext.setBounds(216, 2, 76, 25);
+					jButtonNext.setBounds(220, 2, 73, 25);
 					jButtonNext.addActionListener(new ActionListener() {
 						public void actionPerformed(ActionEvent e) {
 							fireAction(NEXT_BUTTON_PRESSED);
@@ -325,10 +368,22 @@ public class TrackMateWizard <T extends RealType<T> & NativeType<T>> extends jav
 					jPanelButtons.add(jButtonPrevious);
 					jButtonPrevious.setIcon(PREVIOUS_ICON);
 					jButtonPrevious.setFont(FONT);
-					jButtonPrevious.setBounds(177, 2, 40, 25);
+					jButtonPrevious.setBounds(190, 2, 30, 25);
 					jButtonPrevious.addActionListener(new ActionListener() {
 						public void actionPerformed(ActionEvent e) {
 							fireAction(PREVIOUS_BUTTON_PRESSED);
+						}
+					});
+				}
+				{
+					jButtonLog = new JButton();
+					jPanelButtons.add(jButtonLog);
+					jButtonLog.setIcon(LOG_ICON);
+					jButtonLog.setFont(FONT);
+					jButtonLog.setBounds(157, 2, 30, 25);
+					jButtonLog.addActionListener(new ActionListener() {
+						public void actionPerformed(ActionEvent e) {
+							fireAction(LOG_BUTTON_PRESSED);
 						}
 					});
 				}
@@ -338,7 +393,7 @@ public class TrackMateWizard <T extends RealType<T> & NativeType<T>> extends jav
 					jButtonLoad.setText("Load");
 					jButtonLoad.setIcon(LOAD_ICON);
 					jButtonLoad.setFont(FONT);
-					jButtonLoad.setBounds(7, 2, 78, 25);
+					jButtonLoad.setBounds(2, 2, 76, 25);
 					jButtonLoad.addActionListener(new ActionListener() {
 						public void actionPerformed(ActionEvent e) {
 							fireAction(LOAD_BUTTON_PRESSED);
@@ -351,7 +406,7 @@ public class TrackMateWizard <T extends RealType<T> & NativeType<T>> extends jav
 					jButtonSave.setText("Save");
 					jButtonSave.setIcon(SAVE_ICON);
 					jButtonSave.setFont(FONT);
-					jButtonSave.setBounds(86, 2, 78, 25);
+					jButtonSave.setBounds(78, 2, 76, 25);
 					jButtonSave.addActionListener(new ActionListener() {
 						public void actionPerformed(ActionEvent e) {
 							fireAction(SAVE_BUTTON_PRESSED);

@@ -23,12 +23,11 @@ import net.imglib2.type.numeric.integer.UnsignedByteType;
 import Jama.EigenvalueDecomposition;
 import Jama.Matrix;
 import fiji.plugin.trackmate.Spot;
-import fiji.plugin.trackmate.SpotImp;
 import fiji.plugin.trackmate.util.SpotNeighborhood;
 import fiji.plugin.trackmate.util.SpotNeighborhoodCursor;
 
 /**
- * This {@link SpotFeatureAnalyzer} computes morphology features for the given spots. 
+ * This {@link SpotAnalyzer} computes morphology features for the given spots. 
  * <p>
  * It estimates shape parameters by computing the most resembling ellipsoid from the pixels
  * contained within the spot radius. From this ellipsoid, it determines what are its semi-axes lengths,
@@ -350,7 +349,7 @@ public class SpotMorphologyAnalyzer<T extends RealType<T>> extends IndependentSp
 		ImageJFunctions.show(imgplus);
 		
 		start = System.currentTimeMillis();
-		SpotImp spot = new SpotImp(new double[] { center[0], center[1] } );
+		Spot spot = new Spot(new double[] { center[0], center[1], 0 } );
 		spot.putFeature(Spot.RADIUS, max_radius);
 
 		SpotMorphologyAnalyzer<UnsignedByteType> bm = new SpotMorphologyAnalyzer<UnsignedByteType>(imgplus, null);
