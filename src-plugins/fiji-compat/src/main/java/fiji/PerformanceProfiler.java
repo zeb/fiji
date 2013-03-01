@@ -1,14 +1,20 @@
 package fiji;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.PrintStream;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadMXBean;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
@@ -26,7 +32,8 @@ import javassist.NotFoundException;
 import javassist.Translator;
 
 public class PerformanceProfiler implements Translator {
-	private Set<String> only;
+	private Set<String> only, skip;
+	private boolean fastButInaccurateTiming;
 
 	protected static final boolean debug = false;
 	private static Loader loader;
@@ -59,9 +66,9 @@ public class PerformanceProfiler implements Translator {
 			that.addField(active);
 
 			// make report() work in the other "instance"
-			realReport = PerformanceProfiler.class.getMethod("report", PrintStream.class);
-			CtMethod realReportMethod = that.getMethod("report", "(Ljava/io/PrintStream;)V");
-			realReportMethod.insertBefore("realReport.invoke(null, $args); return;");
+			realReport = PerformanceProfiler.class.getMethod("report", PrintStream.class, Integer.TYPE);
+			CtMethod realReportMethod = that.getMethod("report", "(Ljava/io/PrintStream;I)V");
+			realReportMethod.insertBefore("reportCaller($1, 3); realReport.invoke(null, $args); return;");
 
 			Class<?> thatClass = that.toClass(loader, null);
 
@@ -87,8 +94,19 @@ public class PerformanceProfiler implements Translator {
 		}
 	}
 
-	public static long getNanos() {
+	public final static long getNanos() {
 		return bean.getCurrentThreadCpuTime();
+	}
+
+	/**
+	 * A much faster, but less accurate version of {@link #getNanos()}
+	 * 
+	 * The problem with this is that it does not measure the current Thread's CPU cycles.
+	 * 
+	 * @return nanoseconds for relative time measurements
+	 */
+	public final static long getNanosQnD() {
+		return System.nanoTime();
 	}
 
 	public PerformanceProfiler() {
@@ -104,6 +122,7 @@ public class PerformanceProfiler implements Translator {
 			this.only = new HashSet<String>();
 			this.only.addAll(only);
 		}
+		skip = new HashSet<String>();
 	}
 
 	@Override
@@ -112,7 +131,7 @@ public class PerformanceProfiler implements Translator {
 	}
 
 	@Override
-	public void onLoad(ClassPool pool, String classname) throws NotFoundException {
+	public synchronized void onLoad(ClassPool pool, String classname) throws NotFoundException {
 		// do not instrument yourself
 		if (classname.equals(getClass().getName())) {
 			return;
@@ -123,8 +142,12 @@ public class PerformanceProfiler implements Translator {
 			return;
 		}
 
-		if (only != null && !only.contains(classname))
+		if (only != null && !only.contains(classname)) {
 			return;
+		}
+		if (skip != null && skip.contains(classname)) {
+			return;
+		}
 
 		if (debug)
 			System.err.println("instrumenting " + classname);
@@ -150,7 +173,7 @@ public class PerformanceProfiler implements Translator {
 		return "__nanos" + i + "__";
 	}
 
-	private void handle(CtClass clazz, CtBehavior behavior) {
+	private synchronized void handle(CtClass clazz, CtBehavior behavior) {
 		try {
 			if (clazz != behavior.getDeclaringClass()) {
 				if (debug)
@@ -181,12 +204,14 @@ public class PerformanceProfiler implements Translator {
 
 			final String thisName = getClass().getName();
 			final String that = clazz.getName() + ".";
+			final String getNanos = thisName + (fastButInaccurateTiming ? ".getNanosQnD()" : ".getNanos()");
 			behavior.addLocalVariable("__startTime__", CtClass.longType);
-			behavior.insertBefore("__startTime__ = " + thisName + ".getNanos();");
+			behavior.insertBefore("__startTime__ = " + getNanos + ";");
 			behavior.insertAfter("if (" + thisName + ".active) {"
 					+ that + counterFieldName + "++;"
-					+ that + nanosFieldName + " += " + thisName + ".getNanos() - __startTime__;"
+					+ that + nanosFieldName + " += " + getNanos + " - __startTime__;"
 					+ "}");
+			assert(behavior.getClass().getClassLoader() != loader);
 			counters.put(behavior, i);
 		}
 		catch (CannotCompileException e) {
@@ -221,13 +246,61 @@ public class PerformanceProfiler implements Translator {
 		return false;
 	}
 
+	private static class Row {
+		private final CtBehavior behavior;
+		private final long count, nanos;
+
+		public Row(CtBehavior behavior, long count, long nanos) {
+			this.behavior = behavior;
+			this.count = count;
+			this.nanos = nanos;
+		}
+
+		@Override
+		public String toString() {
+			return toString(behavior, count, nanos);
+		}
+
+		public static String toString(CtBehavior behavior, long count, long nanos) {
+			return behavior.getLongName() + "; " + count + "x; average: " + formatNanos(nanos / count) + "; total: " + formatNanos(nanos);
+		}
+	}
+
+	public static void report(File file, final int column) throws FileNotFoundException {
+		final PrintStream stream = new PrintStream(new FileOutputStream(file));
+		report(stream, column);
+		stream.close();
+	}
+
 	public static void report(PrintStream writer) {
+		report(writer, 0);
+	}
+
+	protected static void reportCaller(PrintStream writer, int level) {
+		if (writer == null) {
+			return;
+		}
+		final StackTraceElement[] stack = Thread.currentThread().getStackTrace();
+		if (stack == null || stack.length <= level || stack[level] == null) {
+			writer.println("Could not determine caller");
+		} else {
+			final StackTraceElement caller = stack[level];
+			writer.println("Report called by " + caller.toString());
+		}
+	}
+
+
+	public static void report(PrintStream writer, final int column) {
+		assert(CtBehavior.class.getClassLoader() != loader);
 		synchronized(PerformanceProfiler.class) {
 			if (!isActive()) {
 				return;
 			}
 			setActive(false);
-			for (CtBehavior behavior : counters.keySet()) try {
+			List<CtBehavior> behaviors = new ArrayList<CtBehavior>(counters.keySet());
+			List<Row> rows = writer == null || column < 1 || column > 3 ?
+					null : new ArrayList<Row>();
+			for (CtBehavior behavior : behaviors) try {
 				int i = counters.get(behavior);
 				Class<?> clazz = loader.loadClass(behavior.getDeclaringClass().getName());
 				Field counter = clazz.getDeclaredField(toCounterName(i));
@@ -236,12 +309,47 @@ public class PerformanceProfiler implements Translator {
 				if (count == 0) continue;
 				Field nanosField = clazz.getDeclaredField(toNanosName(i));
 				nanosField.setAccessible(true);
-				long nanos = nanosField.getLong(null);
-				writer.println(behavior.getLongName() + "; " + count + "x; " + formatNanos(nanos / count));
+				if (writer != null) {
+					long nanos = nanosField.getLong(null);
+					if (rows != null) {
+						rows.add(new Row(behavior, count, nanos));
+					} else {
+						writer.println(Row.toString(behavior, count, nanos));
+					}
+				}
 				counter.set(null, 0l);
 				nanosField.set(null, 0l);
 			} catch (Exception e) {
 				e.printStackTrace();
+			}
+			if (rows != null && writer != null) {
+				final Comparator<Row> comparator;
+				if (column == 1) {
+					comparator = new Comparator<Row>() {
+						@Override
+						public int compare(Row a, Row b) {
+							return -Double.compare(a.count, b.count);
+						}
+					};
+				} else if (column == 2) {
+					comparator = new Comparator<Row>() {
+						@Override
+						public int compare(Row a, Row b) {
+							return -Double.compare(a.count, b.count);
+						}
+					};
+				} else {
+					comparator = new Comparator<Row>() {
+						@Override
+						public int compare(Row a, Row b) {
+							return -Double.compare(a.nanos, b.nanos);
+						}
+					};
+				}
+				Collections.sort(rows, comparator);
+				for (final Row row : rows) {
+					writer.println(row.toString());
+				}
 			}
 		}
 	}
@@ -253,7 +361,7 @@ public class PerformanceProfiler implements Translator {
 		return (nanos / 1000000000.0) + "s";
 	}
 
-	public static void main(String[] args) throws Throwable {
+	public static void main(final String... args) throws Throwable {
 		Thread.currentThread().setContextClassLoader(PerformanceProfiler.class.getClassLoader());
 
 		if (args.length == 0) {
