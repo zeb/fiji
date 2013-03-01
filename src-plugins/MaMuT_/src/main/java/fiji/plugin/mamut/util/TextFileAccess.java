@@ -1,4 +1,4 @@
-package fiji.plugin.multiviewtracker.util;
+package fiji.plugin.mamut.util;
 
 import java.io.BufferedReader;
 import java.io.File;

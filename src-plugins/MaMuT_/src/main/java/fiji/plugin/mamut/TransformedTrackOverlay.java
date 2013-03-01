@@ -11,6 +11,8 @@ import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.Stroke;
 import java.awt.geom.AffineTransform;
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -21,6 +23,8 @@ import org.jgrapht.graph.DefaultWeightedEdge;
 
 import fiji.plugin.trackmate.Spot;
 import fiji.plugin.trackmate.TrackMateModel;
+import fiji.plugin.trackmate.features.track.TrackIndexAnalyzer;
+import fiji.plugin.trackmate.visualization.PerTrackFeatureColorGenerator;
 import fiji.plugin.trackmate.visualization.TrackColorGenerator;
 import fiji.plugin.trackmate.visualization.TrackMateModelView;
 import fiji.util.gui.OverlayedImageCanvas.Overlay;
@@ -31,12 +35,12 @@ import fiji.util.gui.OverlayedImageCanvas.Overlay;
  */
 public class TransformedTrackOverlay implements Overlay {
 
-	private final static boolean DEBUG = false;
 	protected final ImagePlus imp;
 	protected Map<String, Object> displaySettings;
 	protected final TrackMateModel model;
 	protected final List<AffineTransform3D> transforms;
 	private TrackColorGenerator colorGenerator;
+	private Collection<DefaultWeightedEdge> highlight = new HashSet<DefaultWeightedEdge>();
 	
 	/*
 	 * CONSTRUCTOR
@@ -47,19 +51,22 @@ public class TransformedTrackOverlay implements Overlay {
 		this.imp = imp;
 		this.transforms = transformList;
 		this.displaySettings = displaySettings;
+		this.colorGenerator = new PerTrackFeatureColorGenerator(model, TrackIndexAnalyzer.TRACK_INDEX);
 	}
 
 	/*
 	 * PUBLIC METHODS
 	 */
+	
+	public void setHighlight(Collection<DefaultWeightedEdge> edges) {
+		this.highlight = edges;
+	}
 
 	@Override
 	public final void paint(final Graphics g, final int xcorner, final int ycorner, final double magnification) {
 		boolean tracksVisible = (Boolean) displaySettings.get(TrackMateModelView.KEY_TRACKS_VISIBLE);
 		if (!tracksVisible  || model.getTrackModel().getNFilteredTracks() == 0)
 			return;
-
-		final Set<DefaultWeightedEdge> highlight = model.getSelectionModel().getEdgeSelection();
 
 		final Graphics2D g2d = (Graphics2D)g;
 		// Save graphic device original settings
@@ -141,6 +148,7 @@ public class TransformedTrackOverlay implements Overlay {
 			g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
 
 			for (int trackID : filteredTrackIDs) {
+				colorGenerator.setCurrentTrackID(trackID);
 				final Set<DefaultWeightedEdge> track= trackEdges.get(trackID);
 
 				for (DefaultWeightedEdge edge : track) {
@@ -166,9 +174,9 @@ public class TransformedTrackOverlay implements Overlay {
 
 			g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-			for (int i : filteredTrackIDs) {
-//				g2d.setColor(edgeColors.get(i));
-				final Set<DefaultWeightedEdge> track= trackEdges.get(i);
+			for (int trackID : filteredTrackIDs) {
+				colorGenerator.setCurrentTrackID(trackID);
+				final Set<DefaultWeightedEdge> track= trackEdges.get(trackID);
 
 				for (DefaultWeightedEdge edge : track) {
 					if (highlight.contains(edge))
@@ -181,6 +189,7 @@ public class TransformedTrackOverlay implements Overlay {
 
 					transparency = (float) (1 - Math.abs(sourceFrame-currentFrame) / trackDisplayDepth);
 					target = model.getTrackModel().getEdgeTarget(edge);
+					g2d.setColor(colorGenerator.color(edge));
 					drawEdge(g2d, source, target, xcorner, ycorner, mag, transparency);
 				}
 			}

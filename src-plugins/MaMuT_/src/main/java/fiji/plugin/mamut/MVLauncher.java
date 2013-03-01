@@ -1,7 +1,6 @@
-package fiji.plugin.multiviewtracker;
+package fiji.plugin.mamut;
 
-import fiji.plugin.multiviewtracker.util.TransformUtils;
-import fiji.plugin.multiviewtracker.util.Utils;
+import fiji.plugin.mamut.util.TransformUtils;
 import fiji.plugin.trackmate.DetectorProvider;
 import fiji.plugin.trackmate.Logger;
 import fiji.plugin.trackmate.Settings;
@@ -33,10 +32,8 @@ import loci.plugins.in.ImportProcess;
 import loci.plugins.in.Importer;
 import loci.plugins.in.ImporterOptions;
 import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.type.NativeType;
-import net.imglib2.type.numeric.RealType;
 
-public class MVLauncher <T extends RealType<T> & NativeType<T>> implements PlugIn {
+public class MVLauncher implements PlugIn {
 
 	private static final String ANGLE_STRING = "Angle";
 	private static final String TIMEPOINT_STRING = "TL";
@@ -55,7 +52,7 @@ public class MVLauncher <T extends RealType<T> & NativeType<T>> implements PlugI
 		}
 
 		Logger logger = Logger.IJ_LOGGER;
-		logger.log("Launching a new annotation with MultiViewTracker v" + Utils.getAPIVersion());
+		logger.log("Launching a new annotation with " + MaMuT_.PLUGIN_NAME + " " + MaMuT_.PLUGIN_VERSION);
 
 		File file = askForFile(folder, null, logger, "Open a SPIM series");
 		Map<ImagePlus, List<AffineTransform3D>> impMap;
@@ -67,17 +64,17 @@ public class MVLauncher <T extends RealType<T> & NativeType<T>> implements PlugI
 
 			// Instantiate model & setup settings
 			ImagePlus imp1 = impMap.keySet().iterator().next();
-			Settings<T> settings = new Settings<T>(imp1);
+			Settings settings = new Settings(imp1);
 			settings.imageFileName = file.getName();
 			settings.imageFolder = file.getParent();
 
-			DetectorProvider<T> provider = new DetectorProvider<T>();
+			DetectorProvider provider = new DetectorProvider();
 			provider.select(ManualDetectorFactory.DETECTOR_KEY);
 			settings.detectorFactory = provider.getDetectorFactory();
 			settings.detectorSettings = provider.getDefaultSettings();
 
-			TrackMate_<T> tm = new TrackMate_<T>(settings);
-			TrackMateModel<T> model = tm.getModel();
+			TrackMate_ tm = new TrackMate_(settings);
+			TrackMateModel model = tm.getModel();
 			model.setLogger(logger);
 
 			// Strip feature model
@@ -85,13 +82,13 @@ public class MVLauncher <T extends RealType<T> & NativeType<T>> implements PlugI
 
 			// Initialize viewer
 			logger.log("Instantiating viewer.\n");
-			MultiViewDisplayer<T> viewer = new MultiViewDisplayer<T>(impMap.keySet(), impMap, model);
+			MultiViewDisplayer viewer = new MultiViewDisplayer(impMap.keySet(), impMap, model);
 			logger.log("Rendering viewer.\n");
 			viewer.render();
 			logger.log("Done.\n");
 
 			// Show controller
-			MultiViewTrackerConfigPanel<T> mtvc = new MultiViewTrackerConfigPanel<T>(model, viewer);
+			MultiViewTrackerConfigPanel mtvc = new MultiViewTrackerConfigPanel(model, viewer);
 			mtvc.setVisible(true);
 
 		} catch (IOException e) {
@@ -313,9 +310,9 @@ public class MVLauncher <T extends RealType<T> & NativeType<T>> implements PlugI
 	 * MAIN
 	 */
 
-	public static <T extends RealType<T> & NativeType<T>> void main(String[] args) {
+	public static void main(String[] args) {
 		ImageJ.main(args);
 		String rootFolder = "E:/Users/JeanYves/Documents/Projects/PTomancak/Data";
-		new MVLauncher<T>().run(rootFolder);
+		new MVLauncher().run(rootFolder);
 	}
 }

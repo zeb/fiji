@@ -1,5 +1,5 @@
-import fiji.plugin.multiviewtracker.MultiViewDisplayer;
-import fiji.plugin.multiviewtracker.util.TransformUtils;
+import fiji.plugin.mamut.MultiViewDisplayer;
+import fiji.plugin.mamut.util.TransformUtils;
 import fiji.plugin.trackmate.Settings;
 import fiji.plugin.trackmate.TrackMateModel;
 import fiji.plugin.trackmate.TrackMate_;
@@ -82,12 +82,12 @@ public class MultiViewExample2 {
 		imps.add(imp2);
 
 		// Instantiate model
-		Settings<T> settings = new Settings<T>(imp1);
-		TrackMate_<T> tm = new TrackMate_<T>(settings);
-		TrackMateModel<T> model = tm.getModel();
+		Settings settings = new Settings(imp1);
+		TrackMate_ tm = new TrackMate_(settings);
+		TrackMateModel model = tm.getModel();
 
 		// Initialize viewer
-		MultiViewDisplayer<T> viewer = new MultiViewDisplayer<T>(imps, transforms, model);
+		MultiViewDisplayer viewer = new MultiViewDisplayer(imps, transforms, model);
 		viewer.render();
 		
 	}

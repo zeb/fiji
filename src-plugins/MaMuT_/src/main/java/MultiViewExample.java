@@ -1,8 +1,8 @@
 
 
-import fiji.plugin.multiviewtracker.MultiViewDisplayer;
-import fiji.plugin.multiviewtracker.MultiViewTrackerConfigPanel;
-import fiji.plugin.multiviewtracker.util.TransformUtils;
+import fiji.plugin.mamut.MultiViewDisplayer;
+import fiji.plugin.mamut.MultiViewTrackerConfigPanel;
+import fiji.plugin.mamut.util.TransformUtils;
 import fiji.plugin.trackmate.Settings;
 import fiji.plugin.trackmate.TrackMateModel;
 import fiji.plugin.trackmate.TrackMate_;
@@ -60,36 +60,45 @@ public class MultiViewExample {
 
 		imp3.show();
 		imps.add(imp3);
+		
+		int nFrames = imp1.getNFrames();
 
 		// Transforms
 		Map<ImagePlus, List<AffineTransform3D>> transforms = new HashMap<ImagePlus, List<AffineTransform3D>>();
 
 		AffineTransform3D identity = TransformUtils.getTransformFromCalibration(imp1);
-		List<AffineTransform3D> identityList = new ArrayList<AffineTransform3D>(1);
-		identityList.add(identity);
-		transforms.put(imp1, identityList );
+		List<AffineTransform3D> identityList = new ArrayList<AffineTransform3D>(nFrames);
+		for (int i = 0; i < nFrames; i++) {
+			identityList.add(identity);
+		}
+		transforms.put(imp1, identityList);
 
 		AffineTransform3D projXZ = TransformUtils.makeXZProjection(imp2);
-		List<AffineTransform3D> projXZList = new ArrayList<AffineTransform3D>(1);
-		projXZList.add(projXZ);
+		List<AffineTransform3D> projXZList = new ArrayList<AffineTransform3D>(nFrames);
+		for (int i = 0; i < nFrames; i++) {
+			projXZList.add(projXZ);
+		}
 		transforms.put(imp2, projXZList );
 
 		AffineTransform3D projYZ = TransformUtils.makeYZProjection(imp3);
-		List<AffineTransform3D> projYZList = new ArrayList<AffineTransform3D>(1);
-		projYZList.add(projYZ);
+		List<AffineTransform3D> projYZList = new ArrayList<AffineTransform3D>(nFrames);
+		for (int i = 0; i < nFrames; i++) {
+			projYZList.add(projYZ);
+		}
 		transforms.put(imp3, projYZList );
 
 		// Instantiate model
-		Settings<T> settings = new Settings<T>(imp1);
-		TrackMate_<T> plugin = new TrackMate_<T>(settings);
-		TrackMateModel<T> model = plugin.getModel();
-
+		Settings settings = new Settings(imp1);
+		TrackMate_ plugin = new TrackMate_(settings);
+		plugin.initModules();
+		TrackMateModel model = plugin.getModel();
+		
 		// Initialize viewer
-		MultiViewDisplayer<T> viewer = new MultiViewDisplayer<T>(imps, transforms, model);
+		MultiViewDisplayer viewer = new MultiViewDisplayer(imps, transforms, model);
 		viewer.render();
 		
 		// Control panel
-		MultiViewTrackerConfigPanel<T> mvFrame = new MultiViewTrackerConfigPanel<T>(model, viewer);
+		MultiViewTrackerConfigPanel mvFrame = new MultiViewTrackerConfigPanel(model, viewer);
 		mvFrame.setVisible(true);
 
 	}

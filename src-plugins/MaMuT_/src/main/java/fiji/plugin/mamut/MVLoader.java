@@ -1,10 +1,7 @@
-package fiji.plugin.multiviewtracker;
+package fiji.plugin.mamut;
 
-import fiji.plugin.multiviewtracker.util.Utils;
 import fiji.plugin.trackmate.Logger;
 import fiji.plugin.trackmate.Settings;
-import fiji.plugin.trackmate.Spot;
-import fiji.plugin.trackmate.SpotCollection;
 import fiji.plugin.trackmate.TrackMateModel;
 import fiji.plugin.trackmate.TrackMate_;
 import fiji.plugin.trackmate.io.TmXmlReader;
@@ -19,13 +16,8 @@ import java.util.Map;
 
 import loci.formats.FormatException;
 import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.type.NativeType;
-import net.imglib2.type.numeric.RealType;
 
-import org.jgrapht.graph.DefaultWeightedEdge;
-import org.jgrapht.graph.SimpleDirectedWeightedGraph;
-
-public class MVLoader <T extends RealType<T> & NativeType<T>> implements PlugIn {
+public class MVLoader implements PlugIn {
 
 	public MVLoader() {}
 
@@ -38,49 +30,30 @@ public class MVLoader <T extends RealType<T> & NativeType<T>> implements PlugIn 
 		}
 		
 		Logger logger = Logger.IJ_LOGGER;
-		logger.log("Loading a saved annotation file with MultiViewTracker v" + Utils.getAPIVersion());
+		logger.log("Loading a saved annotation file with " + MaMuT_.PLUGIN_NAME + " " + MaMuT_.PLUGIN_VERSION);
 		
 		File file = MVLauncher.askForFile(folder, null, logger, "Locate a MVT xml file.");
 		if (null == file) {
 			return;
 		}
 		
-		TrackMate_<T> plugin = new TrackMate_<T>();
+		TrackMate_ plugin = new TrackMate_();
 		plugin.initModules();
 		
-		TmXmlReader<T> reader = new TmXmlReader<T>(file, plugin, logger);
-		reader.parse();
-		
-		// Build model form xml file
-		TrackMateModel<T> model = plugin.getModel();
-		
-		// Settings
-		Settings<T> settings = reader.getSettings();
-		reader.getDetectorSettings(settings);
-		model.setSettings(settings);
-
-		// Spots
-		SpotCollection allSpots = reader.getAllSpots();
-		SpotCollection filteredSpots = reader.getFilteredSpots();
-		model.setSpots(allSpots, false);
-		model.setFilteredSpots(filteredSpots, false);
-		
-		// Tracks
-		SimpleDirectedWeightedGraph<Spot, DefaultWeightedEdge> graph = reader.readTrackGraph();
-		// Ensures lonely spots get added to the graph too
-		for (Spot spot : model.getFilteredSpots()) {
-			graph.addVertex(spot);
+		TmXmlReader reader = new TmXmlReader(file, plugin);
+		if (!reader.checkInput() && !reader.process()) {
+			logger.error("Problem while reading file "+file+".\n" + reader.getErrorMessage());
 		}
 		
-		if (null != graph) {
-			model.setGraph(graph);
-		}
-		
+		// Build model from xml file
+		TrackMateModel model = plugin.getModel();
+				
 		// Logger
 		model.setLogger(logger);
 		
 		// Load image dataset
-		File imageFile = new File(settings.imageFolder, settings.imageFileName);
+		Settings settings = model.getSettings();
+		File imageFile = new File(settings .imageFolder, settings.imageFileName);
 		Map<ImagePlus, List<AffineTransform3D>> impMap;
 
 		try {
@@ -98,13 +71,13 @@ public class MVLoader <T extends RealType<T> & NativeType<T>> implements PlugIn 
 			
 			// Initialize viewer
 			logger.log("Instantiating viewer.\n");
-			MultiViewDisplayer<T> viewer = new MultiViewDisplayer<T>(impMap.keySet(), impMap, model);
+			MultiViewDisplayer viewer = new MultiViewDisplayer(impMap.keySet(), impMap, model);
 			logger.log("Rendering viewer.\n");
 			viewer.render();
 			logger.log("Done.\n");
 			
 			// Show controller
-			MultiViewTrackerConfigPanel<T> mtvc = new MultiViewTrackerConfigPanel<T>(model, viewer);
+			MultiViewTrackerConfigPanel mtvc = new MultiViewTrackerConfigPanel(model, viewer);
 			mtvc.setVisible(true);
 			
 		} catch (IOException e) {
@@ -119,9 +92,9 @@ public class MVLoader <T extends RealType<T> & NativeType<T>> implements PlugIn 
 	 * MAIN
 	 */
 	
-	public static <T extends RealType<T> & NativeType<T>> void main(String[] args) {
+	public static void main(String[] args) {
 		ImageJ.main(args);
 		String rootFolder = "E:/Users/JeanYves/Documents/Projects/PTomancak/Data";
-		new MVLoader<T>().run(rootFolder);
+		new MVLoader().run(rootFolder);
 	}
 }

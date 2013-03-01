@@ -1,34 +1,30 @@
-package fiji.plugin.multiviewtracker;
+package fiji.plugin.mamut;
 
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
-
-import javax.swing.JButton;
-import javax.swing.JDialog;
-import javax.swing.JPanel;
-import javax.swing.border.EmptyBorder;
-import javax.swing.JLabel;
-import javax.swing.JTextField;
-
-import net.imglib2.type.NativeType;
-import net.imglib2.type.numeric.RealType;
-
 import java.awt.Font;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 
-public class MVSpotEditToolOptionDialog <T extends RealType<T> & NativeType<T>> extends JDialog implements ActionListener {
+import javax.swing.JButton;
+import javax.swing.JDialog;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JTextField;
+import javax.swing.border.EmptyBorder;
+
+public class MVSpotEditToolOptionDialog  extends JDialog implements ActionListener {
 
 	private static final long serialVersionUID = 1L;
 	private final JPanel contentPanel = new JPanel();
 	private JTextField textFielTimeSteppingInterval;
-	private final MVSpotEditTool<T> tool;
+	private final MVSpotEditTool tool;
 
 
 	/**
 	 * Create the dialog.
 	 */
-	public MVSpotEditToolOptionDialog(final MVSpotEditTool<T> tool) {
+	public MVSpotEditToolOptionDialog(final MVSpotEditTool tool) {
 		this.tool = tool;
 		initGUI();
 	}

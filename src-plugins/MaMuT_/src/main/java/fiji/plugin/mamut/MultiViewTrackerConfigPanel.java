@@ -1,4 +1,4 @@
-package fiji.plugin.multiviewtracker;
+package fiji.plugin.mamut;
 
 import static fiji.plugin.trackmate.gui.TrackMateWizard.BIG_FONT;
 import static fiji.plugin.trackmate.gui.TrackMateWizard.FONT;
@@ -40,9 +40,6 @@ import javax.swing.JTextField;
 import javax.swing.SwingConstants;
 import javax.swing.border.LineBorder;
 
-import net.imglib2.type.NativeType;
-import net.imglib2.type.numeric.RealType;
-import fiji.plugin.multiviewtracker.util.Utils;
 import fiji.plugin.trackmate.Logger;
 import fiji.plugin.trackmate.TrackMateModel;
 import fiji.plugin.trackmate.TrackMate_;
@@ -50,12 +47,12 @@ import fiji.plugin.trackmate.gui.ActionListenablePanel;
 import fiji.plugin.trackmate.gui.JNumericTextField;
 import fiji.plugin.trackmate.gui.JPanelColorByFeatureGUI;
 import fiji.plugin.trackmate.gui.TrackMateWizard;
+import fiji.plugin.trackmate.io.IOUtils;
 import fiji.plugin.trackmate.io.TmXmlWriter;
-import fiji.plugin.trackmate.util.TMUtils;
 import fiji.plugin.trackmate.visualization.TrackMateModelView;
 import fiji.plugin.trackmate.visualization.trackscheme.TrackScheme;
 
-public class MultiViewTrackerConfigPanel <T extends RealType<T> & NativeType<T>> extends JFrame {
+public class MultiViewTrackerConfigPanel extends JFrame {
 
 	
 	private static final long serialVersionUID = 1L;
@@ -79,17 +76,17 @@ public class MultiViewTrackerConfigPanel <T extends RealType<T> & NativeType<T>>
 	private JCheckBox jCheckBoxDisplayNames;
 	private JButton saveButton;
 	/** The set of {@link TrackMateModelView} views controlled by this controller.	 */
-	private Set<TrackMateModelView<T>> views = new HashSet<TrackMateModelView<T>>();
+	private Set<TrackMateModelView> views = new HashSet<TrackMateModelView>();
 
 	private ActionListenablePanel mainPanel;
-	private TrackMateModel<T> model;
+	private TrackMateModel model;
 	private Logger logger;
 	private File file;
 
 	/*
 	 * CONSTRUCTOR
 	 */
-	public MultiViewTrackerConfigPanel(TrackMateModel<T> model, MultiViewDisplayer<T> view) {
+	public MultiViewTrackerConfigPanel(TrackMateModel model, MultiViewDisplayer view) {
 		this.model = model;
 		this.logger = model.getLogger();
 		register(view);
@@ -117,27 +114,18 @@ public class MultiViewTrackerConfigPanel <T extends RealType<T> & NativeType<T>>
 				}
 			}
 
-			File tmpFile = TMUtils.askForFile(file, this, logger);
+			File tmpFile = IOUtils.askForFile(file, this, logger);
 			if (null == tmpFile) {
 				saveButton.setEnabled(true);
 				return;
 			}
 			file = tmpFile;
-			TrackMate_<T> plugin = new TrackMate_<T>(model);
+			TrackMate_ plugin = new TrackMate_(model);
 			plugin.initModules();
-			plugin.computeTrackFeatures();
-			TmXmlWriter<T> writer = new TmXmlWriter<T>(plugin);
+			plugin.computeTrackFeatures(true);
+			TmXmlWriter writer = new TmXmlWriter(plugin);
 			try {
-				writer.appendBasicSettings();
-				writer.appendDetectorSettings();
-				writer.appendTrackerSettings();
-				writer.appendInitialSpotFilter();
-				writer.appendSpotFilters();
-				writer.appendFilteredSpots();
-				writer.appendTracks();
-				writer.appendTrackFilters();
-				writer.appendFilteredTracks();
-				writer.appendSpots();
+				writer.process();
 				writer.writeToFile(file);
 			} catch (FileNotFoundException e) {
 				logger.error("Error finding file for saving:\n"+e.getMessage());
@@ -160,14 +148,14 @@ public class MultiViewTrackerConfigPanel <T extends RealType<T> & NativeType<T>>
 			public void run() {
 				// Intercept event coming from the JPanelSpotColorGUI, and translate it for views
 				if (event == jPanelSpotColor.COLOR_FEATURE_CHANGED) {
-					for (TrackMateModelView<T> view : views) {
+					for (TrackMateModelView view : views) {
 						view.setDisplaySettings(KEY_SPOT_COLOR_FEATURE, jPanelSpotColor.getSelectedFeature());
 						view.refresh();
 					}
 				} else if (event == TRACK_SCHEME_BUTTON_PRESSED) {
 					
 					try {
-						TrackScheme<T> trackScheme = new TrackScheme<T>(model);
+						TrackScheme trackScheme = new TrackScheme(model);
 						trackScheme.render();
 					} finally {
 						jButtonShowTrackScheme.setEnabled(true);
@@ -183,7 +171,7 @@ public class MultiViewTrackerConfigPanel <T extends RealType<T> & NativeType<T>>
 	/**
 	 * Add the given {@link TrackMateModelView} to the list managed by this controller.
 	 */
-	public void register(final TrackMateModelView<T> view) {
+	public void register(final TrackMateModelView view) {
 		if (!views.contains(view)) {
 			views.add(view);
 		}
@@ -239,7 +227,7 @@ public class MultiViewTrackerConfigPanel <T extends RealType<T> & NativeType<T>>
 					jComboBoxDisplayMode.addActionListener(new ActionListener() {
 						@Override
 						public void actionPerformed(ActionEvent e) {
-							for(TrackMateModelView<T> view : views) {
+							for(TrackMateModelView view : views) {
 								view.setDisplaySettings(KEY_TRACK_DISPLAY_MODE, jComboBoxDisplayMode.getSelectedIndex());
 								view.refresh();
 							}
@@ -262,7 +250,7 @@ public class MultiViewTrackerConfigPanel <T extends RealType<T> & NativeType<T>>
 								depth = Integer.parseInt(jTextFieldFrameDepth.getText());
 							else
 								depth = (int) 1e9;
-							for(TrackMateModelView<T> view : views) {
+							for(TrackMateModelView view : views) {
 								view.setDisplaySettings(KEY_TRACK_DISPLAY_DEPTH, depth);
 								view.refresh();
 							}
@@ -286,7 +274,7 @@ public class MultiViewTrackerConfigPanel <T extends RealType<T> & NativeType<T>>
 						@Override
 						public void actionPerformed(ActionEvent e) {
 							int depth = Integer.parseInt(jTextFieldFrameDepth.getText());
-							for(TrackMateModelView<T> view : views) {
+							for(TrackMateModelView view : views) {
 								view.setDisplaySettings(KEY_TRACK_DISPLAY_DEPTH, depth);
 								view.refresh();
 							}
@@ -306,7 +294,7 @@ public class MultiViewTrackerConfigPanel <T extends RealType<T> & NativeType<T>>
 					public void actionPerformed(ActionEvent e) {
 						boolean isSelected = jCheckBoxDisplayTracks.isSelected();
 						jPanelTrackOptions.setEnabled(isSelected);
-						for(TrackMateModelView<T> view : views) {
+						for(TrackMateModelView view : views) {
 							view.setDisplaySettings(KEY_TRACKS_VISIBLE, isSelected);
 							view.refresh();
 						}
@@ -325,7 +313,7 @@ public class MultiViewTrackerConfigPanel <T extends RealType<T> & NativeType<T>>
 					public void actionPerformed(ActionEvent e) {
 						boolean isSelected = jCheckBoxDisplaySpots.isSelected();
 						jPanelSpotOptions.setEnabled(isSelected);
-						for(TrackMateModelView<T> view : views) {
+						for(TrackMateModelView view : views) {
 							view.setDisplaySettings(KEY_SPOTS_VISIBLE, isSelected);
 							view.refresh();
 						}
@@ -359,7 +347,7 @@ public class MultiViewTrackerConfigPanel <T extends RealType<T> & NativeType<T>>
 					jTextFieldSpotRadius.addActionListener(new ActionListener() {
 						@Override
 						public void actionPerformed(ActionEvent e) {
-							for(TrackMateModelView<T> view : views) {
+							for(TrackMateModelView view : views) {
 								view.setDisplaySettings(KEY_SPOT_RADIUS_RATIO, (float) jTextFieldSpotRadius.getValue());
 								view.refresh();
 							}
@@ -368,7 +356,7 @@ public class MultiViewTrackerConfigPanel <T extends RealType<T> & NativeType<T>>
 					jTextFieldSpotRadius.addFocusListener(new FocusListener() {
 						@Override
 						public void focusLost(FocusEvent e) {
-							for(TrackMateModelView<T> view : views) {
+							for(TrackMateModelView view : views) {
 								view.setDisplaySettings(KEY_SPOT_RADIUS_RATIO, (float) jTextFieldSpotRadius.getValue());
 								view.refresh();
 							}							
@@ -386,7 +374,7 @@ public class MultiViewTrackerConfigPanel <T extends RealType<T> & NativeType<T>>
 					jCheckBoxDisplayNames.addActionListener(new ActionListener() {
 						@Override
 						public void actionPerformed(ActionEvent e) {
-							for(TrackMateModelView<T> view : views) {
+							for(TrackMateModelView view : views) {
 								view.setDisplaySettings(KEY_DISPLAY_SPOT_NAMES, jCheckBoxDisplayNames.isSelected());
 								view.refresh();
 							}
@@ -438,7 +426,7 @@ public class MultiViewTrackerConfigPanel <T extends RealType<T> & NativeType<T>>
 				
 				setSize(300, 500);
 				setResizable(false);
-				setTitle("MultiViewTracker v"+Utils.getAPIVersion());
+				setTitle(MaMuT_.PLUGIN_NAME + " " + MaMuT_.PLUGIN_VERSION);
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
