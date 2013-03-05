@@ -180,9 +180,24 @@ CYGWIN*)
 	;;
 esac
 
+get_mtime () {
+        stat -c %Y "$1"
+}
+if test Darwin = "$(uname -s 2> /dev/null)"
+then
+        get_mtime () {
+                stat -f %m "$1"
+        }
+fi
+
 uptodate () {
 	test -f "$2" &&
-	test "$2" -nt "$1"
+	test "$2" -nt "$1" &&
+	case "$2" in
+	*-SNAPSHOT.jar)
+		test "$(($(get_mtime "$2")-$(date +%s)))" -gt -86400
+		;;
+	esac
 }
 
 # we need an absolute CWD from now on
@@ -222,23 +237,24 @@ maven_update () {
 		artifactId="${artifactId%%:*}"
 		path="jars/$artifactId-$version.jar"
 
-		test -f jars/"$artifactId".jar && rm jars/"$artifactId".jar
-		for file in jars/"$artifactId"-[0-9]*.jar
-		do
+		(cd "$CWD"
+		 test -f jars/"$artifactId".jar && rm jars/"$artifactId".jar
+		 for file in jars/"$artifactId"-[0-9]*.jar
+		 do
 			test "a$file" = a"$path" && continue
 			test -f "$file" || continue
 			rm "$file"
-		done
+		 done
 
-		uptodate "$ARGV0" "$path" && continue
-		echo "Downloading $gav" >&2
-		(cd jars/ && sh "$MAVEN_DOWNLOAD" install "$gav")
-		if test ! -f "$path"
-		then
+		 uptodate "$ARGV0" "$path" && continue
+		 echo "Downloading $gav" >&2
+		 (cd jars/ && sh "$MAVEN_DOWNLOAD" install "$gav")
+		 if test ! -f "$path"
+		 then
 			echo "Failure to download $path" >&2
 			exit 1
-		fi
-		touch "$path"
+		 fi
+		 touch "$path")
 	done
 }
 
@@ -268,7 +284,9 @@ EOF
 
 # make sure that javac and ij-minimaven are up-to-date
 VERSION=2.0.0-SNAPSHOT
+SCIJAVA_COMMON_VERSION=1.0.0-SNAPSHOT
 maven_update sc.fiji:javac:$VERSION
+maven_update org.scijava:scijava-common:$SCIJAVA_COMMON_VERSION
 maven_update net.imagej:ij-core:$VERSION
 maven_update net.imagej:ij-minimaven:$VERSION
 

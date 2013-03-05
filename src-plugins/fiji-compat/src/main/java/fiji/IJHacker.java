@@ -87,6 +87,29 @@ public class IJHacker extends JavassistHelper {
 		method.insertBefore("if (classLoader != null) Thread.currentThread().setContextClassLoader(classLoader);");
 		method.addCatch("if (fiji.FijiTools.handleNoSuchMethodError($e)) throw new RuntimeException(ij.Macro.MACRO_CANCELED);"
 			+ "throw $e;", pool.get("java.lang.NoSuchMethodError"), "$e");
+		// tell runUserPlugIn() to be more careful about catching NoClassDefFoundError
+		field = new CtField(pool.get("java.lang.String"), "originalClassName", clazz);
+		field.setModifiers(Modifier.STATIC | Modifier.PRIVATE);
+		clazz.addField(field);
+		method.insertBefore("originalClassName = $2;");
+		method.instrument(new ExprEditor() {
+			@Override
+			public void edit(Handler handler) throws CannotCompileException {
+				try {
+					if (handler.getType().getName().equals("java.lang.NoClassDefFoundError"))
+						handler.insertBefore("String realClassName = $1.getMessage();"
+							+ "if (!originalClassName.replace('.', '/').equals(realClassName)) {"
+							+ " if (realClassName.startsWith(\"javax/vecmath/\") || realClassName.startsWith(\"com/sun/j3d/\") || realClassName.startsWith(\"javax/media/j3d/\"))"
+							+ "  ij.IJ.error(\"The class \" + originalClassName + \" did not find Java3D (\" + realClassName + \")\\nPlease call Plugins>3D Viewer to install\");"
+							+ " else"
+							+ "  ij.IJ.handleException($1);"
+							+ " return null;"
+							+ "}");
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+			}
+		});
 
 		// tell the error() method to use "Fiji" as window title
 		method = clazz.getMethod("error",
@@ -243,8 +266,10 @@ public class IJHacker extends JavassistHelper {
 		clazz = get("ij.plugin.CommandFinder");
 
 		// use Fiji in the window title
-		method = clazz.getMethod("export", "()V");
-		replaceAppNameInNew(method, "ij.text.TextWindow", 1, 5);
+		if (hasMethod(clazz, "export", "()V")) {
+			method = clazz.getMethod("export", "()V");
+			replaceAppNameInNew(method, "ij.text.TextWindow", 1, 5);
+		}
 
 		// Class ij.plugin.Hotkeys
 		clazz = get("ij.plugin.Hotkeys");
@@ -530,7 +555,11 @@ public class IJHacker extends JavassistHelper {
 		}
 
 		// handle https:// in addition to http://
-		clazz = get("ij.io.PluginInstaller");
+		try {
+			clazz = get("ij.io.PluginInstaller");
+		} catch (NotFoundException e) {
+			clazz = get("ij.plugin.PluginInstaller");
+		}
 		handleHTTPS(clazz.getMethod("install", "(Ljava/lang/String;)Z"));
 
 		clazz = get("ij.plugin.ListVirtualStack");
