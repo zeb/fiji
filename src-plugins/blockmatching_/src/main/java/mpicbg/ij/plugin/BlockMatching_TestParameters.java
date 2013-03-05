@@ -24,6 +24,7 @@ import mpicbg.models.SpringMesh;
 import mpicbg.models.TranslationModel2D;
 import mpicbg.models.Vertex;
 import mpicbg.trakem2.util.Downsampler;
+import net.imglib2.RealCursor;
 import net.imglib2.RealPoint;
 import net.imglib2.collection.KDTree;
 import net.imglib2.collection.RealPointSampleList;
@@ -262,19 +263,47 @@ public class BlockMatching_TestParameters extends AbstractBlockMatching
 			match.shiftWeight();
 	}
 	
+	final static protected < T > RealPointSampleList< T > scaleCoordinates( final RealPointSampleList< T > samples, final double scale )
+	{
+		final RealPointSampleList< T > scaledSamples = new RealPointSampleList< T >( samples.numDimensions() );
+		for ( final RealCursor< T > cursor = samples.cursor(); cursor.hasNext(); )
+		{
+			cursor.fwd();
+			final RealPoint point = new RealPoint( cursor );
+			for ( int d = 0; d < point.numDimensions(); ++d )
+				point.setPosition( point.getDoublePosition( d ) * scale, d );
+			scaledSamples.add( point, cursor.get() );
+		}
+			
+		return scaledSamples;
+	}
+	
 	
 	protected void display( final ArrayList< PointMatch > pm12, final RealPointSampleList< ARGBType > maskSamples, final ImagePlus impTable, final ColorProcessor ipTable, final int w, final int h, final int i, final int j )
 	{
+		/* estimate scale */
+		int w2 = imp1.getWidth();
+		int h2 = imp1.getHeight();
+		double s = 1.0;
+		while ( w2 > meshResolution * minGridSize )
+		{
+			w2 /= 2;
+			h2 /= 2;
+			s /= 2;
+		}
+		w2 *= 2;
+		h2 *= 2;
+		s *= 2;
 		
 		if ( pm12.size() > 0 )
 		{
 			final ImagePlusImgFactory< ARGBType > factory = new ImagePlusImgFactory< ARGBType >();
 			
-			final KDTree< ARGBType > kdtreeMatches = new KDTree< ARGBType >( matches2ColorSamples( pm12 ) );
-			final KDTree< ARGBType > kdtreeMask = new KDTree< ARGBType >( maskSamples );
+			final KDTree< ARGBType > kdtreeMatches = new KDTree< ARGBType >( scaleCoordinates( matches2ColorSamples( pm12 ), s ) );
+			final KDTree< ARGBType > kdtreeMask = new KDTree< ARGBType >( scaleCoordinates( maskSamples, s ) );
 			
 			/* nearest neighbor */
-			final ImagePlusImg< ARGBType, ? > img = factory.create( new long[]{ imp1.getWidth(), imp1.getHeight() }, new ARGBType() );
+			final ImagePlusImg< ARGBType, ? > img = factory.create( new long[]{ w2, h2 }, new ARGBType() );
 			drawNearestNeighbor(
 					img,
 					new NearestNeighborSearchOnKDTree< ARGBType >( kdtreeMatches ),
@@ -286,8 +315,8 @@ public class BlockMatching_TestParameters extends AbstractBlockMatching
 			{
 				impVis = img.getImagePlus();
 				ipVis = ( ColorProcessor )impVis.getProcessor();
-				while ( ipVis.getWidth() > meshResolution * minGridSize )
-					ipVis = Downsampler.downsampleColorProcessor( ipVis );
+				//while ( ipVis.getWidth() > meshResolution * minGridSize )
+				ipVis = Downsampler.downsampleColorProcessor( ipVis );
 				ipTable.copyBits( ipVis, i * w + w, j * h + h, Blitter.COPY );
 				impTable.updateAndDraw();
 			}
@@ -374,8 +403,8 @@ public class BlockMatching_TestParameters extends AbstractBlockMatching
 				
 				if ( useLocalSmoothnessFilter )		
 				{
-//					filter( pm12 );
-					filterAndVisualize( pm12, maskSamples );
+					filter( pm12 );
+//					filterAndVisualize( pm12, maskSamples );
 					IJ.log( pm12.size() + " blockmatch candidates passed local smoothness filter." );
 				}
 				if ( exportDisplacementVectors )
@@ -387,8 +416,8 @@ public class BlockMatching_TestParameters extends AbstractBlockMatching
 				
 				if ( useLocalSmoothnessFilter )		
 				{
-//					filter( pm21 );
-					filterAndVisualize( pm21, maskSamples );
+					filter( pm21 );
+//					filterAndVisualize( pm21, maskSamples );
 					IJ.log( pm21.size() + " blockmatch candidates passed local smoothness filter." );
 				}
 				if ( exportDisplacementVectors )
