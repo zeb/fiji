@@ -25,7 +25,12 @@
 		<dependency>
 			<groupId>org.javassist</groupId>
 			<artifactId>javassist</artifactId>
-			<version>3.14.0-GA</version>
+			<version>3.16.1-GA</version>
+		</dependency>
+		<dependency>
+			<groupId>net.imagej</groupId>
+			<artifactId>ij-legacy</artifactId>
+			<version>${imagej.version}</version>
 		</dependency>
 	</dependencies>
 

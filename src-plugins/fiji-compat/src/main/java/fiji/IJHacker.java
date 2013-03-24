@@ -15,13 +15,10 @@ import javassist.CtNewConstructor;
 import javassist.CtNewMethod;
 import javassist.Modifier;
 import javassist.NotFoundException;
-
 import javassist.bytecode.BadBytecode;
 import javassist.bytecode.CodeIterator;
-import javassist.bytecode.ConstPool;
 import javassist.bytecode.MethodInfo;
 import javassist.bytecode.Opcode;
-
 import javassist.expr.ConstructorCall;
 import javassist.expr.ExprEditor;
 import javassist.expr.FieldAccess;
@@ -34,6 +31,7 @@ public class IJHacker extends JavassistHelper {
 
 	protected String replaceAppName = ".replace(\"ImageJ\", \"" + appName + "\")";
 
+	@Override
 	public void instrumentClasses() throws BadBytecode, CannotCompileException, NotFoundException {
 		CtClass clazz;
 		CtMethod method;
@@ -667,7 +665,6 @@ public class IJHacker extends JavassistHelper {
 	}
 
 	private void dontReturnWhenEditorIsNull(MethodInfo info) throws CannotCompileException {
-		ConstPool constPool = info.getConstPool();
 		CodeIterator iterator = info.getCodeAttribute().iterator();
 	        while (iterator.hasNext()) try {
 	                int pos = iterator.next();
@@ -712,8 +709,6 @@ public class IJHacker extends JavassistHelper {
 							"http://".equals(getLatestArg(call, 0)))
 						call.replace("$_ = $0.startsWith($1) || $0.startsWith(\"https://\");");
 				} catch (BadBytecode e) {
-					e.printStackTrace();
-				} catch (NotFoundException e) {
 					e.printStackTrace();
 				}
 			}
