@@ -69,8 +69,10 @@ System.err.println("JavassistHelper got pool " + pool);
 		}
 		for (String name : definedClasses.keySet()) {
 			final CtClass clazz = definedClasses.get(name);
-			// assume that ij-legacy did something about it
-			if (clazz.isFrozen()) continue;
+			if (clazz.isFrozen() || !clazz.isModified()) {
+				// assume that ij-legacy did something about it
+				continue;
+			}
 			clazz.toClass();
 		}
 		frozen = true;
